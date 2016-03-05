@@ -1,0 +1,10 @@
+debian/slice2cpp.1
+debian/slice2cs.1
+#debian/slice2docbook.1
+debian/slice2freezej.1
+debian/slice2freeze.1
+debian/slice2html.1
+debian/slice2java.1
+debian/slice2py.1
+debian/slice2rb.1
+debian/slice2php.1

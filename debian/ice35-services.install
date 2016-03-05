@@ -1,0 +1,10 @@
+usr/bin/icegridregistry
+usr/bin/icegridnode
+usr/bin/icegridadmin
+usr/bin/icestormadmin
+usr/bin/icepatch2server
+usr/bin/icepatch2client
+usr/bin/icepatch2calc
+usr/bin/glacier2router
+usr/bin/dumpdb
+usr/bin/transformdb

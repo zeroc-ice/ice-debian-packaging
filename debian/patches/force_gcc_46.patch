@@ -1,0 +1,22 @@
+Description: Force compile using GCC 4.6.
+ Force the use of g++-4.6 when building Ice, because it FTBFS when using 4.7
+ and the previous patch to 'fix' that breaks ABI.
+
+Bug-Debian: http://bugs.debian.org/672066
+Forwarded: not-needed
+Last-Update: <2012-07-07>
+
+--- a/cpp/config/Make.rules.Linux
++++ b/cpp/config/Make.rules.Linux
+@@ -31,7 +31,10 @@ ifeq ($(CXX),g++)
+    CXX			= c++
+ endif
+ 
++export CC  = gcc-4.6
++export CXX = g++-4.6
++
+-ifeq ($(CXX),c++)
++ifneq ($(CXX),icpc)
+ 
+     ifneq ($(SUSE_i586),)
+         CXXARCHFLAGS	+= -march=i586

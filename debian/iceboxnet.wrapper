@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /usr/bin/cli /usr/lib/cli/libzeroc-ice3.5/iceboxnet.exe "$@"

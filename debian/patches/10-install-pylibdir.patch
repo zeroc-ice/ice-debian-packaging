@@ -1,0 +1,18 @@
+--- a/py/config/Make.rules
++++ b/py/config/Make.rules
+@@ -92,12 +92,13 @@
+     include $(top_srcdir)/config/Make.rules.$(UNAME)
+ else
+     include $(top_srcdir)/../cpp/config/Make.rules.$(UNAME)
+-endif 
++endif
+ 
+ libdir                  = $(top_srcdir)/python
+ ifneq ($(prefix), /usr)
+ install_pythondir       = $(prefix)/python
+-install_libdir          = $(prefix)/python
++install_pylibdir          = $(prefix)/python
++install_libdir		= $(install_pylibdir)
+ else
+     ifeq ($(shell test -d $(prefix)/$(libsubdir)/$(PYTHON_VERSION)/dist-packages && echo 0),0)
+         install_pythondir       = $(prefix)/$(libsubdir)/$(PYTHON_VERSION)/dist-packages

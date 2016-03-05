@@ -1,0 +1,106 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+DEB_BUILD_OPTIONS += nocheck
+DEB_COMPRESS_EXCLUDE := .xml .py .Linux .rules .cnf .cfg .ice .mak .js Makefile
+DEB_DH_INSTALL_SOURCEDIR := debian/tmp
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+# Support parallel=<n> in DEB_BUILD_OPTIONS
+ifneq (,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
+  USE_CPUS := $(subst parallel=,,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
+  NJOBS := -j $(USE_CPUS)
+endif
+
+V=3.5.1
+RV=3.5
+R=35
+
+# Workaround compiler issues on optimized output on PPC As a
+# conservative measure I will only enable optimizations on targets
+# known to work
+LP64=no
+ifeq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+ifeq ($(shell dpkg-architecture -qDEB_HOST_ARCH_CPU), i386)
+  OPTIMIZE=yes
+endif
+ifeq ($(shell dpkg-architecture -qDEB_HOST_ARCH_CPU), amd64)
+  OPTIMIZE=yes
+  LP64=yes
+endif
+endif
+
+# Unsupported systems will fall back to upstream Linux building rules
+UNAME := $(shell uname)
+ifeq ($(shell test -f $(CURDIR)/cpp/config/Make.rules.$(UNAME) && echo 0),)
+    UNAME := Linux
+endif
+
+# Common build flags
+MAKE_COMMON_FLAGS := \
+	OPTIMIZE=$(OPTIMIZE)\
+	UNAME=$(UNAME) \
+	LP64=$(LP64) \
+	lp64suffix="" \
+	USE_READLINE=yes \
+	CPP11=yes \
+	$(NJOBS)
+MAKE_INVOKE := make $(MAKE_COMMON_FLAGS)
+
+LANGS_ARCH:=cpp py rb php
+LANGS_INDEP:=java cs
+LANGS:=$(LANGS_ARCH) $(LANGS_INDEP)
+
+include debian/rules-cpp.mk
+include debian/rules-py.mk
+include debian/rules-rb.mk
+include debian/rules-php.mk
+include debian/rules-java.mk
+include debian/rules-cs.mk
+
+override_dh_auto_clean: $(LANGS:%=clean-%)
+	dh_clean
+
+override_dh_auto_build-arch: $(LANGS_ARCH:%=debian/stamp-build-%)
+	# all built
+
+override_dh_auto_build-indep: $(LANGS_INDEP:%=debian/stamp-build-%)
+	# all built
+
+override_dh_auto_install-arch: $(LANGS_ARCH:%=debian/stamp-install-%)
+	# all installed
+
+override_dh_auto_install-indep: $(LANGS_INDEP:%=debian/stamp-install-%)
+	# all installed
+
+override_dh_auto_test:
+	# done
+
+override_dh_strip:
+	dh_strip --dbg-package=libzeroc-ice$(R)-dbg
+
+override_dh_makeshlibs:
+	dh_makeshlibs -XIcePy -XIceRuby -XIcePHP
+
+override_dh_compress:
+	dh_compress -Xtemplates.xml
+
+build-orig-source:
+	mkdir -p zeroc-ice-$(V)
+	tar --exclude=debian --exclude=\*~ --exclude=\.svn --exclude=\*.pyc \
+		--exclude=zeroc-ice-$(V) --exclude=accounts.txt -cf - . \
+		| ( cd zeroc-ice-$(V) && tar xf - )
+	tar -czf ../zeroc-ice_$(V).orig.tar.gz zeroc-ice-$(V)
+	$(RM) -r zeroc-ice-$(V)
+
+binary-arch:
+	   dh $@ --with python2 --with python3 --buildsystem=pybuild
+
+binary-indep:
+	   dh $@ --with python2 --with python3 --buildsystem=pybuild --with cli
+
+binary:
+	   dh $@ --with python2 --with python3 --buildsystem=pybuild --with cli
+
+%:
+	dh $@

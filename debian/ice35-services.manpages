@@ -1,0 +1,10 @@
+debian/icegridregistry.1
+debian/icegridnode.1
+debian/icegridadmin.1
+debian/icestormadmin.1
+debian/icepatch2server.1
+debian/icepatch2client.1
+debian/icepatch2calc.1
+debian/glacier2router.1
+debian/dumpdb.1
+debian/transformdb.1

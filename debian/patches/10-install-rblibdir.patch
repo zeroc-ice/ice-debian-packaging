@@ -1,0 +1,29 @@
+--- a/rb/config/Make.rules
++++ b/rb/config/Make.rules
+@@ -18,7 +18,7 @@
+ # The "root directory" for runpath embedded in executables. Can be unset
+ # to avoid adding a runpath to Ice executables.
+ #
+-embedded_runpath_prefix  ?= /opt/Ice-$(VERSION_MAJOR).$(VERSION_MINOR)
++#embedded_runpath_prefix  ?= /opt/Ice-$(VERSION_MAJOR).$(VERSION_MINOR)
+ 
+ #
+ # Define OPTIMIZE as yes if you want to build with optimization.
+@@ -36,7 +36,7 @@
+ #
+ # If you have not built Ice for C++ from the cpp subdirectory or if
+ # you have installed the Ice @ver@ for C++ development kit in a
+-# non-standard location, set the ICE_HOME to the installation directory. 
++# non-standard location, set the ICE_HOME to the installation directory.
+ #
+ #ICE_HOME	= C:\Program Files\ZeroC\Ice-$(VERSION)
+ 
+@@ -142,7 +142,7 @@
+     configdir = $(top_srcdir)/config
+ else
+     configdir = $(top_srcdir)/../cpp/config
+-endif 
++endif
+ include	 $(configdir)/Make.rules.$(UNAME)
+ 
+ ifdef ice_src_dist

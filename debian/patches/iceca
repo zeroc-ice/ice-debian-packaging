@@ -1,0 +1,24 @@
+--- a/cpp/src/ca/iceca
++++ b/cpp/src/ca/iceca
+@@ -115,10 +115,10 @@
+         # non-RPM install uses ${prefix}/lib (that is the location of the
+         # script ../lib). For development purposes we also check ".".
+         #
+-        checkLocations = [".", 
++        checkLocations = [".",
+                           os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "lib")),
+                           os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "..", "..", "lib")),
+-                          "/usr/share/Ice-3.5.1"]
++                          "/usr/share/Ice-3.5"]
+         for bindir in checkLocations:
+             bindir = os.path.normpath(bindir)
+             if os.path.exists(os.path.join(bindir, "ImportKey.class")):
+@@ -326,7 +326,7 @@
+ 
+     index = open(os.path.join(cadb, "index.txt"), "w")
+     index.close()
+-        
++
+     # Construct the DN for the CA certificate.
+     DNelements = { \
+         'C':['countryName', "Country name", "", 'match'], \

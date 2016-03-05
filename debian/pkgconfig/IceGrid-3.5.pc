@@ -1,0 +1,11 @@
+version = 3.5
+mono_root = /usr
+
+name = IceGrid
+pkgname = libzeroc-ice3.5
+
+Name: ${name}
+Description: IceGrid run-time support
+Version: ${version}
+Libs: -r:${mono_root}/lib/cli/${pkgname}/${name}.dll
+Requires: Ice = ${version}

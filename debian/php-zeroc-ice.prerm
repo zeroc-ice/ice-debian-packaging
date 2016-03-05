@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = "remove" ]; then
+    php5dismod IcePHP
+fi
+
+#DEBHELPER#
+
+exit 0

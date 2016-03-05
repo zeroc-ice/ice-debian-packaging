@@ -1,0 +1,3 @@
+debian/stamp-build-*
+debian/stamp-install-*
+scripts/*.pyc

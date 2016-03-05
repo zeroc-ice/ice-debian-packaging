@@ -1,0 +1,10 @@
+etc/php5/conf.d/IcePHP.ini etc/php5/mods-available
+usr/php/*.so 		   usr/lib/php5/@PHP_API@/
+usr/php/*.php 		   usr/share/Ice-3.5.1/php/lib
+usr/php/Glacier2 	   usr/share/Ice-3.5.1/php/lib/
+usr/php/Ice 		   usr/share/Ice-3.5.1/php/lib/
+usr/php/IceBox 		   usr/share/Ice-3.5.1/php/lib/
+usr/php/IceGrid 	   usr/share/Ice-3.5.1/php/lib/
+usr/php/IcePatch2 	   usr/share/Ice-3.5.1/php/lib/
+usr/php/IceStorm 	   usr/share/Ice-3.5.1/php/lib/
+usr/lib/php5

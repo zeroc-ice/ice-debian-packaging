@@ -1,0 +1,165 @@
+This package was debianized by Paco Moya <paco@debian.org> on Sat, 6
+Aug 2005 10:49:04 +0200.
+
+It was downloaded from http://www.zeroc.com/
+
+ZeroC ICE package is distributed as a whole under the GPL version 2
+with a special exception to allow linking against OpenSSL and Orca.
+
+--- ICE_LICENSE ---------------------------------------------------------
+
+Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+
+This copy of Ice is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License version 2 as
+published by the Free Software Foundation.
+
+Ice is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, see http://www.gnu.org/licenses.
+
+Linking Ice statically or dynamically with other modules is making a
+combined work based on Ice. Thus, the terms and conditions of the GNU
+General Public License cover the whole combination.
+
+In addition, as a special exception, ZeroC gives you permission to
+combine Ice with:
+
+a) the OpenSSL library (or with modified versions of OpenSSL that use the
+same license as OpenSSL)
+
+b) any library licensed under the Apache License, version 2.0
+(http://www.apache.org/licenses/LICENSE-2.0.html)
+
+c) any Orca library (http://orca-robotics.sourceforge.net) licensed under
+the GNU Lesser General Public License (LGPL), version 2.1
+(http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html)
+
+d) any code from the Mumble project (http://mumble.sourceforge.net)
+licensed under the BSD license
+
+You may copy and distribute such combinations following the terms of the
+GNU General Public License for Ice and the licenses of the other code
+concerned, provided that you include the source code of these other
+libraries or code when and as the GNU General Public License requires
+distribution of source code.
+
+If you modify this copy of Ice, you may extend this exception to your
+version of Ice, but you are not obligated to do so. If you do not wish to
+do so, delete this exception statement from your version.
+
+--- end of ICE_LICENSE --------------------------------------------------
+
+On Debian systems, the complete text of the GNU General
+Public License can be found in /usr/share/common-licenses/GPL-2.
+
+The copyright owners of some files in the source distribution differ
+and in some cases special distribution terms are allowed. To the best
+of our knowledge these terms are compatible with the distribution of
+ICE under the GPL as a derived product. All these exceptions are
+detailed below.
+
+* Bison parsers
+
+The following files in the source distribution are YACC compatible
+grammar specifications. Upstream authors also distribute the GNU Bison
+output for each of these files in order to optionally reduce build
+dependencies.
+
+cpp/test/Freeze/complex/Grammar.y
+cpp/demo/book/map_filesystem/Grammar.y
+cpp/demo/book/evictor_filesystem/Grammar.y
+cpp/demo/book/lifecycle/Grammar.y
+cpp/demo/Freeze/phonebook/Grammar.y
+cpp/demo/Freeze/library/Grammar.y
+cpp/src/FreezeScript/Grammar.y
+cpp/src/IceGrid/Grammar.y
+cpp/src/Slice/Grammar.y
+cpp/src/IceStorm/Grammar.y
+
+GNU Bison output is unrestricted since version 1.24. The precise terms
+follows:
+
+  As a special exception, when this file is copied by Bison into a
+  Bison output file, you may use that output file without restriction.
+  This special exception was added by the Free Software Foundation
+  in version 1.24 of Bison.
+
+* cpp/doc/swish/swish.cgi
+
+  swish.cgi $Revision$ Copyright (C) 2001 Bill Moseley search@hank.org
+  Example CGI program for searching with SWISH-E
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the
+  Free Software Foundation; either version 2 of the License, or (at your
+  option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+* cpp/src/IceUtil/ConvertUTF.{h,cpp}
+
+  Copyright 2001-2004 Unicode, Inc.
+
+  Disclaimer
+
+  This source code is provided as is by Unicode, Inc. No claims are
+  made as to fitness for any particular purpose. No warranties of any
+  kind are expressed or implied. The recipient agrees to determine
+  applicability of information provided. If this file has been
+  purchased on magnetic or optical media from Unicode, Inc., the
+  sole remedy for any claim will be exchange of defective media
+  within 90 days of receipt.
+
+  Limitations on Rights to Redistribute This Code
+
+  Unicode, Inc. hereby grants the right to freely use the information
+  supplied in this file in the creation of products supporting the
+  Unicode Standard, and to make copies of this file in any form
+  for internal or external distribution as long as this notice
+  remains attached.
+
+* cpp/test/IceUtil/unicode/*.utf*
+
+  The content of the *.utf* files comes from Wikipedia and is licensed
+  under the GNU Free Document License version 1.2 (see FDL file).
+
+  On Debian systems, the complete text of the GNU Free Documentation
+  License can be found in /usr/share/common-licenses/GFDL-1.2.
+
+* java/src/IceGridGUI/SimpleInternalFrame.java
+
+  Copyright (c) 2000-2005 JGoodies Karsten Lentzsch. All Rights Reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are met:
+
+   o Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+
+   o Redistributions in binary form must reproduce the above copyright notice,
+     this list of conditions and the following disclaimer in the documentation
+     and/or other materials provided with the distribution.
+
+   o Neither the name of JGoodies Karsten Lentzsch nor the names of
+     its contributors may be used to endorse or promote products derived
+     from this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+  OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

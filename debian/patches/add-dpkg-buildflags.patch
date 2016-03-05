@@ -1,0 +1,66 @@
+Description: switches to build hardening via dpkg-buildlfags.
+ zeroc-ice fails to build with hardening-wrapper due to a Breaks:  in binutils
+ on hardening-wrapper.  See #802579.  Additionally lintian considers a
+ build-depends on hardening-wrapper to be an Error, and there is other signs
+ that it is deprecated, so the only reasonable way to fix the build is to
+ switch the package to using dpkg-buildflags.
+Author: Christopher Knadle <Chris.Knadle@cordump.us>
+Last-Updated: 2015-11-21
+
+--- a/cpp/config/Make.rules.Linux
++++ b/cpp/config/Make.rules.Linux
+@@ -33,6 +33,11 @@
+ 
+ ifeq ($(CXX),g++)
+ 
++    # Add Debian hardening via dpkg-buildflags
++    CPPFLAGS += $(shell dpkg-buildflags --get CPPFLAGS)
++    CXXARCHFLAGS += $(shell dpkg-buildflags --get CXXFLAGS)
++    CFLAGS:=$(shell dpkg-buildflags --get CFLAGS)
++
+     ifneq ($(SUSE_i586),)
+         CXXARCHFLAGS	+= -march=i586
+     endif
+@@ -110,6 +115,9 @@
+ 
+    LDPLATFORMFLAGS	+= -rdynamic
+ 
++   # Add Debian hardening via dpkg-buildflags
++   LDPLATFORMFLAGS	+= $(shell dpkg-buildflags --get LDFLAGS)
++
+ endif
+ 
+ ifeq ($(CXX),icpc)
+--- a/php/config/Make.rules.php
++++ b/php/config/Make.rules.php
+@@ -136,7 +136,7 @@
+     runpath_libdir      := $(embedded_runpath_prefix)/lib$(lp64suffix)
+ endif
+ 
+-CPPFLAGS		=
++CPPFLAGS		= $(shell dpkg-buildflags --get CPPFLAGS)
+ ICECPPFLAGS		= -I$(slicedir)
+ SLICE2PHPFLAGS		= $(ICECPPFLAGS)
+ LDFLAGS			= $(LDPLATFORMFLAGS) $(CXXFLAGS) -L$(libdir)
+--- a/py/config/Make.rules
++++ b/py/config/Make.rules
+@@ -135,7 +135,7 @@
+    runpath_libdir	:= $(embedded_runpath_prefix)/$(libsubdir)
+ endif
+ 
+-CPPFLAGS		=
++CPPFLAGS		= $(shell dpkg-buildflags --get CPPFLAGS)
+ ICECPPFLAGS		= -I$(slicedir)
+ SLICE2PYFLAGS		= $(ICECPPFLAGS)
+ LDFLAGS			= $(LDPLATFORMFLAGS) $(CXXFLAGS) -L$(libdir)
+--- a/rb/config/Make.rules
++++ b/rb/config/Make.rules
+@@ -166,7 +166,7 @@
+     runpath_libdir	:= $(embedded_runpath_prefix)/$(libsubdir)
+ endif
+ 
+-CPPFLAGS		=
++CPPFLAGS		= $(shell dpkg-buildflags --get CPPFLAGS)
+ ICECPPFLAGS		= -I$(slicedir)
+ SLICE2RBFLAGS		= $(ICECPPFLAGS)
+ LDFLAGS			= $(LDPLATFORMFLAGS) $(CXXFLAGS) -L$(libdir)

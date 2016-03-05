@@ -1,0 +1,39 @@
+From:  	 Petr Salinger
+Sent:  	 Fri 05/09/2008 20:48
+Subject: Bug#497964: zeroc-ice: FTBFS on GNU/kFreeBSD
+
+* new debian/patches/20-kfreebsd.patch, GNU/kFreeBSD specific patch
+
+--- a/cpp/src/IceSSL/Instance.cpp
++++ b/cpp/src/IceSSL/Instance.cpp
+@@ -106,7 +106,7 @@
+     // On some platforms, pthread_t is a pointer to a per-thread structure.
+     //
+     return reinterpret_cast<unsigned long>(pthread_self());
+-#elif (defined(__linux) || defined(__sun) || defined(__hpux)) || defined(_AIX)
++#elif (defined(__linux) || defined(__sun) || defined(__hpux)) || defined(_AIX)  || defined(__GLIBC__)
+     //
+     // On Linux, Solaris, HP-UX and AIX, pthread_t is an integer.
+     //
+--- a/cpp/src/Ice/Instance.cpp
++++ b/cpp/src/Ice/Instance.cpp
+@@ -56,7 +56,7 @@
+ #   include <sys/types.h>
+ #endif
+ 
+-#if defined(__linux) || defined(__sun)
++#if defined(__linux) || defined(__sun) || defined(__GLIBC__)
+ #   include <grp.h> // for initgroups
+ #endif
+ 
+--- a/cpp/src/IceGrid/Activator.cpp
++++ b/cpp/src/IceGrid/Activator.cpp
+@@ -38,7 +38,7 @@
+ #endif
+ #endif
+ 
+-#if defined(__linux) || defined(__sun)
++#if defined(__linux) || defined(__sun) || defined(__GLIBC__)
+ #   include <grp.h> // for initgroups
+ #endif
+ 

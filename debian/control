@@ -1,0 +1,660 @@
+Source: zeroc-ice
+Section: devel
+Priority: optional
+Maintainer: Francisco Moya <paco@debian.org>
+Uploaders: Cleto Martín <cleto@debian.org>
+Build-Depends: debhelper (>= 9),
+ 	       libdb++-dev,
+	       libmcpp-dev (>= 2.7.1),
+	       libreadline-gplv2-dev,
+	       libexpat1-dev,
+	       libssl-dev,
+	       libbz2-dev,
+ 	       zlib1g-dev | libz-dev,
+	       python-all-dev (>= 2.3.5-11),
+	       python3-all-dev,
+	       php5-dev (>= 5.4.0~rc6),
+	       ruby-dev,
+	       ruby,
+	       libqt4-dev,
+Build-Depends-Indep: mono-devel | c-sharp-2.0-compiler,
+		     pkg-config,
+ 		     default-jdk | java-gcj-compat,
+		     libjgoodies-looks-java (>= 2.5.2),
+		     libjgoodies-forms-java (>= 1.6.0),
+		     proguard (>= 4.1),
+ 		     libdb5.3-java (>= 5.1.4~) | libdb-java (>= 5.1.4~),
+		     ant,
+		     ant-optional,
+	       	     cli-common-dev (>= 0.8~)
+Standards-Version: 3.9.6
+Homepage: http://www.zeroc.com/
+X-Python-Version: >= 2.6
+X-Python3-Version: >= 3.2
+
+Package: zeroc-ice35
+Architecture: all
+Provides: zeroc-ice
+Replaces: zeroc-ice, zeroc-ice32, zeroc-ice33, zeroc-ice34
+Conflicts: zeroc-ice, zeroc-ice32, zeroc-ice33, zeroc-ice34
+Depends: ice35-services (>= ${binary:Version}),
+ 	 ice35-translators (>= ${binary:Version}),
+ 	 ice35-slice (>= ${binary:Version}),
+ 	 libzeroc-ice35-dev (>= ${binary:Version}),
+ 	 libzeroc-ice3.5-cil (>= ${binary:Version}),
+ 	 python-zeroc-ice (>= ${binary:Version}),
+ 	 python3-zeroc-ice (>= ${binary:Version}),
+ 	 php-zeroc-ice (>= ${binary:Version}),
+ 	 libzeroc-ice3.5-java (>= ${binary:Version}),
+ 	 ${misc:Depends}
+Recommends: libzeroc-ice35-dbg (>= ${binary:Version})
+Description: Internet Communications Engine
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This metapackage contains dependencies for all Ice related packages.
+ You will find further information in the ZeroC home page
+ (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: ice35-translators
+Architecture: any
+Provides: ice-translators, slice2cpp, slice2py, slice2cs, slice2java,
+ 	  slice2vb, slice2rb, slice2freeze, slice2freezej, slice2docbook,
+	  slice2html
+Conflicts: slice2cpp, slice2py, slice2cs, slice2java, slice2vb, slice2rb,
+ 	   slice2freeze, slice2freezej, slice2docbook, slice2html,
+ 	   ice-translators
+Replaces: slice2cpp, slice2py, slice2cs, slice2java, slice2vb, slice2rb,
+ 	  slice2freeze, slice2freezej, slice2docbook, slice2html,
+ 	  ice-translators
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Slice translators to several languages
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms. Slice is the interface description language used in Ice.
+ .
+ This package contains all the Slice translators (slice2cpp, slice2py,
+ slice2cs, slice2java, slice2vb, slice2rb, slice2freeze,
+ slice2freezej, slice2docbook, and slice2html).  You will find further
+ information in the ZeroC home page (http://www.zeroc.com/ice.html)
+ and in the non-free package zeroc-ice-manual.
+
+Package: ice35-services
+Architecture: any
+Provides: ice-services, icestorm, icegrid, icepatch2, glacier2, freeze
+Replaces: zeroc-ice-services, icestorm, icegrid, icepatch2, glacier2,
+ 	  freeze, ice-services
+Conflicts: zeroc-ice-services, icestorm, icegrid, icepatch2, glacier2,
+ 	   freeze, ice-services
+Depends: icebox (>= ${source:Version}), ${shlibs:Depends}, ${misc:Depends}
+Description: Services bundled into ZeroC Ice
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package contains binaries for all Ice services (IceGrid,
+ IceStorm, IcePatch2, Glacier2 and Freeze).  You will find further
+ information in the ZeroC home page (http://www.zeroc.com/ice.html)
+ and in the non-free package zeroc-ice-manual.
+
+Package: libicestorm35v5
+Architecture: any
+Section: libs
+Recommends: libqt4-sql-sqlite
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libicestorm35
+Replaces: libicestorm35
+Description: Libraries implementing an event service for ZeroC Ice
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package provides the IceStorm related libraries, an asynchronous
+ event propagation service provided by Ice.  You will find further
+ information in the ZeroC home page (http://www.zeroc.com/ice.html)
+ and in the non-free package zeroc-ice-manual.
+
+Package: libicegrid35v5
+Architecture: any
+Section: libs
+Recommends: libqt4-sql-sqlite
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libicegrid35
+Replaces: libicegrid35
+Description: Libraries implementing grid-like services for ZeroC Ice
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package provides the IceGrid related libraries, a complete grid
+ management solution included in Ice. This service was formerly known
+ as IcePack.  You will find further information in the ZeroC home page
+ (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: libicebox35v5
+Architecture: any
+Section: libs
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Conflicts: libicebox35
+Replaces: libicebox35
+Description: Libraries implementing a plugin framework for ZeroC Ice
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package provides the IceBox related libraries, a general purpose
+ plug-in based application development framework for Ice applications.
+ You will find further information in the ZeroC home page
+ (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: icebox
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Plugin-based meta-application for ZeroC Ice
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package provides the IceBox related utilities, a general purpose
+ plugin-based application development framework for Ice applications.
+ You will find further information in the ZeroC home page
+ (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: libicepatch2-35v5
+Architecture: any
+Section: libs
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Conflicts: libicepatch2-35
+Replaces: libicepatch2-35
+Description: Libraries implementing a distribution service for ZeroC Ice
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package provides the IcePatch2 related libraries, a remote
+ filesystem synchronization framework included in Ice.  You will find
+ further information in the ZeroC home page
+ (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: libglacier2-35v5
+Architecture: any
+Section: libs
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libglacier2-35
+Replaces: libglacier2-35
+Description: Libraries implementing a firewall service for ZeroC Ice
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package provides the Glacier2 related libraries, a firewall
+ solution for Ice applications.  You will find further information in
+ the ZeroC home page (http://www.zeroc.com/ice.html) and in the
+ non-free package zeroc-ice-manual.
+
+Package: libfreeze35v5
+Architecture: any
+Section: libs
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libfreeze35
+Replaces: libfreeze35
+Description: Libraries implementing a persistence framework for ZeroC Ice
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ Freeze is the persistence framework included in Ice. This package
+ installs the freeze libraries.  You will find further information in
+ the ZeroC home page (http://www.zeroc.com/ice.html) and in the
+ non-free package zeroc-ice-manual.
+
+Package: libicedb35v5
+Architecture: any
+Section: libs
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libicedb35
+Replaces: libicedb35
+Description: Libraries for persistent backends for ZeroC Ice
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ Freeze is the persistence framework included in Ice. This package
+ installs the Berkeley DB libraries for Freeze. You will find further
+ information in the ZeroC home page (http://www.zeroc.com/ice.html)
+ and in the non-free package zeroc-ice-manual.
+
+Package: ice35-slice
+Architecture: all
+Provides: ice-slice
+Replaces: ice-slice
+Conflicts: ice-slice
+Depends: ${misc:Depends}
+Description: Slice definitions for Ice services
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms. Slice is the interface description language used in Ice.
+ .
+ This package installs the Slice definitions of standard Ice services
+ on /usr/share/slice.  You will find further information in the ZeroC
+ home page (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: libzeroc-ice35v5
+Architecture: any
+Section: libs
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libzeroc-ice35
+Replaces: libzeroc-ice35
+Description: Ice for C++ runtime library
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package is required to run applications developed with Ice for
+ C++ or Ice for Python.  You will find further information in the
+ ZeroC home page (http://www.zeroc.com/ice.html) and in the non-free
+ package zeroc-ice-manual.
+
+Package: libicessl35v5
+Architecture: any
+Section: libs
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Conflicts: libicessl33, libicessl34, libicessl35
+Replaces: libicessl33, libicessl34, libicessl35
+Depends: ${shlibs:Depends}, ${misc:Depends}, python
+Description: Ice for C++ SSL plug-in
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package is required to run applications using secure connections
+ developed with Ice for C++ or Ice for Python.  You will find further
+ information in the ZeroC home page (http://www.zeroc.com/ice.html)
+ and in the non-free package zeroc-ice-manual.
+
+Package: libiceutil35v5
+Architecture: any
+Section: libs
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libiceutil35
+Replaces: libiceutil35
+Description: Ice for C++ misc utility library
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package is required to run applications developed with Ice for
+ C++ or Ice for Python and contains basic core utilities. You will
+ find further information in the ZeroC home page
+ (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: libicexml35v5
+Architecture: any
+Section: libs
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libicexml35
+Replaces: libicexml35
+Description: ZeroC Ice for C++ XML parser library
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package is required to run Ice applications using the XML parser
+ plug-in.  You will find further information in the ZeroC home page
+ (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: libslice35v5
+Architecture: any
+Section: libs
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libslice35
+Replaces: libslice35
+Description: Ice for C++ Slice parser library
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package is required to run Ice applications that require parsing
+ Slice code.  You will find further information in the ZeroC home page
+ (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: libzeroc-ice35-dev
+Architecture: any
+Section: libdevel
+Depends: libzeroc-ice35v5 (= ${binary:Version}),
+	 libicessl35v5 (= ${binary:Version}),
+ 	 libicexml35v5 (= ${binary:Version}),
+	 libiceutil35v5 (= ${binary:Version}),
+	 libslice35v5 (= ${binary:Version}),
+	 libglacier2-35v5 (= ${binary:Version}),
+	 libicestorm35v5 (= ${binary:Version}),
+	 libicegrid35v5 (= ${binary:Version}),
+	 libicepatch2-35v5 (= ${binary:Version}),
+	 libfreeze35v5 (= ${binary:Version}),
+	 libicedb35v5 (= ${binary:Version}),
+	 libicebox35v5 (= ${binary:Version}),
+	 ${misc:Depends}
+Provides: libzeroc-ice-dev
+Replaces: libzeroc-ice-dev
+Conflicts: libzeroc-ice-dev
+Recommends: ice35-translators (= ${binary:Version}), ice35-slice (=
+ ${binary:Version}), libzeroc-ice35-dbg (= ${binary:Version})
+Description: Ice for C++ development libraries
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package is required to develop applications with Ice for C++.
+ You will find further information in the ZeroC home page
+ (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: libzeroc-ice35-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: libzeroc-ice35v5 (= ${binary:Version}),
+	 libicessl35v5 (= ${binary:Version}),
+	 libicexml35v5 (= ${binary:Version}),
+	 libiceutil35v5 (= ${binary:Version}),
+	 libslice35v5 (= ${binary:Version}),
+	 libglacier2-35v5 (= ${binary:Version}),
+	 libicestorm35v5 (= ${binary:Version}),
+	 libicegrid35v5 (= ${binary:Version}),
+	 libicepatch2-35v5 (= ${binary:Version}),
+	 libfreeze35v5 (= ${binary:Version}),
+	 libicedb35v5 (= ${binary:Version}),
+	 libicebox35v5 (= ${binary:Version}),
+	 ice35-services (= ${binary:Version}),
+	 ice35-translators (= ${binary:Version}),
+	 python-zeroc-ice (= ${binary:Version}),
+	 python3-zeroc-ice (= ${binary:Version}),
+	 php-zeroc-ice (= ${binary:Version}),
+	 ruby-zeroc-ice (= ${binary:Version}),
+	 icebox (= ${binary:Version}),
+	 ${misc:Depends}
+Conflicts: libzeroc-ice32-dbg, libzeroc-ice33-dbg, libzeroc-ice34-dbg
+Description: Ice for C++ debugging symbols
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package provides debugging information useful when developing
+ Ice applications.  You will find further information in the ZeroC
+ home page (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: python-zeroc-ice
+Architecture: any
+Section: python
+Depends: ${shlibs:Depends}, ${python:Depends}, ${misc:Depends}
+Provides: ${python:Provides}
+Recommends: ice35-translators, ice35-slice
+Description: Ice for Python libraries (Python 2)
+ Ice, the Internet Communications Engine, is middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package contains the Python module required to run/develop
+ applications with Ice for Python 2.  You will find further
+ information in the ZeroC home page (http://www.zeroc.com/ice.html)
+ and in the non-free package zeroc-ice-manual.
+
+Package: python3-zeroc-ice
+Architecture: any
+Section: python
+Depends: ${shlibs:Depends}, ${python3:Depends}, ${misc:Depends}
+Provides: ${python3:Provides}
+Recommends: ice35-translators, ice35-slice
+Description: Ice for Python libraries (Python 3)
+ Ice, the Internet Communications Engine, is middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package contains the Python module required to run/develop
+ applications with Ice for Python 3.  You will find further
+ information in the ZeroC home page (http://www.zeroc.com/ice.html)
+ and in the non-free package zeroc-ice-manual.
+
+Package: php-zeroc-ice
+Architecture: any
+Section: php
+Depends: php5-cli (>= 5.4.0~rc6-1) | php5 (>= 5.4.0~rc6-1),
+	 ${shlibs:Depends}, ${misc:Depends}, ${php:Depends}
+Recommends: ice35-slice | ice-slice
+Description: Ice for PHP extension
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package contains the PHP extension module required to
+ run/develop applications with Ice for PHP.  You will find further
+ information in the ZeroC home page (http://www.zeroc.com/ice.html)
+ and in the non-free package zeroc-ice-manual.
+
+Package: libzeroc-ice3.5-cil
+Architecture: all
+Section: cli-mono
+Depends: mono-runtime (>= 1.1.8) | cli-runtime, ${cli:Depends}, ${misc:Depends}
+Conflicts: libzeroc-ice-cil
+Replaces: libzeroc-ice-cil, libzeroc-ice-3.4-cil
+Recommends: ice35-translators, ice35-slice
+Description: Ice for C# libraries
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package contains a set of dll libraries required to run/develop
+ applications with Ice for C# and Ice for Visual Basic.  It also
+ includes the iceboxnet.exe executable to run plug-in based .NET
+ applications.  You will find further information in the ZeroC
+ home page (http://www.zeroc.com/ice.html) and in the non-free package
+ zeroc-ice-manual.
+
+Package: ruby-zeroc-ice
+Architecture: any
+Section: ruby
+Depends: ${shlibs:Depends}, ruby, ${misc:Depends}
+Replaces: libzeroc-ice-ruby1.8
+Breaks: libzeroc-ice-ruby1.8
+Provides: libzeroc-ice-ruby1.8
+Recommends: ice35-translators | slice2rb, ice35-slice | ice-slice
+Description: Ice for Ruby modules
+ Ice, the Internet Communications Engine, is middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package contains the Ruby module required to run/develop
+ applications with Ice for Ruby.  You will find further information in
+ the ZeroC home page (http://www.zeroc.com/ice.html) and in the
+ non-free package zeroc-ice-manual.
+
+Package: libzeroc-ice3.5-java
+Architecture: all
+Section: java
+Depends: ${misc:Depends}, libdb5.3-java | libdb-java
+Recommends: ice35-translators, ice35-slice, ant
+Replaces: libzeroc-ice-java, libzeroc-ice3.4-java, libzeroc-ice3.3-java
+Conflicts: libzeroc-ice-java, libzeroc-ice3.4-java, libzeroc-ice3.3-java
+Description: Ice for Java libraries
+ Ice, the Internet Communications Engine, is a middleware for the
+ practical programmer developed by ZeroC Inc. A high-performance
+ Internet communications platform, Ice includes a wealth of layered
+ services and plug-ins.
+ .
+ Ice is built on concepts which will be familiar to CORBA programmers,
+ and supports a wide variety of programming languages and runtime
+ platforms.
+ .
+ This package contains a jar library required to run/develop
+ applications with Ice for Java.  You will find further information in
+ the ZeroC home page (http://www.zeroc.com/ice.html) and in the
+ non-free package zeroc-ice-manual.
+
+Package: icegrid-gui
+Architecture: all
+Depends: default-jre | java7-runtime,
+ 	 libjgoodies-looks-java (>= 2.5.2),
+ 	 libjgoodies-forms-java (>= 1.6.0),
+	 libzeroc-ice3.5-java (>= ${binary:Version}),
+	 ${misc:Depends}
+Recommends: ice35-translators, ice35-services
+Description: GUI for IceGrid service
+ IceGrid is a sophisticated server activation and deployment tool for
+ advanced grid computing with ZeroC Ice middleware (www.zeroc.com).
+ .
+ This package provides a graphical user interface for IceGrid. You
+ will find more information in the non-free package zeroc-ice-manual.
