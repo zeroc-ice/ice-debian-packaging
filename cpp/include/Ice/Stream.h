@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -74,20 +74,16 @@ public:
 
     virtual bool __usesClasses() const;
 
-#ifdef __SUNPRO_CC
     using UserException::__read;
     using UserException::__write;
-#endif
 
 protected:
 
     virtual void __writeImpl(::IceInternal::BasicStream*) const;
     virtual void __readImpl(::IceInternal::BasicStream*);
 
-#ifdef __SUNPRO_CC
     using UserException::__writeImpl;
     using UserException::__readImpl;
-#endif
 
     const CommunicatorPtr _communicator;
 };
@@ -103,6 +99,8 @@ typedef ::IceUtil::Handle<UserExceptionReaderFactory> UserExceptionReaderFactory
 class ICE_API InputStream : public ::IceUtil::Shared
 {
 public:
+
+    typedef size_t size_type;
 
     virtual CommunicatorPtr communicator() const = 0;
 
@@ -132,8 +130,7 @@ public:
         readObject(new ReadObjectCallbackI<T>(v));
     }
 
-    Int
-    readEnum(Int maxValue)
+    virtual Int readEnum(Int maxValue)
     {
         if(getEncoding() == Encoding_1_0)
         {
@@ -149,7 +146,7 @@ public:
                 read(value);
                 return value;
             }
-            else 
+            else
             {
                 Int value;
                 read(value);
@@ -183,6 +180,7 @@ public:
 
     virtual void readPendingObjects() = 0;
 
+    virtual size_type pos() = 0;
     virtual void rewind() = 0;
 
     virtual void skip(Int) = 0;
@@ -196,9 +194,11 @@ public:
     virtual void read(Float&) = 0;
     virtual void read(Double&) = 0;
     virtual void read(::std::string&, bool = true) = 0;
+    virtual void read(const char*&, size_t&) = 0;
+    virtual void read(const char*&, size_t&, std::string&) = 0;
     virtual void read(::std::vector< ::std::string>&, bool) = 0; // Overload required for additional bool argument.
     virtual void read(::std::wstring&) = 0;
-    
+
     //
     // std::vector<bool> is a special C++ type, so we give it its own read function
     //
@@ -219,7 +219,7 @@ public:
         read(p);
     }
 
-    virtual bool readOptional(Int, OptionalFormat) = 0; 
+    virtual bool readOptional(Int, OptionalFormat) = 0;
 
     template<typename T> inline void read(T& v)
     {
@@ -228,8 +228,8 @@ public:
 
     template<typename T> inline void read(Int tag, IceUtil::Optional<T>& v)
     {
-        if(readOptional(tag, StreamOptionalHelper<T, 
-                                                  StreamableTraits<T>::helper, 
+        if(readOptional(tag, StreamOptionalHelper<T,
+                                                  StreamableTraits<T>::helper,
                                                   StreamableTraits<T>::fixedLength>::optionalFormat))
         {
             v.__setIsSet();
@@ -267,8 +267,7 @@ public:
         writeObject(ObjectPtr(v.get()));
     }
 
-    void
-    writeEnum(Int v, Int maxValue)
+    virtual void writeEnum(Int v, Int maxValue)
     {
         if(getEncoding() == Encoding_1_0)
         {
@@ -280,7 +279,7 @@ public:
             {
                 write(static_cast<Short>(v));
             }
-            else 
+            else
             {
                 write(v);
             }
@@ -326,6 +325,7 @@ public:
     virtual void write(Float) = 0;
     virtual void write(Double) = 0;
     virtual void write(const ::std::string&, bool = true) = 0;
+    virtual void write(const char*, size_t, bool = true) = 0;
     virtual void write(const ::std::vector< ::std::string>&, bool) = 0; // Overload required for bool argument.
     virtual void write(const char*, bool = true) = 0;
     virtual void write(const ::std::wstring&) = 0;
@@ -345,8 +345,8 @@ public:
 
     virtual bool writeOptional(Int, OptionalFormat) = 0;
 
-    virtual void startSize() = 0;
-    virtual void endSize() = 0;
+    virtual size_type startSize() = 0;
+    virtual void endSize(size_type pos) = 0;
 
     template<typename T> inline void write(const T& v)
     {
@@ -358,7 +358,7 @@ public:
         if(v)
         {
             writeOptional(tag, StreamOptionalHelper<T,
-                                                    StreamableTraits<T>::helper, 
+                                                    StreamableTraits<T>::helper,
                                                     StreamableTraits<T>::fixedLength>::optionalFormat);
             StreamOptionalHelper<T, StreamableTraits<T>::helper, StreamableTraits<T>::fixedLength>::write(this, *v);
         }
@@ -366,7 +366,7 @@ public:
 
     //
     // Template functions for sequences and custom sequences
-    // 
+    //
     template<typename T> void write(const T* begin, const T* end)
     {
         writeSize(static_cast<Int>(end - begin));
@@ -428,20 +428,16 @@ public:
 
     virtual bool __usesClasses() const;
 
-#ifdef __SUNPRO_CC
     using UserException::__read;
     using UserException::__write;
-#endif
 
 protected:
 
     virtual void __writeImpl(::IceInternal::BasicStream*) const;
     virtual void __readImpl(::IceInternal::BasicStream*);
 
-#ifdef __SUNPRO_CC
     using UserException::__writeImpl;
     using UserException::__readImpl;
-#endif
 
     const CommunicatorPtr _communicator;
 };

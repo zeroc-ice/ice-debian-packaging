@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -570,6 +570,7 @@ allTests(const Ice::CommunicatorPtr& communicator, const string& ref)
     cout << "testing object migration... " << flush;
     hello = HelloPrx::checkedCast(communicator->stringToProxy("hello"));
     obj->migrateHello();
+    hello->ice_getConnection()->close(false);
     hello->sayHello();
     obj->migrateHello();
     hello->sayHello();
@@ -621,32 +622,30 @@ allTests(const Ice::CommunicatorPtr& communicator, const string& ref)
     }
     cout << "ok" << endl;
 
-    cout << "testing indirect proxies to collocated objects... " << flush;
-    //
-    // Set up test for calling a collocated object through an indirect, adapterless reference.
-    //
-    Ice::PropertiesPtr properties = communicator->getProperties();
-    properties->setProperty("Ice.PrintAdapterReady", "0");
-    Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapterWithEndpoints("Hello", "default");
-    adapter->setLocator(locator);
-
-    Ice::Identity id;
-    id.name = IceUtil::generateUUID();
-    registry->addObject(adapter->add(new HelloI, id));
-    adapter->activate();
-    
-    try
+    string host = communicator->getProperties()->getPropertyAsIntWithDefault("Ice.IPv6", 0) == 0 ? 
+            "127.0.0.1" : "\"0:0:0:0:0:0:0:1\"";
+    if(communicator->getProperties()->getProperty("Ice.Default.Host") == host)
     {
+        cout << "testing indirect proxies to collocated objects... " << flush;
+        //
+        // Set up test for calling a collocated object through an indirect, adapterless reference.
+        //
+        Ice::PropertiesPtr properties = communicator->getProperties();
+        properties->setProperty("Ice.PrintAdapterReady", "0");
+        Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapterWithEndpoints("Hello", "default");
+        adapter->setLocator(locator);
+
+        Ice::Identity id;
+        id.name = IceUtil::generateUUID();
+        registry->addObject(adapter->add(new HelloI, id));
+        adapter->activate();
+        
         HelloPrx helloPrx = HelloPrx::checkedCast(communicator->stringToProxy(communicator->identityToString(id)));
-        Ice::ConnectionPtr connection = helloPrx->ice_getConnection();
-        test(false);
-    }
-    catch(const Ice::CollocationOptimizationException&)
-    {
-    }
-    adapter->deactivate();
-    cout << "ok" << endl;
+        test(!helloPrx->ice_getConnection());
 
+        adapter->deactivate();
+        cout << "ok" << endl;
+    }
     cout << "shutdown server manager... " << flush;
     manager->shutdown();
     cout << "ok" << endl;

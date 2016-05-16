@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -97,7 +97,8 @@ public:
     void start(ServerActivation, const AMD_Server_startPtr& = AMD_Server_startPtr());
     ServerCommandPtr load(const AMD_Node_loadServerPtr&, const InternalServerDescriptorPtr&, const std::string&, bool);
     bool checkUpdate(const InternalServerDescriptorPtr&, bool, const Ice::Current&);
-    ServerCommandPtr destroy(const AMD_Node_destroyServerPtr&, const std::string&, int, const std::string&);
+    void checkRemove(bool, const Ice::Current&);
+    ServerCommandPtr destroy(const AMD_Node_destroyServerPtr&, const std::string&, int, const std::string&, bool);
     bool startPatch(bool);
     bool waitForPatch();
     void finishPatch();

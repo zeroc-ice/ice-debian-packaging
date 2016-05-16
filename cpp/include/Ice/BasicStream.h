@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,6 +10,7 @@
 #ifndef ICE_BASIC_STREAM_H
 #define ICE_BASIC_STREAM_H
 
+#include <IceUtil/StringConverter.h>
 #include <Ice/InstanceF.h>
 #include <Ice/Object.h>
 #include <Ice/ProxyF.h>
@@ -27,20 +28,12 @@ namespace Ice
 
 class UserException;
 
-template<typename charT> class BasicStringConverter;
-
-typedef BasicStringConverter<char> StringConverter;
-typedef IceUtil::Handle<StringConverter> StringConverterPtr;
-
-typedef BasicStringConverter<wchar_t> WstringConverter;
-typedef IceUtil::Handle<WstringConverter> WstringConverterPtr;
-
 }
 
 namespace IceInternal
 {
 
-template<typename T> inline void 
+template<typename T> inline void
 patchHandle(void* addr, const Ice::ObjectPtr& v)
 {
     IceInternal::Handle<T>* p = static_cast<IceInternal::Handle<T>*>(addr);
@@ -54,7 +47,7 @@ public:
     typedef size_t size_type;
     typedef void (*PatchFunc)(void*, const Ice::ObjectPtr&);
 
-    BasicStream(Instance*, const Ice::EncodingVersion&, bool = false);
+    BasicStream(Instance*, const Ice::EncodingVersion&);
     BasicStream(Instance*, const Ice::EncodingVersion&, const Ice::Byte*, const Ice::Byte*);
     ~BasicStream()
     {
@@ -82,15 +75,8 @@ public:
 
     void resize(Container::size_type sz)
     {
-        //
-        // Check memory limit if stream is not unlimited.
-        //
-        if(!_unlimited && sz > _messageSizeMax)
-        {
-            IceInternal::Ex::throwMemoryLimitException(__FILE__, __LINE__, sz, _messageSizeMax);
-        }
-
         b.resize(sz);
+        i = b.end();
     }
 
     void startWriteObject(const Ice::SlicedDataPtr& data)
@@ -193,9 +179,9 @@ public:
             throwEncapsulationException(__FILE__, __LINE__);
         }
 
-        Container::size_type pos = b.size();
-        resize(pos + sz);
-        memcpy(&b[pos], &v[0], sz);
+        Container::size_type position = b.size();
+        resize(position + sz);
+        memcpy(&b[position], &v[0], sz);
     }
 
     const Ice::EncodingVersion& getWriteEncoding() const
@@ -260,7 +246,7 @@ public:
             {
                 throwEncapsulationException(__FILE__, __LINE__);
             }
-            
+
             //
             // Ice version < 3.3 had a bug where user exceptions with
             // class members could be encoded with a trailing byte
@@ -406,17 +392,16 @@ public:
 
     Ice::Int readAndCheckSeqSize(int);
 
-    void startSize()
+    size_type startSize()
     {
-        _sizePos = static_cast<Ice::Int>(b.size());
+        size_type position = b.size();
         write(Ice::Int(0));
+        return position;
     }
 
-    void endSize()
+    void endSize(size_type position)
     {
-        assert(_sizePos >= 0);
-        rewrite(static_cast<Ice::Int>(b.size()) - _sizePos - 4, _sizePos);
-        _sizePos = -1;
+        rewrite(static_cast<Ice::Int>(b.size() - position) - 4, position);
     }
 
     void writeBlob(const std::vector<Ice::Byte>&);
@@ -426,9 +411,9 @@ public:
     {
         if(sz > 0)
         {
-            Container::size_type pos = b.size();
-            resize(pos + sz);
-            memcpy(&b[pos], &v[0], sz);
+            Container::size_type position = b.size();
+            resize(position + sz);
+            memcpy(&b[position], &v[0], sz);
         }
     }
 
@@ -466,22 +451,22 @@ public:
         }
 
         if(writeOpt(tag, Ice::StreamOptionalHelper<T,
-                                                   Ice::StreamableTraits<T>::helper, 
+                                                   Ice::StreamableTraits<T>::helper,
                                                    Ice::StreamableTraits<T>::fixedLength>::optionalFormat))
         {
-            Ice::StreamOptionalHelper<T, 
-                                      Ice::StreamableTraits<T>::helper, 
+            Ice::StreamOptionalHelper<T,
+                                      Ice::StreamableTraits<T>::helper,
                                       Ice::StreamableTraits<T>::fixedLength>::write(this, *v);
         }
     }
     template<typename T> void read(Ice::Int tag, IceUtil::Optional<T>& v)
     {
-        if(readOpt(tag, Ice::StreamOptionalHelper<T, 
-                                                  Ice::StreamableTraits<T>::helper, 
+        if(readOpt(tag, Ice::StreamOptionalHelper<T,
+                                                  Ice::StreamableTraits<T>::helper,
                                                   Ice::StreamableTraits<T>::fixedLength>::optionalFormat))
         {
             v.__setIsSet();
-            Ice::StreamOptionalHelper<T, 
+            Ice::StreamOptionalHelper<T,
                                       Ice::StreamableTraits<T>::helper,
                                       Ice::StreamableTraits<T>::fixedLength>::read(this, *v);
         }
@@ -493,7 +478,7 @@ public:
 
     //
     // Template functions for sequences and custom sequences
-    // 
+    //
     template<typename T> void write(const std::vector<T>& v)
     {
         if(v.empty())
@@ -592,9 +577,9 @@ public:
     // Int
     void write(Ice::Int v) // Inlined for performance reasons.
     {
-        Container::size_type pos = b.size();
-        resize(pos + sizeof(Ice::Int));
-        write(v, &b[pos]);
+        Container::size_type position = b.size();
+        resize(position + sizeof(Ice::Int));
+        write(v, &b[position]);
     }
     void write(Ice::Int v, Container::iterator dest)
     {
@@ -661,38 +646,54 @@ public:
     void read(std::vector<Ice::Double>&);
     void read(std::pair<const Ice::Double*, const Ice::Double*>&, ::IceUtil::ScopedArray<Ice::Double>&);
 
-    //
-    // NOTE: This function is not implemented. It is declared here to
-    // catch programming errors that assume a call such as write("")
-    // will invoke write(const std::string&), when in fact the compiler
-    // will silently select a different overloading. A link error is the
-    // intended result.
-    //
-    void write(const char*);
-
     // String
-    void writeConverted(const std::string& v);
     void write(const std::string& v, bool convert = true)
     {
         Ice::Int sz = static_cast<Ice::Int>(v.size());
         if(convert && sz > 0 && _stringConverter != 0)
         {
-            writeConverted(v);
+            writeConverted(v.data(), static_cast<size_t>(sz));
         }
         else
         {
             writeSize(sz);
             if(sz > 0)
             {
-                Container::size_type pos = b.size();
-                resize(pos + sz);
-                memcpy(&b[pos], v.data(), sz);
+                Container::size_type position = b.size();
+                resize(position + sz);
+                memcpy(&b[position], v.data(), sz);
             }
         }
     }
+
+    // for custom strings
+    void write(const char* vdata, size_t vsize, bool convert = true)
+    {
+        Ice::Int sz = static_cast<Ice::Int>(vsize);
+        if(convert && sz > 0 && _stringConverter != 0)
+        {
+            writeConverted(vdata, vsize);
+        }
+        else
+        {
+            writeSize(sz);
+            if(sz > 0)
+            {
+                Container::size_type position = b.size();
+                resize(position + sz);
+                memcpy(&b[position], vdata, vsize);
+            }
+        }
+    }
+
+    // Null-terminated C string
+    void write(const char* vdata, bool convert = true)
+    {
+        write(vdata, strlen(vdata), convert);
+    }
+
     void write(const std::string*, const std::string*, bool = true);
 
-    void readConverted(std::string&, Ice::Int);
     void read(std::string& v, bool convert = true)
     {
         Ice::Int sz = readSize();
@@ -717,6 +718,60 @@ public:
             v.clear();
         }
     }
+
+    // For custom strings, convert = false
+    void read(const char*& vdata, size_t& vsize)
+    {
+        Ice::Int sz = readSize();
+        if(sz > 0)
+        {
+            if(b.end() - i < sz)
+            {
+                throwUnmarshalOutOfBoundsException(__FILE__, __LINE__);
+            }
+
+            vdata = reinterpret_cast<const char*>(&*i);
+            vsize = static_cast<size_t>(sz);
+            i += sz;
+        }
+        else
+        {
+            vdata = 0;
+            vsize = 0;
+        }
+    }
+
+    // For custom strings, convert = true
+    void read(const char*& vdata, size_t& vsize, std::string& holder)
+    {
+        if(_stringConverter == 0)
+        {
+            holder.clear();
+            read(vdata, vsize);
+        }
+        else
+        {
+            Ice::Int sz = readSize();
+            if(sz > 0)
+            {
+                if(b.end() - i < sz)
+                {
+                    throwUnmarshalOutOfBoundsException(__FILE__, __LINE__);
+                }
+
+                readConverted(holder, sz);
+                vdata = holder.data();
+                vsize = holder.size();
+            }
+            else
+            {
+                holder.clear();
+                vdata = 0;
+                vsize = 0;
+            }
+        }
+    }
+
     void read(std::vector<std::string>&, bool = true);
 
     void write(const std::wstring& v);
@@ -771,7 +826,7 @@ public:
     bool writeOptImpl(Ice::Int, Ice::OptionalFormat);
     void skipOpt(Ice::OptionalFormat);
     void skipOpts();
-    
+
     // Skip bytes from the stream
     void skip(size_type size)
     {
@@ -780,12 +835,12 @@ public:
             throwUnmarshalOutOfBoundsException(__FILE__, __LINE__);
         }
         i += size;
-    }    
+    }
     void skipSize()
     {
-        Ice::Byte b;
-        read(b);
-        if(static_cast<unsigned char>(b) == 255)
+        Ice::Byte bt;
+        read(bt);
+        if(static_cast<unsigned char>(bt) == 255)
         {
             skip(4);
         }
@@ -793,14 +848,21 @@ public:
 
     size_type pos()
     {
-        return b.size();
+        return i - b.begin();
     }
+
     void rewrite(Ice::Int value, size_type p)
     {
         write(value, b.begin() + p);
     }
 
 private:
+
+    //
+    // String
+    //
+    void writeConverted(const char*, size_t);
+    void readConverted(std::string&, Ice::Int);
 
     //
     // I can't throw these exception from inline functions from within
@@ -857,7 +919,7 @@ private:
         EncapsDecoder(BasicStream* stream, ReadEncaps* encaps, bool sliceObjects, const ObjectFactoryManagerPtr& f) :
             _stream(stream), _encaps(encaps), _sliceObjects(sliceObjects), _servantFactoryManager(f), _typeIdIndex(0)
         {
-        } 
+        }
 
         std::string readTypeId(bool);
         Ice::ObjectPtr newInstance(const std::string&);
@@ -897,10 +959,10 @@ private:
     {
     public:
 
-        EncapsDecoder10(BasicStream* stream, ReadEncaps* encaps, bool sliceObjects, const ObjectFactoryManagerPtr& f) : 
+        EncapsDecoder10(BasicStream* stream, ReadEncaps* encaps, bool sliceObjects, const ObjectFactoryManagerPtr& f) :
             EncapsDecoder(stream, encaps, sliceObjects, f), _sliceType(NoSlice)
         {
-        } 
+        }
 
         virtual void read(PatchFunc, void*);
         virtual void throwException(const UserExceptionFactoryPtr&);
@@ -933,7 +995,7 @@ private:
         EncapsDecoder11(BasicStream* stream, ReadEncaps* encaps, bool sliceObjects, const ObjectFactoryManagerPtr& f) :
             EncapsDecoder(stream, encaps, sliceObjects, f), _preAllocatedInstanceData(0), _current(0), _objectIdIndex(1)
         {
-        } 
+        }
 
         virtual void read(PatchFunc, void*);
         virtual void throwException(const UserExceptionFactoryPtr&);
@@ -964,7 +1026,7 @@ private:
 
         struct InstanceData
         {
-            InstanceData(InstanceData* previous) : previous(previous), next(0)
+            InstanceData(InstanceData* p) : previous(p), next(0)
             {
                 if(previous)
                 {
@@ -1024,7 +1086,7 @@ private:
 
         virtual void write(const Ice::ObjectPtr&) = 0;
         virtual void write(const Ice::UserException&) = 0;
-        
+
         virtual void startInstance(SliceType, const Ice::SlicedDataPtr&) = 0;
         virtual void endInstance() = 0;
         virtual void startSlice(const std::string&, int, bool) = 0;
@@ -1067,14 +1129,14 @@ private:
     {
     public:
 
-        EncapsEncoder10(BasicStream* stream, WriteEncaps* encaps) : 
+        EncapsEncoder10(BasicStream* stream, WriteEncaps* encaps) :
             EncapsEncoder(stream, encaps), _sliceType(NoSlice), _objectIdIndex(0)
         {
         }
 
         virtual void write(const Ice::ObjectPtr&);
         virtual void write(const Ice::UserException&);
-        
+
         virtual void startInstance(SliceType, const Ice::SlicedDataPtr&);
         virtual void endInstance();
         virtual void startSlice(const std::string&, int, bool);
@@ -1101,7 +1163,7 @@ private:
     {
     public:
 
-        EncapsEncoder11(BasicStream* stream, WriteEncaps* encaps) : 
+        EncapsEncoder11(BasicStream* stream, WriteEncaps* encaps) :
             EncapsEncoder(stream, encaps), _preAllocatedInstanceData(0), _current(0), _objectIdIndex(1)
         {
         }
@@ -1123,14 +1185,14 @@ private:
 
         struct InstanceData
         {
-            InstanceData(InstanceData* previous) : previous(previous), next(0)
+            InstanceData(InstanceData* p) : previous(p), next(0)
             {
                 if(previous)
                 {
                     previous->next = this;
                 }
             }
-            
+
             ~InstanceData()
             {
                 if(next)
@@ -1138,7 +1200,7 @@ private:
                     delete next;
                 }
             }
-            
+
             // Instance attributes
             SliceType sliceType;
             bool firstSlice;
@@ -1241,16 +1303,11 @@ private:
 
     bool _sliceObjects;
 
-    const Container::size_type _messageSizeMax;
-    bool _unlimited;
-
-    const Ice::StringConverterPtr& _stringConverter;
-    const Ice::WstringConverterPtr& _wstringConverter;
+    const IceUtil::StringConverterPtr _stringConverter;
+    const IceUtil::WstringConverterPtr _wstringConverter;
 
     int _startSeq;
     int _minSeqSize;
-
-    int _sizePos;
 };
 
 } // End namespace IceInternal

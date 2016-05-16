@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -16,26 +16,31 @@
 class Transceiver : public IceInternal::Transceiver
 {
 public:
-    
+
     virtual IceInternal::NativeInfoPtr getNativeInfo();
 
+    virtual IceInternal::SocketOperation closing(bool, const Ice::LocalException&);
     virtual void close();
-    virtual bool write(IceInternal::Buffer&);
-    virtual bool read(IceInternal::Buffer&);
+    virtual IceInternal::SocketOperation write(IceInternal::Buffer&);
+    virtual IceInternal::SocketOperation read(IceInternal::Buffer&, bool&);
 #ifdef ICE_USE_IOCP
     virtual bool startWrite(IceInternal::Buffer&);
     virtual void finishWrite(IceInternal::Buffer&);
     virtual void startRead(IceInternal::Buffer&);
-    virtual void finishRead(IceInternal::Buffer&);
+    virtual void finishRead(IceInternal::Buffer&, bool&);
 #endif
-    virtual std::string type() const;
+    virtual std::string protocol() const;
     virtual std::string toString() const;
+    virtual std::string toDetailedString() const;
     virtual Ice::ConnectionInfoPtr getInfo() const;
-    virtual IceInternal::SocketOperation initialize(IceInternal::Buffer&, IceInternal::Buffer&);
-    virtual void checkSendSize(const IceInternal::Buffer&, size_t);
+    virtual IceInternal::SocketOperation initialize(IceInternal::Buffer&, IceInternal::Buffer&, bool&);
+    virtual void checkSendSize(const IceInternal::Buffer&);
+    virtual void setBufferSize(int rcvSize, int sndSize);
+
+    IceInternal::TransceiverPtr delegate() const { return _transceiver; }
 
 private:
-    
+
     Transceiver(const IceInternal::TransceiverPtr&);
     friend class Connector;
     friend class Acceptor;
@@ -44,6 +49,10 @@ private:
     const IceInternal::TransceiverPtr _transceiver;
     const ConfigurationPtr _configuration;
     bool _initialized;
+
+    IceInternal::Buffer _readBuffer;
+    IceInternal::Buffer::Container::const_iterator _readBufferPos;
+    bool _buffered;
 };
 
 #endif

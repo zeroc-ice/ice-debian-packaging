@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,13 +9,14 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
 
 #include <Ice/ObjectAdapterF.ice>
 #include <Ice/ConnectionF.ice>
 #include <Ice/Identity.ice>
 #include <Ice/Version.ice>
 
+["objc:prefix:ICE"]
 module Ice
 {
 
@@ -96,7 +97,7 @@ local struct Current
      *
      **/
     ObjectAdapter adapter;
-    
+
     /**
      *
      * Information about the connection over which the current method

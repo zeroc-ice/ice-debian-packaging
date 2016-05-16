@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,11 +8,7 @@
 // **********************************************************************
 
 #include <Ice/Ice.h>
-#include <Ice/BuiltinSequences.h>
-#include <IceGrid/Query.h>
-#include <IceGrid/Admin.h>
-#include <IceGrid/Registry.h>
-#include <IceUtil/FileUtil.h>
+#include <IceGrid/IceGrid.h>
 #include <IceUtil/Thread.h>
 #include <TestCommon.h>
 #include <Test.h>
@@ -80,56 +76,6 @@ private:
     Ice::CommunicatorPtr _communicator;
 };
 
-class SessionKeepAliveThread : public IceUtil::Thread, public IceUtil::Monitor<IceUtil::Mutex>
-{
-public:
-
-    SessionKeepAliveThread(const IceGrid::AdminSessionPrx& session, long timeout) :
-        _session(session),
-        _timeout(IceUtil::Time::seconds(timeout)),
-        _destroy(false)
-    {
-    }
-
-    virtual void
-    run()
-    {
-        Lock sync(*this);
-        while(!_destroy)
-        {
-            timedWait(_timeout);
-            if(_destroy)
-            {
-                break;
-            }
-            try
-            {
-                _session->keepAlive();
-            }
-            catch(const Ice::Exception&)
-            {
-                break;
-            }
-        }
-    }
-
-    void
-    destroy()
-    {
-        Lock sync(*this);
-        _destroy = true;
-        notify();
-    }
-
-private:
-
-    IceGrid::AdminSessionPrx _session;
-    const IceUtil::Time _timeout;
-    bool _destroy;
-};
-typedef IceUtil::Handle<SessionKeepAliveThread> SessionKeepAliveThreadPtr;
-
-
 void
 logTests(const Ice::CommunicatorPtr& comm, const AdminSessionPrx& session)
 {
@@ -179,8 +125,9 @@ logTests(const Ice::CommunicatorPtr& comm, const AdminSessionPrx& session)
     {
         //
         // Test with empty file.
-        // 
-        IceUtilInternal::ofstream os((testDir + "/log1.txt"));
+        //
+        string path = testDir + "/log1.txt";
+        ofstream os(path.c_str());
         os.close();
 
         it = session->openServerLog("LogServer", testDir + "/log1.txt", -1);
@@ -208,8 +155,9 @@ logTests(const Ice::CommunicatorPtr& comm, const AdminSessionPrx& session)
     {
         //
         // Test with log file with one line with no EOL on last line.
-        // 
-        IceUtilInternal::ofstream os((testDir + "/log2.txt"));
+        //
+        string path = testDir + "/log2.txt";
+        ofstream os(path.c_str());
         os << "one line file with no EOL on last line";
         os.close();
 
@@ -247,7 +195,8 @@ logTests(const Ice::CommunicatorPtr& comm, const AdminSessionPrx& session)
         //
         // Test with log file with one line with EOL on last line.
         // 
-        IceUtilInternal::ofstream os((testDir + "/log3.txt"));
+        string path = testDir + "/log3.txt";
+        ofstream os(path.c_str());
         os << "one line file with EOL on last line" << endl;
         os.close();
 
@@ -292,8 +241,9 @@ logTests(const Ice::CommunicatorPtr& comm, const AdminSessionPrx& session)
     {
         //
         // Test with log file with multiple lines
-        // 
-        IceUtilInternal::ofstream os((testDir + "/log4.txt"));
+        //
+        string path = testDir + "/log4.txt";
+        ofstream os(path.c_str());
         os << "line 1" << endl;
         os << "line 2" << endl;
         os << "line 3" << endl;
@@ -342,7 +292,8 @@ logTests(const Ice::CommunicatorPtr& comm, const AdminSessionPrx& session)
 
     try
     {
-        IceUtilInternal::ofstream os((testDir + "/log1.txt").c_str(), ios_base::out | ios_base::trunc);
+        string path = testDir + "/log1.txt";
+        ofstream os(path.c_str(), ios_base::out | ios_base::trunc);
         os << flush;
 
         it = session->openServerLog("LogServer", testDir + "/log1.txt", -1);
@@ -428,12 +379,16 @@ logTests(const Ice::CommunicatorPtr& comm, const AdminSessionPrx& session)
 void
 allTests(const Ice::CommunicatorPtr& comm)
 {
-    RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(comm->stringToProxy("IceGrid/Registry"));
+    IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
+        comm->stringToProxy(comm->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
     test(registry);
+    IceGrid::QueryPrx query = IceGrid::QueryPrx::checkedCast(
+        comm->stringToProxy(comm->getDefaultLocator()->ice_getIdentity().category + "/Query"));
+    test(query);
+
     AdminSessionPrx session = registry->createAdminSession("foo", "bar");
 
-    SessionKeepAliveThreadPtr keepAlive = new SessionKeepAliveThread(session, registry->getSessionTimeout()/2);
-    keepAlive->start();
+    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::HeartbeatAlways);
 
     AdminPrx admin = session->getAdmin();
     test(admin);
@@ -460,9 +415,6 @@ allTests(const Ice::CommunicatorPtr& comm)
     test(find(adapterIds.begin(), adapterIds.end(), "SimpleIceBox.SimpleService.SimpleService") != adapterIds.end());
     test(find(adapterIds.begin(), adapterIds.end(), "ReplicatedAdapter") != adapterIds.end());
     cout << "ok" << endl;
-
-    QueryPrx query = QueryPrx::checkedCast(comm->stringToProxy("IceGrid/Query"));
-    test(query);
 
     cout << "testing object registration... " << flush;
     Ice::ObjectProxySeq objs = query->findAllObjectsByType("::Test");
@@ -788,10 +740,6 @@ allTests(const Ice::CommunicatorPtr& comm)
 
     logTests(comm, session);
 
-    keepAlive->destroy();
-    keepAlive->getThreadControl().join();
-    keepAlive = 0;
-
     session->destroy();
 }
 
@@ -799,12 +747,11 @@ void
 allTestsWithTarget(const Ice::CommunicatorPtr& comm)
 {
     RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
-        comm->stringToProxy("IceGrid/Registry"));
+        comm->stringToProxy(comm->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
     test(registry);
     AdminSessionPrx session = registry->createAdminSession("foo", "bar");
 
-    SessionKeepAliveThreadPtr keepAlive = new SessionKeepAliveThread(session, registry->getSessionTimeout()/2);
-    keepAlive->start();
+    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::HeartbeatOnIdle);
 
     AdminPrx admin = session->getAdmin();
     test(admin);
@@ -821,10 +768,6 @@ allTestsWithTarget(const Ice::CommunicatorPtr& comm)
     test(obj->getProperty("TargetProp") == "1");
 
     cout << "ok" << endl;
-
-    keepAlive->destroy();
-    keepAlive->getThreadControl().join();
-    keepAlive = 0;
 
     session->destroy();
 }

@@ -1,13 +1,12 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <Ice/Instance.h>
 #include <Ice/EndpointFactoryManager.h>
 
 #include <EndpointFactory.h>
@@ -33,9 +32,9 @@ EndpointFactory::protocol() const
 }
 
 IceInternal::EndpointIPtr
-EndpointFactory::create(const string& str, bool server) const
+EndpointFactory::create(vector<string>& args, bool oaEndpoint) const
 {
-    return new EndpointI(_factory->create(str, server));
+    return new EndpointI(_factory->create(args, oaEndpoint));
 }
 
 IceInternal::EndpointIPtr
@@ -44,10 +43,20 @@ EndpointFactory::read(IceInternal::BasicStream* s) const
     short type;
     s->read(type);
     assert(type == _factory->type());
-    return new EndpointI(_factory->read(s));
+
+    s->startReadEncaps();
+    IceInternal::EndpointIPtr endpoint = new EndpointI(_factory->read(s));
+    s->endReadEncaps();
+    return endpoint;
 }
 
 void
 EndpointFactory::destroy()
 {
+}
+
+IceInternal::EndpointFactoryPtr
+EndpointFactory::clone(const IceInternal::ProtocolInstancePtr&) const
+{
+    return const_cast<EndpointFactory*>(this);
 }

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -22,7 +22,7 @@ public:
         _backend(new BackendI)
     {
     }
-        
+
     virtual ObjectPtr locate(const Current&, LocalObjectPtr&)
     {
         return _backend;
@@ -51,6 +51,10 @@ public:
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     BackendServer app;
     return app.main(argc, argv);
 }

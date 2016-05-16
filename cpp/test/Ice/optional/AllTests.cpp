@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -121,7 +121,7 @@ public:
         test(s == "test");
         IceUtil::Optional<vector<string> > o;
         in->read(1, o);
-        test(o && o->size() == 4 && 
+        test(o && o->size() == 4 &&
              (*o)[0] == "test1" && (*o)[1] == "test2" && (*o)[2] == "test3" && (*o)[3] == "test4");
         in->read(1000, a);
         in->endSlice();
@@ -166,7 +166,7 @@ public:
         in->endObject(false);
     }
 
-    FPtr 
+    FPtr
     getF()
     {
         return _f;
@@ -188,7 +188,7 @@ public:
     }
 
     Ice::ObjectPtr
-    create(const string& typeId) 
+    create(const string& typeId)
     {
         if(!_enabled)
         {
@@ -219,7 +219,7 @@ public:
         {
             return new FObjectReader;
         }
-        
+
         return 0;
     }
 
@@ -237,7 +237,7 @@ typedef IceUtil::Handle<FactoryI> FactoryIPtr;
 
 InitialPrx
 allTests(const Ice::CommunicatorPtr& communicator, bool)
-{ 
+{
     FactoryIPtr factory = new FactoryI();
     communicator->addObjectFactory(factory, "");
 
@@ -251,6 +251,8 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
     InitialPrx initial = InitialPrx::checkedCast(base);
     test(initial);
     test(initial == base);
+
+    bool supportsCppStringView = initial->supportsCppStringView();
     cout << "ok" << endl;
 
     cout << "testing constructor, copy constructor, and assignment operator... " << flush;
@@ -284,7 +286,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
     mo1->i = Test::MyEnumMember;
     mo1->j = MultiOptionalPrx::uncheckedCast(communicator->stringToProxy("test"));
     mo1->k = mo1;
-    mo1->bs = ByteSeq(); 
+    mo1->bs = ByteSeq();
     (*mo1->bs).push_back(5);
     mo1->ss = StringSeq();
     mo1->ss->push_back("test");
@@ -330,6 +332,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
     mo1->bos->push_back(false);
     mo1->bos->push_back(true);
     mo1->bos->push_back(false);
+    mo1->ice_collectable(true);
 
     MultiOptionalPtr mo2 = new MultiOptional(*mo1);
 
@@ -427,7 +430,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
     test(!mo4->ioopd);
 
     test(!mo4->bos);
-    
+
     mo1->k = mo1;
     MultiOptionalPtr mo5 = MultiOptionalPtr::dynamicCast(initial->pingPong(mo1));
     test(mo5->a == mo1->a);
@@ -610,6 +613,26 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
     initial->ice_encodingVersion(Ice::Encoding_1_0)->returnOptionalClass(true, oo);
     test(!oo);
 
+    RecursiveSeq recursive1;
+    recursive1.push_back(new Recursive());
+    RecursiveSeq recursive2;
+    recursive2.push_back(new Recursive());
+    recursive1[0]->value = recursive2;
+    RecursivePtr outer = new Recursive();
+    outer->value = recursive1;
+    initial->pingPong(outer);
+    
+    GPtr g = new G();
+    g->gg1Opt = new G1("gg1Opt");
+    g->gg2 = new G2(10);
+    g->gg2Opt = new G2(20);
+    g->gg1 = new G1("gg1");
+    GPtr r = initial->opG(g);
+    test("gg1Opt" == r->gg1Opt.get()->a);
+    test(10 == r->gg2->a);
+    test(20 == r->gg2Opt.get()->a);
+    test("gg1" == r->gg1->a);
+
     cout << "ok" << endl;
 
     cout << "testing marshalling of large containers with fixed size elements..." << flush;
@@ -662,7 +685,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
     test(!b2->ma);
     test(!b2->mb);
     test(!b2->mc);
-    
+
     b->ma = 10;
     b->mb = 11;
     b->mc = 12;
@@ -746,7 +769,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
             in->startEncapsulation();
             in->read(obj);
             in->endEncapsulation();
-            test(dynamic_cast<CObjectReader*>(obj.get())); 
+            test(dynamic_cast<CObjectReader*>(obj.get()));
             factory->setEnabled(false);
 
             factory->setEnabled(true);
@@ -764,7 +787,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
             test(obj && dynamic_cast<DObjectReader*>(obj.get()));
             dynamic_cast<DObjectReader*>(obj.get())->check();
             factory->setEnabled(false);
-        }    
+        }
         cout << "ok" << endl;
 
         cout << "testing optionals with unknown classes..." << flush;
@@ -807,10 +830,10 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
         in->startEncapsulation();
         in->read(1, p2);
         in->read(3, p3);
-        
+
         IceUtil::Optional<Ice::Byte> p4 = 0x08;
         in->read(89, p4);
-        
+
         in->endEncapsulation();
         test(p2 == 56 && p3 == 56 && !p4);
 
@@ -1016,6 +1039,37 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
     }
 
     {
+        if(supportsCppStringView)
+        {
+            IceUtil::Optional<Util::string_view> p1;
+            IceUtil::Optional<string> p3;
+            IceUtil::Optional<string> p2 = initial->opCustomString(p1, p3);
+            test(!p2 && !p3);
+
+            p1 = "test";
+            p2 = initial->opString("test", p3);
+            test(p2 == "test" && p3 == "test");
+
+            out = Ice::createOutputStream(communicator);
+            out->startEncapsulation();
+            out->write(2, p1);
+            out->endEncapsulation();
+            out->finished(inEncaps);
+            initial->ice_invoke("opCustomString", Ice::Normal, inEncaps, outEncaps);
+            in = Ice::createInputStream(communicator, outEncaps);
+            in->startEncapsulation();
+            in->read(1, p2);
+            in->read(3, p3);
+            in->endEncapsulation();
+            test(p2 == "test" && p3 == "test");
+
+            in = Ice::createInputStream(communicator, outEncaps);
+            in->startEncapsulation();
+            in->endEncapsulation();
+        }
+    }
+
+    {
         IceUtil::Optional<Test::MyEnum> p1;
         IceUtil::Optional<Test::MyEnum> p3;
         IceUtil::Optional<Test::MyEnum> p2 = initial->opMyEnum(p1, p3);
@@ -1204,7 +1258,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
         IceUtil::Optional<APtr> a;
         in->read(2, a);
         in->endEncapsulation();
-        test(a && *a && (*a)->requiredA == 56);        
+        test(a && *a && (*a)->requiredA == 56);
     }
     cout << "ok" << endl;
 
@@ -1279,7 +1333,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
 
         in = Ice::createInputStream(communicator, outEncaps);
         in->startEncapsulation();
-        in->endEncapsulation(); 
+        in->endEncapsulation();
     }
 
     {
@@ -1546,7 +1600,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
 
         in = Ice::createInputStream(communicator, outEncaps);
         in->startEncapsulation();
-        in->endEncapsulation(); 
+        in->endEncapsulation();
     }
 
     {
@@ -1644,6 +1698,45 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
         in = Ice::createInputStream(communicator, outEncaps);
         in->startEncapsulation();
         in->endEncapsulation();
+    }
+
+    {
+        if(supportsCppStringView)
+        {
+            IceUtil::Optional<std::map<int, Util::string_view> > p1;
+            IceUtil::Optional<IntStringDict> p3;
+            IceUtil::Optional<IntStringDict> p2 = initial->opCustomIntStringDict(p1, p3);
+            test(!p2 && !p3);
+
+            map<int, Util::string_view> ss;
+            ss.insert(make_pair<int, Util::string_view>(5, "testing"));
+            p1 = ss;
+            p2 = initial->opCustomIntStringDict(p1, p3);
+            test(p2 && p3);
+            test(p2 == p3);
+            test(p2->size() == p1->size());
+            test((*p2)[5] == ss[5].to_string());
+
+            out = Ice::createOutputStream(communicator);
+            out->startEncapsulation();
+            out->write(2, p1);
+            out->endEncapsulation();
+            out->finished(inEncaps);
+            initial->ice_invoke("opCustomIntStringDict", Ice::Normal, inEncaps, outEncaps);
+            in = Ice::createInputStream(communicator, outEncaps);
+            in->startEncapsulation();
+            in->read(1, p2);
+            in->read(3, p3);
+            in->endEncapsulation();
+            test(p2 && p3);
+            test(p2 == p3);
+            test(p2->size() == p1->size());
+            test((*p2)[5] == ss[5].to_string());
+
+            in = Ice::createInputStream(communicator, outEncaps);
+            in->startEncapsulation();
+            in->endEncapsulation();
+        }
     }
 
     cout << "ok" << endl;
@@ -1775,6 +1868,5 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
         }
     }
     cout << "ok" << endl;
-
     return initial;
 }

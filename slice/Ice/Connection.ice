@@ -1,7 +1,7 @@
 
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,19 +10,19 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
 
 #include <Ice/ObjectAdapterF.ice>
 #include <Ice/Identity.ice>
 #include <Ice/Endpoint.ice>
 
+["objc:prefix:ICE"]
 module Ice
 {
 
 /**
  *
- * Base class providing access to the connection details.
- *
+ * Base class providing access to the connection details. *
  **/
 local class ConnectionInfo
 {
@@ -47,6 +47,73 @@ local class ConnectionInfo
      *
      **/
     string connectionId;
+
+    /**
+     *
+     * The connection buffer receive size.
+     *
+     **/
+    int rcvSize;
+
+    /**
+     *
+     * The connection buffer send size.
+     *
+     **/
+    int sndSize;
+};
+
+local interface Connection;
+
+/**
+ *
+ * An application can implement this interface to receive notifications when
+ * a connection closes or receives a heartbeat message.
+ *
+ * @see Connection#setCallback
+ *
+ **/
+local interface ConnectionCallback
+{
+    /**
+     *
+     * This method is called by the the connection when a heartbeat is
+     * received from the peer.
+     *
+     **/
+    void heartbeat(Connection con);
+
+    /**
+     *
+     * This method is called by the the connection when the connection
+     * is closed.
+     *
+     **/
+    void closed(Connection con);
+};
+
+local enum ACMClose
+{
+    CloseOff,
+    CloseOnIdle,
+    CloseOnInvocation,
+    CloseOnInvocationAndIdle,
+    CloseOnIdleForceful
+};
+
+local enum ACMHeartbeat
+{
+    HeartbeatOff,
+    HeartbeatOnInvocation,
+    HeartbeatOnIdle,
+    HeartbeatAlways
+};
+
+local struct ACM
+{
+    int timeout;
+    ACMClose close;
+    ACMHeartbeat heartbeat;
 };
 
 /**
@@ -133,12 +200,46 @@ local interface Connection
 
     /**
      *
-     * Flush any pending batch requests for this connection. This
-     * causes all batch requests that were sent via proxies that use
-     * this connection to be sent to the server.
+     * Flush any pending batch requests for this connection.
+     * This means all batch requests invoked on fixed proxies
+     * associated with the connection.
      *
      **/
     ["async"] void flushBatchRequests();
+
+    /**
+     *
+     * Set callback on the connection. The callback is called by the
+     * connection when it's closed. The callback is called from the
+     * Ice thread pool associated with the connection.
+     *
+     * @param callback The connection callback object.
+     *
+     **/
+    void setCallback(ConnectionCallback callback);
+
+    /**
+     *
+     * Set the active connection management parameters.
+     *
+     * @param timeout The timeout value in milliseconds.
+     *
+     * @param close The close condition
+     *
+     * @param heartbeat The hertbeat condition
+     *
+     **/
+    ["java:optional"]
+    void setACM(optional(1) int timeout, optional(2) ACMClose close, optional(3) ACMHeartbeat heartbeat);
+
+    /**
+     *
+     * Get the ACM parameters.
+     *
+     * @return The ACM parameters.
+     *
+     **/
+    ACM getACM();
 
     /**
      *
@@ -178,6 +279,17 @@ local interface Connection
      *
      **/
     ["cpp:const"] ConnectionInfo getInfo();
+
+
+    /**
+     *
+     * Set the connectiion buffer receive/send size.
+     *
+     * @param rcvSize The connection receive buffer size.
+     * @param sndSize The connection send buffer size.
+     *
+     **/
+    void setBufferSize(int rcvSize, int sndSize);
 };
 
 /**
@@ -223,5 +335,17 @@ local class UDPConnectionInfo extends IPConnectionInfo
     int mcastPort = -1;
 };
 
+dictionary<string, string> HeaderDict;
+
+/**
+ *
+ * Provides access to the connection details of a WebSocket connection
+ *
+ **/
+local class WSConnectionInfo extends TCPConnectionInfo
+{
+    /** The headers from the HTTP upgrade request. */
+    HeaderDict headers;
 };
 
+};

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,7 +10,7 @@
 #pragma once
 
 [["cpp:include:deque", "cpp:include:list", "cpp:include:MyByteSeq.h", "cpp:include:CustomMap.h", 
-  "cpp:include:CustomBuffer.h"]]
+  "cpp:include:CustomBuffer.h", "cpp:include:StringView.h"]]
 
 module Test
 {
@@ -138,7 +138,7 @@ class DictClass
     DoubleBuffer doubleBuf;
 };
 
-["ami"] class TestIntf
+class TestIntf
 {
     ["cpp:array"] DoubleSeq opDoubleArray(["cpp:array"] DoubleSeq inSeq, out ["cpp:array"] DoubleSeq outSeq);
 
@@ -153,9 +153,6 @@ class DictClass
     ["cpp:range"] ByteList opByteRange(["cpp:range"] ByteList inSeq, out ["cpp:range"] ByteList outSeq);
 
     ["cpp:range"] VariableList opVariableRange(["cpp:range"] VariableList inSeq, out ["cpp:range"] VariableList outSeq);
-
-    ["cpp:range:array"] BoolSeq opBoolRangeType(["cpp:range:array"] BoolSeq inSeq,
-                                                out ["cpp:range:array"] BoolSeq outSeq);
     
     ["cpp:range:::Test::ByteList"] ByteList opByteRangeType(["cpp:range:::Test::ByteList"] ByteList inSeq, 
                                                             out ["cpp:range:::Test::ByteList"] ByteList outSeq);
@@ -164,6 +161,8 @@ class DictClass
     opVariableRangeType(["cpp:range:std::deque< ::Test::Variable>"] VariableList inSeq, 
                         out ["cpp:range:std::deque< ::Test::Variable>"] VariableList outSeq);
 
+
+   
     ["cpp:type:std::deque<bool>"] BoolSeq 
     opBoolSeq(["cpp:type:std::deque<bool>"] BoolSeq inSeq, out ["cpp:type:std::deque<bool>"]BoolSeq outSeq);
 
@@ -183,6 +182,12 @@ class DictClass
 
     ["cpp:type:MyByteSeq"] ByteSeq 
     opMyByteSeq(["cpp:type:MyByteSeq"] ByteSeq inSeq, out ["cpp:type:MyByteSeq"] ByteSeq outSeq);
+
+
+    ["cpp:view-type:Util::string_view"] string 
+    opString(["cpp:view-type:Util::string_view"] string inString,
+             out ["cpp:view-type:Util::string_view"] string outString);
+
 
     ["cpp:type:std::deque<std::string>"] StringSeq 
     opStringSeq(["cpp:type:std::deque<std::string>"] StringSeq inSeq, 
@@ -235,7 +240,14 @@ class DictClass
     ["cpp:type:::Test::CustomMap< ::Ice::Long, ::Ice::Long>"] LongLongDict 
     opVarDict(["cpp:type:::Test::CustomMap<std::string, ::Ice::Int>"] StringIntDict idict,
               out ["cpp:type:::Test::CustomMap<std::string, ::Ice::Int>"] StringIntDict odict);
+    
+    
+    ["cpp:view-type:::std::map< ::Ice::Int, ::Util::string_view>", "cpp:type:::Test::CustomMap< ::Ice::Int, std::string>"] IntStringDict
+    opCustomIntStringDict(
+        ["cpp:view-type:::std::map< ::Ice::Int, ::Util::string_view>", "cpp:type:::Test::CustomMap< ::Ice::Int, std::string>"] IntStringDict idict,
+        out ["cpp:view-type:::std::map< ::Ice::Int, ::Util::string_view>", "cpp:type:::Test::CustomMap< ::Ice::Int, std::string>"] IntStringDict odict);
         
+
     ShortBuffer opShortBuffer(ShortBuffer inS, out ShortBuffer outS);
 
     ["cpp:type:::Test::CustomBuffer<bool>"] BoolSeq opBoolBuffer(

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,14 +10,11 @@
 #ifndef ICE_UDP_TRANSCEIVER_H
 #define ICE_UDP_TRANSCEIVER_H
 
-#include <Ice/InstanceF.h>
-#include <Ice/TraceLevelsF.h>
-#include <Ice/LoggerF.h>
-#include <Ice/StatsF.h>
-#include <Ice/Transceiver.h>
-#include <Ice/Protocol.h>
-#include <Ice/Network.h>
 #include <IceUtil/Mutex.h>
+
+#include <Ice/ProtocolInstanceF.h>
+#include <Ice/Transceiver.h>
+#include <Ice/Network.h>
 
 #ifdef ICE_OS_WINRT
 #   include <deque>
@@ -47,31 +44,36 @@ public:
     virtual void setCompletedHandler(SocketOperationCompletedHandler^);
 #endif
 
-    virtual SocketOperation initialize(Buffer&, Buffer&);
+    virtual SocketOperation initialize(Buffer&, Buffer&, bool&);
+    virtual SocketOperation closing(bool, const Ice::LocalException&);
     virtual void close();
-    virtual bool write(Buffer&);
-    virtual bool read(Buffer&);
+    virtual EndpointIPtr bind();
+    virtual SocketOperation write(Buffer&);
+    virtual SocketOperation read(Buffer&, bool&);
 #if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
     virtual bool startWrite(Buffer&);
     virtual void finishWrite(Buffer&);
     virtual void startRead(Buffer&);
-    virtual void finishRead(Buffer&);
+    virtual void finishRead(Buffer&, bool&);
 #endif
-    virtual std::string type() const;
+    virtual std::string protocol() const;
     virtual std::string toString() const;
+    virtual std::string toDetailedString() const;
     virtual Ice::ConnectionInfoPtr getInfo() const;
-    virtual void checkSendSize(const Buffer&, size_t);
+    virtual void checkSendSize(const Buffer&);
+    virtual void setBufferSize(int rcvSize, int sndSize);
 
     int effectivePort() const;
 
 private:
 
-    UdpTransceiver(const InstancePtr&, const Address&, const std::string&, int);
-    UdpTransceiver(const InstancePtr&, const std::string&, int, const std::string&, bool);
+    UdpTransceiver(const ProtocolInstancePtr&, const Address&, const Address&, const std::string&, int);
+    UdpTransceiver(const UdpEndpointIPtr&, const ProtocolInstancePtr&, const std::string&, int, const std::string&,
+                   bool);
 
     virtual ~UdpTransceiver();
 
-    void setBufSize(const InstancePtr&);
+    void setBufSize(int, int);
 
 #ifdef ICE_OS_WINRT
     bool checkIfErrorOrCompleted(SocketOperation, Windows::Foundation::IAsyncInfo^);
@@ -82,14 +84,16 @@ private:
     friend class UdpEndpointI;
     friend class UdpConnector;
 
-    const TraceLevelsPtr _traceLevels;
-    const Ice::LoggerPtr _logger;
-    const Ice::StatsPtr _stats;
+    UdpEndpointIPtr _endpoint;
+    const ProtocolInstancePtr _instance;
     const bool _incoming;
+    bool _bound;
 
     const Address _addr;
     Address _mcastAddr;
+    const std::string _mcastInterface;
     Address _peerAddr;
+    int _port;
 
     State _state;
     int _rcvSize;

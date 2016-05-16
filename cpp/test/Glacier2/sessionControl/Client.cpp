@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -27,6 +27,10 @@ public:
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     Ice::InitializationData initData;
     initData.properties = Ice::createProperties(argc, argv);
 
@@ -36,7 +40,7 @@ main(int argc, char* argv[])
     //
     initData.properties->setProperty("Ice.RetryIntervals", "-1");
     initData.properties->setProperty("Ice.Warn.Connections", "0");
-        
+
     SessionControlClient app;
     return app.main(argc, argv, initData);
 }
@@ -93,7 +97,7 @@ SessionControlClient::run(int, char**)
     catch(const Glacier2::CannotCreateSessionException&)
     {
     }
-    cout << "ok" << endl;    
+    cout << "ok" << endl;
 
     cout << "testing shutdown... " << flush;
     session = Test::SessionPrx::uncheckedCast(router->createSession("userid", "abc123"));

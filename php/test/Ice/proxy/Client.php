@@ -1,7 +1,7 @@
 <?
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -25,7 +25,8 @@ function test($b)
     if(!$b)
     {
         $bt = debug_backtrace();
-        die("\ntest failed in ".$bt[0]["file"]." line ".$bt[0]["line"]."\n");
+        echo "\ntest failed in ".$bt[0]["file"]." line ".$bt[0]["line"]."\n";
+        exit(1);
     }
 }
 
@@ -38,6 +39,9 @@ function allTests($communicator)
     $random = $NS ? constant("Ice\\EndpointSelectionType::Random") : constant("Ice_EndpointSelectionType::Random");
     $ordered = $NS ? constant("Ice\\EndpointSelectionType::Ordered") : constant("Ice_EndpointSelectionType::Ordered");
     $encodingVersion = $NS ? "Ice\\EncodingVersion" : "Ice_EncodingVersion";
+
+    $identityToString = $NS ? "Ice\\identityToString" : "Ice_identityToString";
+    $stringToIdentity = $NS ? "Ice\\stringToIdentity" : "Ice_stringToIdentity";
 
     echo "testing stringToProxy... ";
     flush();
@@ -402,7 +406,7 @@ function allTests($communicator)
     $b1 = $b1->ice_locator($locator->ice_uncheckedCast("::Ice::Locator"));
 
     $proxyProps = $communicator->proxyToProperty($b1, "Test");
-    test(count($proxyProps) == 18);
+    test(count($proxyProps) == 21);
 
     test($proxyProps["Test"] == "test -t -e 1.0");
     //test($proxyProps["Test.CollocationOptimized"] == "1");
@@ -435,6 +439,7 @@ function allTests($communicator)
     echo "testing proxy methods... ";
     flush();
     test($communicator->identityToString($base->ice_identity($communicator->stringToIdentity("other"))->ice_getIdentity()) == "other");
+    test($identityToString($base->ice_identity($stringToIdentity("other"))->ice_getIdentity()) == "other");
     test($base->ice_facet("facet")->ice_getFacet() == "facet");
     test($base->ice_adapterId("id")->ice_getAdapterId() == "id");
     test($base->ice_twoway()->ice_isTwoway());
@@ -486,7 +491,7 @@ function allTests($communicator)
     {
         $cl20->ice_ping();
         test(false);
-    } 
+    }
     catch(Exception $ex)
     {
         // Server 2.0 endpoint doesn't support 1.1 version.
@@ -681,17 +686,17 @@ function allTests($communicator)
     $p1 = $communicator->stringToProxy("test -e 1.1:opaque -t 1 -e 1.0 -v CTEyNy4wLjAuMeouAAAQJwAAAA==");
     $pstr = $communicator->proxyToString($p1);
     test($pstr == "test -t -e 1.1:tcp -h 127.0.0.1 -p 12010 -t 10000");
-    
+
     // Opaque endpoint encoded with 1.1 encoding.
     $p2 = $communicator->stringToProxy("test -e 1.1:opaque -e 1.1 -t 1 -v CTEyNy4wLjAuMeouAAAQJwAAAA==");
     test($communicator->proxyToString($p2) == "test -t -e 1.1:tcp -h 127.0.0.1 -p 12010 -t 10000");
 
     // Working?
-    if($communicator->getProperties()->getProperty("Ice.IPv6") == "" ||
-       $communicator->getProperties()->getProperty("Ice.IPv6") == "0")
+    if($communicator->getProperties()->getPropertyAsInt("Ice.IPv6") == 0)
     {
         $ssl = $communicator->getProperties()->getProperty("Ice.Default.Protocol") == "ssl";
-        if(!$ssl)
+        $tcp = $communicator->getProperties()->getProperty("Ice.Default.Protocol") == "tcp";
+        if($tcp)
         {
             $p1->ice_encodingVersion($Ice_Encoding_1_0)->ice_ping();
         }
@@ -707,13 +712,13 @@ function allTests($communicator)
         //
         $p1 = $communicator->stringToProxy("test -e 1.0:opaque -t 2 -e 1.0 -v CTEyNy4wLjAuMREnAAD/////AA==:opaque -t 99 -e 1.0 -v abch");
         $pstr = $communicator->proxyToString($p1);
-        if(!$ssl)
+        if($ssl)
+        {
+            test($pstr == "test -t -e 1.0:ssl -h 127.0.0.1 -p 10001 -t infinite:opaque -t 99 -e 1.0 -v abch");
+        }
+        elseif($tcp)
         {
             test($pstr == "test -t -e 1.0:opaque -t 2 -e 1.0 -v CTEyNy4wLjAuMREnAAD/////AA==:opaque -t 99 -e 1.0 -v abch");
-        }
-        else
-        {
-            test($pstr == "test -t -e 1.0:ssl -h 127.0.0.1 -p 10001:opaque -t 99 -e 1.0 -v abch");
         }
 
         //
@@ -736,7 +741,7 @@ function allTests($communicator)
             }
             elseif($ex instanceof $cre)
             {
-                test($ssl);
+                test(!$tcp);
             }
             else
             {
@@ -752,13 +757,13 @@ function allTests($communicator)
         //
         $p2 = $derived->_echo($p1);
         $pstr = $communicator->proxyToString($p2);
-        if(!$ssl)
+        if($ssl)
+        {
+            test($pstr == "test -t -e 1.0:ssl -h 127.0.0.1 -p 10001 -t infinite:opaque -t 99 -e 1.0 -v abch");
+        }
+        elseif($tcp)
         {
             test($pstr == "test -t -e 1.0:opaque -t 2 -e 1.0 -v CTEyNy4wLjAuMREnAAD/////AA==:opaque -t 99 -e 1.0 -v abch");
-        }
-        else
-        {
-            test($pstr == "test -t -e 1.0:ssl -h 127.0.0.1 -p 10001:opaque -t 99 -e 1.0 -v abch");
         }
     }
     echo "ok\n";

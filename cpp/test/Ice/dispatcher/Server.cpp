@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -27,10 +27,10 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     Ice::ObjectAdapterPtr adapter2 = communicator->createObjectAdapter("ControllerAdapter");
 
     TestIntfControllerIPtr testController = new TestIntfControllerI(adapter);
-    
+
     adapter->add(new TestIntfI(), communicator->stringToIdentity("test"));
     adapter->activate();
-    
+
     adapter2->add(testController, communicator->stringToIdentity("testController"));
     adapter2->activate();
 
@@ -43,6 +43,9 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
     int status;
     Ice::CommunicatorPtr communicator;
 
@@ -50,6 +53,13 @@ main(int argc, char* argv[])
     {
         Ice::InitializationData initData;
         initData.properties = Ice::createProperties(argc, argv);
+
+        //
+        // Limit the recv buffer size, this test relies on the socket
+        // send() blocking after sending a given amount of data.
+        //
+        initData.properties->setProperty("Ice.TCP.RcvSize", "50000");
+
 #ifdef ICE_CPP11
         Ice::DispatcherPtr dispatcher = new Dispatcher();
         initData.dispatcher = Ice::newDispatcher(

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -16,6 +16,7 @@
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/Mutex.h>
 #include <IceUtil/MutexPtrLock.h>
+#include <IceUtil/Unicode.h>
 #include <Slice/Checksum.h>
 #include <Slice/Preprocessor.h>
 #include <Slice/FileTracker.h>
@@ -84,7 +85,7 @@ private:
     //
     // Write a default value for a given type.
     //
-    void writeDefaultValue(const TypePtr&);
+    void writeDefaultValue(const DataMemberPtr&);
 
     struct MemberInfo
     {
@@ -144,7 +145,12 @@ CodeVisitor::visitClassDecl(const ClassDeclPtr& p)
         startNamespace(p);
 
         string type = getTypeVar(p);
-        _out << sp << nl << "if(!isset(" << type << "))";
+        _out << sp << nl << "global " << type << ';';
+        if(!p->isLocal())
+        {
+            _out << nl << "global " << type << "Prx;";
+        }
+        _out << nl << "if(!isset(" << type << "))";
         _out << sb;
         _out << nl << type << " = IcePHP_declareClass('" << scoped << "');";
         if(!p->isLocal())
@@ -178,6 +184,12 @@ CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
 
     startNamespace(p);
 
+    _out << sp << nl << "global " << type << ';';
+    if(!p->isLocal())
+    {
+        _out << nl << "global " << prxType << ';';
+    }
+
     //
     // Define the class.
     //
@@ -186,7 +198,14 @@ CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
         _out << sp << nl << "if(!interface_exists('" << escapeName(abs) << "'))";
         _out << sb;
         _out << nl << "interface " << name;
-        if(!bases.empty())
+        if(bases.empty())
+        {
+            if(!p->isLocal())
+            {
+                _out << " extends " << scopedToName("::Ice::Object", _ns);
+            }
+        }
+        else
         {
             _out << " extends ";
             for(ClassList::const_iterator q = bases.begin(); q != bases.end(); ++q)
@@ -213,6 +232,7 @@ CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
             }
             _out << ");";
         }
+
         _out << eb;
     }
     else
@@ -372,6 +392,11 @@ CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
         _out << sb;
         _out << nl << "return $proxy->ice_uncheckedCast('" << scoped << "', $facet);";
         _out << eb;
+
+	_out << sp << nl << "public static function ice_staticId()";
+	_out << sb;
+	_out << nl << "return '" << scoped << "';";
+	_out << eb;
 
         _out << eb;
     }
@@ -600,6 +625,7 @@ CodeVisitor::visitExceptionStart(const ExceptionPtr& p)
 
     startNamespace(p);
 
+    _out << sp << nl << "global " << type << ';';
     _out << sp << nl << "if(!class_exists('" << escapeName(abs) << "'))";
     _out << sb;
     _out << nl << "class " << name << " extends ";
@@ -761,6 +787,7 @@ CodeVisitor::visitStructStart(const StructPtr& p)
 
     startNamespace(p);
 
+    _out << sp << nl << "global " << type << ';';
     _out << sp << nl << "if(!class_exists('" << escapeName(abs) << "'))";
     _out << sb;
 
@@ -840,6 +867,7 @@ CodeVisitor::visitSequence(const SequencePtr& p)
     // Emit the type information.
     //
     string scoped = p->scoped();
+    _out << sp << nl << "global " << type << ';';
     _out << sp << nl << "if(!isset(" << type << "))";
     _out << sb;
     _out << nl << type << " = IcePHP_defineSequence('" << scoped << "', ";
@@ -894,6 +922,7 @@ CodeVisitor::visitDictionary(const DictionaryPtr& p)
     // Emit the type information.
     //
     string scoped = p->scoped();
+    _out << sp << nl << "global " << type << ';';
     _out << sp << nl << "if(!isset(" << type << "))";
     _out << sb;
     _out << nl << type << " = IcePHP_defineDictionary('" << scoped << "', ";
@@ -917,11 +946,12 @@ CodeVisitor::visitEnum(const EnumPtr& p)
 
     startNamespace(p);
 
+    _out << sp << nl << "global " << type << ';';
     _out << sp << nl << "if(!class_exists('" << escapeName(abs) << "'))";
     _out << sb;
     _out << nl << "class " << name;
     _out << sb;
-    
+
     {
         long i = 0;
         for(EnumeratorList::iterator q = enums.begin(); q != enums.end(); ++q, ++i)
@@ -1100,8 +1130,9 @@ CodeVisitor::writeType(const TypePtr& p)
 }
 
 void
-CodeVisitor::writeDefaultValue(const TypePtr& p)
+CodeVisitor::writeDefaultValue(const DataMemberPtr& m)
 {
+    TypePtr p = m->type();
     BuiltinPtr builtin = BuiltinPtr::dynamicCast(p);
     if(builtin)
     {
@@ -1158,8 +1189,7 @@ CodeVisitor::writeDefaultValue(const TypePtr& p)
     // Instead we use null as the default value and allocate an instance in
     // the constructor.
     //
-    StructPtr st = StructPtr::dynamicCast(p);
-    if(st)
+    if(StructPtr::dynamicCast(p))
     {
         _out << "null";
         return;
@@ -1241,9 +1271,10 @@ CodeVisitor::writeConstantValue(const TypePtr& type, const SyntaxTreeBasePtr& va
 
                 _out << "\"";                                       // Opening "
 
-                for(string::const_iterator c = value.begin(); c != value.end(); ++c)
+                for(size_t i = 0; i < value.size();)
                 {
-                    switch(*c)
+                    char c = value[i];
+                    switch(c)
                     {
                     case '$':
                     {
@@ -1257,8 +1288,79 @@ CodeVisitor::writeConstantValue(const TypePtr& type, const SyntaxTreeBasePtr& va
                     }
                     case '\\':
                     {
-                        _out << "\\\\";
-                        break;
+
+                        string s = "\\";
+                        size_t j = i + 1;
+                        for(; j < value.size(); ++j)
+                        {
+                            if(value[j] != '\\')
+                            {
+                                break;
+                            }
+                            s += "\\";
+                        }
+
+                        //
+                        // An even number of slash \ will escape the backslash and
+                        // the codepoint will be interpreted as its charaters
+                        //
+                        // \\u00000041  - ['\\', 'u', '0', '0', '0', '0', '0', '0', '4', '1']
+                        // \\\u00000041 - ['\\', 'A'] (41 is the codepoint for 'A')
+                        //
+                        if(s.size() % 2 != 0 && (value[j] == 'U' || value[j] == 'u'))
+                        {
+                            //
+                            // Convert codepoint to UTF8 bytes and write the escaped bytes
+                            //
+                            _out << s.substr(0, s.size() - 1);
+
+                            size_t sz = value[j] == 'U' ? 8 : 4;
+                            string codepoint = value.substr(j + 1, sz);
+                            assert(codepoint.size() ==  sz);
+
+                            IceUtil::Int64 v = IceUtilInternal::strToInt64(codepoint.c_str(), 0, 16);
+
+
+                            vector<unsigned int> u32buffer;
+                            u32buffer.push_back(static_cast<unsigned int>(v));
+
+                            vector<unsigned char> u8buffer;
+
+                            IceUtilInternal::ConversionResult result = convertUTF32ToUTF8(u32buffer, u8buffer, IceUtil::lenientConversion);
+                            switch(result)
+                            {
+                                case conversionOK:
+                                    break;
+                                case sourceExhausted:
+                                    throw IceUtil::IllegalConversionException(__FILE__, __LINE__, "string source exhausted");
+                                case sourceIllegal:
+                                    throw IceUtil::IllegalConversionException(__FILE__, __LINE__, "string source illegal");
+                                default:
+                                {
+                                    assert(0);
+                                    throw IceUtil::IllegalConversionException(__FILE__, __LINE__);
+                                }
+                            }
+
+                            ostringstream s;
+                            for(vector<unsigned char>::const_iterator q = u8buffer.begin(); q != u8buffer.end(); ++q)
+                            {
+                                s << "\\";
+                                s.fill('0');
+                                s.width(3);
+                                s << oct;
+                                s << static_cast<unsigned int>(*q);
+                            }
+                            _out << s.str();
+
+                            i = j + 1 + sz;
+                        }
+                        else
+                        {
+                            _out << s;
+                            i = j;
+                        }
+                        continue;
                     }
                     case '\r':
                     {
@@ -1275,11 +1377,6 @@ CodeVisitor::writeConstantValue(const TypePtr& type, const SyntaxTreeBasePtr& va
                         _out << "\\t";
                         break;
                     }
-                    case '\b':
-                    {
-                        _out << "\\b";
-                        break;
-                    }
                     case '\f':
                     {
                         _out << "\\f";
@@ -1287,9 +1384,9 @@ CodeVisitor::writeConstantValue(const TypePtr& type, const SyntaxTreeBasePtr& va
                     }
                     default:
                     {
-                        if(charSet.find(*c) == charSet.end())
+                        if(charSet.find(c) == charSet.end())
                         {
-                            unsigned char uc = *c;              // Char may be signed, so make it positive.
+                            unsigned char uc = c;              // Char may be signed, so make it positive.
                             stringstream s;
                             s << "\\";                          // Print as octal if not in basic source character set.
                             s.flags(ios_base::oct);
@@ -1300,11 +1397,12 @@ CodeVisitor::writeConstantValue(const TypePtr& type, const SyntaxTreeBasePtr& va
                         }
                         else
                         {
-                            _out << *c;                         // Print normally if in basic source character set.
+                            _out << c;                          // Print normally if in basic source character set.
                         }
                         break;
                     }
                     }
+                    ++i;
                 }
 
                 _out << "\"";                                   // Closing "
@@ -1363,7 +1461,7 @@ CodeVisitor::writeConstructorParams(const MemberInfoList& members)
         }
         else
         {
-            writeDefaultValue(member->type());
+            writeDefaultValue(member);
         }
     }
 }
@@ -1472,7 +1570,7 @@ generate(const UnitPtr& un, bool all, bool checksum, bool ns, const vector<strin
                 str.fill('0');
                 for(vector<unsigned char>::const_iterator q = p->second.begin(); q != p->second.end(); ++q)
                 {
-                    str << (int)(*q);
+                    str << static_cast<int>(*q);
                 }
                 out << str.str() << "\";";
             }
@@ -1492,7 +1590,7 @@ printHeader(IceUtilInternal::Output& out)
     static const char* header =
 "// **********************************************************************\n"
 "//\n"
-"// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.\n"
+"// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.\n"
 "//\n"
 "// This copy of Ice is licensed to you under the terms described in the\n"
 "// ICE_LICENSE file included in this distribution.\n"
@@ -1544,10 +1642,11 @@ static void
 usage(const char* n)
 {
     getErrorStream() << "Usage: " << n << " [options] slice-files...\n";
-    getErrorStream() <<        
+    getErrorStream() <<
         "Options:\n"
         "-h, --help           Show this message.\n"
         "-v, --version        Display the Ice version.\n"
+        "--validate               Validate command line options.\n"
         "-DNAME               Define NAME as 1.\n"
         "-DNAME=DEF           Define NAME as DEF.\n"
         "-UNAME               Remove any definition for NAME.\n"
@@ -1555,9 +1654,11 @@ usage(const char* n)
         "-E                   Print preprocessor output on stdout.\n"
         "--output-dir DIR     Create files in the directory DIR.\n"
         "--depend             Generate Makefile dependencies.\n"
+        "--depend-xml         Generate dependencies in XML format.\n"
+        "--depend-file FILE   Write dependencies to FILE instead of standard output.\n"
         "-d, --debug          Print debug messages.\n"
-        "--ice                Permit `Ice' prefix (for building Ice source code only).\n"
-        "--underscore         Permit underscores in Slice identifiers.\n"
+        "--ice                Allow reserved Ice prefix in Slice identifiers.\n"
+        "--underscore         Allow underscores in Slice identifiers.\n"
         "--all                Generate code for Slice definitions in included files.\n"
         "--checksum           Generate checksums for Slice definitions.\n"
         "-n, --namespace      Use PHP namespaces (requires PHP 5.3 or later).\n"
@@ -1570,28 +1671,44 @@ compile(int argc, char* argv[])
     IceUtilInternal::Options opts;
     opts.addOpt("h", "help");
     opts.addOpt("v", "version");
+    opts.addOpt("", "validate");
     opts.addOpt("D", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
     opts.addOpt("U", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
     opts.addOpt("I", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
     opts.addOpt("E");
     opts.addOpt("", "output-dir", IceUtilInternal::Options::NeedArg);
     opts.addOpt("", "depend");
+    opts.addOpt("", "depend-xml");
+    opts.addOpt("", "depend-file", IceUtilInternal::Options::NeedArg, "");
     opts.addOpt("d", "debug");
     opts.addOpt("", "ice");
     opts.addOpt("", "underscore");
     opts.addOpt("", "all");
     opts.addOpt("", "checksum");
     opts.addOpt("n", "namespace");
-     
+
+    bool validate = false;
+    for(int i = 0; i < argc; ++i)
+    {
+        if(string(argv[i]) == "--validate")
+        {
+            validate = true;
+            break;
+        }
+    }
+
     vector<string> args;
     try
     {
-        args = opts.parse(argc, (const char**)argv);
+        args = opts.parse(argc, const_cast<const char**>(argv));
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
         getErrorStream() << argv[0] << ": error: " << e.reason << endl;
-        usage(argv[0]);
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
         return EXIT_FAILURE;
     }
 
@@ -1632,6 +1749,10 @@ compile(int argc, char* argv[])
 
     bool depend = opts.isSet("depend");
 
+    bool dependxml = opts.isSet("depend-xml");
+
+    string dependFile = opts.optArg("depend-file");
+
     bool debug = opts.isSet("debug");
 
     bool ice = opts.isSet("ice");
@@ -1647,14 +1768,38 @@ compile(int argc, char* argv[])
     if(args.empty())
     {
         getErrorStream() << argv[0] << ": error: no input file" << endl;
-        usage(argv[0]);
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
         return EXIT_FAILURE;
+    }
+
+    if(depend && dependxml)
+    {
+        getErrorStream() << argv[0] << ": error: cannot specify both --depend and --depend-xml" << endl;
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
+        return EXIT_FAILURE;
+    }
+
+    if(validate)
+    {
+        return EXIT_SUCCESS;
     }
 
     int status = EXIT_SUCCESS;
 
     IceUtil::CtrlCHandler ctrlCHandler;
     ctrlCHandler.setCallback(interruptedCallback);
+
+    DependOutputUtil out(dependFile);
+    if(dependxml)
+    {
+        out.os() << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<dependencies>" << endl;
+    }
 
     for(vector<string>::const_iterator i = args.begin(); i != args.end(); ++i)
     {
@@ -1667,13 +1812,14 @@ compile(int argc, char* argv[])
             continue;
         }
 
-        if(depend)
+        if(depend || dependxml)
         {
             PreprocessorPtr icecpp = Preprocessor::create(argv[0], *i, cppArgs);
             FILE* cppHandle = icecpp->preprocess(false, "-D__SLICE2PHP__");
 
             if(cppHandle == 0)
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
 
@@ -1683,16 +1829,20 @@ compile(int argc, char* argv[])
 
             if(parseStatus == EXIT_FAILURE)
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
 
-            if(!icecpp->printMakefileDependencies(Preprocessor::PHP, includePaths, "-D__SLICE2PHP__"))
+            if(!icecpp->printMakefileDependencies(out.os(), depend ? Preprocessor::PHP : Preprocessor::SliceXML,
+                                                  includePaths, "-D__SLICE2PHP__"))
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
 
             if(!icecpp->close())
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
         }
@@ -1801,10 +1951,16 @@ compile(int argc, char* argv[])
 
             if(interrupted)
             {
+                out.cleanup();
                 FileTracker::instance()->cleanup();
                 return EXIT_FAILURE;
             }
         }
+    }
+
+    if(dependxml)
+    {
+        out.os() << "</dependencies>\n";
     }
 
     return status;

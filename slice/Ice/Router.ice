@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,17 +9,18 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
 
 #include <Ice/BuiltinSequences.ice>
 
+["objc:prefix:ICE"]
 module Ice
 {
 
 /**
  *
  * The Ice router interface. Routers can be set either globally with
- * {@link Communicator.setDefaultRouter}, or with <tt>ice_router</tt> on specific
+ * {@link Communicator#setDefaultRouter}, or with <tt>ice_router</tt> on specific
  * proxies.
  *
  **/
@@ -49,25 +50,34 @@ interface Router
      *
      * Add new proxy information to the router's routing table.
      *
-     * <p class="Deprecated">This operation is deprecated, and only used for old
-     * Ice clients (older than version 3.1).
-     *
-     * @param proxy The proxy to add.
-     *
-     **/
-    ["deprecate:addProxy() is deprecated, use addProxies() instead."]
-    idempotent void addProxy(Object* proxy);
-
-    /**
-     *
-     * Add new proxy information to the router's routing table.
-     *
      * @param proxies The proxies to add.
      *
      * @return Proxies discarded by the router.
      *
      **/
     idempotent ObjectProxySeq addProxies(ObjectProxySeq proxies);
+};
+
+/**
+ *
+ * This inferface should be implemented by services implementing the
+ * Ice::Router interface. It should be advertised through an Ice
+ * object with the identity `Ice/RouterFinder'. This allows clients to
+ * retrieve the router proxy with just the endpoint information of the
+ * service.
+ *
+ **/
+interface RouterFinder
+{
+    /**
+     *
+     * Get the router proxy implemented by the process hosting this
+     * finder object. The proxy might point to several replicas.
+     *
+     * @return The router proxy.
+     *
+     **/
+    Router* getRouter();
 };
 
 };

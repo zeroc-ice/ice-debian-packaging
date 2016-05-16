@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,7 +14,7 @@
 #include <Slice/Preprocessor.h>
 #include <Slice/FileTracker.h>
 #include <Slice/Util.h>
-#include <Gen.h>
+#include "Gen.h"
 
 using namespace std;
 using namespace Slice;
@@ -57,10 +57,11 @@ void
 usage(const char* n)
 {
     getErrorStream() << "Usage: " << n << " [options] slice-files...\n";
-    getErrorStream() <<     
+    getErrorStream() <<
         "Options:\n"
         "-h, --help               Show this message.\n"
         "-v, --version            Display the Ice version.\n"
+        "--validate               Validate command line options.\n"
         "--header-ext EXT         Use EXT instead of the default `h' extension.\n"
         "--source-ext EXT         Use EXT instead of the default `cpp' extension.\n"
         "--add-header HDR[,GUARD] Add #include for HDR (with guard GUARD) to generated source file.\n"
@@ -74,9 +75,11 @@ usage(const char* n)
         "--dll-export SYMBOL      Use SYMBOL for DLL exports.\n"
         "--impl                   Generate sample implementations.\n"
         "--depend                 Generate Makefile dependencies.\n"
+        "--depend-xml             Generate dependencies in XML format.\n"
+        "--depend-file FILE       Write dependencies to FILE instead of standard output.\n"
         "-d, --debug              Print debug messages.\n"
-        "--ice                    Permit `Ice' prefix (for building Ice source code only).\n"
-        "--underscore             Permit underscores in Slice identifiers.\n"
+        "--ice                    Allow reserved Ice prefix in Slice identifiers.\n"
+        "--underscore             Allow underscores in Slice identifiers.\n"
         "--checksum               Generate checksums for Slice definitions.\n"
         "--stream                 Generate marshaling support for public stream API.\n"
         ;
@@ -88,6 +91,7 @@ compile(int argc, char* argv[])
     IceUtilInternal::Options opts;
     opts.addOpt("h", "help");
     opts.addOpt("v", "version");
+    opts.addOpt("", "validate");
     opts.addOpt("", "header-ext", IceUtilInternal::Options::NeedArg, "h");
     opts.addOpt("", "source-ext", IceUtilInternal::Options::NeedArg, "cpp");
     opts.addOpt("", "add-header", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
@@ -100,22 +104,36 @@ compile(int argc, char* argv[])
     opts.addOpt("", "dll-export", IceUtilInternal::Options::NeedArg);
     opts.addOpt("", "impl");
     opts.addOpt("", "depend");
-    opts.addOpt("", "depend-header");
+    opts.addOpt("", "depend-xml");
+    opts.addOpt("", "depend-file", IceUtilInternal::Options::NeedArg, "");
     opts.addOpt("d", "debug");
     opts.addOpt("", "ice");
     opts.addOpt("", "underscore");
     opts.addOpt("", "checksum");
     opts.addOpt("", "stream");
 
+    bool validate = false;
+    for(int i = 0; i < argc; ++i)
+    {
+        if(string(argv[i]) == "--validate")
+        {
+            validate = true;
+            break;
+        }
+    }
+
     vector<string> args;
     try
     {
-        args = opts.parse(argc, (const char**)argv);
+        args = opts.parse(argc, const_cast<const char**>(argv));
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
         getErrorStream() << argv[0] << ": " << e.reason << endl;
-        usage(argv[0]);
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
         return EXIT_FAILURE;
     }
 
@@ -133,7 +151,7 @@ compile(int argc, char* argv[])
 
     string headerExtension = opts.optArg("header-ext");
     string sourceExtension = opts.optArg("source-ext");
-    
+
     vector<string> extraHeaders = opts.argVec("add-header");
 
     vector<string> cppArgs;
@@ -168,6 +186,10 @@ compile(int argc, char* argv[])
 
     bool depend = opts.isSet("depend");
 
+    bool dependxml = opts.isSet("depend-xml");
+
+    string dependFile = opts.optArg("depend-file");
+
     bool debug = opts.isSet("debug");
 
     bool ice = opts.isSet("ice");
@@ -181,14 +203,38 @@ compile(int argc, char* argv[])
     if(args.empty())
     {
         getErrorStream() << argv[0] << ": error: no input file" << endl;
-        usage(argv[0]);
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
         return EXIT_FAILURE;
+    }
+
+    if(depend && dependxml)
+    {
+        getErrorStream() << argv[0] << ": error: cannot specify both --depend and --depend-xml" << endl;
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
+        return EXIT_FAILURE;
+    }
+
+    if(validate)
+    {
+        return EXIT_SUCCESS;
     }
 
     int status = EXIT_SUCCESS;
 
     IceUtil::CtrlCHandler ctrlCHandler;
     ctrlCHandler.setCallback(interruptedCallback);
+
+    DependOutputUtil out(dependFile);
+    if(dependxml)
+    {
+        out.os() << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<dependencies>" << endl;
+    }
 
     for(vector<string>::const_iterator i = args.begin(); i != args.end(); ++i)
     {
@@ -201,33 +247,37 @@ compile(int argc, char* argv[])
             continue;
         }
 
-        if(depend)
+        if(depend || dependxml)
         {
             PreprocessorPtr icecpp = Preprocessor::create(argv[0], *i, cppArgs);
             FILE* cppHandle = icecpp->preprocess(false, "-D__SLICE2CPP__");
 
             if(cppHandle == 0)
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
-            
+
             UnitPtr u = Unit::createUnit(false, false, ice, underscore);
             int parseStatus = u->parse(*i, cppHandle, debug);
             u->destroy();
 
             if(parseStatus == EXIT_FAILURE)
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
 
-            if(!icecpp->printMakefileDependencies(Preprocessor::CPlusPlus, includePaths,
-                                                  "-D__SLICE2CPP__", sourceExtension, headerExtension))
+            if(!icecpp->printMakefileDependencies(out.os(), depend ? Preprocessor::CPlusPlus : Preprocessor::SliceXML,
+                                                  includePaths, "-D__SLICE2CPP__", sourceExtension, headerExtension))
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
 
             if(!icecpp->close())
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
         }
@@ -260,7 +310,7 @@ compile(int argc, char* argv[])
             {
                 UnitPtr u = Unit::createUnit(false, false, ice, underscore);
                 int parseStatus = u->parse(*i, cppHandle, debug);
-            
+
                 if(!icecpp->close())
                 {
                     u->destroy();
@@ -299,10 +349,16 @@ compile(int argc, char* argv[])
 
             if(interrupted)
             {
+                out.cleanup();
                 FileTracker::instance()->cleanup();
                 return EXIT_FAILURE;
             }
         }
+    }
+
+    if(dependxml)
+    {
+        out.os() << "</dependencies>\n";
     }
 
     return status;

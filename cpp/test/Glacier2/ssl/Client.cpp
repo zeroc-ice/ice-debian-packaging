@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -25,6 +25,10 @@ public:
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     //
     // We must disable connection warnings, because we attempt to ping
     // the router before session establishment, as well as after
@@ -114,6 +118,6 @@ CallbackClient::run(int, char**)
     Ice::ProcessPrx process = Ice::ProcessPrx::checkedCast(
         communicator()->stringToProxy("Glacier2/admin -f Process:tcp -h 127.0.0.1 -p 12349"));
     process->shutdown();
-    
+
     return EXIT_SUCCESS;
 }

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -48,6 +48,18 @@ public:
     exception(const Ice::Exception& ex)
     {
         test(dynamic_cast<const Ice::NoEndpointException*>(&ex));
+        test(Dispatcher::isDispatcherThread());
+        called();
+    }
+
+    void responseEx()
+    {
+        test(false);
+    }
+
+    void exceptionEx(const ::Ice::Exception& ex)
+    {
+        test(dynamic_cast<const Ice::InvocationTimeoutException*>(&ex));
         test(Dispatcher::isDispatcherThread());
         called();
     }
@@ -122,6 +134,15 @@ allTests(const Ice::CommunicatorPtr& communicator)
         Test::TestIntfPrx i = p->ice_adapterId("dummy");
         i->begin_op(callback);
         cb->check();
+
+        {
+            //
+            // Expect InvocationTimeoutException.
+            //
+            Test::TestIntfPrx to = p->ice_invocationTimeout(250);
+            to->begin_sleep(500, Test::newCallback_TestIntf_sleep(cb, &Callback::responseEx, &Callback::exceptionEx));
+            cb->check();
+        }
 
         testController->holdAdapter();
 

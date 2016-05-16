@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -62,13 +62,19 @@ class OpAMICallback : public IceUtil::Shared
 {
 public:
 
-    void 
+    void
     response()
     {
         _response.called();
     }
 
-    void noResponse()
+    void
+    responseNoOp()
+    {
+    }
+
+    void
+    noResponse()
     {
         test(false);
     }
@@ -239,7 +245,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
     cout << "testing locator... " << flush;
     {
         Ice::LocatorPrx locator;
-        obj = communicator->stringToProxy("locator:default -p 12010 -t 500");
+        obj = communicator->stringToProxy("locator:default -p 12010")->ice_invocationTimeout(250);
         locator = Ice::LocatorPrx::uncheckedCast(obj);
         obj = communicator->stringToProxy("background@Test")->ice_locator(locator)->ice_oneway();
 
@@ -279,7 +285,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
     {
         Ice::RouterPrx router;
 
-        obj = communicator->stringToProxy("router:default -p 12010 -t 500");
+        obj = communicator->stringToProxy("router:default -p 12010")->ice_invocationTimeout(250);
         router = Ice::RouterPrx::uncheckedCast(obj);
         obj = communicator->stringToProxy("background@Test")->ice_router(router)->ice_oneway();
 
@@ -312,6 +318,46 @@ allTests(const Ice::CommunicatorPtr& communicator)
         test(r2->isCompleted());
     }
     cout << "ok" << endl;
+
+    const bool ws = communicator->getProperties()->getProperty("Ice.Default.Protocol") == "test-ws";
+    const bool wss = communicator->getProperties()->getProperty("Ice.Default.Protocol") == "test-wss";
+    if(!ws && !wss)
+    {
+        cout << "testing buffered transport... " << flush;
+
+        configuration->buffered(true);
+        backgroundController->buffered(true);
+        background->begin_op();
+        background->ice_getCachedConnection()->close(true);
+        background->begin_op();
+
+        vector<Ice::AsyncResultPtr> results;
+        OpAMICallbackPtr cb = new OpAMICallback();
+        Callback_Background_opPtr callback = newCallback_Background_op(cb,
+                                                                       &OpAMICallback::responseNoOp,
+                                                                       &OpAMICallback::noException);
+        for(int i = 0; i < 10000; ++i)
+        {
+            Ice::AsyncResultPtr r = background->begin_op(callback);
+            results.push_back(r);
+            if(i % 50 == 0)
+            {
+                backgroundController->holdAdapter();
+                backgroundController->resumeAdapter();
+            }
+            if(i % 100 == 0)
+            {
+                r->waitForCompleted();
+            }
+        }
+
+        for(vector<Ice::AsyncResultPtr>::const_iterator p = results.begin(); p != results.end(); ++p)
+        {
+            (*p)->waitForCompleted(); // Ensure all the calls are completed before destroying the communicator
+        }
+
+        cout << "ok" << endl;
+    }
 
     return background;
 }
@@ -362,7 +408,7 @@ connectTests(const ConfigurationPtr& configuration, const Test::BackgroundPrx& b
         {
         }
         test(r->isCompleted());
-        
+
         OpAMICallbackPtr cbEx = new OpAMICallback();
         r = prx->begin_op(Test::newCallback_Background_op(cbEx, &OpAMICallback::exception));
         test(!r->sentSynchronously());
@@ -422,9 +468,8 @@ initializeTests(const ConfigurationPtr& configuration,
     {
         background->op();
     }
-    catch(const Ice::LocalException& ex)
+    catch(const Ice::LocalException&)
     {
-        cerr << ex << endl;
         test(false);
     }
     background->ice_getConnection()->close(false);
@@ -446,7 +491,7 @@ initializeTests(const ConfigurationPtr& configuration,
 #endif
         }
         BackgroundPrx prx = (i == 1 || i == 3) ? background : background->ice_oneway();
-        
+
         try
         {
             prx->op();
@@ -698,7 +743,8 @@ validationTests(const ConfigurationPtr& configuration,
         configuration->readException(0);
     }
 
-    if(background->ice_getCommunicator()->getProperties()->getProperty("Ice.Default.Protocol") != "test-ssl")
+    if(background->ice_getCommunicator()->getProperties()->getProperty("Ice.Default.Protocol") != "test-ssl" &&
+       background->ice_getCommunicator()->getProperties()->getProperty("Ice.Default.Protocol") != "test-wss")
     {
         try
         {
@@ -759,12 +805,13 @@ validationTests(const ConfigurationPtr& configuration,
     test(!r->sentSynchronously() && !r2->sentSynchronously());
     test(!r->isCompleted() && !r2->isCompleted());
     ctl->resumeAdapter();
-    background->end_op(r);    
+    background->end_op(r);
     background->end_op(r2);
     test(r->isCompleted() && r2->isCompleted());
 
 #if defined(ICE_USE_IOCP) || defined(ICE_USE_CFSTREAM)
-    if(background->ice_getCommunicator()->getProperties()->getProperty("Ice.Default.Protocol") != "test-ssl")
+    if(background->ice_getCommunicator()->getProperties()->getProperty("Ice.Default.Protocol") != "test-ssl" &&
+       background->ice_getCommunicator()->getProperties()->getProperty("Ice.Default.Protocol") != "test-wss")
     {
 #endif
     try
@@ -828,16 +875,6 @@ validationTests(const ConfigurationPtr& configuration,
     //
     // First send small requests to test without auto-flushing.
     //
-    backgroundBatchOneway->ice_ping();
-    backgroundBatchOneway->ice_getConnection()->close(false);
-    try
-    {
-        backgroundBatchOneway->ice_ping();
-        test(false);
-    }
-    catch(const Ice::CloseConnectionException&)
-    {
-    }
     ctl->holdAdapter();
     backgroundBatchOneway->op();
     backgroundBatchOneway->op();
@@ -857,16 +894,6 @@ validationTests(const ConfigurationPtr& configuration,
     //
     // Send bigger requests to test with auto-flushing.
     //
-    backgroundBatchOneway->ice_ping();
-    backgroundBatchOneway->ice_getConnection()->close(false);
-    try
-    {
-        backgroundBatchOneway->ice_ping();
-        test(false);
-    }
-    catch(const Ice::CloseConnectionException&)
-    {
-    }
     ctl->holdAdapter();
     backgroundBatchOneway->opWithPayload(seq);
     backgroundBatchOneway->opWithPayload(seq);
@@ -887,16 +914,6 @@ validationTests(const ConfigurationPtr& configuration,
     // Then try the same thing with async flush.
     //
 
-    backgroundBatchOneway->ice_ping();
-    backgroundBatchOneway->ice_getConnection()->close(false);
-    try
-    {
-        backgroundBatchOneway->ice_ping();
-        test(false);
-    }
-    catch(const Ice::CloseConnectionException&)
-    {
-    }
     ctl->holdAdapter();
     backgroundBatchOneway->op();
     backgroundBatchOneway->op();
@@ -906,16 +923,6 @@ validationTests(const ConfigurationPtr& configuration,
     backgroundBatchOneway->begin_ice_flushBatchRequests();
     backgroundBatchOneway->ice_getConnection()->close(false);
 
-    backgroundBatchOneway->ice_ping();
-    backgroundBatchOneway->ice_getConnection()->close(false);
-    try
-    {
-        backgroundBatchOneway->ice_ping();
-        test(false);
-    }
-    catch(const Ice::CloseConnectionException&)
-    {
-    }
     ctl->holdAdapter();
     backgroundBatchOneway->opWithPayload(seq);
     backgroundBatchOneway->opWithPayload(seq);
@@ -995,18 +1002,11 @@ readWriteTests(const ConfigurationPtr& configuration,
     {
         configuration->readException(0);
     }
-        
+
     background->ice_ping();
     configuration->readReady(false); // Required in C# to make sure beginRead() doesn't throw too soon.
     configuration->readException(new Ice::SocketException(__FILE__, __LINE__));
     Ice::AsyncResultPtr r = background->begin_op();
-    if(!r->sentSynchronously())
-    {
-        // The read exception might propagate before the message send is seen as completed on IOCP.
-#ifndef ICE_USE_IOCP
-        test(r->isCompleted());
-#endif
-    }
     try
     {
         background->end_op(r);
@@ -1020,7 +1020,8 @@ readWriteTests(const ConfigurationPtr& configuration,
     configuration->readReady(true);
 
 #if defined(ICE_USE_IOCP) || defined(ICE_USE_CFSTREAM)
-    if(background->ice_getCommunicator()->getProperties()->getProperty("Ice.Default.Protocol") != "test-ssl")
+    if(background->ice_getCommunicator()->getProperties()->getProperty("Ice.Default.Protocol") != "test-ssl" &&
+       background->ice_getCommunicator()->getProperties()->getProperty("Ice.Default.Protocol") != "test-wss")
     {
 #endif
         try
@@ -1103,13 +1104,6 @@ readWriteTests(const ConfigurationPtr& configuration,
             configuration->readReady(false);
             configuration->readException(new Ice::SocketException(__FILE__, __LINE__));
             Ice::AsyncResultPtr r = background->begin_op();
-            if(!r->sentSynchronously())
-            {
-                // The read exception might propagate before the message send is seen as completed on IOCP.
-#ifndef ICE_USE_IOCP
-                test(r->isCompleted());
-#endif
-            }
             try
             {
                 background->end_op(r);
@@ -1158,30 +1152,33 @@ readWriteTests(const ConfigurationPtr& configuration,
     ctl->holdAdapter(); // Hold to block in request send.
 
     Ice::ByteSeq seq;
-    seq.resize(1024 * 1024); // Make sure the request doesn't compress too well.
+    seq.resize(10024); // Make sure the request doesn't compress too well.
     for(Ice::ByteSeq::iterator p = seq.begin(); p != seq.end(); ++p)
     {
         *p = static_cast<Ice::Byte>(IceUtilInternal::random(255));
     }
     OpAMICallbackPtr cb = new OpAMICallback();
-    Callback_Background_opWithPayloadPtr callbackWP = newCallback_Background_opWithPayload(cb, 
-                                                                                           &OpAMICallback::noResponse, 
+    Callback_Background_opWithPayloadPtr callbackWP = newCallback_Background_opWithPayload(cb,
+                                                                                           &OpAMICallback::noResponse,
                                                                                            &OpAMICallback::noException);
-    while(backgroundOneway->begin_opWithPayload(seq, callbackWP)->sentSynchronously())
+
+    // Fill up the receive and send buffers
+    for(int i = 0; i < 200; ++i) // 2MB
     {
+        backgroundOneway->begin_opWithPayload(seq, callbackWP);
     }
 
     Callback_Background_opPtr callback;
     cb = new OpAMICallback();
     Ice::AsyncResultPtr r1 = background->begin_op(newCallback_Background_op(cb,
-                                                                            &OpAMICallback::response, 
+                                                                            &OpAMICallback::response,
                                                                             &OpAMICallback::noException,
                                                                             &OpAMICallback::sent));
     test(!r1->sentSynchronously() && !r1->isSent());
 
     OpAMICallbackPtr cb2 = new OpAMICallback();
     Ice::AsyncResultPtr r2 = background->begin_op(newCallback_Background_op(cb2,
-                                                                            &OpAMICallback::response, 
+                                                                            &OpAMICallback::response,
                                                                             &OpAMICallback::noException,
                                                                             &OpAMICallback::sent));
     test(!r2->sentSynchronously() && !r2->isSent());

@@ -1,20 +1,16 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/Random.h>
 #include <Ice/Application.h>
 #include <Glacier2/Router.h>
 #include <Backend.h>
 #include <TestCommon.h>
-#include <set>
-
-#include <fstream>
 
 using namespace std;
 using namespace Ice;
@@ -30,15 +26,19 @@ public:
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     Ice::InitializationData initData;
     initData.properties = Ice::createProperties(argc, argv);
-   
+
     //
     // We want to check whether the client retries for evicted
     // proxies, even with regular retries disabled.
     //
     initData.properties->setProperty("Ice.RetryIntervals", "-1");
-        
+
     AttackClient app;
     return app.main(argc, argv, initData);
 }
@@ -73,13 +73,13 @@ AttackClient::run(int, char**)
         }
         catch(const ConnectionLostException&)
         {
-            // 
+            //
             // This is ok.
             //
         }
         catch(const CloseConnectionException&)
         {
-            // 
+            //
             // This is also ok.
             //
         }
@@ -123,7 +123,7 @@ AttackClient::run(int, char**)
         {
             cerr << p->second << endl;
             cerr << ex << endl;
-            test("Unexpected local exception" == 0); 
+            test("Unexpected local exception" == 0);
         }
         try
         {

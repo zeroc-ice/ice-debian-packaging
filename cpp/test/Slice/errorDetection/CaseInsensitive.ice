@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -274,6 +274,54 @@ module CI
     interface derived extends base1, base2
     {
     };
+};
+
+module DI
+{
+    interface base
+    {
+        void aa(int AA);
+        void xx(int base);
+    };
+    
+    class base1
+    {
+        int base1;
+        void aa(int BASE1);
+        
+        void bb(int base1, string BASE1);
+    };
+    
+    struct Foo
+    {
+        int foo;
+    };
+    
+    struct Foo1
+    {
+        int Foo1;
+    };
+    
+    exception Bar
+    {
+        string bar;
+    };
+    
+    exception Bar1
+    {
+        string Bar1;
+    };
+    
+    class base2
+    {
+        int X;
+    };
+
+    class derived2 extends base2
+    {
+        string x;
+    };
+    
 };
 
 };

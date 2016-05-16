@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -57,7 +57,6 @@ public:
     virtual void stopServer_async(const AMD_Admin_stopServerPtr&, const ::std::string&, const Ice::Current&);
     virtual void patchServer_async(const AMD_Admin_patchServerPtr&, const ::std::string&, bool, const Ice::Current&);
     virtual void sendSignal(const ::std::string&, const ::std::string&, const Ice::Current&);
-    virtual void writeMessage(const ::std::string&, const ::std::string&, Ice::Int, const Ice::Current&);
     virtual Ice::StringSeq getAllServerIds(const Ice::Current&) const;
     virtual void enableServer(const ::std::string&, bool, const Ice::Current&);
     virtual bool isServerEnabled(const ::std::string&, const Ice::Current&) const;
@@ -75,6 +74,7 @@ public:
     virtual ObjectInfoSeq getAllObjectInfos(const std::string&, const ::Ice::Current&) const;
 
     virtual NodeInfo getNodeInfo(const std::string&, const Ice::Current&) const;
+    virtual Ice::ObjectPrx getNodeAdmin(const std::string&, const Ice::Current&) const;
     virtual bool pingNode(const std::string&, const Ice::Current&) const;
     virtual LoadInfo getNodeLoad(const std::string&, const Ice::Current&) const;
     virtual int getNodeProcessorSocketCount(const std::string&, const Ice::Current&) const;
@@ -83,6 +83,7 @@ public:
     virtual Ice::StringSeq getAllNodeNames(const ::Ice::Current&) const;
 
     virtual RegistryInfo getRegistryInfo(const std::string&, const Ice::Current&) const;
+    virtual Ice::ObjectPrx getRegistryAdmin(const std::string&, const Ice::Current&) const;
     virtual bool pingRegistry(const std::string&, const Ice::Current&) const;
     virtual void shutdownRegistry(const std::string&, const Ice::Current&);
     virtual Ice::StringSeq getAllRegistryNames(const ::Ice::Current&) const;

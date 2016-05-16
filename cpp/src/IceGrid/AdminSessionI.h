@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -65,8 +65,9 @@ public:
 
 private:
 
-    void setupObserverSubscription(TopicName, const Ice::ObjectPrx&);
-    Ice::ObjectPrx toProxy(const Ice::Identity&, const Ice::ConnectionPtr&, const Ice::EncodingVersion&);
+    void setupObserverSubscription(TopicName, const Ice::ObjectPrx&, bool = false);
+    Ice::ObjectPrx addForwarder(const Ice::Identity&, const Ice::Current&);
+    Ice::ObjectPrx addForwarder(const Ice::ObjectPrx&);
     FileIteratorPrx addFileIterator(const FileReaderPrx&, const std::string&, int, const Ice::Current&);
 
     virtual void destroyImpl(bool);
@@ -74,7 +75,7 @@ private:
     const int _timeout;
     const std::string _replicaName;
     AdminPrx _admin;
-    std::map<TopicName, Ice::ObjectPrx> _observers;
+    std::map<TopicName, std::pair<Ice::ObjectPrx, bool> > _observers;
     RegistryIPtr _registry;
     Ice::ObjectPrx _adminCallbackTemplate;
 };

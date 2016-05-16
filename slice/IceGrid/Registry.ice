@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,12 +9,14 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["cpp:include:IceGrid/Config.h"]]
 
 #include <IceGrid/Exception.ice>
 #include <IceGrid/Session.ice>
 #include <IceGrid/Admin.ice>
 
+["objc:prefix:ICEGRID"]
 module IceGrid
 {
 
@@ -25,7 +27,7 @@ module IceGrid
  *
  * @see Session
  * @see AdminSession
- * 
+ *
  **/
 interface Registry
 {
@@ -118,6 +120,19 @@ interface Registry
      *
      **/
     ["nonmutating", "cpp:const"] idempotent int getSessionTimeout();
+
+    /**
+     *
+     * Get the value of the ACM timeout. Clients supporting ACM
+     * connection heartbeats can enable them instead of explicitly
+     * sending keep alives requests.
+     *
+     * NOTE: This method is only available since Ice 3.6.
+     *
+     * @return The timeout (in seconds).
+     *
+     **/
+    ["nonmutating", "cpp:const"] idempotent int getACMTimeout();
 };
 
 };

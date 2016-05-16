@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,64 +9,13 @@
 
 #include <IceUtil/Thread.h>
 #include <Ice/Ice.h>
-#include <IceGrid/Observer.h>
-#include <IceGrid/Admin.h>
-#include <IceGrid/Registry.h>
+#include <IceGrid/IceGrid.h>
 #include <TestCommon.h>
 #include <Test.h>
 
 using namespace std;
 using namespace Test;
 using namespace IceGrid;
-
-class SessionKeepAliveThread : public IceUtil::Thread, public IceUtil::Monitor<IceUtil::Mutex>
-{
-public:
-
-    SessionKeepAliveThread(const IceGrid::AdminSessionPrx& session, long timeout) :
-        _session(session),
-        _timeout(IceUtil::Time::seconds(timeout)),
-        _destroy(false)
-    {
-    }
-
-    virtual void
-    run()
-    {
-        Lock sync(*this);
-        while(!_destroy)
-        {
-            timedWait(_timeout);
-            if(_destroy)
-            {
-                break;
-            }
-            try
-            {
-                _session->keepAlive();
-            }
-            catch(const Ice::Exception&)
-            {
-                break;
-            }
-        }
-    }
-
-    void
-    destroy()
-    {
-        Lock sync(*this);
-        _destroy = true;
-        notify();
-    }
-
-private:
-
-    IceGrid::AdminSessionPrx _session;
-    const IceUtil::Time _timeout;
-    bool _destroy;
-};
-typedef IceUtil::Handle<SessionKeepAliveThread> SessionKeepAliveThreadPtr;
 
 void 
 addProperty(const CommunicatorDescriptorPtr& communicator, const string& name, const string& value)
@@ -202,12 +151,12 @@ updateServiceRuntimeProperties(const AdminPrx& admin, const ServiceDescriptorPtr
 void 
 allTests(const Ice::CommunicatorPtr& communicator)
 {
-    RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(communicator->stringToProxy("IceGrid/Registry"));
+    IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
+        communicator->stringToProxy(communicator->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
     test(registry);
     AdminSessionPrx session = registry->createAdminSession("foo", "bar");
 
-    SessionKeepAliveThreadPtr keepAlive = new SessionKeepAliveThread(session, registry->getSessionTimeout()/2);
-    keepAlive->start();
+    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::HeartbeatAlways);
 
     AdminPrx admin = session->getAdmin();
     test(admin);
@@ -259,6 +208,11 @@ allTests(const Ice::CommunicatorPtr& communicator)
         try
         {
             admin->updateApplicationWithoutRestart(update);
+        }
+        catch(const DeploymentException& ex)
+        {
+            cerr << ex.reason << endl;
+            test(false);
         }
         catch(const Ice::Exception& ex)
         {
@@ -362,6 +316,31 @@ allTests(const Ice::CommunicatorPtr& communicator)
             test(false);
         }
         test(server1Pid == admin->getServerPid("Server1"));
+
+        admin->stopServer("Server2");
+        update.nodes[0].removeServers.clear();
+        update.nodes[0].removeServers.push_back("Server2");
+        try
+        {
+            admin->updateApplicationWithoutRestart(update);
+        }
+        catch(const DeploymentException&)
+        {
+            test(false);
+        }
+        catch(const Ice::Exception& ex)
+        {
+            cerr << ex << endl;
+            test(false);
+        }
+        try
+        {
+            admin->getServerPid("Server2");
+            test(false);
+        }
+        catch(const ServerNotExistException&)
+        {
+        }
 
         cout << "ok" << endl;
 
@@ -548,7 +527,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         addProperty(service, "Ice.Warn.UnknownProperties", "0");
         //addProperty(service, "Ice.Trace.Admin.Properties", "1");
         service->name = "Service1";
-        service->entry = "TestService:create";
+        service->entry = "./TestService:create";
         adapter = AdapterDescriptor();
         adapter.name = "${service}";
         adapter.id = "${server}.${service}";
@@ -560,17 +539,23 @@ allTests(const Ice::CommunicatorPtr& communicator)
         adapter.objects.push_back(object);
         service->adapters.push_back(adapter);
         
+        string iceboxExe = "/icebox";
+#if defined(__linux)
+#  if defined(__i386)
+        iceboxExe += "32";
+#  endif
+#  if defined(ICE_CPP11)
+        iceboxExe += "++11";
+#  endif
+#endif
+
+#if defined(_WIN32) && !defined(NDEBUG)
+        iceboxExe += "d";
+#endif
+
         IceBoxDescriptorPtr icebox = new IceBoxDescriptor();
         icebox->id = "IceBox";
-#if defined(__APPLE__) && defined(__i386)
-        icebox->exe = "arch";
-        icebox->options.push_back("-i386");
-        icebox->options.push_back(properties->getProperty("IceBinDir") + "/icebox");
-#elif defined(NDEBUG) || !defined(_WIN32)
-        icebox->exe = properties->getProperty("IceBinDir") + "/icebox";
-#else
-        icebox->exe = properties->getProperty("IceBinDir") + "/iceboxd";
-#endif
+        icebox->exe = properties->getProperty("IceBinDir") + iceboxExe;
         icebox->activation = "on-demand";
         icebox->applicationDistrib = false;
         icebox->allocatable = false;
@@ -589,7 +574,6 @@ allTests(const Ice::CommunicatorPtr& communicator)
             admin->updateApplicationWithoutRestart(update);
             test(serverPid == admin->getServerPid("Server"));
             test(server1Pid == admin->getServerPid("Server1"));
-            test(server2Pid == admin->getServerPid("Server2"));
             admin->startServer("IceBox");
         }
         catch(const DeploymentException& ex)
@@ -763,10 +747,6 @@ allTests(const Ice::CommunicatorPtr& communicator)
     //
     // TODO: Add more tests.
     //
-
-    keepAlive->destroy();
-    keepAlive->getThreadControl().join();
-    keepAlive = 0;
 
     session->destroy();
 }

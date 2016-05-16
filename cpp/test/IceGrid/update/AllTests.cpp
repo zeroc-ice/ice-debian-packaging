@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,64 +9,13 @@
 
 #include <IceUtil/Thread.h>
 #include <Ice/Ice.h>
-#include <IceGrid/Observer.h>
-#include <IceGrid/Admin.h>
-#include <IceGrid/Registry.h>
+#include <IceGrid/IceGrid.h>
 #include <TestCommon.h>
 #include <Test.h>
 
 using namespace std;
 using namespace Test;
 using namespace IceGrid;
-
-class SessionKeepAliveThread : public IceUtil::Thread, public IceUtil::Monitor<IceUtil::Mutex>
-{
-public:
-
-    SessionKeepAliveThread(const IceGrid::AdminSessionPrx& session, long timeout) :
-        _session(session),
-        _timeout(IceUtil::Time::seconds(timeout)),
-        _destroy(false)
-    {
-    }
-
-    virtual void
-    run()
-    {
-        Lock sync(*this);
-        while(!_destroy)
-        {
-            timedWait(_timeout);
-            if(_destroy)
-            {
-                break;
-            }
-            try
-            {
-                _session->keepAlive();
-            }
-            catch(const Ice::Exception&)
-            {
-                break;
-            }
-        }
-    }
-
-    void
-    destroy()
-    {
-        Lock sync(*this);
-        _destroy = true;
-        notify();
-    }
-
-private:
-
-    IceGrid::AdminSessionPrx _session;
-    const IceUtil::Time _timeout;
-    bool _destroy;
-};
-typedef IceUtil::Handle<SessionKeepAliveThread> SessionKeepAliveThreadPtr;
 
 void 
 addProperty(const CommunicatorDescriptorPtr& communicator, const string& name, const string& value)
@@ -116,13 +65,12 @@ hasProperty(const CommunicatorDescriptorPtr& desc, const string& name, const str
 void 
 allTests(const Ice::CommunicatorPtr& communicator)
 {
-    RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
-        communicator->stringToProxy("IceGrid/Registry"));
+    IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
+        communicator->stringToProxy(communicator->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
     test(registry);
     AdminSessionPrx session = registry->createAdminSession("foo", "bar");
 
-    SessionKeepAliveThreadPtr keepAlive = new SessionKeepAliveThread(session, registry->getSessionTimeout()/2);
-    keepAlive->start();
+    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::HeartbeatAlways);
 
     AdminPrx admin = session->getAdmin();
     test(admin);
@@ -606,11 +554,22 @@ allTests(const Ice::CommunicatorPtr& communicator)
         
         IceBoxDescriptorPtr server = new IceBoxDescriptor();
         server->id = "IceBox";
-#if defined(NDEBUG) || !defined(_WIN32)
-        server->exe = properties->getProperty("IceBinDir") + "/icebox";
-#else
-        server->exe = properties->getProperty("IceBinDir") + "/iceboxd";
+
+        string iceboxExe = "/icebox";
+#if defined(__linux)
+#  if defined(__i386)
+        iceboxExe += "32";
+#  endif
+#  if defined(ICE_CPP11)
+        iceboxExe += "++11";
+#  endif
 #endif
+
+#if defined(_WIN32) && !defined(NDEBUG)
+        iceboxExe += "d";
+#endif
+        server->exe = properties->getProperty("IceBinDir") + iceboxExe;
+
         server->applicationDistrib = false;
         server->allocatable = false;
         addProperty(server, "Ice.Admin.Endpoints", "tcp -h 127.0.0.1");
@@ -1156,7 +1115,11 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
         ServerDescriptorPtr server = new ServerDescriptor();
         server->id = "node-${index}";
+#if defined(NDEBUG) || !defined(_WIN32)
         server->exe = properties->getProperty("IceBinDir") + "/icegridnode";
+#else
+        server->exe = properties->getProperty("IceBinDir") + "/icegridnoded";
+#endif
         server->pwd = ".";
         server->applicationDistrib = false;
         server->allocatable = false;
@@ -1285,7 +1248,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
                 test(admin->getServerState("Server") == Active);
                 break;
             }
-            catch(DeploymentException&)
+            catch(const DeploymentException&)
             {
                 IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(200));
             }
@@ -1348,10 +1311,6 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
         cout << "ok" << endl;
     }
-
-    keepAlive->destroy();
-    keepAlive->getThreadControl().join();
-    keepAlive = 0;
 
     session->destroy();
 }

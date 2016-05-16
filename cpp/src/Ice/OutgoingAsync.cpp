@@ -1,27 +1,18 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <Ice/OutgoingAsync.h>
-#include <Ice/Object.h>
 #include <Ice/ConnectionI.h>
-#include <Ice/RequestHandler.h>
+#include <Ice/CollocatedRequestHandler.h>
 #include <Ice/Reference.h>
 #include <Ice/Instance.h>
 #include <Ice/LocalException.h>
-#include <Ice/Properties.h>
-#include <Ice/LoggerUtil.h>
-#include <Ice/LocatorInfo.h>
-#include <Ice/ProxyFactory.h>
-#include <Ice/RouterInfo.h>
-#include <Ice/Outgoing.h> // For LocalExceptionWrapper.
-#include <Ice/Protocol.h>
 #include <Ice/ReplyStatus.h>
 #include <Ice/ImplicitContextI.h>
 #include <Ice/ThreadPool.h>
@@ -31,427 +22,356 @@ using namespace std;
 using namespace Ice;
 using namespace IceInternal;
 
-IceUtil::Shared* Ice::upCast(AsyncResult* p) { return p; }
-
-IceUtil::Shared* IceInternal::upCast(OutgoingAsyncMessageCallback* p) { return p; }
+IceUtil::Shared* IceInternal::upCast(OutgoingAsyncBase* p) { return p; }
+IceUtil::Shared* IceInternal::upCast(ProxyOutgoingAsyncBase* p) { return p; }
 IceUtil::Shared* IceInternal::upCast(OutgoingAsync* p) { return p; }
-IceUtil::Shared* IceInternal::upCast(BatchOutgoingAsync* p) { return p; }
-IceUtil::Shared* IceInternal::upCast(ProxyBatchOutgoingAsync* p) { return p; }
-IceUtil::Shared* IceInternal::upCast(ConnectionBatchOutgoingAsync* p) { return p; }
-IceUtil::Shared* IceInternal::upCast(CommunicatorBatchOutgoingAsync* p) { return p; }
+IceUtil::Shared* IceInternal::upCast(CommunicatorFlushBatchAsync* p) { return p; }
 
-const unsigned char Ice::AsyncResult::OK = 0x1;
-const unsigned char Ice::AsyncResult::Done = 0x2;
-const unsigned char Ice::AsyncResult::Sent = 0x4;
-const unsigned char Ice::AsyncResult::EndCalled = 0x8;
-
-namespace
+bool
+OutgoingAsyncBase::sent()
 {
-
-class AsynchronousException : public DispatchWorkItem
-{
-public:
-
-    AsynchronousException(const IceInternal::InstancePtr& instance,
-                          const Ice::AsyncResultPtr& result,
-                          const Ice::Exception& ex) :
-        DispatchWorkItem(instance), _result(result), _exception(ex.ice_clone())
-    {
-    }
-
-    virtual void
-    run()
-    {
-        _result->__exception(*_exception.get());
-    }
-
-private:
-
-    const Ice::AsyncResultPtr _result;
-    const IceUtil::UniquePtr<Ice::Exception> _exception;
-};
-
-class AsynchronousSent : public DispatchWorkItem
-{
-public:
-
-    AsynchronousSent(const IceInternal::InstancePtr& instance, const Ice::AsyncResultPtr& result) :
-        DispatchWorkItem(instance), _result(result)
-    {
-    }
-
-    virtual void
-    run()
-    {
-        _result->__sent();
-    }
-
-private:
-
-    const Ice::AsyncResultPtr _result;
-};
-
-};
-
-Ice::AsyncResult::AsyncResult(const CommunicatorPtr& communicator,
-                              const IceInternal::InstancePtr& instance,
-                              const string& op,
-                              const CallbackBasePtr& del,
-                              const LocalObjectPtr& cookie) :
-    _communicator(communicator),
-    _instance(instance),
-    _operation(op),
-    _callback(del),
-    _cookie(cookie),
-    _is(instance.get(), Ice::currentProtocolEncoding),
-    _os(instance.get(), Ice::currentProtocolEncoding),
-    _state(0),
-    _sentSynchronously(false),
-    _exception(0)
-{
-    if(!_callback)
-    {
-        throw IceUtil::IllegalArgumentException(__FILE__, __LINE__);
-    }
-    const_cast<CallbackBasePtr&>(_callback) = _callback->__verify(const_cast<LocalObjectPtr&>(_cookie));
+    return sent(true);
 }
 
-Ice::AsyncResult::~AsyncResult()
+bool
+OutgoingAsyncBase::completed(const Exception& ex)
+{
+    return finished(ex);
+}
+
+bool
+OutgoingAsyncBase::completed()
+{
+    assert(false); // Must be overriden by request that can handle responses
+    return false;
+}
+
+BasicStream*
+OutgoingAsyncBase::getIs()
+{
+    return 0; // Must be overriden by request that can handle responses
+}
+
+OutgoingAsyncBase::OutgoingAsyncBase(const CommunicatorPtr& communicator,
+                                     const InstancePtr& instance,
+                                     const string& operation,
+                                     const CallbackBasePtr& delegate,
+                                     const LocalObjectPtr& cookie) :
+    AsyncResult(communicator, instance, operation, delegate, cookie),
+    _os(instance.get(), Ice::currentProtocolEncoding)
 {
 }
 
 bool
-Ice::AsyncResult::operator==(const AsyncResult& r) const
+OutgoingAsyncBase::sent(bool done)
 {
-    return this == &r;
+    if(done)
+    {
+        _childObserver.detach();
+    }
+    return AsyncResult::sent(done);
 }
 
 bool
-Ice::AsyncResult::operator<(const AsyncResult& r) const
+OutgoingAsyncBase::finished(const Exception& ex)
 {
-    return this < &r;
+    if(_childObserver)
+    {
+        _childObserver.failed(ex.ice_name());
+        _childObserver.detach();
+    }
+    return AsyncResult::finished(ex);
 }
 
-Int
-Ice::AsyncResult::getHash() const
+Ice::ObjectPrx
+ProxyOutgoingAsyncBase::getProxy() const
 {
-    return static_cast<Int>(reinterpret_cast<Long>(this) >> 4);
+    return _proxy;
 }
 
 bool
-Ice::AsyncResult::isCompleted() const
+ProxyOutgoingAsyncBase::completed(const Exception& exc)
 {
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-    return _state & Done;
-}
+    if(_childObserver)
+    {
+        _childObserver.failed(exc.ice_name());
+        _childObserver.detach();
+    }
 
-void
-Ice::AsyncResult::waitForCompleted()
-{
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-    while(!(_state & Done))
+    _cachedConnection = 0;
+    if(_proxy->__reference()->getInvocationTimeout() == -2)
     {
-        _monitor.wait();
+        _instance->timer()->cancel(this);
     }
-}
 
-bool
-Ice::AsyncResult::isSent() const
-{
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-    return _state & Sent;
-}
-
-void
-Ice::AsyncResult::waitForSent()
-{
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-    while(!(_state & Sent) && !_exception.get())
-    {
-        _monitor.wait();
-    }
-}
-
-void
-Ice::AsyncResult::throwLocalException() const
-{
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-    if(_exception.get())
-    {
-        _exception.get()->ice_throw();
-    }
-}
-
-bool
-Ice::AsyncResult::__wait()
-{
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-    if(_state & EndCalled)
-    {
-        throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, "end_ method called more than once");
-    }
-    _state |= EndCalled;
-    while(!(_state & Done))
-    {
-        _monitor.wait();
-    }
-    if(_exception.get())
-    {
-        _exception.get()->ice_throw();
-    }
-    return _state & OK;
-}
-
-void
-Ice::AsyncResult::__throwUserException()
-{
-    try
-    {
-        _is.startReadEncaps();
-        _is.throwException();
-    }
-    catch(const Ice::UserException&)
-    {
-        _is.endReadEncaps();
-        throw;
-    }
-}
-
-void
-Ice::AsyncResult::__sent()
-{
     //
-    // Note: no need to change the _state here, specializations are responsible for
-    // changing the state.
-    //
-
-    if(_callback)
-    {
-        try
-        {
-            AsyncResultPtr self(this);
-            _callback->__sent(self);
-        }
-        catch(const std::exception& ex)
-        {
-            __warning(ex);
-        }
-        catch(...)
-        {
-            __warning();
-        }
-    }
-
-    if(_observer)
-    {
-        Ice::ObjectPrx proxy = getProxy();
-        if(!proxy || !proxy->ice_isTwoway())
-        {
-            _observer.detach();
-        }
-    }
-}
-
-void
-Ice::AsyncResult::__sentAsync()
-{
-    //
-    // This is called when it's not safe to call the sent callback synchronously
-    // from this thread. Instead the exception callback is called asynchronously from
-    // the client thread pool.
+    // NOTE: at this point, synchronization isn't needed, no other threads should be
+    // calling on the callback.
     //
     try
     {
-        _instance->clientThreadPool()->execute(new AsynchronousSent(_instance, this));
+        //
+        // It's important to let the retry queue do the retry even if
+        // the retry interval is 0. This method can be called with the
+        // connection locked so we can't just retry here.
+        //
+        _instance->retryQueue()->add(this, handleException(exc));
+        return false;
     }
-    catch(const Ice::CommunicatorDestroyedException&)
+    catch(const Exception& ex)
     {
+        return finished(ex); // No retries, we're done
     }
 }
 
 void
-Ice::AsyncResult::__exception(const Ice::Exception& ex)
+ProxyOutgoingAsyncBase::retryException(const Exception& ex)
 {
+    try
     {
-        IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-        _state |= Done;
-        _os.resize(0); // Clear buffer now, instead of waiting for AsyncResult deallocation
-        _exception.reset(ex.ice_clone());
-        _monitor.notifyAll();
+        //
+        // It's important to let the retry queue do the retry. This is
+        // called from the connect request handler and the retry might
+        // require could end up waiting for the flush of the
+        // connection to be done.
+        //
+        _proxy->__updateRequestHandler(_handler, 0); // Clear request handler and always retry.
+        _instance->retryQueue()->add(this, 0);
     }
-
-    if(_callback)
+    catch(const Ice::Exception& exc)
     {
-        try
+        if(completed(exc))
         {
-            AsyncResultPtr self(this);
-            _callback->__completed(self);
-        }
-        catch(const std::exception& ex)
-        {
-            __warning(ex);
-        }
-        catch(...)
-        {
-            __warning();
-        }
-    }
-
-    _observer.detach();
-}
-
-void
-Ice::AsyncResult::__exceptionAsync(const Ice::Exception& ex)
-{
-    //
-    // This is called when it's not safe to call the exception callback synchronously
-    // from this thread. Instead the exception callback is called asynchronously from
-    // the client thread pool.
-    //
-    // CommunicatorDestroyedException is the only exception that can propagate directly
-    // from this method.
-    //
-    _instance->clientThreadPool()->execute(new AsynchronousException(_instance, this, ex));
-}
-
-void
-Ice::AsyncResult::__response()
-{
-    //
-    // Note: no need to change the _state here, specializations are responsible for
-    // changing the state.
-    //
-
-    if(_callback)
-    {
-        try
-        {
-            AsyncResultPtr self(this);
-            _callback->__completed(self);
-        }
-        catch(const std::exception& ex)
-        {
-            __warning(ex);
-        }
-        catch(...)
-        {
-            __warning();
+            invokeCompletedAsync();
         }
     }
-
-    _observer.detach();
 }
 
 void
-Ice::AsyncResult::__check(const AsyncResultPtr& r, const IceProxy::Ice::Object* prx, const string& operation)
+ProxyOutgoingAsyncBase::cancelable(const CancellationHandlerPtr& handler)
 {
-    __check(r, operation);
-    if(r->getProxy().get() != prx)
+    if(_proxy->__reference()->getInvocationTimeout() == -2 && _cachedConnection)
     {
-        throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, "Proxy for call to end_" + operation +
-                                                " does not match proxy that was used to call corresponding begin_" +
-                                                operation + " method");
-    }
-}
-
-void
-Ice::AsyncResult::__check(const AsyncResultPtr& r, const Ice::Communicator* com, const string& operation)
-{
-    __check(r, operation);
-    if(r->getCommunicator().get() != com)
-    {
-        throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, "Communicator for call to end_" + operation +
-                                                " does not match communicator that was used to call corresponding " +
-                                                "begin_" + operation + " method");
-    }
-}
-
-void
-Ice::AsyncResult::__check(const AsyncResultPtr& r, const Ice::Connection* con, const string& operation)
-{
-    __check(r, operation);
-    if(r->getConnection().get() != con)
-    {
-        throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, "Connection for call to end_" + operation +
-                                                " does not match connection that was used to call corresponding " +
-                                                "begin_" + operation + " method");
-    }
-}
-
-void
-Ice::AsyncResult::__check(const AsyncResultPtr& r, const string& operation)
-{
-    if(!r)
-    {
-        throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, "AsyncResult == null");
-    }
-    else if(&r->_operation != &operation)
-    {
-        throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, "Incorrect operation for end_" + operation +
-                                                " method: " + r->_operation);
-    }
-}
-
-
-void
-Ice::AsyncResult::__warning(const std::exception& exc) const
-{
-    if(_instance->initializationData().properties->getPropertyAsIntWithDefault("Ice.Warn.AMICallback", 1) > 0)
-    {
-        Warning out(_instance->initializationData().logger);
-        const Exception* ex = dynamic_cast<const Exception*>(&exc);
-        if(ex)
+        const int timeout = _cachedConnection->timeout();
+        if(timeout > 0)
         {
-            out << "Ice::Exception raised by AMI callback:\n" << *ex;
+            _instance->timer()->schedule(this, IceUtil::Time::milliSeconds(timeout));
+        }
+    }
+    AsyncResult::cancelable(handler);
+}
+
+void
+ProxyOutgoingAsyncBase::retry()
+{
+    invokeImpl(false);
+}
+
+void
+ProxyOutgoingAsyncBase::abort(const Ice::Exception& ex)
+{
+    assert(!_childObserver);
+
+    if(finished(ex))
+    {
+        invokeCompletedAsync();
+    }
+    else if(dynamic_cast<const Ice::CommunicatorDestroyedException*>(&ex))
+    {
+        //
+        // If it's a communicator destroyed exception, don't swallow
+        // it but instead notify the user thread. Even if no callback
+        // was provided.
+        //
+        ex.ice_throw();
+    }
+}
+
+ProxyOutgoingAsyncBase::ProxyOutgoingAsyncBase(const ObjectPrx& prx,
+                                               const string& operation,
+                                               const CallbackBasePtr& delegate,
+                                               const LocalObjectPtr& cookie) :
+    OutgoingAsyncBase(prx->ice_getCommunicator(), prx->__reference()->getInstance(), operation, delegate, cookie),
+    _proxy(prx),
+    _mode(Normal),
+    _cnt(0),
+    _sent(false)
+{
+}
+
+void
+ProxyOutgoingAsyncBase::invokeImpl(bool userThread)
+{
+    try
+    {
+        if(userThread)
+        {
+            int invocationTimeout = _proxy->__reference()->getInvocationTimeout();
+            if(invocationTimeout > 0)
+            {
+                _instance->timer()->schedule(this, IceUtil::Time::milliSeconds(invocationTimeout));
+            }
         }
         else
         {
-            out << "std::exception raised by AMI callback:\n" << exc.what();
+            _observer.retried();
+        }
+
+        while(true)
+        {
+            try
+            {
+                _sent = false;
+                _handler = _proxy->__getRequestHandler();
+                AsyncStatus status = _handler->sendAsyncRequest(this);
+                if(status & AsyncStatusSent)
+                {
+                    if(userThread)
+                    {
+                        _sentSynchronously = true;
+                        if(status & AsyncStatusInvokeSentCallback)
+                        {
+                            invokeSent(); // Call the sent callback from the user thread.
+                        }
+                    }
+                    else
+                    {
+                        if(status & AsyncStatusInvokeSentCallback)
+                        {
+                            invokeSentAsync(); // Call the sent callback from a client thread pool thread.
+                        }
+                    }
+                }
+                return; // We're done!
+            }
+            catch(const RetryException&)
+            {
+                _proxy->__updateRequestHandler(_handler, 0); // Clear request handler and always retry.
+            }
+            catch(const Exception& ex)
+            {
+                if(_childObserver)
+                {
+                    _childObserver.failed(ex.ice_name());
+                    _childObserver.detach();
+                }
+                int interval = handleException(ex);
+                if(interval > 0)
+                {
+                    _instance->retryQueue()->add(this, interval);
+                    return;
+                }
+                else
+                {
+                    _observer.retried();
+                }
+            }
+        }
+    }
+    catch(const Exception& ex)
+    {
+        //
+        // If called from the user thread we re-throw, the exception
+        // will be catch by the caller and abort() will be called.
+        //
+        if(userThread)
+        {
+            throw;
+        }
+        else if(finished(ex)) // No retries, we're done
+        {
+            invokeCompletedAsync();
         }
     }
 }
 
-void
-Ice::AsyncResult::__warning() const
+bool
+ProxyOutgoingAsyncBase::sent(bool done)
 {
-    if(_instance->initializationData().properties->getPropertyAsIntWithDefault("Ice.Warn.AMICallback", 1) > 0)
+    _sent = true;
+    if(done)
     {
-        Warning out(_instance->initializationData().logger);
-        out << "unknown exception raised by AMI callback";
+        if(_proxy->__reference()->getInvocationTimeout() != -1)
+        {
+            _instance->timer()->cancel(this);
+        }
+    }
+    return OutgoingAsyncBase::sent(done);
+}
+
+bool
+ProxyOutgoingAsyncBase::finished(const Exception& ex)
+{
+    if(_proxy->__reference()->getInvocationTimeout() != -1)
+    {
+        _instance->timer()->cancel(this);
+    }
+    return OutgoingAsyncBase::finished(ex);
+}
+
+bool
+ProxyOutgoingAsyncBase::finished(bool ok)
+{
+    if(_proxy->__reference()->getInvocationTimeout() != -1)
+    {
+        _instance->timer()->cancel(this);
+    }
+    return AsyncResult::finished(ok);
+}
+
+int
+ProxyOutgoingAsyncBase::handleException(const Exception& exc)
+{
+    return _proxy->__handleException(exc, _handler, _mode, _sent, _cnt);
+}
+
+void
+ProxyOutgoingAsyncBase::runTimerTask()
+{
+    if(_proxy->__reference()->getInvocationTimeout() == -2)
+    {
+        cancel(ConnectionTimeoutException(__FILE__, __LINE__));
+    }
+    else
+    {
+        cancel(InvocationTimeoutException(__FILE__, __LINE__));
     }
 }
 
-IceInternal::OutgoingAsync::OutgoingAsync(const ObjectPrx& prx,
-                                          const std::string& operation,
-                                          const CallbackBasePtr& delegate,
-                                          const Ice::LocalObjectPtr& cookie) :
-    AsyncResult(prx->ice_getCommunicator(), prx->__reference()->getInstance(), operation, delegate, cookie),
-    _proxy(prx),
+OutgoingAsync::OutgoingAsync(const ObjectPrx& prx,
+                             const string& operation,
+                             const CallbackBasePtr& delegate,
+                             const LocalObjectPtr& cookie) :
+    ProxyOutgoingAsyncBase(prx, operation, delegate, cookie),
     _encoding(getCompatibleEncoding(prx->__reference()->getEncoding()))
 {
 }
 
 void
-IceInternal::OutgoingAsync::__prepare(const std::string& operation, OperationMode mode, const Context* context)
+OutgoingAsync::prepare(const string& operation, OperationMode mode, const Context* context)
 {
-    _delegate = 0;
-    _cnt = 0;
-    _mode = mode;
-    _sentSynchronously = false;
-
     checkSupportedProtocol(getCompatibleProtocol(_proxy->__reference()->getProtocol()));
 
+    _mode = mode;
     _observer.attach(_proxy.get(), operation, context);
 
-    //
-    // Can't call async via a batch proxy.
-    //
-    if(_proxy->ice_isBatchOneway() || _proxy->ice_isBatchDatagram())
+    switch(_proxy->__reference()->getMode())
     {
-        throw Ice::FeatureNotSupportedException(__FILE__, __LINE__, "can't send batch requests with AMI");
-    }
+        case Reference::ModeTwoway:
+        case Reference::ModeOneway:
+        case Reference::ModeDatagram:
+        {
+            _os.writeBlob(requestHdr, sizeof(requestHdr));
+            break;
+        }
 
-    _os.writeBlob(requestHdr, sizeof(requestHdr));
+        case Reference::ModeBatchOneway:
+        case Reference::ModeBatchDatagram:
+        {
+            _proxy->__getBatchRequestQueue()->prepareBatchRequest(&_os);
+            break;
+        }
+    }
 
     Reference* ref = _proxy->__reference().get();
 
@@ -500,132 +420,80 @@ IceInternal::OutgoingAsync::__prepare(const std::string& operation, OperationMod
 }
 
 bool
-IceInternal::OutgoingAsync::__sent(Ice::ConnectionI* connection)
+OutgoingAsync::sent()
 {
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
+    return ProxyOutgoingAsyncBase::sent(!_proxy->ice_isTwoway()); // done = true if it's not a two-way proxy
+}
 
-    bool alreadySent = _state & Sent; // Expected in case of a retry.
-    _state |= Sent;
+AsyncStatus
+OutgoingAsync::invokeRemote(const ConnectionIPtr& connection, bool compress, bool response)
+{
+    _cachedConnection = connection;
+    return connection->sendAsyncRequest(this, compress, response, 0);
+}
 
-    assert(!(_state & Done));
-    if(!_proxy->ice_isTwoway())
-    {
-        _remoteObserver.detach();
-        if(!_callback || !_callback->__hasSentCallback())
-        {
-            _observer.detach();
-        }
-        _state |= Done | OK;
-        _os.resize(0); // Clear buffer now, instead of waiting for AsyncResult deallocation
-    }
-    else if(connection->timeout() > 0)
-    {
-        assert(!_timerTaskConnection);
-        _timerTaskConnection = connection;
-            IceUtil::Time timeout = IceUtil::Time::milliSeconds(connection->timeout());
-            _instance->timer()->schedule(this, timeout);
-    }
-    _monitor.notifyAll();
-    return !alreadySent && _callback && _callback->__hasSentCallback();
+AsyncStatus
+OutgoingAsync::invokeCollocated(CollocatedRequestHandler* handler)
+{
+    return handler->invokeAsyncRequest(this, 0);
 }
 
 void
-IceInternal::OutgoingAsync::__sent()
+OutgoingAsync::abort(const Exception& ex)
 {
-    ::Ice::AsyncResult::__sent();
+    const Reference::Mode mode = _proxy->__reference()->getMode();
+    if(mode == Reference::ModeBatchOneway || mode == Reference::ModeBatchDatagram)
+    {
+        //
+        // If we didn't finish a batch oneway or datagram request, we
+        // must notify the connection about that we give up ownership
+        // of the batch stream.
+        //
+        _proxy->__getBatchRequestQueue()->abortBatchRequest(&_os);
+    }
+
+    ProxyOutgoingAsyncBase::abort(ex);
 }
 
 void
-IceInternal::OutgoingAsync::__finished(const Ice::LocalException& exc, bool sent)
+OutgoingAsync::invoke()
 {
+    const Reference::Mode mode = _proxy->__reference()->getMode();
+    if(mode == Reference::ModeBatchOneway || mode == Reference::ModeBatchDatagram)
     {
-        IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-        assert(!(_state & Done));
-        _remoteObserver.failed(exc.ice_name());
-        _remoteObserver.detach();
-        if(_timerTaskConnection)
-        {
-            _instance->timer()->cancel(this);
-            _timerTaskConnection = 0;
-        }
+        _sentSynchronously = true;
+        _proxy->__getBatchRequestQueue()->finishBatchRequest(&_os, _proxy, getOperation());
+        finished(true);
+        return; // Don't call sent/completed callback for batch AMI requests
     }
 
     //
-    // NOTE: at this point, synchronization isn't needed, no other threads should be
-    // calling on the callback.
+    // NOTE: invokeImpl doesn't throw so this can be called from the
+    // try block with the catch block calling abort() in case of an
+    // exception.
     //
-
-    try
-    {
-        int interval = handleException(exc, sent); // This will throw if the invocation can't be retried.
-        if(interval > 0)
-        {
-            _instance->retryQueue()->add(this, interval);
-        }
-        else
-        {
-            __send(false);
-        }
-    }
-    catch(const Ice::LocalException& ex)
-    {
-        __exception(ex);
-    }
+    invokeImpl(true); // userThread = true
 }
 
-void
-IceInternal::OutgoingAsync::__finished(const LocalExceptionWrapper& exc)
+bool
+OutgoingAsync::completed()
 {
     //
-    // NOTE: at this point, synchronization isn't needed, no other threads should be
-    // calling on the callback. The LocalExceptionWrapper exception is only called
-    // before the invocation is sent.
+    // NOTE: this method is called from ConnectionI.parseMessage
+    // with the connection locked. Therefore, it must not invoke
+    // any user callbacks.
     //
-    _remoteObserver.failed(exc.get()->ice_name());
-    _remoteObserver.detach();
-
-    try
-    {
-        int interval = handleException(exc); // This will throw if the invocation can't be retried.
-        if(interval > 0)
-        {
-            _instance->retryQueue()->add(this, interval);
-        }
-        else
-        {
-            __send(false);
-        }
-    }
-    catch(const Ice::LocalException& ex)
-    {
-        __exception(ex);
-    }
-}
-
-void
-IceInternal::OutgoingAsync::__finished()
-{
     assert(_proxy->ice_isTwoway()); // Can only be called for twoways.
 
-    Ice::Byte replyStatus;
+    if(_childObserver)
+    {
+        _childObserver->reply(static_cast<Int>(_is.b.size() - headerSize - 4));
+        _childObserver.detach();
+    }
+
+    Byte replyStatus;
     try
     {
-        IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-        assert(!_exception.get() && !(_state & Done));
-        assert(!_is.b.empty());
-
-        if(_remoteObserver)
-        {
-            _remoteObserver->reply(static_cast<Int>(_is.b.size() - headerSize - 4));
-        }
-        _remoteObserver.detach();
-
-        if(_timerTaskConnection)
-        {
-            _instance->timer()->cancel(this);
-            _timerTaskConnection = 0;
-        }
-
         _is.read(replyStatus);
 
         switch(replyStatus)
@@ -744,327 +612,220 @@ IceInternal::OutgoingAsync::__finished()
             }
         }
 
-        _state |= Done;
-        _os.resize(0); // Clear buffer now, instead of waiting for AsyncResult deallocation
-        if(replyStatus == replyOK)
-        {
-            _state |= OK;
-        }
-        _monitor.notifyAll();
+        return finished(replyStatus == replyOK);
     }
-    catch(const LocalException& ex)
+    catch(const Exception& ex)
     {
-        __finished(ex, true);
-        return;
-    }
-
-    assert(replyStatus == replyOK || replyStatus == replyUserException);
-    __response();
-}
-
-bool
-IceInternal::OutgoingAsync::__send(bool synchronous)
-{
-    while(true)
-    {
-        int interval = 0;
-        try
-        {
-            _delegate = _proxy->__getDelegate(true);
-            AsyncStatus status = _delegate->__getRequestHandler()->sendAsyncRequest(this);
-            if(status & AsyncStatusSent)
-            {
-                if(synchronous)
-                {
-                    _sentSynchronously = true;
-                    if(status & AsyncStatusInvokeSentCallback)
-                    {
-                        __sent(); // Call the sent callback from the user thread.
-                    }
-                }
-                else
-                {
-                    if(status & AsyncStatusInvokeSentCallback)
-                    {
-                        __sentAsync(); // Call the sent callback from a client thread pool thread.
-                    }
-                }
-            }
-            break;
-        }
-        catch(const LocalExceptionWrapper& ex)
-        {
-            interval = handleException(ex);
-        }
-        catch(const Ice::LocalException& ex)
-        {
-            interval = handleException(ex, false);
-        }
-
-        if(interval > 0)
-        {
-            _instance->retryQueue()->add(this, interval);
-            return false;
-        }
-    }
-    return _sentSynchronously;
-}
-
-int
-IceInternal::OutgoingAsync::handleException(const LocalExceptionWrapper& ex)
-{
-    if(_mode == Nonmutating || _mode == Idempotent)
-    {
-        return _proxy->__handleExceptionWrapperRelaxed(_delegate, ex, false, _cnt, _observer);
-    }
-    else
-    {
-        return _proxy->__handleExceptionWrapper(_delegate, ex, _observer);
+        return completed(ex);
     }
 }
 
-int
-IceInternal::OutgoingAsync::handleException(const Ice::LocalException& exc, bool sent)
+ProxyFlushBatchAsync::ProxyFlushBatchAsync(const ObjectPrx& proxy,
+                                           const string& operation,
+                                           const CallbackBasePtr& delegate,
+                                           const LocalObjectPtr& cookie) :
+    ProxyOutgoingAsyncBase(proxy, operation, delegate, cookie)
 {
-    try
-    {
-        //
-        // A CloseConnectionException indicates graceful server shutdown, and is therefore
-        // always repeatable without violating "at-most-once". That's because by sending a
-        // close connection message, the server guarantees that all outstanding requests
-        // can safely be repeated.
-        //
-        // An ObjectNotExistException can always be retried as well without violating
-        // "at-most-once" (see the implementation of the checkRetryAfterException method of
-        // the ProxyFactory class for the reasons why it can be useful).
-        //
-        if(!sent ||
-           dynamic_cast<const CloseConnectionException*>(&exc) ||
-           dynamic_cast<const ObjectNotExistException*>(&exc))
-        {
-            exc.ice_throw();
-        }
+    _observer.attach(proxy.get(), operation, 0);
+    _batchRequestNum = proxy->__getBatchRequestQueue()->swap(&_os);
+}
 
-        //
-        // Throw the exception wrapped in a LocalExceptionWrapper, to indicate that the
-        // request cannot be resent without potentially violating the "at-most-once"
-        // principle.
-        //
-        throw LocalExceptionWrapper(exc, false);
-    }
-    catch(const LocalExceptionWrapper& ex)
+AsyncStatus
+ProxyFlushBatchAsync::invokeRemote(const ConnectionIPtr& connection, bool compress, bool)
+{
+    if(_batchRequestNum == 0)
     {
-        if(_mode == Nonmutating || _mode == Idempotent)
+        if(sent())
         {
-            return _proxy->__handleExceptionWrapperRelaxed(_delegate, ex, false, _cnt, _observer);
+            return static_cast<AsyncStatus>(AsyncStatusSent | AsyncStatusInvokeSentCallback);
         }
         else
         {
-            return _proxy->__handleExceptionWrapper(_delegate, ex, _observer);
+            return AsyncStatusSent;
         }
     }
-    catch(const Ice::LocalException& ex)
+    _cachedConnection = connection;
+    return connection->sendAsyncRequest(this, compress, false, _batchRequestNum);
+}
+
+AsyncStatus
+ProxyFlushBatchAsync::invokeCollocated(CollocatedRequestHandler* handler)
+{
+    if(_batchRequestNum == 0)
     {
-        return _proxy->__handleException(_delegate, ex, false, _cnt, _observer);
+        if(sent())
+        {
+            return static_cast<AsyncStatus>(AsyncStatusSent | AsyncStatusInvokeSentCallback);
+        }
+        else
+        {
+            return AsyncStatusSent;
+        }
     }
-    return 0; // Keep the compiler happy.
+    return handler->invokeAsyncRequest(this, _batchRequestNum);
 }
 
 void
-IceInternal::OutgoingAsync::runTimerTask() // Implementation of TimerTask::runTimerTask()
+ProxyFlushBatchAsync::invoke()
 {
-    Ice::ConnectionIPtr connection;
-    {
-        IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-        connection = _timerTaskConnection;
-        _timerTaskConnection = 0;
-    }
-
-    if(connection)
-    {
-        connection->exception(Ice::TimeoutException(__FILE__, __LINE__));
-    }
+    checkSupportedProtocol(getCompatibleProtocol(_proxy->__reference()->getProtocol()));
+    invokeImpl(true); // userThread = true
 }
 
-IceInternal::BatchOutgoingAsync::BatchOutgoingAsync(const CommunicatorPtr& communicator,
-                                                    const InstancePtr& instance,
-                                                    const std::string& operation,
-                                                    const CallbackBasePtr& delegate,
-                                                    const Ice::LocalObjectPtr& cookie) :
-    AsyncResult(communicator, instance, operation, delegate, cookie)
+ProxyGetConnection::ProxyGetConnection(const ObjectPrx& prx,
+                                       const string& operation,
+                                       const CallbackBasePtr& delegate,
+                                       const LocalObjectPtr& cookie) :
+    ProxyOutgoingAsyncBase(prx, operation, delegate, cookie)
 {
+    _observer.attach(prx.get(), operation, 0);
 }
 
-bool
-IceInternal::BatchOutgoingAsync::__sent(Ice::ConnectionI* /*connection*/)
+AsyncStatus
+ProxyGetConnection::invokeRemote(const ConnectionIPtr& connection, bool, bool)
 {
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-    assert(!_exception.get());
-    _state |= Done | OK | Sent;
-    _os.resize(0); // Clear buffer now, instead of waiting for AsyncResult deallocation
-    _remoteObserver.detach();
-    _monitor.notifyAll();
-    if(!_callback || !_callback->__hasSentCallback())
+    _cachedConnection = connection;
+    if(finished(true))
     {
-        _observer.detach();
-        return false;
+        invokeCompletedAsync();
     }
-    return true;
+    return AsyncStatusSent;
+}
+
+AsyncStatus
+ProxyGetConnection::invokeCollocated(CollocatedRequestHandler*)
+{
+    if(finished(true))
+    {
+        invokeCompletedAsync();
+    }
+    return AsyncStatusSent;
 }
 
 void
-IceInternal::BatchOutgoingAsync::__sent()
+ProxyGetConnection::invoke()
 {
-    ::Ice::AsyncResult::__sent();
+    invokeImpl(true); // userThread = true
+}
+
+ConnectionFlushBatchAsync::ConnectionFlushBatchAsync(const ConnectionIPtr& connection,
+                                                     const CommunicatorPtr& communicator,
+                                                     const InstancePtr& instance,
+                                                     const string& operation,
+                                                     const CallbackBasePtr& delegate,
+                                                     const LocalObjectPtr& cookie) :
+    OutgoingAsyncBase(communicator, instance, operation, delegate, cookie), _connection(connection)
+{
+    _observer.attach(instance.get(), operation);
+}
+
+ConnectionPtr
+ConnectionFlushBatchAsync::getConnection() const
+{
+    return _connection;
 }
 
 void
-IceInternal::BatchOutgoingAsync::__finished(const Ice::LocalException& exc, bool)
+ConnectionFlushBatchAsync::invoke()
 {
-    _remoteObserver.failed(exc.ice_name());
-    _remoteObserver.detach();
-    __exception(exc);
-}
-
-IceInternal::ProxyBatchOutgoingAsync::ProxyBatchOutgoingAsync(const Ice::ObjectPrx& proxy,
-                                                              const std::string& operation,
-                                                              const CallbackBasePtr& delegate,
-                                                              const Ice::LocalObjectPtr& cookie) :
-    BatchOutgoingAsync(proxy->ice_getCommunicator(), proxy->__reference()->getInstance(), operation, delegate, cookie),
-    _proxy(proxy)
-{
-    _observer.attach(proxy.get(), operation, 0);
-}
-
-void
-IceInternal::ProxyBatchOutgoingAsync::__send()
-{
-    checkSupportedProtocol(_proxy->__reference()->getProtocol());
-
-    //
-    // We don't automatically retry if ice_flushBatchRequests fails. Otherwise, if some batch
-    // requests were queued with the connection, they would be lost without being noticed.
-    //
-    Handle<IceDelegate::Ice::Object> delegate;
-    int cnt = -1; // Don't retry.
     try
     {
-        delegate = _proxy->__getDelegate(true);
-        AsyncStatus status = delegate->__getRequestHandler()->flushAsyncBatchRequests(this);
+        AsyncStatus status;
+        int batchRequestNum = _connection->getBatchRequestQueue()->swap(&_os);
+        if(batchRequestNum == 0)
+        {
+            status = AsyncStatusSent;
+            if(sent())
+            {
+                status = static_cast<AsyncStatus>(status | AsyncStatusInvokeSentCallback);
+            }
+        }
+        else
+        {
+            status = _connection->sendAsyncRequest(this, false, false, batchRequestNum);
+        }
+
         if(status & AsyncStatusSent)
         {
             _sentSynchronously = true;
             if(status & AsyncStatusInvokeSentCallback)
             {
-                __sent();
+                invokeSent();
             }
         }
     }
-    catch(const ::Ice::LocalException& ex)
+    catch(const RetryException& ex)
     {
-        _proxy->__handleException(delegate, ex, 0, cnt, _observer);
-    }
-}
-
-IceInternal::ConnectionBatchOutgoingAsync::ConnectionBatchOutgoingAsync(const ConnectionIPtr& con,
-                                                                        const CommunicatorPtr& communicator,
-                                                                        const InstancePtr& instance,
-                                                                        const string& operation,
-                                                                        const CallbackBasePtr& delegate,
-                                                                        const Ice::LocalObjectPtr& cookie) :
-    BatchOutgoingAsync(communicator, instance, operation, delegate, cookie),
-    _connection(con)
-{
-    _observer.attach(instance.get(), operation);
-}
-
-void
-IceInternal::ConnectionBatchOutgoingAsync::__send()
-{
-    AsyncStatus status = _connection->flushAsyncBatchRequests(this);
-    if(status & AsyncStatusSent)
-    {
-        _sentSynchronously = true;
-        if(status & AsyncStatusInvokeSentCallback)
+        if(completed(*ex.get()))
         {
-            __sent();
+            invokeCompletedAsync();
+        }
+    }
+    catch(const Exception& ex)
+    {
+        if(completed(ex))
+        {
+            invokeCompletedAsync();
         }
     }
 }
 
-Ice::ConnectionPtr
-IceInternal::ConnectionBatchOutgoingAsync::getConnection() const
+CommunicatorFlushBatchAsync::CommunicatorFlushBatchAsync(const CommunicatorPtr& communicator,
+                                                         const InstancePtr& instance,
+                                                         const string& operation,
+                                                         const CallbackBasePtr& cb,
+                                                         const LocalObjectPtr& cookie) :
+    AsyncResult(communicator, instance, operation, cb, cookie)
 {
-    return _connection;
-}
+    _observer.attach(instance.get(), operation);
 
-IceInternal::CommunicatorBatchOutgoingAsync::CommunicatorBatchOutgoingAsync(const CommunicatorPtr& communicator,
-                                                                            const InstancePtr& instance,
-                                                                            const string& operation,
-                                                                            const CallbackBasePtr& delegate,
-                                                                            const Ice::LocalObjectPtr& cookie) :
-    AsyncResult(communicator, instance, operation, delegate, cookie)
-{
     //
     // _useCount is initialized to 1 to prevent premature callbacks.
     // The caller must invoke ready() after all flush requests have
     // been initiated.
     //
     _useCount = 1;
-
-    //
-    // Assume all connections are flushed synchronously.
-    //
-    _sentSynchronously = true;
-    
-    //
-    // Attach observer
-    //
-    _observer.attach(instance.get(), operation);
 }
 
 void
-IceInternal::CommunicatorBatchOutgoingAsync::flushConnection(const ConnectionIPtr& con)
+CommunicatorFlushBatchAsync::flushConnection(const ConnectionIPtr& con)
 {
-    class BatchOutgoingAsyncI : public BatchOutgoingAsync
+    class FlushBatch : public OutgoingAsyncBase
     {
     public:
 
-        BatchOutgoingAsyncI(const CommunicatorBatchOutgoingAsyncPtr& outAsync,
-                            const InstancePtr& instance, 
-                            InvocationObserver& observer) :
-            BatchOutgoingAsync(outAsync->getCommunicator(), instance, outAsync->getOperation(), __dummyCallback, 0),
-            _outAsync(outAsync), _observer(observer)
+        FlushBatch(const CommunicatorFlushBatchAsyncPtr& outAsync,
+                   const InstancePtr& instance,
+                   InvocationObserver& observer) :
+            OutgoingAsyncBase(outAsync->getCommunicator(), instance, outAsync->getOperation(), __dummyCallback, 0),
+            _outAsync(outAsync),
+            _observer(observer)
         {
         }
 
-        virtual bool __sent(Ice::ConnectionI*)
+        virtual bool sent()
         {
-            _remoteObserver.detach();
+            _childObserver.detach();
             _outAsync->check(false);
             return false;
         }
 
-#ifdef __SUNPRO_CC
-        using BatchOutgoingAsync::__sent;
-#endif
-
-        virtual void __finished(const Ice::LocalException& ex, bool)
+        virtual bool completed(const Exception& ex)
         {
-            _remoteObserver.failed(ex.ice_name());
-            _remoteObserver.detach();
+            _childObserver.failed(ex.ice_name());
+            _childObserver.detach();
             _outAsync->check(false);
-        }
-
-        virtual void __attachRemoteObserver(const Ice::ConnectionInfoPtr& connection, const Ice::EndpointPtr& endpt,
-                                            Ice::Int requestId, Ice::Int sz)
-        {
-            _remoteObserver.attach(_observer.getRemoteObserver(connection, endpt, requestId, sz));
+            return false;
         }
 
     private:
-        
-        const CommunicatorBatchOutgoingAsyncPtr _outAsync;
+
+        virtual InvocationObserver& getObserver()
+        {
+            return _observer;
+        }
+
+        const CommunicatorFlushBatchAsyncPtr _outAsync;
         InvocationObserver& _observer;
     };
 
@@ -1075,13 +836,18 @@ IceInternal::CommunicatorBatchOutgoingAsync::flushConnection(const ConnectionIPt
 
     try
     {
-        AsyncStatus status = con->flushAsyncBatchRequests(new BatchOutgoingAsyncI(this, _instance, _observer));
-        if(!(status & AsyncStatusSent))
+        OutgoingAsyncBasePtr flushBatch = new FlushBatch(this, _instance, _observer);
+        int batchRequestNum = con->getBatchRequestQueue()->swap(flushBatch->getOs());
+        if(batchRequestNum == 0)
         {
-            _sentSynchronously = false;
+            flushBatch->sent();
+        }
+        else
+        {
+            con->sendAsyncRequest(flushBatch, false, false, batchRequestNum);
         }
     }
-    catch(const Ice::LocalException&)
+    catch(const LocalException&)
     {
         check(false);
         throw;
@@ -1089,13 +855,13 @@ IceInternal::CommunicatorBatchOutgoingAsync::flushConnection(const ConnectionIPt
 }
 
 void
-IceInternal::CommunicatorBatchOutgoingAsync::ready()
+CommunicatorFlushBatchAsync::ready()
 {
     check(true);
 }
 
 void
-IceInternal::CommunicatorBatchOutgoingAsync::check(bool userThread)
+CommunicatorFlushBatchAsync::check(bool userThread)
 {
     {
         IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
@@ -1103,102 +869,19 @@ IceInternal::CommunicatorBatchOutgoingAsync::check(bool userThread)
         if(--_useCount > 0)
         {
             return;
-        }         
-        _state |= Done | OK | Sent;
-        _os.resize(0); // Clear buffer now, instead of waiting for AsyncResult deallocation
-        _monitor.notifyAll();
+        }
     }
 
-    if(!_callback || !_callback->__hasSentCallback())
+    if(sent(true))
     {
-        _observer.detach();
-    }
-    else
-    {
-        //
-        // _sentSynchronously is immutable here.
-        //
-        if(!_sentSynchronously || !userThread)
+        if(userThread)
         {
-            __sentAsync();
+            _sentSynchronously = true;
+            invokeSent();
         }
         else
         {
-            AsyncResult::__sent();
+            invokeSentAsync();
         }
     }
 }
-
-
-namespace
-{
-
-//
-// Dummy class derived from CallbackBase
-// We use this class for the __dummyCallback extern pointer in OutgoingAsync. In turn,
-// this allows us to test whether the user supplied a null delegate instance to the
-// generated begin_ method without having to generate a separate test to throw IllegalArgumentException
-// in the inlined versions of the begin_ method. In other words, this reduces the amount of generated
-// object code.
-//
-class DummyCallback : public CallbackBase
-{
-public:
-
-    DummyCallback()
-    {
-    }
-
-    virtual void __completed(const Ice::AsyncResultPtr&) const
-    {
-         assert(false);
-    }
-
-    virtual CallbackBasePtr __verify(Ice::LocalObjectPtr&)
-    {
-        //
-        // Called by the AsyncResult constructor to verify the delegate. The dummy
-        // delegate is passed when the user used a begin_ method without delegate.
-        // By returning 0 here, we tell the AsyncResult that no delegates was
-        // provided.
-        //
-        return 0;
-    }
-
-    virtual void __sent(const AsyncResultPtr&) const
-    {
-         assert(false);
-    }
-
-    virtual bool __hasSentCallback() const
-    {
-        assert(false);
-        return false;
-    }
-};
-
-}
-
-//
-// This gives a pointer value to compare against in the generated
-// begin_ method to decide whether the caller passed a null pointer
-// versus the generated inline version of the begin_ method having
-// passed a pointer to the dummy delegate.
-//
-CallbackBasePtr IceInternal::__dummyCallback = new DummyCallback;
-
-void
-Ice::AMICallbackBase::__exception(const ::Ice::Exception& ex)
-{
-    ice_exception(ex);
-}
-
-void
-Ice::AMICallbackBase::__sent(bool sentSynchronously)
-{
-    if(!sentSynchronously)
-    {
-        dynamic_cast<AMISentCallback*>(this)->ice_sent();
-    }
-}
-

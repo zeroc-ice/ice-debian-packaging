@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -40,7 +40,7 @@ public:
     //
     // Called when the event handler is unregistered.
     //
-    virtual void finished(ThreadPoolCurrent&) = 0;
+    virtual void finished(ThreadPoolCurrent&, bool) = 0;
 
     //
     // Get a textual representation of the event handler.
@@ -65,10 +65,15 @@ protected:
 #else
     SocketOperation _disabled;
 #endif
+    bool _hasMoreData;
     SocketOperation _registered;
 
     friend class ThreadPool;
+    friend class ThreadPoolCurrent;
     friend class Selector;
+#ifdef ICE_USE_CFSTREAM
+    friend class EventHandlerWrapper;
+#endif
 };
 
 }

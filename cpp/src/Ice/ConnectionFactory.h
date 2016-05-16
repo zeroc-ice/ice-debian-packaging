@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -26,6 +26,7 @@
 #include <Ice/EventHandler.h>
 #include <Ice/EndpointI.h>
 #include <Ice/InstrumentationF.h>
+#include <Ice/ACMF.h>
 
 #include <list>
 #include <set>
@@ -35,6 +36,7 @@ namespace Ice
 
 class LocalException;
 class ObjectAdapterI;
+typedef IceUtil::Handle<ObjectAdapterI> ObjectAdapterIPtr;
 
 }
 
@@ -48,11 +50,11 @@ public:
     class CreateConnectionCallback : virtual public IceUtil::Shared
     {
     public:
-        
+
         virtual void setConnection(const Ice::ConnectionIPtr&, bool) = 0;
         virtual void setException(const Ice::LocalException&) = 0;
     };
-    typedef IceUtil::Handle<CreateConnectionCallback> CreateConnectionCallbackPtr; 
+    typedef IceUtil::Handle<CreateConnectionCallback> CreateConnectionCallbackPtr;
 
     void destroy();
 
@@ -60,12 +62,11 @@ public:
 
     void waitUntilFinished();
 
-    Ice::ConnectionIPtr create(const std::vector<EndpointIPtr>&, bool, Ice::EndpointSelectionType, bool&);
-    void create(const std::vector<EndpointIPtr>&, bool, Ice::EndpointSelectionType, 
+    void create(const std::vector<EndpointIPtr>&, bool, Ice::EndpointSelectionType,
                 const CreateConnectionCallbackPtr&);
     void setRouterInfo(const RouterInfoPtr&);
     void removeAdapter(const Ice::ObjectAdapterPtr&);
-    void flushAsyncBatchRequests(const CommunicatorBatchOutgoingAsyncPtr&);
+    void flushAsyncBatchRequests(const CommunicatorFlushBatchAsyncPtr&);
 
 private:
 
@@ -78,9 +79,9 @@ private:
         ConnectorInfo(const ConnectorPtr& c, const EndpointIPtr& e) : connector(c), endpoint(e)
         {
         }
-    
+
         bool operator==(const ConnectorInfo& other) const;
-    
+
         ConnectorPtr connector;
         EndpointIPtr endpoint;
     };
@@ -89,7 +90,7 @@ private:
     {
     public:
 
-        ConnectCallback(const OutgoingConnectionFactoryPtr&, const std::vector<EndpointIPtr>&, bool, 
+        ConnectCallback(const InstancePtr&, const OutgoingConnectionFactoryPtr&, const std::vector<EndpointIPtr>&, bool,
                         const CreateConnectionCallbackPtr&, Ice::EndpointSelectionType);
 
         virtual void connectionStartCompleted(const Ice::ConnectionIPtr&);
@@ -115,6 +116,7 @@ private:
 
     private:
 
+        const InstancePtr _instance;
         const OutgoingConnectionFactoryPtr _factory;
         const std::vector<EndpointIPtr> _endpoints;
         const bool _hasMore;
@@ -133,10 +135,10 @@ private:
     void incPendingConnectCount();
     void decPendingConnectCount();
     Ice::ConnectionIPtr getConnection(const std::vector<ConnectorInfo>&, const ConnectCallbackPtr&, bool&);
-    void finishGetConnection(const std::vector<ConnectorInfo>&, const ConnectorInfo&, const Ice::ConnectionIPtr&, 
+    void finishGetConnection(const std::vector<ConnectorInfo>&, const ConnectorInfo&, const Ice::ConnectionIPtr&,
                              const ConnectCallbackPtr&);
     void finishGetConnection(const std::vector<ConnectorInfo>&, const Ice::LocalException&, const ConnectCallbackPtr&);
-    
+
     bool addToPending(const ConnectCallbackPtr&, const std::vector<ConnectorInfo>&);
     void removeFromPending(const ConnectCallbackPtr&, const std::vector<ConnectorInfo>&);
 
@@ -148,7 +150,7 @@ private:
 
     Ice::CommunicatorPtr _communicator;
     const InstancePtr _instance;
-    const ConnectionReaperPtr _reaper;
+    const FactoryACMMonitorPtr _monitor;
     bool _destroyed;
 
     std::multimap<ConnectorPtr, Ice::ConnectionIPtr> _connections;
@@ -158,16 +160,20 @@ private:
     int _pendingConnectCount;
 };
 
-class IncomingConnectionFactory : public EventHandler, 
+class IncomingConnectionFactory : public EventHandler,
                                   public Ice::ConnectionI::StartCallback,
                                   public IceUtil::Monitor<IceUtil::Mutex>
-                                      
 {
 public:
 
     void activate();
     void hold();
     void destroy();
+
+#if TARGET_OS_IPHONE != 0
+    void startAcceptor();
+    void stopAcceptor();
+#endif
 
     void updateConnectionObservers();
 
@@ -176,8 +182,8 @@ public:
 
     EndpointIPtr endpoint() const;
     std::list<Ice::ConnectionIPtr> connections() const;
-    void flushAsyncBatchRequests(const CommunicatorBatchOutgoingAsyncPtr&);
-    
+    void flushAsyncBatchRequests(const CommunicatorFlushBatchAsyncPtr&);
+
     //
     // Operations from EventHandler
     //
@@ -188,7 +194,7 @@ public:
 #endif
 
     virtual void message(ThreadPoolCurrent&);
-    virtual void finished(ThreadPoolCurrent&);
+    virtual void finished(ThreadPoolCurrent&, bool);
     virtual std::string toString() const;
     virtual NativeInfoPtr getNativeInfo();
 
@@ -197,8 +203,8 @@ public:
 
 private:
 
-    IncomingConnectionFactory(const InstancePtr&, const EndpointIPtr&, const Ice::ObjectAdapterPtr&);
-    void initialize(const std::string&);
+    IncomingConnectionFactory(const InstancePtr&, const EndpointIPtr&, const Ice::ObjectAdapterIPtr&);
+    void initialize();
     virtual ~IncomingConnectionFactory();
     friend class Ice::ObjectAdapterI;
 
@@ -212,14 +218,21 @@ private:
 
     void setState(State);
 
+    void createAcceptor();
+    void closeAcceptor();
+
     const InstancePtr _instance;
-    const ConnectionReaperPtr _reaper;
+    const FactoryACMMonitorPtr _monitor;
 
-    const AcceptorPtr _acceptor;
+    AcceptorPtr _acceptor;
     const TransceiverPtr _transceiver;
-    const EndpointIPtr _endpoint;
+    EndpointIPtr _endpoint;
 
-    Ice::ObjectAdapterPtr _adapter;
+#if TARGET_OS_IPHONE != 0
+    bool _acceptorStarted;
+#endif
+
+    Ice::ObjectAdapterIPtr _adapter;
 
     const bool _warn;
 

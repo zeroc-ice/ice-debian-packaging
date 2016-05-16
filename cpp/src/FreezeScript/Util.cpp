@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -253,4 +253,56 @@ FreezeScript::readCatalog(const Ice::CommunicatorPtr& communicator, const string
     dbEnv.close(0);
 
     return result;
+}
+
+string
+FreezeScript::CompactIdResolverI::resolve(Ice::Int id) const
+{
+    string type;
+    map<Ice::Int, string>::const_iterator p = _ids.find(id);
+    if(p != _ids.end())
+    {
+        type = p->second;
+    }
+    return type;
+}
+
+void
+FreezeScript::CompactIdResolverI::add(Ice::Int id, const string& type)
+{
+#ifndef NDEBUG
+    map<Ice::Int, string>::const_iterator p = _ids.find(id);
+#else
+    _ids.find(id);
+#endif
+    assert(p == _ids.end());
+
+    _ids[id] = type;
+}
+
+void
+FreezeScript::collectCompactIds(const UnitPtr& unit, const FreezeScript::CompactIdResolverIPtr& r)
+{
+    class Visitor : public ParserVisitor
+    {
+    public:
+
+        Visitor(const FreezeScript::CompactIdResolverIPtr& resolver) : _r(resolver)
+        {
+        }
+
+        virtual bool visitClassDefStart(const ClassDefPtr& p)
+        {
+            if(p->compactId() != -1)
+            {
+                _r->add(p->compactId(), p->scoped());
+            }
+            return true;
+        }
+
+        FreezeScript::CompactIdResolverIPtr _r;
+    };
+
+    Visitor v(r);
+    unit->visit(&v, false);
 }

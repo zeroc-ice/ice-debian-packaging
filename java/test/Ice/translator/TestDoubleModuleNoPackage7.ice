@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -50,22 +50,6 @@ class dmnpTest7Class extends dmnpBaseClass implements dmnpBaseInterface
 {
     dmnpStruct
     dmnpTest7Op1(dmnpEnum i1,
-                 dmnpStruct i2,
-                 dmnpStructSeq i3,
-                 dmnpStringStructDict i4,
-                 dmnpInterface i5,
-                 dmnpClass i6,
-                 out dmnpEnum o1,
-                 out dmnpStruct o2,
-                 out dmnpStructSeq o3,
-                 out dmnpStringStructDict o4,
-                 out dmnpInterface o5,
-                 out dmnpClass o6)
-        throws dmnpException;
-
-    ["ami"]
-    dmnpStruct
-    dmnpTest7Op2(dmnpEnum i1,
                  dmnpStruct i2,
                  dmnpStructSeq i3,
                  dmnpStringStructDict i4,

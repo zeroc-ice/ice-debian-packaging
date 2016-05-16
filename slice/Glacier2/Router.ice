@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,7 +9,8 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["cpp:include:Glacier2/Config.h"]]
 
 #include <Ice/Router.ice>
 #include <Glacier2/Session.ice>
@@ -23,6 +24,7 @@
  * security solution that is both non-intrusive and easy to configure.
  *
  **/
+["objc:prefix:GLACIER2"]
 module Glacier2
 {
 
@@ -51,7 +53,7 @@ interface Router extends Ice::Router
      * This category must be used in the identities of all of the client's
      * callback objects. This is necessary in order for the router to
      * forward callback requests to the intended client. If the Glacier2
-     * server endpoints are not set, the returned category is an empty 
+     * server endpoints are not set, the returned category is an empty
      * string.
      *
      * @return The category.
@@ -135,7 +137,7 @@ interface Router extends Ice::Router
      * for the calling client.
      *
      **/
-    void refreshSession()
+    ["amd"] void refreshSession()
         throws SessionNotExistException;
 
     /**
@@ -158,6 +160,19 @@ interface Router extends Ice::Router
      *
      **/
     ["nonmutating", "cpp:const"] idempotent long getSessionTimeout();
+
+    /**
+     *
+     * Get the value of the ACM timeout. Clients supporting connection
+     * heartbeats can enable them instead of explicitly sending keep
+     * alives requests.
+     *
+     * NOTE: This method is only available since Ice 3.6.
+     *
+     * @return The timeout (in seconds).
+     *
+     **/
+    ["nonmutating", "cpp:const"] idempotent int getACMTimeout();
 };
 
 };

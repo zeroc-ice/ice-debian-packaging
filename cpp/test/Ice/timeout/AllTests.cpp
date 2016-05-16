@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,6 +10,7 @@
 #include <Ice/Ice.h>
 #include <TestCommon.h>
 #include <Test.h>
+#include <TestI.h>
 
 using namespace std;
 using namespace Test;
@@ -73,7 +74,7 @@ public:
 
     void exceptionEx(const ::Ice::Exception& ex)
     {
-        test(dynamic_cast<const Ice::TimeoutException*>(&ex));
+        test(dynamic_cast<const Ice::InvocationTimeoutException*>(&ex));
         called();
     }
 };
@@ -94,9 +95,8 @@ allTests(const Ice::CommunicatorPtr& communicator)
         //
         // Expect ConnectTimeoutException.
         //
-        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(250));
-        to->holdAdapter(750);
-        to->ice_getConnection()->close(true); // Force a reconnect.
+        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(100));
+        timeout->holdAdapter(500);
         try
         {
             to->op();
@@ -113,8 +113,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         //
         timeout->op(); // Ensure adapter is active.
         TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(1000));
-        to->holdAdapter(500);
-        to->ice_getConnection()->close(true); // Force a reconnect.
+        timeout->holdAdapter(500);
         try
         {
             to->op();
@@ -126,121 +125,135 @@ allTests(const Ice::CommunicatorPtr& communicator)
     }
     cout << "ok" << endl;
 
-    cout << "testing read timeout... " << flush;
+    // The sequence needs to be large enough to fill the write/recv buffers
+    ByteSeq seq(2000000);
+
+    cout << "testing connection timeout... " << flush;
     {
         //
         // Expect TimeoutException.
         //
-        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(500));
+        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(100));
+        timeout->holdAdapter(500);
+        try
+        {
+            to->sendData(seq);
+            test(false);
+        }
+        catch(const Ice::TimeoutException&)
+        {
+            // Expected.
+        }
+    }
+    {
+        //
+        // Expect success.
+        //
+        timeout->op(); // Ensure adapter is active.
+        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(1000));
+        timeout->holdAdapter(500);
+        try
+        {
+            ByteSeq seq(1000000);
+            to->sendData(seq);
+        }
+        catch(const Ice::TimeoutException&)
+        {
+            test(false);
+        }
+    }
+    cout << "ok" << endl;
+
+    cout << "testing invocation timeout... " << flush;
+    {
+        Ice::ConnectionPtr connection = obj->ice_getConnection();
+        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_invocationTimeout(100));
+        test(connection == to->ice_getConnection());
         try
         {
             to->sleep(750);
             test(false);
         }
-        catch(const Ice::TimeoutException&)
+        catch(const Ice::InvocationTimeoutException&)
         {
-            // Expected.
         }
-    }
-    {
-        //
-        // Expect success.
-        //
-        timeout->op(); // Ensure adapter is active.
-        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(2000));
+        obj->ice_ping();
+        to = TimeoutPrx::checkedCast(obj->ice_invocationTimeout(500));
+        test(connection == to->ice_getConnection());
         try
         {
-            to->sleep(500);
+            to->sleep(250);
         }
-        catch(const Ice::TimeoutException&)
+        catch(const Ice::InvocationTimeoutException&)
         {
             test(false);
         }
+        test(connection == to->ice_getConnection());
     }
-    cout << "ok" << endl;
-
-    cout << "testing write timeout... " << flush;
     {
         //
-        // Expect TimeoutException.
+        // Expect InvocationTimeoutException.
         //
-        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(500));
-        to->holdAdapter(2000);
+        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_invocationTimeout(100));
+        CallbackPtr cb = new Callback();
+        to->begin_sleep(750, newCallback_Timeout_sleep(cb, &Callback::responseEx, &Callback::exceptionEx));
+        cb->check();
+        obj->ice_ping();
+    }
+    {
+        //
+        // Expect success.
+        //
+        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_invocationTimeout(500));
+        CallbackPtr cb = new Callback();
+        to->begin_sleep(250, newCallback_Timeout_sleep(cb, &Callback::response, &Callback::exception));
+        cb->check();
+    }
+    {
+        //
+        // Backward compatible connection timeouts
+        //
+        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_invocationTimeout(-2)->ice_timeout(250));
+        Ice::ConnectionPtr con;
         try
         {
-            ByteSeq seq(100000);
-            to->sendData(seq);
+            con = to->ice_getConnection();
+            to->sleep(750);
             test(false);
         }
         catch(const Ice::TimeoutException&)
         {
-            // Expected.
+            try
+            {
+                con->getInfo();
+                test(false);
+            }
+            catch(const Ice::TimeoutException&)
+            {
+                // Connection got closed as well.
+            }
         }
-    }
-    {
-        //
-        // Expect success.
-        //
-        timeout->op(); // Ensure adapter is active.
-        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(1000));
-        to->holdAdapter(500);
+        obj->ice_ping();
+
         try
         {
-            ByteSeq seq(100000);
-            to->sendData(seq);
+            con = to->ice_getConnection();
+            to->end_sleep(to->begin_sleep(750));
+            test(false);
         }
         catch(const Ice::TimeoutException&)
         {
-            test(false);
+            try
+            {
+                con->getInfo();
+                test(false);
+            }
+            catch(const Ice::TimeoutException&)
+            {
+                // Connection got closed as well.
+            }
         }
-    }
-    cout << "ok" << endl;
-
-    cout << "testing AMI read timeout... " << flush;
-    {
-        //
-        // Expect TimeoutException.
-        //
-        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(500));
-        CallbackPtr cb = new Callback();
-        to->begin_sleep(2000, newCallback_Timeout_sleep(cb, &Callback::responseEx, &Callback::exceptionEx));
-        cb->check();
-    }
-    {
-        //
-        // Expect success.
-        //
-        timeout->op(); // Ensure adapter is active.
-        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(1000));
-        CallbackPtr cb = new Callback();
-        to->begin_sleep(500, newCallback_Timeout_sleep(cb, &Callback::response, &Callback::exception));
-        cb->check();
-    }
-    cout << "ok" << endl;
-
-    cout << "testing AMI write timeout... " << flush;
-    {
-        //
-        // Expect TimeoutException.
-        //
-        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(500));
-        to->holdAdapter(2000);
-        ByteSeq seq(100000);
-        CallbackPtr cb = new Callback();
-        to->begin_sendData(seq, newCallback_Timeout_sendData(cb, &Callback::responseEx, &Callback::exceptionEx));
-        cb->check();
-    }
-    {
-        //
-        // Expect success.
-        //
-        timeout->op(); // Ensure adapter is active.
-        TimeoutPrx to = TimeoutPrx::uncheckedCast(obj->ice_timeout(1000));
-        to->holdAdapter(500);
-        ByteSeq seq(100000);
-        CallbackPtr cb = new Callback();
-        to->begin_sendData(seq, newCallback_Timeout_sendData(cb, &Callback::response, &Callback::exception));
-        cb->check();
+        obj->ice_ping();
     }
     cout << "ok" << endl;
 
@@ -248,7 +261,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
     {
         TimeoutPrx to = TimeoutPrx::checkedCast(obj->ice_timeout(250));
         Ice::ConnectionPtr connection = to->ice_getConnection();
-        timeout->holdAdapter(750);
+        timeout->holdAdapter(600);
         connection->close(false);
         try
         {
@@ -258,7 +271,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         {
             test(false);
         }
-        IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(500));
+        IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(650));
         try
         {
             connection->getInfo();
@@ -280,26 +293,29 @@ allTests(const Ice::CommunicatorPtr& communicator)
         //
         Ice::InitializationData initData;
         initData.properties = communicator->getProperties()->clone();
-        initData.properties->setProperty("Ice.Override.Timeout", "500");
+        initData.properties->setProperty("Ice.Override.Timeout", "250");
         Ice::CommunicatorPtr comm = Ice::initialize(initData);
         TimeoutPrx to = TimeoutPrx::checkedCast(comm->stringToProxy(sref));
+        timeout->holdAdapter(700);
         try
         {
-            to->sleep(750);
+            to->sendData(seq);
             test(false);
         }
         catch(const Ice::TimeoutException&)
         {
             // Expected.
         }
+
         //
         // Calling ice_timeout() should have no effect.
         //
         timeout->op(); // Ensure adapter is active.
         to = TimeoutPrx::checkedCast(to->ice_timeout(1000));
+        timeout->holdAdapter(500);
         try
         {
-            to->sleep(750);
+            to->sendData(seq);
             test(false);
         }
         catch(const Ice::TimeoutException&)
@@ -314,9 +330,9 @@ allTests(const Ice::CommunicatorPtr& communicator)
         //
         Ice::InitializationData initData;
         initData.properties = communicator->getProperties()->clone();
-        initData.properties->setProperty("Ice.Override.ConnectTimeout", "750");
+        initData.properties->setProperty("Ice.Override.ConnectTimeout", "250");
         Ice::CommunicatorPtr comm = Ice::initialize(initData);
-        timeout->holdAdapter(1000);
+        timeout->holdAdapter(750);
         TimeoutPrx to = TimeoutPrx::uncheckedCast(comm->stringToProxy(sref));
         try
         {
@@ -331,8 +347,8 @@ allTests(const Ice::CommunicatorPtr& communicator)
         // Calling ice_timeout() should have no effect on the connect timeout.
         //
         timeout->op(); // Ensure adapter is active.
-        timeout->holdAdapter(1000);
-        to = TimeoutPrx::uncheckedCast(to->ice_timeout(1250));
+        timeout->holdAdapter(750);
+        to = TimeoutPrx::uncheckedCast(to->ice_timeout(1000));
         try
         {
             to->op();
@@ -345,10 +361,13 @@ allTests(const Ice::CommunicatorPtr& communicator)
         //
         // Verify that timeout set via ice_timeout() is still used for requests.
         //
-        to->op(); // Force connection.
+        timeout->op(); // Ensure adapter is active.
+        to = TimeoutPrx::uncheckedCast(to->ice_timeout(250));
+        to->ice_getConnection(); // Establish connection
+        timeout->holdAdapter(750);
         try
         {
-            to->sleep(2000);
+            to->sendData(seq);
             test(false);
         }
         catch(const Ice::TimeoutException&)
@@ -363,13 +382,73 @@ allTests(const Ice::CommunicatorPtr& communicator)
         //
         Ice::InitializationData initData;
         initData.properties = communicator->getProperties()->clone();
-        initData.properties->setProperty("Ice.Override.CloseTimeout", "200");
+        initData.properties->setProperty("Ice.Override.CloseTimeout", "250");
         Ice::CommunicatorPtr comm = Ice::initialize(initData);
         Ice::ConnectionPtr connection = comm->stringToProxy(sref)->ice_getConnection();
-        timeout->holdAdapter(750);
+        timeout->holdAdapter(500);
         IceUtil::Time now = IceUtil::Time::now();
         comm->destroy();
-        test(IceUtil::Time::now() - now < IceUtil::Time::milliSeconds(500));
+        test(IceUtil::Time::now() - now < IceUtil::Time::milliSeconds(400));
+    }
+    cout << "ok" << endl;
+
+    cout << "testing invocation timeouts with collocated calls... " << flush;
+    {
+        communicator->getProperties()->setProperty("TimeoutCollocated.AdapterId", "timeoutAdapter");
+
+        Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TimeoutCollocated");
+        adapter->activate();
+
+        TimeoutPrx timeout = TimeoutPrx::uncheckedCast(adapter->addWithUUID(new TimeoutI()));
+        timeout = timeout->ice_invocationTimeout(100);
+        try
+        {
+            timeout->sleep(300);
+            test(false);
+        }
+        catch(const Ice::InvocationTimeoutException&)
+        {
+        }
+
+        try
+        {
+            timeout->end_sleep(timeout->begin_sleep(300));
+            test(false);
+        }
+        catch(const Ice::InvocationTimeoutException&)
+        {
+        }
+
+        TimeoutPrx batchTimeout = timeout->ice_batchOneway();
+        batchTimeout->ice_ping();
+        batchTimeout->ice_ping();
+        batchTimeout->ice_ping();
+
+        timeout->ice_invocationTimeout(-1)->begin_sleep(300); // Keep the server thread pool busy.
+        try
+        {
+            batchTimeout->ice_flushBatchRequests();
+            test(false);
+        }
+        catch(const Ice::InvocationTimeoutException&)
+        {
+        }
+
+        batchTimeout->ice_ping();
+        batchTimeout->ice_ping();
+        batchTimeout->ice_ping();
+
+        timeout->ice_invocationTimeout(-1)->begin_sleep(300); // Keep the server thread pool busy.
+        try
+        {
+            batchTimeout->end_ice_flushBatchRequests(batchTimeout->begin_ice_flushBatchRequests());
+            test(false);
+        }
+        catch(const Ice::InvocationTimeoutException&)
+        {
+        }
+
+        adapter->destroy();
     }
     cout << "ok" << endl;
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -23,13 +23,13 @@
 #include <Ice/ObjectF.h>
 #include <Ice/RouterInfoF.h>
 #include <Ice/EndpointIF.h>
-#include <Ice/ConnectorF.h>
 #include <Ice/LocatorInfoF.h>
 #include <Ice/ThreadPoolF.h>
 #include <Ice/OutgoingAsyncF.h>
 #include <Ice/Exception.h>
 #include <Ice/BuiltinSequences.h>
 #include <Ice/Proxy.h>
+#include <Ice/ACM.h>
 #include <list>
 
 namespace Ice
@@ -79,14 +79,15 @@ public:
     virtual ObjectPrx createIndirectProxy(const Identity&) const;
 
     virtual void setLocator(const LocatorPrx&);
+    virtual Ice::LocatorPrx getLocator() const;
     virtual void refreshPublishedEndpoints();
 
     virtual EndpointSeq getEndpoints() const;
     virtual EndpointSeq getPublishedEndpoints() const;
-    
+
     bool isLocal(const ObjectPrx&) const;
 
-    void flushAsyncBatchRequests(const IceInternal::CommunicatorBatchOutgoingAsyncPtr&);
+    void flushAsyncBatchRequests(const IceInternal::CommunicatorFlushBatchAsyncPtr&);
 
     void updateConnectionObservers();
     void updateThreadObservers();
@@ -96,53 +97,56 @@ public:
 
     IceInternal::ThreadPoolPtr getThreadPool() const;
     IceInternal::ServantManagerPtr getServantManager() const;
-    Ice::Int getACM() const;
+    IceInternal::ACMConfig getACM() const;
+    size_t messageSizeMax() const { return _messageSizeMax; }
 
 private:
 
-    ObjectAdapterI(const IceInternal::InstancePtr&, const CommunicatorPtr&, 
+    ObjectAdapterI(const IceInternal::InstancePtr&, const CommunicatorPtr&,
                    const IceInternal::ObjectAdapterFactoryPtr&, const std::string&, bool);
     virtual ~ObjectAdapterI();
     void initialize(const RouterPrx&);
     friend class IceInternal::ObjectAdapterFactory;
-    
+
     ObjectPrx newProxy(const Identity&, const std::string&) const;
     ObjectPrx newDirectProxy(const Identity&, const std::string&) const;
     ObjectPrx newIndirectProxy(const Identity&, const std::string&, const std::string&) const;
     void checkForDeactivation() const;
-    static void checkIdentity(const Identity&);
     std::vector<IceInternal::EndpointIPtr> parseEndpoints(const std::string&, bool) const;
     std::vector<IceInternal::EndpointIPtr> parsePublishedEndpoints();
-    void updateLocatorRegistry(const IceInternal::LocatorInfoPtr&, const Ice::ObjectPrx&, bool);
+    void updateLocatorRegistry(const IceInternal::LocatorInfoPtr&, const Ice::ObjectPrx&);
     bool filterProperties(Ice::StringSeq&);
 
-    bool _deactivated;
+    enum State
+    {
+        StateUninitialized,
+        StateHeld,
+        StateActivating,
+        StateActive,
+        StateDeactivating,
+        StateDeactivated,
+        StateDestroying,
+        StateDestroyed
+    };
+    State _state;
     IceInternal::InstancePtr _instance;
     CommunicatorPtr _communicator;
     IceInternal::ObjectAdapterFactoryPtr _objectAdapterFactory;
     IceInternal::ThreadPoolPtr _threadPool;
-    bool _hasAcmTimeout;
-    Ice::Int _acmTimeout;
+    IceInternal::ACMConfig _acm;
     IceInternal::ServantManagerPtr _servantManager;
-    bool _activateOneOffDone;
     const std::string _name;
     const std::string _id;
     const std::string _replicaGroupId;
     IceInternal::ReferencePtr _reference;
     std::vector<IceInternal::IncomingConnectionFactoryPtr> _incomingConnectionFactories;
-    std::vector<IceInternal::ConnectorPtr> _connectors;
     std::vector<IceInternal::EndpointIPtr> _routerEndpoints;
     IceInternal::RouterInfoPtr _routerInfo;
     std::vector<IceInternal::EndpointIPtr> _publishedEndpoints;
     IceInternal::LocatorInfoPtr _locatorInfo;
     int _directCount; // The number of direct proxies dispatching on this object adapter.
-    bool _waitForActivate;
-    int  _waitForHold;
-    bool _waitForHoldRetry;
-    bool _destroying;
-    bool _destroyed;
     bool _noConfig;
-    Identity _processId;
+    size_t _messageSizeMax;
 };
 
 }

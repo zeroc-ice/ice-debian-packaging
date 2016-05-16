@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -17,6 +17,8 @@
 #ifndef SLICE_API
 #   ifdef SLICE_API_EXPORTS
 #       define SLICE_API ICE_DECLSPEC_EXPORT
+#   elif defined(ICE_STATIC_LIBS)
+#       define SLICE_API /**/
 #   else
 #       define SLICE_API ICE_DECLSPEC_IMPORT
 #   endif
@@ -39,10 +41,10 @@ public:
     FILE* preprocess(bool, const std::string& = "");
     bool close();
 
-    enum Language { CPlusPlus, Java, JavaXML, CSharp, Python, Ruby, PHP };
+    enum Language { CPlusPlus, Java, CSharp, Python, Ruby, PHP, JavaScript, JavaScriptJSON, ObjC, SliceXML };
 
-    bool printMakefileDependencies(Language, const std::vector<std::string>&, const std::string& = "", const std::string& = "cpp",
-                                   const std::string& = "");
+    bool printMakefileDependencies(std::ostream&, Language, const std::vector<std::string>&, const std::string& = "",
+                                   const std::string& = "cpp", const std::string& = "");
 
     std::string getBaseName();
 

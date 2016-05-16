@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -21,20 +21,18 @@ class ConnectionRequestHandler : public RequestHandler
 {
 public:
 
-    ConnectionRequestHandler(const ReferencePtr&, const Ice::ObjectPrx&);
     ConnectionRequestHandler(const ReferencePtr&, const Ice::ConnectionIPtr&, bool);
 
-    virtual void prepareBatchRequest(BasicStream*);
-    virtual void finishBatchRequest(BasicStream*);
-    virtual void abortBatchRequest();
+    virtual RequestHandlerPtr update(const RequestHandlerPtr&, const RequestHandlerPtr&);
 
-    virtual Ice::ConnectionI* sendRequest(Outgoing*);
-    virtual AsyncStatus sendAsyncRequest(const OutgoingAsyncPtr&);
+    virtual bool sendRequest(ProxyOutgoingBase*);
+    virtual AsyncStatus sendAsyncRequest(const ProxyOutgoingAsyncBasePtr&);
 
-    virtual bool flushBatchRequests(BatchOutgoing*);
-    virtual AsyncStatus flushAsyncBatchRequests(const BatchOutgoingAsyncPtr&);
+    virtual void requestCanceled(OutgoingBase*, const Ice::LocalException&);
+    virtual void asyncRequestCanceled(const OutgoingAsyncBasePtr&, const Ice::LocalException&);
 
-    virtual Ice::ConnectionIPtr getConnection(bool);
+    virtual Ice::ConnectionIPtr getConnection();
+    virtual Ice::ConnectionIPtr waitForConnection();
 
 private:
 

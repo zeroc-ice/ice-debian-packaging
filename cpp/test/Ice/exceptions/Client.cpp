@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -19,8 +19,8 @@ using namespace Test;
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    ThrowerPrx allTests(const Ice::CommunicatorPtr&, bool);
-    ThrowerPrx thrower = allTests(communicator, false);
+    ThrowerPrx allTests(const Ice::CommunicatorPtr&);
+    ThrowerPrx thrower = allTests(communicator);
     thrower->shutdown();
     return EXIT_SUCCESS;
 }
@@ -28,13 +28,17 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
     int status;
     Ice::CommunicatorPtr communicator;
 
     try
     {
         Ice::InitializationData initData;
-        initData.properties = Ice::createProperties();
+        initData.properties = Ice::createProperties(argc, argv);
+        initData.properties->setProperty("Ice.Warn.Connections", "0");
         initData.properties->setProperty("Ice.MessageSizeMax", "10"); // 10KB max
         communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator);

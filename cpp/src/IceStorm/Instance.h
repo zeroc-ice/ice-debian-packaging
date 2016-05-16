@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -43,16 +43,25 @@ namespace IceStorm
 class TraceLevels;
 typedef IceUtil::Handle<TraceLevels> TraceLevelsPtr;
 
-class ConnectionPool;
-typedef IceUtil::Handle<ConnectionPool> ConnectionPoolPtr;
+class TopicReaper : public IceUtil::Shared, private IceUtil::Mutex
+{
+public:
+
+    void add(const std::string&);
+    std::vector<std::string> consumeReapedTopics();
+
+private:
+
+    std::vector<std::string> _topics;
+};
+typedef IceUtil::Handle<TopicReaper> TopicReaperPtr;
 
 class Instance : public IceUtil::Shared
 {
 public:
 
-    Instance(const std::string&, const std::string&, const Ice::CommunicatorPtr&, const ConnectionPoolPtr&, 
-             const Ice::ObjectAdapterPtr&, const Ice::ObjectAdapterPtr&, const Ice::ObjectAdapterPtr& = 0,
-             const IceStormElection::NodePrx& = 0);
+    Instance(const std::string&, const std::string&, const Ice::CommunicatorPtr&, const Ice::ObjectAdapterPtr&,
+             const Ice::ObjectAdapterPtr&, const Ice::ObjectAdapterPtr& = 0, const IceStormElection::NodePrx& = 0);
     ~Instance();
 
     void setNode(const IceStormElection::NodeIPtr&);
@@ -72,8 +81,8 @@ public:
     IceUtil::TimerPtr timer() const;
     Ice::ObjectPrx topicReplicaProxy() const;
     Ice::ObjectPrx publisherReplicaProxy() const;
-    ConnectionPoolPtr connectionPool() const;
     IceStorm::Instrumentation::TopicManagerObserverPtr observer() const;
+    TopicReaperPtr topicReaper() const;
 
     IceUtil::Time discardInterval() const;
     IceUtil::Time flushInterval() const;
@@ -97,7 +106,7 @@ private:
     const int _sendTimeout;
     const Ice::ObjectPrx _topicReplicaProxy;
     const Ice::ObjectPrx _publisherReplicaProxy;
-    const ConnectionPoolPtr _connectionPool;
+    const TopicReaperPtr _topicReaper;
     IceStormElection::NodeIPtr _node;
     IceStormElection::ObserversPtr _observers;
     IceUtil::TimerPtr _batchFlusher;

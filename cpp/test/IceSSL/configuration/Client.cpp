@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,6 +8,7 @@
 // **********************************************************************
 
 #include <Ice/Ice.h>
+#include <IceSSL/IceSSL.h>
 
 using namespace std;
 
@@ -20,9 +21,12 @@ run(int argc, char* argv[], const Ice::CommunicatorPtr& communicator)
         return 1;
     }
 
-    void allTests(const Ice::CommunicatorPtr&, const string&);
+    void allTests(const Ice::CommunicatorPtr&, const string&, bool, bool);
 
-    allTests(communicator, argv[1]);
+    cerr << "testing with PKCS12 certificates..." << endl;
+    allTests(communicator, argv[1], true, false);
+    cerr << "testing with PEM certificates..." << endl;
+    allTests(communicator, argv[1], false, true);
 
     return EXIT_SUCCESS;
 }
@@ -30,6 +34,13 @@ run(int argc, char* argv[], const Ice::CommunicatorPtr& communicator)
 int
 main(int argc, char* argv[])
 {
+    //
+    // Explicitly register the IceSSL plugin to test registerIceSSL. The tests
+    // don't set Ice.Plugin.IceSSL to ensure the plugin is registered without
+    // the property setting.
+    //
+    Ice::registerIceSSL();
+
     int status;
     Ice::CommunicatorPtr communicator;
 

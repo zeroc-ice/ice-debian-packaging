@@ -1,7 +1,7 @@
 <?php
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -92,6 +92,24 @@ namespace Ice
         }
     }
 
+    class ObjectPrxHelper
+    {
+        public static function checkedCast($proxy, $facetOrCtx=null, $ctx=null)
+        {
+            return $proxy->ice_checkedCast('::Ice::Object', $facetOrCtx, $ctx);
+        }
+
+        public static function uncheckedCast($proxy, $facet=null)
+        {
+            return $proxy->ice_uncheckedCast('::Ice::Object', $facet);
+        }
+
+        public static function ice_staticId()
+        {
+            return '::Ice::Object';
+        }
+    }
+
     $Ice__t_Object = IcePHP_defineClass('::Ice::Object', "\\Ice\\Object", -1, true, false, null, null, null);
     $Ice__t_ObjectSeq = IcePHP_defineSequence('::Ice::ObjectSeq', $Ice__t_Object);
     $Ice__t_LocalObject = IcePHP_defineClass('::Ice::LocalObject', "\\Ice\\LocalObject", -1, true, false, null, null, null);
@@ -155,7 +173,7 @@ namespace
 // Include certain generated files.
 //
 require_once 'Ice/BuiltinSequences.php';
-require_once 'Ice/Endpoint.php';
+require_once 'Ice/Connection.php';
 require_once 'Ice/EndpointTypes.php';
 require_once 'Ice/LocalException.php';
 require_once 'Ice/Locator.php';
@@ -165,6 +183,7 @@ require_once 'Ice/Router.php';
 require_once 'Ice/Version.php';
 require_once 'Ice/Instrumentation.php';
 require_once 'Ice/Metrics.php';
+require_once 'Ice/RemoteLogger.php';
 
 $Ice_Protocol_1_0 = new Ice\ProtocolVersion(1, 0);
 $Ice_Encoding_1_0 = new Ice\EncodingVersion(1, 0);

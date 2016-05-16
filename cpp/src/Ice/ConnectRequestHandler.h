@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -12,50 +12,47 @@
 
 #include <IceUtil/Monitor.h>
 #include <IceUtil/Mutex.h>
+#include <IceUtil/UniquePtr.h>
 
+#include <Ice/ConnectRequestHandlerF.h>
 #include <Ice/RequestHandler.h>
 #include <Ice/Reference.h>
 #include <Ice/RouterInfo.h>
 #include <Ice/ProxyF.h>
 #include <Ice/BasicStream.h>
 
-#include <IceUtil/UniquePtr.h>
 #include <deque>
+#include <set>
 
 namespace IceInternal
 {
 
-class ConnectRequestHandler : public RequestHandler, 
+class ConnectRequestHandler : public RequestHandler,
                               public Reference::GetConnectionCallback,
                               public RouterInfo::AddProxyCallback,
                               public IceUtil::Monitor<IceUtil::Mutex>
 {
 public:
 
-    ConnectRequestHandler(const ReferencePtr&, const Ice::ObjectPrx&, const Handle< ::IceDelegate::Ice::Object>&);
+    ConnectRequestHandler(const ReferencePtr&, const Ice::ObjectPrx&);
     virtual ~ConnectRequestHandler();
 
-    RequestHandlerPtr connect();
+    RequestHandlerPtr connect(const Ice::ObjectPrx&);
+    virtual RequestHandlerPtr update(const RequestHandlerPtr&, const RequestHandlerPtr&);
 
-    virtual void prepareBatchRequest(BasicStream*);
-    virtual void finishBatchRequest(BasicStream*);
-    virtual void abortBatchRequest();
+    virtual bool sendRequest(ProxyOutgoingBase*);
+    virtual AsyncStatus sendAsyncRequest(const ProxyOutgoingAsyncBasePtr&);
 
-    virtual Ice::ConnectionI* sendRequest(Outgoing*);
-    virtual AsyncStatus sendAsyncRequest(const OutgoingAsyncPtr&);
+    virtual void requestCanceled(OutgoingBase*, const Ice::LocalException&);
+    virtual void asyncRequestCanceled(const OutgoingAsyncBasePtr&, const Ice::LocalException&);
 
-    virtual bool flushBatchRequests(BatchOutgoing*);
-    virtual AsyncStatus flushAsyncBatchRequests(const BatchOutgoingAsyncPtr&);
-
-    virtual Ice::ConnectionIPtr getConnection(bool);
+    virtual Ice::ConnectionIPtr getConnection();
+    virtual Ice::ConnectionIPtr waitForConnection();
 
     virtual void setConnection(const Ice::ConnectionIPtr&, bool);
     virtual void setException(const Ice::LocalException&);
 
     virtual void addedProxy();
-
-    void flushRequestsWithException(const Ice::LocalException&);
-    void flushRequestsWithException(const LocalExceptionWrapper&);
 
 private:
 
@@ -64,15 +61,16 @@ private:
 
     struct Request
     {
-        OutgoingAsyncPtr out;
-        BatchOutgoingAsyncPtr batchOut;
-        BasicStream* os;
+        Request() : out(0)
+        {
+        }
+
+        ProxyOutgoingBase* out;
+        ProxyOutgoingAsyncBasePtr outAsync;
     };
 
     Ice::ObjectPrx _proxy;
-    Handle< ::IceDelegate::Ice::Object> _delegate;
-
-    const bool _batchAutoFlush;
+    std::set<Ice::ObjectPrx> _proxies;
 
     Ice::ConnectionIPtr _connection;
     bool _compress;
@@ -81,12 +79,9 @@ private:
     bool _flushing;
 
     std::deque<Request> _requests;
-    bool _batchRequestInProgress;
-    size_t _batchRequestsSize;
-    BasicStream _batchStream;
-    bool _updateRequestHandler;
+
+    RequestHandlerPtr _requestHandler;
 };
-typedef IceUtil::Handle<ConnectRequestHandler> ConnectRequestHandlerPtr;
 
 }
 

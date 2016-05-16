@@ -1,13 +1,12 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <Ice/CommunicatorI.h>
 #include <Ice/Instance.h>
 #include <Ice/Properties.h>
@@ -20,8 +19,8 @@
 #include <Ice/LocalException.h>
 #include <Ice/DefaultsAndOverrides.h>
 #include <Ice/TraceLevels.h>
-#include <Ice/GC.h>
 #include <Ice/Router.h>
+#include <Ice/OutgoingAsync.h>
 #include <IceUtil/Mutex.h>
 #include <IceUtil/MutexPtrLock.h>
 #include <IceUtil/UUID.h>
@@ -30,116 +29,18 @@ using namespace std;
 using namespace Ice;
 using namespace IceInternal;
 
-namespace IceInternal
-{
-
-IceUtil::Handle<IceInternal::GC> theCollector = 0;
-
-}
-
-namespace
-{
-
-struct GarbageCollectorStats
-{
-    GarbageCollectorStats() :
-        runs(0), examined(0), collected(0)
-    {
-    }
-    int runs;
-    int examined;
-    int collected;
-    IceUtil::Time time;
-};
-
-int communicatorCount = 0;
-IceUtil::Mutex* gcMutex = 0;
-GarbageCollectorStats gcStats;
-int gcTraceLevel;
-string gcTraceCat;
-int gcInterval;
-bool gcHasPriority;
-int gcThreadPriority;
-
-class Init
-{
-public:
-
-    Init()
-    {
-        gcMutex = new IceUtil::Mutex;
-    }
-
-    ~Init()
-    {
-        delete gcMutex;
-        gcMutex = 0;
-    }
-};
-
-Init init;
-
-void
-printGCStats(const IceInternal::GCStats& stats)
-{
-    if(gcTraceLevel)
-    {
-        if(gcTraceLevel > 1)
-        {
-            Trace out(getProcessLogger(), gcTraceCat);
-            out << stats.collected << "/" << stats.examined << ", " << stats.time * 1000 << "ms";
-        }
-        ++gcStats.runs;
-        gcStats.examined += stats.examined;
-        gcStats.collected += stats.collected;
-        gcStats.time += stats.time;
-    }
-}
-
-}
-
 void
 Ice::CommunicatorI::destroy()
 {
-    if(_instance && _instance->destroy())
+    if(_instance)
     {
-        IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(gcMutex);
-
-        //
-        // Wait for the collector thread to stop if this is the last communicator
-        // to be destroyed.
-        //
-        bool last = (--communicatorCount == 0);
-        if(last && gcInterval > 0 && theCollector)
-        {
-            theCollector->stop();
-        }
-
-        if(theCollector)
-        {
-            theCollector->collectGarbage(); // Collect whenever a communicator is destroyed.
-        }
-
-        if(last)
-        {
-            if(gcTraceLevel)
-            {
-                Trace out(getProcessLogger(), gcTraceCat);
-                out << "totals: " << gcStats.collected << "/" << gcStats.examined << ", "
-                    << gcStats.time * 1000 << "ms" << ", " << gcStats.runs << " run";
-                if(gcStats.runs != 1)
-                {
-                    out << "s";
-                }
-            }
-            theCollector = 0; // Force destruction of the collector.
-        }
+        _instance->destroy();
     }
 }
 
 void
 Ice::CommunicatorI::shutdown()
-{ 
+{
     _instance->objectAdapterFactory()->shutdown();
 }
 
@@ -252,16 +153,10 @@ Ice::CommunicatorI::getLogger() const
     return _instance->initializationData().logger;
 }
 
-StatsPtr
-Ice::CommunicatorI::getStats() const
-{
-    return _instance->initializationData().stats;
-}
-
 Ice::Instrumentation::CommunicatorObserverPtr
 Ice::CommunicatorI::getObserver() const
 {
-    return _instance->getObserver();
+    return _instance->initializationData().observer;
 }
 
 RouterPrx
@@ -303,8 +198,7 @@ Ice::CommunicatorI::getPluginManager() const
 void
 Ice::CommunicatorI::flushBatchRequests()
 {
-    AsyncResultPtr r = begin_flushBatchRequests();
-    end_flushBatchRequests(r);
+    end_flushBatchRequests(begin_flushBatchRequests());
 }
 
 AsyncResultPtr
@@ -326,6 +220,47 @@ Ice::CommunicatorI::begin_flushBatchRequests(const Callback_Communicator_flushBa
     return __begin_flushBatchRequests(cb, cookie);
 }
 
+AsyncResultPtr
+Ice::CommunicatorI::begin_flushBatchRequests(const IceInternal::Function<void (const Exception&)>& exception,
+                                             const IceInternal::Function<void (bool)>& sent)
+{
+#ifdef ICE_CPP11
+    class Cpp11CB : public IceInternal::Cpp11FnCallbackNC
+    {
+
+    public:
+
+        Cpp11CB(const IceInternal::Function<void (const Exception&)>& excb,
+                const IceInternal::Function<void (bool)>& sentcb) :
+            IceInternal::Cpp11FnCallbackNC(excb, sentcb)
+        {
+            CallbackBase::checkCallback(true, excb != nullptr);
+        }
+
+        virtual void
+        completed(const AsyncResultPtr& __result) const
+        {
+            CommunicatorPtr __com = __result->getCommunicator();
+            assert(__com);
+            try
+            {
+                __com->end_flushBatchRequests(__result);
+                assert(false);
+            }
+            catch(const Exception& ex)
+            {
+                IceInternal::Cpp11FnCallbackNC::exception(__result, ex);
+            }
+        }
+    };
+
+    return __begin_flushBatchRequests(new Cpp11CB(exception, sent), 0);
+#else
+    assert(false); // Ice not built with C++11 support.
+    return 0;
+#endif
+}
+
 namespace
 {
 
@@ -334,8 +269,7 @@ const ::std::string __flushBatchRequests_name = "flushBatchRequests";
 }
 
 AsyncResultPtr
-Ice::CommunicatorI::__begin_flushBatchRequests(const IceInternal::CallbackBasePtr& cb,
-                                                     const LocalObjectPtr& cookie)
+Ice::CommunicatorI::__begin_flushBatchRequests(const IceInternal::CallbackBasePtr& cb, const LocalObjectPtr& cookie)
 {
     OutgoingConnectionFactoryPtr connectionFactory = _instance->outgoingConnectionFactory();
     ObjectAdapterFactoryPtr adapterFactory = _instance->objectAdapterFactory();
@@ -344,8 +278,11 @@ Ice::CommunicatorI::__begin_flushBatchRequests(const IceInternal::CallbackBasePt
     // This callback object receives the results of all invocations
     // of Connection::begin_flushBatchRequests.
     //
-    CommunicatorBatchOutgoingAsyncPtr result =
-        new CommunicatorBatchOutgoingAsync(this, _instance, __flushBatchRequests_name, cb, cookie);
+    CommunicatorFlushBatchAsyncPtr result = new CommunicatorFlushBatchAsync(this,
+                                                                            _instance,
+                                                                            __flushBatchRequests_name,
+                                                                            cb,
+                                                                            cookie);
 
     connectionFactory->flushAsyncBatchRequests(result);
     adapterFactory->flushAsyncBatchRequests(result);
@@ -366,6 +303,11 @@ Ice::CommunicatorI::end_flushBatchRequests(const AsyncResultPtr& r)
     r->__wait();
 }
 
+ObjectPrx
+Ice::CommunicatorI::createAdmin(const ObjectAdapterPtr& adminAdapter, const Identity& adminId)
+{
+    return _instance->createAdmin(adminAdapter, adminId);
+}
 ObjectPrx
 Ice::CommunicatorI::getAdmin() const
 {
@@ -390,6 +332,12 @@ Ice::CommunicatorI::findAdminFacet(const string& facet)
     return _instance->findAdminFacet(facet);
 }
 
+Ice::FacetMap
+Ice::CommunicatorI::findAllAdminFacets()
+{
+    return _instance->findAllAdminFacets();
+}
+
 Ice::CommunicatorI::CommunicatorI(const InitializationData& initData)
 {
     __setNoDelete(true);
@@ -403,45 +351,6 @@ Ice::CommunicatorI::CommunicatorI(const InitializationData& initData)
         // destructor is invoked.
         //
         const_cast<DynamicLibraryListPtr&>(_dynamicLibraryList) = _instance->dynamicLibraryList();
-
-        //
-        // If this is the first communicator that is created, use that communicator's
-        // property settings to determine whether to start the garbage collector.
-        // We remember that communicator's trace and logger settings so the garbage
-        // collector can continue to log messages even if the first communicator that
-        // is created isn't the last communicator to be destroyed.
-        //
-        IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(gcMutex);
-        static bool gcOnce = true;
-        if(gcOnce)
-        {
-            gcTraceLevel = _instance->traceLevels()->gc;
-            gcTraceCat = _instance->traceLevels()->gcCat;
-            gcInterval = _instance->initializationData().properties->getPropertyAsInt("Ice.GC.Interval");
-            gcHasPriority = _instance->initializationData().properties->getProperty("Ice.ThreadPriority") != "";
-            gcThreadPriority = _instance->initializationData().properties->getPropertyAsInt("Ice.ThreadPriority");
-            gcOnce = false;
-        }
-        if(++communicatorCount == 1)
-        {
-            IceUtil::Handle<IceInternal::GC> collector  = new IceInternal::GC(gcInterval, printGCStats);
-            if(gcInterval > 0)
-            {
-                if(gcHasPriority)
-                {
-                    collector->start(0, gcThreadPriority);
-                }
-                else
-                {
-                    collector->start();
-                }
-            }
-
-            //
-            // Assign only if start() succeeds, if it fails this makes sure stop isn't called in destroy().
-            //
-            theCollector = collector; 
-        }
     }
     catch(...)
     {
@@ -466,7 +375,7 @@ Ice::CommunicatorI::finishSetup(int& argc, char* argv[])
 {
     try
     {
-        _instance->finishSetup(argc, argv);
+        _instance->finishSetup(argc, argv, this);
     }
     catch(...)
     {

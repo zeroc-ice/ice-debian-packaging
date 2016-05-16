@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -136,8 +136,9 @@ public:
     /**
      * Called when the session refresh thread detects that the session has been
      * destroyed. A subclass can override this method to take action after the
-     * loss of connectivity with the Glacier2 router. This method is always
-     * called from the session refresh thread.
+     * loss of connectivity with the Glacier2 router. This method is called
+     * according to the Ice invocation dipsatch rules (in other words, it
+     * uses the same rules as an servant upcall or AMI callback).
      **/
     virtual void sessionDestroyed()
     {

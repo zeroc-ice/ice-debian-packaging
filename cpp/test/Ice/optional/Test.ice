@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["cpp:include:list"]]
+[["cpp:include:list", "cpp:include:CustomMap.h", "cpp:include:StringView.h"]]
 
 module Test
 {
@@ -70,6 +70,8 @@ dictionary<int, FixedStruct> IntFixedStructDict;
 dictionary<int, VarStruct> IntVarStructDict;
 dictionary<int, OneOptional> IntOneOptionalDict;
 dictionary<int, OneOptional*> IntOneOptionalPrxDict;
+
+["cpp:type:Test::CustomMap<Ice::Int, std::string>"] dictionary<int, string> IntStringDict;
 
 class MultiOptional
 {
@@ -173,6 +175,31 @@ class F extends E
     optional(1) A af;
 };
 
+class G1
+{
+    string a;
+};
+
+class G2
+{
+    long a;
+};
+
+class G
+{
+    optional(1) G1 gg1Opt;
+    G2 gg2;
+    optional(0) G2 gg2Opt;
+    G1 gg1;
+};
+
+class Recursive;
+sequence<Recursive> RecursiveSeq;
+
+class Recursive {
+    optional(0) RecursiveSeq value;
+};
+
 class Initial
 {
     void shutdown();
@@ -204,6 +231,10 @@ class Initial
 
     optional(1) string opString(optional(2) string p1, out optional(3) string p3);
 
+    ["cpp:view-type:Util::string_view"] optional(1) string
+    opCustomString(["cpp:view-type:Util::string_view"] optional(2) string p1, 
+                   out ["cpp:view-type:Util::string_view"] optional(3) string p3);
+
     optional(1) MyEnum opMyEnum(optional(2) MyEnum p1, out optional(3) MyEnum p3);
 
     optional(1) SmallStruct opSmallStruct(optional(2) SmallStruct p1, out optional(3) SmallStruct p3);
@@ -226,17 +257,17 @@ class Initial
     ["cpp:array"] optional(1) ShortSeq opShortSeq(["cpp:array"] optional(2) ShortSeq p1,
                                                   out ["cpp:array"] optional(3) ShortSeq p3);
 
-    ["cpp:range:array"] optional(1) IntSeq opIntSeq(["cpp:range:array"] optional(2) IntSeq p1,
-                                                    out ["cpp:range:array"] optional(3) IntSeq p3);
+    ["cpp:array"] optional(1) IntSeq opIntSeq(["cpp:array"] optional(2) IntSeq p1,
+                                              out ["cpp:array"] optional(3) IntSeq p3);
 
-    ["cpp:range:array"] optional(1) LongSeq opLongSeq(["cpp:range:array"] optional(2) LongSeq p1,
-                                                      out ["cpp:range:array"] optional(3) LongSeq p3);
+    ["cpp:array"] optional(1) LongSeq opLongSeq(["cpp:array"] optional(2) LongSeq p1,
+                                                 out ["cpp:array"] optional(3) LongSeq p3);
 
-    ["cpp:range:array"] optional(1) FloatSeq opFloatSeq(["cpp:range:array"] optional(2) FloatSeq p1,
-                                                        out ["cpp:range:array"] optional(3) FloatSeq p3);
+    ["cpp:array"] optional(1) FloatSeq opFloatSeq(["cpp:array"] optional(2) FloatSeq p1,
+                                                   out ["cpp:array"] optional(3) FloatSeq p3);
 
-    ["cpp:range:array"] optional(1) DoubleSeq opDoubleSeq(["cpp:range:array"] optional(2) DoubleSeq p1,
-                                                          out ["cpp:range:array"] optional(3) DoubleSeq p3);
+    ["cpp:array"] optional(1) DoubleSeq opDoubleSeq(["cpp:array"] optional(2) DoubleSeq p1,
+                                                     out ["cpp:array"] optional(3) DoubleSeq p3);
 
     ["cpp:range"] optional(1) StringSeq opStringSeq(["cpp:range"] optional(2) StringSeq p1,
                                                     out ["cpp:range"] optional(3) StringSeq p3);
@@ -262,17 +293,26 @@ class Initial
 
     optional(1) StringIntDict opStringIntDict(optional(2) StringIntDict p1, out optional(3) StringIntDict p3);
 
+    ["cpp:view-type:::std::map< ::Ice::Int, ::Util::string_view>", "cpp:type:::Test::CustomMap< ::Ice::Int, std::string>"] optional(1) IntStringDict
+    opCustomIntStringDict(
+        ["cpp:view-type:::std::map< ::Ice::Int, ::Util::string_view>", "cpp:type:::Test::CustomMap< ::Ice::Int, std::string>"] optional(2) IntStringDict p1,
+        out ["cpp:view-type:::std::map< ::Ice::Int, ::Util::string_view>", "cpp:type:::Test::CustomMap< ::Ice::Int, std::string>"] optional(3) IntStringDict p3);
+
     void opClassAndUnknownOptional(A p);
 
     void sendOptionalClass(bool req, optional(1) OneOptional o);
 
     void returnOptionalClass(bool req, out optional(1) OneOptional o);
+    
+    G opG(G g);
 
     bool supportsRequiredParams();
 
     bool supportsJavaSerializable();
 
     bool supportsCsharpSerializable();
+
+    bool supportsCppStringView();
 };
 
 };

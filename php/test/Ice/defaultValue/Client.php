@@ -1,7 +1,7 @@
 <?
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -25,7 +25,8 @@ function test($b)
     if(!$b)
     {
         $bt = debug_backtrace();
-        die("\ntest failed in ".$bt[0]["file"]." line ".$bt[0]["line"]."\n");
+        echo "\ntest failed in ".$bt[0]["file"]." line ".$bt[0]["line"]."\n";
+        exit(1);
     }
 }
 
@@ -54,7 +55,7 @@ function allTests()
         test($v->l == 4);
         test($v->f == 5.1);
         test($v->d == 6.2);
-        test($v->str == "foo \\ \"bar\n \r\n\t\013\f\007\b? \007 \007");
+        test($v->str == "foo \\ \"bar\n \r\n\t\013\f\007\010? \007 \007");
         test($v->c1 == $red);
         test($v->c2 == $green);
         test($v->c3 == $blue);
@@ -104,7 +105,7 @@ function allTests()
         test($v->l == 4);
         test($v->f == 5.1);
         test($v->d == 6.2);
-        test($v->str == "foo \\ \"bar\n \r\n\t\013\f\007\b? \007 \007");
+        test($v->str == "foo \\ \"bar\n \r\n\t\013\f\007\010? \007 \007");
         test(strlen($v->noDefault) == 0);
         test($v->zeroI == 0);
         test($v->zeroL == 0);
@@ -124,7 +125,7 @@ function allTests()
         test($v->l == 4);
         test($v->f == 5.1);
         test($v->d == 6.2);
-        test($v->str == "foo \\ \"bar\n \r\n\t\013\f\007\b? \007 \007");
+        test($v->str == "foo \\ \"bar\n \r\n\t\013\f\007\010? \007 \007");
         test(strlen($v->noDefault) == 0);
         test($v->c1 == $red);
         test($v->c2 == $green);
@@ -150,7 +151,7 @@ function allTests()
         test($v->l == 4);
         test($v->f == 5.1);
         test($v->d == 6.2);
-        test($v->str == "foo \\ \"bar\n \r\n\t\013\f\007\b? \007 \007");
+        test($v->str == "foo \\ \"bar\n \r\n\t\013\f\007\010? \007 \007");
         test(strlen($v->noDefault) == 0);
         test($v->zeroI == 0);
         test($v->zeroL == 0);
@@ -170,7 +171,7 @@ function allTests()
         test($v->l == 4);
         test($v->f == 5.1);
         test($v->d == 6.2);
-        test($v->str == "foo \\ \"bar\n \r\n\t\013\f\007\b? \007 \007");
+        test($v->str == "foo \\ \"bar\n \r\n\t\013\f\007\010? \007 \007");
         test(strlen($v->noDefault) == 0);
         test($v->c1 == $red);
         test($v->c2 == $green);
@@ -184,6 +185,41 @@ function allTests()
         test($v->zeroDotF == 0);
         test($v->zeroD == 0);
         test($v->zeroDotD == 0);
+    }
+    echo "ok\n";
+
+    echo "testing default constructor... ";
+    flush();
+    {
+        $v = $NS ? eval("return new Test\\StructNoDefaults;") : eval("return new Test_StructNoDefaults;");
+        $innerStructClass = $NS ? "Test\\InnerStruct" : "Test_InnerStruct";
+        test($v->bo == false);
+        test($v->b == 0);
+        test($v->s == 0);
+        test($v->i == 0);
+        test($v->l == 0);
+        test($v->f == 0.0);
+        test($v->d == 0.0);
+        test($v->str == "");
+        test($v->c1 == $red);
+        test($v->bs == null);
+        test($v->is == null);
+        test($v->dict == null);
+        test($v->st instanceof $innerStructClass);
+
+        $e = $NS ? eval("return new Test\\ExceptionNoDefaults;") : eval("return new Test_ExceptionNoDefaults;");
+        test($e->str == '');
+        test($e->c1 == $red);
+        test($e->bs == null);
+        test($e->st instanceof $innerStructClass);
+        test($e->dict == null);
+
+        $cl = $NS ? eval("return new Test\\ClassNoDefaults;") : eval("return new Test_ClassNoDefaults;");
+        test($cl->str == '');
+        test($cl->c1 == $red);
+        test($cl->bs == null);
+        test($cl->st instanceof $innerStructClass);
+        test($cl->dict == null);
     }
     echo "ok\n";
 }

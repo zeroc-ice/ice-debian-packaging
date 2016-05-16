@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -303,7 +303,7 @@ printReply(ostream& s, BasicStream& stream)
             break;
         }
         }
-                
+
         string unknown;
         stream.read(unknown, false);
         s << "\nunknown = " << unknown;
@@ -315,6 +315,15 @@ printReply(ostream& s, BasicStream& stream)
         s << "(unknown)";
         break;
     }
+    }
+
+    if(replyStatus == replyOK || replyStatus == replyUserException)
+    {
+        Ice::EncodingVersion v = stream.skipEncaps();
+        if(v > Ice::Encoding_1_0)
+        {
+            s << "\nencoding = " << v;
+        }
     }
 }
 
@@ -331,29 +340,29 @@ printMessage(ostream& s, BasicStream& stream)
         // We're done.
         break;
     }
-        
+
     case requestMsg:
     {
         printRequest(s, stream);
         break;
     }
-        
+
     case requestBatchMsg:
     {
         printBatchRequest(s, stream);
         break;
     }
-        
+
     case replyMsg:
     {
         printReply(s, stream);
         break;
     }
-        
+
     default:
     {
         break;
-    }    
+    }
     }
 
     return type;

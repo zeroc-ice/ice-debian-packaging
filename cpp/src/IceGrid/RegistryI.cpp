@@ -1,13 +1,12 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <IceUtil/UUID.h>
 #include <IceUtil/FileUtil.h>
 #include <Ice/Ice.h>
@@ -17,11 +16,11 @@
 #include <IceStorm/Service.h>
 #include <IceSSL/IceSSL.h>
 #include <Glacier2/PermissionsVerifier.h>
+#include <Glacier2/NullPermissionsVerifier.h>
 
 #include <IceGrid/TraceLevels.h>
 #include <IceGrid/Database.h>
 #include <IceGrid/ReapThread.h>
-
 #include <IceGrid/RegistryI.h>
 #include <IceGrid/LocatorI.h>
 #include <IceGrid/LocatorRegistryI.h>
@@ -35,12 +34,11 @@
 #include <IceGrid/FileUserAccountMapperI.h>
 #include <IceGrid/WellKnownObjectsManager.h>
 #include <IceGrid/FileCache.h>
+#include <IceGrid/IceLocatorDiscovery.h>
 
-#include <IceGrid/RegistryServerAdminRouter.h>
+#include <IceGrid/RegistryAdminRouter.h>
 
 #include <fstream>
-
-#include <openssl/des.h> // For crypt() passwords
 
 #include <sys/types.h>
 
@@ -51,102 +49,108 @@ using namespace IceGrid;
 namespace
 {
 
-class NullPermissionsVerifierI : public Glacier2::PermissionsVerifier
+class LookupI : public IceLocatorDiscovery::Lookup
 {
 public:
 
-    bool checkPermissions(const string& /*userId*/, const string& /*password*/, string&, const Current&) const
-    {
-        return true;
-    }
-};
-
-class NullSSLPermissionsVerifierI : public Glacier2::SSLPermissionsVerifier
-{
-public:
-
-    virtual bool
-    authorize(const Glacier2::SSLInfo&, std::string&, const Ice::Current&) const
-    {
-        return true;
-    }
-};
-
-class CryptPermissionsVerifierI : public Glacier2::PermissionsVerifier
-{
-public:
-
-    CryptPermissionsVerifierI(const map<string, string>& passwords) : _passwords(passwords)
+    LookupI(const std::string& instanceName, const WellKnownObjectsManagerPtr& wellKnownObjects) :
+        _instanceName(instanceName), _wellKnownObjects(wellKnownObjects)
     {
     }
 
-    bool checkPermissions(const string& userId, const string& password, string&, const Current&) const 
+    virtual void
+    findLocator(const string& instanceName, const IceLocatorDiscovery::LookupReplyPrx& reply, const Ice::Current&)
     {
-        map<string, string>::const_iterator p = _passwords.find(userId);
-        if(p == _passwords.end())
+        if(!instanceName.empty() && instanceName != _instanceName)
         {
-            return false;
+            return; // Ignore.
         }
-        
-        if(p->second.size() != 13) // Crypt passwords are 13 characters long.
+
+        if(reply)
         {
-            return false;
+            reply->begin_foundLocator(_wellKnownObjects->getLocator());
         }
-        
-        char buff[14];
-        string salt = p->second.substr(0, 2);
-#if OPENSSL_VERSION_NUMBER >= 0x0090700fL
-        DES_fcrypt(password.c_str(), salt.c_str(), buff);
-#else
-        des_fcrypt(password.c_str(), salt.c_str(), buff);
-#endif
-        return p->second == buff;
+    }
+
+    virtual Ice::LocatorPrx
+    getLocator(const Ice::Current&)
+    {
+        return _wellKnownObjects->getLocator();
     }
 
 private:
 
-    const std::map<std::string, std::string> _passwords;
+    const string _instanceName;
+    const WellKnownObjectsManagerPtr _wellKnownObjects;
 };
 
-class DefaultServantLocator : public Ice::ServantLocator
+class FinderI : public Ice::LocatorFinder
 {
 public:
 
-    DefaultServantLocator(const ObjectPtr& servant) :
-        _servant(servant)
+    FinderI(const WellKnownObjectsManagerPtr& wellKnownObjects) : _wellKnownObjects(wellKnownObjects)
     {
     }
 
-    virtual ObjectPtr locate(const Current&, LocalObjectPtr&)
+    virtual Ice::LocatorPrx
+    getLocator(const Ice::Current&)
     {
-        return _servant;
-    }
-
-    virtual void finished(const Current&, const ObjectPtr&, const LocalObjectPtr&)
-    {
-    }
-
-    virtual void deactivate(const string&)
-    {
+        return _wellKnownObjects->getLocator();
     }
 
 private:
-    ObjectPtr _servant;
+
+    const WellKnownObjectsManagerPtr _wellKnownObjects;
 };
+
+class ProcessI : public Process
+{
+public:
+
+    ProcessI(const RegistryIPtr&, const ProcessPtr&);
+
+    virtual void shutdown(const Current&);
+    virtual void writeMessage(const std::string&, Int, const Current&);
+
+private:
+
+    RegistryIPtr _registry;
+    ProcessPtr _origProcess;
+};
+
+
+ProcessI::ProcessI(const RegistryIPtr& registry, const ProcessPtr& origProcess) :
+    _registry(registry),
+    _origProcess(origProcess)
+{
+}
+
+void
+ProcessI::shutdown(const Current&)
+{
+    _registry->shutdown();
+}
+
+void
+ProcessI::writeMessage(const string& message, Int fd, const Current& current)
+{
+    _origProcess->writeMessage(message, fd, current);
+}
 
 }
 
-RegistryI::RegistryI(const CommunicatorPtr& communicator, 
-                     const TraceLevelsPtr& traceLevels, 
-                     bool nowarn, 
+RegistryI::RegistryI(const CommunicatorPtr& communicator,
+                     const TraceLevelsPtr& traceLevels,
+                     bool nowarn,
                      bool readonly,
-                     const string& initFromReplica) : 
+                     const string& initFromReplica,
+                     const string& collocatedNodeName) :
     _communicator(communicator),
     _traceLevels(traceLevels),
     _nowarn(nowarn),
     _readonly(readonly),
     _initFromReplica(initFromReplica),
-    _session(communicator),
+    _collocatedNodeName(collocatedNodeName),
     _platform("IceGrid.Registry", communicator, traceLevels)
 {
 }
@@ -210,7 +214,7 @@ RegistryI::startImpl()
         {
             Warning out(_communicator->getLogger());
             out << "session manager endpoints `IceGrid.Registry.SessionManager.Endpoints' enabled";
-            if(properties->getPropertyAsInt("IceGrid.Registry.SessionFilters") == 0)
+            if(properties->getPropertyAsInt("IceGrid.Registry.SessionFilters") <= 0)
             {
                 out << " (with Glacier2 filters disabled)";
             }
@@ -223,7 +227,7 @@ RegistryI::startImpl()
         {
             Warning out(_communicator->getLogger());
             out << "administrative session manager endpoints `IceGrid.Registry.AdminSessionManager.Endpoints' enabled";
-            if(properties->getPropertyAsInt("IceGrid.Registry.AdminSessionFilters") == 0)
+            if(properties->getPropertyAsInt("IceGrid.Registry.AdminSessionFilters") <= 0)
             {
                 out << " (with Glacier2 filters disabled)";
             }
@@ -237,6 +241,10 @@ RegistryI::startImpl()
     properties->setProperty("IceGrid.Registry.SessionManager.AdapterId", "");
     properties->setProperty("IceGrid.Registry.AdminSessionManager.AdapterId", "");
     properties->setProperty("IceGrid.Registry.Internal.AdapterId", "");
+    if(properties->getProperty("IceGrid.Registry.Internal.MessageSizeMax").empty())
+    {
+        properties->setProperty("IceGrid.Registry.Internal.MessageSizeMax", "0"); // No limit on internal data exchanged
+    }
 
     setupThreadPool(properties, "IceGrid.Registry.Client.ThreadPool", 1, 10);
     setupThreadPool(properties, "IceGrid.Registry.Server.ThreadPool", 1, 10, true); // Serialize for admin callbacks
@@ -252,92 +260,90 @@ RegistryI::startImpl()
     {
         Error out(_communicator->getLogger());
         out << "invalid --initdb-from-replica option: identical replica";
-        return false; 
+        return false;
     }
 
-    if(properties->getProperty("IceGrid.Registry.Client.ACM").empty())
+    if(_sessionTimeout > 0 && properties->getProperty("IceGrid.Registry.Client.ACM.Timemout").empty())
     {
-        //
-        // Set the client object adapter ACM timeout to the session
-        // timeout * 2. If no session timeout is set, ACM is disabled.
-        //
         ostringstream os;
-        os << _sessionTimeout * 2;
-        properties->setProperty("IceGrid.Registry.Client.ACM", os.str());
+        os << _sessionTimeout;
+        properties->setProperty("IceGrid.Registry.Client.ACM.Timeout", os.str());
     }
-    if(properties->getProperty("IceGrid.Registry.Server.ACM").empty())
+
+    if(properties->getProperty("IceGrid.Registry.Server.ACM.Timeout").empty())
     {
-        properties->setProperty("IceGrid.Registry.Server.ACM", "30");
+        properties->setProperty("IceGrid.Registry.Server.ACM.Timeout", "30");
     }
-    if(properties->getProperty("IceGrid.Registry.Internal.ACM").empty())
+
+    if(properties->getProperty("IceGrid.Registry.Internal.ACM.Timeout").empty())
     {
         int nt = properties->getPropertyAsIntWithDefault("IceGrid.Registry.NodeSessionTimeout", 30);
         int rt = properties->getPropertyAsIntWithDefault("IceGrid.Registry.ReplicaSessionTimeout", 30);
-
-        //
-        // Set the internal object adapter ACM timeout to the replica
-        // or node session timeout * 2. If no session timeout is set,
-        // ACM is disabled.
-        //
         ostringstream os;
-        os << std::max(nt, rt) * 2;
-        properties->setProperty("IceGrid.Registry.Internal.ACM", os.str());
+        os << std::max(nt, rt);
+        properties->setProperty("IceGrid.Registry.Internal.ACM.Timeout", os.str());
     }
-    
-    if(!_master && properties->getProperty("Ice.Default.Locator").empty())
+
+    properties->setProperty("Ice.ACM.Server.Close", "3"); // Close on invocation and idle.
+
+    if(!_master && !_communicator->getDefaultLocator())
     {
-        if(properties->getProperty("Ice.Default.Locator").empty())
-        {
-            Error out(_communicator->getLogger());
-            out << "property `Ice.Default.Locator' is not set";
-            return false;
-        }
+        Error out(_communicator->getLogger());
+        out << "property `Ice.Default.Locator' is not set";
+        return false;
+    }
+    else if(_master)
+    {
+        _communicator->setDefaultLocator(0); // Clear the default locator in case it's set.
     }
 
     //
     // Get the instance name
     //
-    if(_master)
+    _instanceName = properties->getProperty("IceGrid.InstanceName");
+    if(_instanceName.empty())
     {
-        _instanceName = properties->getProperty("IceGrid.InstanceName");    
-        if(_instanceName.empty())
-        {
-            if(_communicator->getDefaultLocator())
-            {
-                _instanceName = _communicator->getDefaultLocator()->ice_getIdentity().category;
-            }
-            else
-            {
-                _instanceName = "IceGrid";
-            }
-        }
+        _instanceName = properties->getProperty("IceLocatorDiscovery.InstanceName");
     }
-    else
+    if(_instanceName.empty() && _communicator->getDefaultLocator())
     {
         _instanceName = _communicator->getDefaultLocator()->ice_getIdentity().category;
     }
+    if(_instanceName.empty())
+    {
+        _instanceName = "IceGrid";
+    }
+
+    //
+    // Create the replica session manager
+    //
+    _session.reset(new ReplicaSessionManager(_communicator, _instanceName));
 
     //
     // Create the registry database.
     //
-    DatabasePluginPtr plugin;
-    try
+    string dbPath = _communicator->getProperties()->getProperty("IceGrid.Registry.Data");
+    if(dbPath.empty())
     {
-        plugin = DatabasePluginPtr::dynamicCast(_communicator->getPluginManager()->getPlugin("DB"));
-    }
-    catch(const NotRegisteredException&)
-    {
-    }
-    if(!plugin)
-    {
-        Error out(_communicator->getLogger());
-        out << "no database plugin configured with `Ice.Plugin.DB' or plugin is not a database plugin";
+        Ice::Error out(_communicator->getLogger());
+        out << "property `IceGrid.Registry.Data' is not set";
         return false;
     }
-    if(!plugin->initDB())
+    else
     {
-        return false;
+        if(!IceUtilInternal::directoryExists(dbPath))
+        {
+            Ice::SyscallException ex(__FILE__, __LINE__);
+            ex.error = IceInternal::getSystemErrno();
+
+            Ice::Error out(_communicator->getLogger());
+            out << "property `IceGrid.Registry.Data' is set to an invalid path:\n" << ex;
+            return false;
+        }
     }
+    _communicator->getProperties()->setProperty("Freeze.DbEnv.Registry.DbHome", dbPath);
+    const string envName = "Registry";
+    Freeze::ConnectionPtr connection = Freeze::createConnection(_communicator, envName);
 
     //
     // Ensure that nothing is running on this port. This is also
@@ -368,8 +374,8 @@ RegistryI::startImpl()
     //
     // Create the internal registry object adapter.
     //
-    ObjectAdapterPtr registryAdapter = _communicator->createObjectAdapter("IceGrid.Registry.Internal");
-    registryAdapter->activate();
+    _registryAdapter = _communicator->createObjectAdapter("IceGrid.Registry.Internal");
+    _registryAdapter->activate();
 
     //
     // Create the internal IceStorm service.
@@ -377,15 +383,16 @@ RegistryI::startImpl()
     Identity registryTopicManagerId;
     registryTopicManagerId.category = _instanceName;
     registryTopicManagerId.name = "RegistryTopicManager";
-    _iceStorm = IceStormInternal::Service::create(_communicator, 
-                                                  registryAdapter, 
-                                                  registryAdapter, 
-                                                  "IceGrid.Registry", 
+    _iceStorm = IceStormInternal::Service::create(_communicator,
+                                                  _registryAdapter,
+                                                  _registryAdapter,
+                                                  "IceGrid.Registry",
                                                   registryTopicManagerId,
-                                                  "Registry");
+                                                  envName);
     const IceStorm::TopicManagerPrx topicManager = _iceStorm->getTopicManager();
 
-    _database = new Database(registryAdapter, topicManager, _instanceName, _traceLevels, getInfo(), plugin, _readonly);
+    _database = new Database(_registryAdapter, topicManager, _instanceName, _traceLevels, getInfo(), connection,
+                             "Registry", _readonly);
     _wellKnownObjects = new WellKnownObjectsManager(_database);
 
     if(!_initFromReplica.empty())
@@ -429,7 +436,7 @@ RegistryI::startImpl()
         if(!proxy)
         {
             id.name = "InternalRegistry-" + (_initFromReplica.empty() ? "Master" : _initFromReplica);
-            proxy = _session.findInternalRegistryForReplica(id);
+            proxy = _session->findInternalRegistryForReplica(id);
         }
 
         if(!proxy)
@@ -485,7 +492,7 @@ RegistryI::startImpl()
     // replica/node register as soon as the internal registry is setup
     // we might clear valid proxies.
     //
-    InternalRegistryPrx internalRegistry = setupInternalRegistry(registryAdapter);
+    InternalRegistryPrx internalRegistry = setupInternalRegistry();
     if(_master)
     {
         nodes = registerReplicas(internalRegistry, nodes);
@@ -494,8 +501,8 @@ RegistryI::startImpl()
     else
     {
         InternalReplicaInfoPtr info = _platform.getInternalReplicaInfo();
-        _session.create(_replicaName, info, _database, _wellKnownObjects, internalRegistry);
-        registerNodes(internalRegistry, _session.getNodes(nodes));
+        _session->create(_replicaName, info, _database, _wellKnownObjects, internalRegistry);
+        registerNodes(internalRegistry, _session->getNodes(nodes));
     }
 
     _serverAdapter = _communicator->createObjectAdapter("IceGrid.Registry.Server");
@@ -505,37 +512,50 @@ RegistryI::startImpl()
     dummy.name = "dummy";
     _wellKnownObjects->addEndpoint("Client", _clientAdapter->createDirectProxy(dummy));
     _wellKnownObjects->addEndpoint("Server", _serverAdapter->createDirectProxy(dummy));
-    _wellKnownObjects->addEndpoint("Internal", registryAdapter->createDirectProxy(dummy));
+    _wellKnownObjects->addEndpoint("Internal", _registryAdapter->createDirectProxy(dummy));
 
-    setupNullPermissionsVerifier(registryAdapter);
-    if(!setupUserAccountMapper(registryAdapter))
+    if(!setupUserAccountMapper())
     {
         return false;
     }
 
-    QueryPrx query = setupQuery(_clientAdapter);
-    RegistryPrx registry = setupRegistry(_clientAdapter);
+    QueryPrx query = setupQuery();
+    RegistryPrx registry = setupRegistry();
 
-    Ice::LocatorRegistryPrx locatorRegistry = setupLocatorRegistry(_serverAdapter);
-    LocatorPrx internalLocator = setupLocator(_clientAdapter, registryAdapter, locatorRegistry, registry, query);
+    setupLocatorRegistry();
+    LocatorPrx internalLocator = setupLocator(registry, query);
 
     //
     // Create the session servant manager. The session servant manager is responsible
-    // for managing sessions servants and to ensure that session servants are only 
+    // for managing sessions servants and to ensure that session servants are only
     // accessed by the connection that created the session. The session servant manager
-    // also takes care of providing the router servant for server admin objects.
+    // also takes care of providing router servants for admin objects.
     //
     ObjectPtr serverAdminRouter = new RegistryServerAdminRouter(_database);
+    ObjectPtr nodeAdminRouter = new RegistryNodeAdminRouter(_collocatedNodeName, _database);
+    ObjectPtr replicaAdminRouter = new RegistryReplicaAdminRouter(_replicaName, _database);
     AdminCallbackRouterPtr adminCallbackRouter = new AdminCallbackRouter;
 
-    _servantManager = new SessionServantManager(_clientAdapter, _instanceName, true, getServerAdminCategory(), 
-                                                serverAdminRouter, adminCallbackRouter);
+    _servantManager = new SessionServantManager(_clientAdapter, _instanceName, true,
+                                                getServerAdminCategory(), serverAdminRouter,
+                                                getNodeAdminCategory(), nodeAdminRouter,
+                                                getReplicaAdminCategory(), replicaAdminRouter,
+                                                adminCallbackRouter);
 
     _clientAdapter->addServantLocator(_servantManager, "");
-    _serverAdapter->addServantLocator(new DefaultServantLocator(adminCallbackRouter), "");
-    
-    ObjectAdapterPtr sessionAdpt = setupClientSessionFactory(registryAdapter, internalLocator);
-    ObjectAdapterPtr admSessionAdpt = setupAdminSessionFactory(registryAdapter, serverAdminRouter, internalLocator);
+    _serverAdapter->addDefaultServant(adminCallbackRouter, "");
+
+    vector<string> verifierProperties;
+    verifierProperties.push_back("IceGrid.Registry.PermissionsVerifier");
+    verifierProperties.push_back("IceGrid.Registry.SSLPermissionsVerifier");
+    verifierProperties.push_back("IceGrid.Registry.AdminPermissionsVerifier");
+    verifierProperties.push_back("IceGrid.Registry.AdminSSLPermissionsVerifier");
+
+    Glacier2Internal::setupNullPermissionsVerifier(_communicator, _instanceName, verifierProperties);
+
+    ObjectAdapterPtr sessionAdpt = setupClientSessionFactory(internalLocator);
+    ObjectAdapterPtr admSessionAdpt = setupAdminSessionFactory(serverAdminRouter, nodeAdminRouter, replicaAdminRouter,
+                                                               internalLocator);
 
     _wellKnownObjects->finish();
     if(_master)
@@ -544,7 +564,61 @@ RegistryI::startImpl()
     }
     else
     {
-        _session.registerAllWellKnownObjects();
+        _session->registerAllWellKnownObjects();
+    }
+
+    //
+    // Add the locator finder object to the client adapter.
+    //
+    _clientAdapter->add(new FinderI(_wellKnownObjects), _communicator->stringToIdentity("Ice/LocatorFinder"));
+
+    //
+    // Setup the discovery object adapter and also add it the lookup
+    // servant to receive multicast lookup queries.
+    //
+    Ice::ObjectAdapterPtr discoveryAdapter;
+    if(properties->getPropertyAsIntWithDefault("IceGrid.Registry.Discovery.Enabled", 1) > 0)
+    {
+        bool ipv4 = properties->getPropertyAsIntWithDefault("Ice.IPv4", 1) > 0;
+        bool preferIPv6 = properties->getPropertyAsInt("Ice.PreferIPv6Address") > 0;
+        string address;
+        if(ipv4 && !preferIPv6)
+        {
+            address = properties->getPropertyWithDefault("IceGrid.Registry.Discovery.Address", "239.255.0.1");
+        }
+        else
+        {
+            address = properties->getPropertyWithDefault("IceGrid.Registry.Discovery.Address", "ff15::1");
+        }
+        int port = properties->getPropertyAsIntWithDefault("IceGrid.Registry.Discovery.Port", 4061);
+        string interface = properties->getProperty("IceGrid.Registry.Discovery.Interface");
+        if(properties->getProperty("IceGrid.Registry.Discovery.Endpoints").empty())
+        {
+            ostringstream os;
+            os << "udp -h \"" << address << "\" -p " << port;
+            if(!interface.empty())
+            {
+                os << " --interface \"" << interface << "\"";
+            }
+            properties->setProperty("IceGrid.Registry.Discovery.Endpoints", os.str());
+        }
+
+        try
+        {
+            Ice::Identity lookupId = _communicator->stringToIdentity("IceLocatorDiscovery/Lookup");
+            discoveryAdapter = _communicator->createObjectAdapter("IceGrid.Registry.Discovery");
+            discoveryAdapter->add(new LookupI(_instanceName, _wellKnownObjects), lookupId);
+        }
+        catch(const Ice::LocalException& ex)
+        {
+            if(!_nowarn)
+            {
+                Warning out(_communicator->getLogger());
+                out << "failed to join the multicast group for IceGrid discovery:\n";
+                out << "endpoints = " << properties->getProperty("IceGrid.Registry.Discovery.Endpoints") << "\n";
+                out << ex;
+            }
+        }
     }
 
     //
@@ -552,7 +626,11 @@ RegistryI::startImpl()
     //
     _serverAdapter->activate();
     _clientAdapter->activate();
-  
+    if(discoveryAdapter)
+    {
+        discoveryAdapter->activate();
+    }
+
     if(sessionAdpt)
     {
         sessionAdpt->activate();
@@ -565,48 +643,43 @@ RegistryI::startImpl()
     return true;
 }
 
-Ice::LocatorRegistryPrx
-RegistryI::setupLocatorRegistry(const Ice::ObjectAdapterPtr& serverAdapter)
+void
+RegistryI::setupLocatorRegistry()
 {
-    bool dynReg = _communicator->getProperties()->getPropertyAsInt("IceGrid.Registry.DynamicRegistration") > 0;
+    const bool dynReg = _communicator->getProperties()->getPropertyAsInt("IceGrid.Registry.DynamicRegistration") > 0;
     Identity locatorRegId;
     locatorRegId.category = _instanceName;
-    locatorRegId.name = "LocatorRegistry-" + _replicaName;
-    ObjectPrx obj = serverAdapter->add(new LocatorRegistryI(_database, dynReg, _master, _session), locatorRegId);
-    return LocatorRegistryPrx::uncheckedCast(obj);
+    locatorRegId.name = "LocatorRegistry";
+    _serverAdapter->add(new LocatorRegistryI(_database, dynReg, _master, *_session), locatorRegId);
 }
 
 IceGrid::LocatorPrx
-RegistryI::setupLocator(const Ice::ObjectAdapterPtr& clientAdapter, 
-                        const Ice::ObjectAdapterPtr& registryAdapter,
-                        const Ice::LocatorRegistryPrx& locatorRegistry,
-                        const RegistryPrx& registry,
-                        const QueryPrx& query)
+RegistryI::setupLocator(const RegistryPrx& registry, const QueryPrx& query)
 {
-    LocatorPtr locator = new LocatorI(_communicator, _database, locatorRegistry, registry, query);
+    LocatorPtr locator = new LocatorI(_communicator, _database, _wellKnownObjects, registry, query);
     Identity locatorId;
     locatorId.category = _instanceName;
 
     locatorId.name = "Locator";
-    clientAdapter->add(locator, locatorId);
+    _clientAdapter->add(locator, locatorId);
 
     locatorId.name = "Locator-" + _replicaName;
-    clientAdapter->add(locator, locatorId);
-    
-    return LocatorPrx::uncheckedCast(registryAdapter->addWithUUID(locator));
+    _clientAdapter->add(locator, locatorId);
+
+    return LocatorPrx::uncheckedCast(_registryAdapter->addWithUUID(locator));
 }
 
 QueryPrx
-RegistryI::setupQuery(const Ice::ObjectAdapterPtr& clientAdapter)
+RegistryI::setupQuery()
 {
     Identity queryId;
     queryId.category = _instanceName;
     queryId.name = "Query";
-    return QueryPrx::uncheckedCast(clientAdapter->add(new QueryI(_communicator, _database), queryId));
+    return QueryPrx::uncheckedCast(_clientAdapter->add(new QueryI(_communicator, _database), queryId));
 }
 
 RegistryPrx
-RegistryI::setupRegistry(const Ice::ObjectAdapterPtr& clientAdapter)
+RegistryI::setupRegistry()
 {
     Identity registryId;
     registryId.category = _instanceName;
@@ -615,45 +688,44 @@ RegistryI::setupRegistry(const Ice::ObjectAdapterPtr& clientAdapter)
     {
         registryId.name += "-" + _replicaName;
     }
-    RegistryPrx proxy = RegistryPrx::uncheckedCast(clientAdapter->add(this, registryId));
+    RegistryPrx proxy = RegistryPrx::uncheckedCast(_clientAdapter->add(this, registryId));
     _wellKnownObjects->add(proxy, Registry::ice_staticId());
     return proxy;
 }
 
 InternalRegistryPrx
-RegistryI::setupInternalRegistry(const Ice::ObjectAdapterPtr& registryAdapter)
+RegistryI::setupInternalRegistry()
 {
     Identity internalRegistryId;
     internalRegistryId.category = _instanceName;
     internalRegistryId.name = "InternalRegistry-" + _replicaName;
     assert(_reaper);
-    ObjectPtr internalRegistry = new InternalRegistryI(this, _database, _reaper, _wellKnownObjects, _session);
-    Ice::ObjectPrx proxy = registryAdapter->add(internalRegistry, internalRegistryId);
+    ObjectPtr internalRegistry = new InternalRegistryI(this, _database, _reaper, _wellKnownObjects, *_session);
+    Ice::ObjectPrx proxy = _registryAdapter->add(internalRegistry, internalRegistryId);
     _wellKnownObjects->add(proxy, InternalRegistry::ice_staticId());
+
+    //
+    // Create Admin
+    //
+    if(_communicator->getProperties()->getPropertyAsInt("Ice.Admin.Enabled") > 0)
+    {
+        // Replace Admin facet
+        ProcessPtr origProcess = ProcessPtr::dynamicCast(_communicator->removeAdminFacet("Process"));
+        _communicator->addAdminFacet(new ProcessI(this, origProcess), "Process");
+
+        Identity adminId;
+        adminId.name = "RegistryAdmin-" + _replicaName;
+        adminId.category = _instanceName;
+        _communicator->createAdmin(_registryAdapter, adminId);
+    }
 
     InternalRegistryPrx registry = InternalRegistryPrx::uncheckedCast(proxy);
     _database->getReplicaCache().setInternalRegistry(registry);
     return registry;
 }
 
-void
-RegistryI::setupNullPermissionsVerifier(const Ice::ObjectAdapterPtr& registryAdapter)
-{
-    Identity nullPermVerifId;
-    nullPermVerifId.category = _instanceName;
-    nullPermVerifId.name = "NullPermissionsVerifier";
-    _nullPermissionsVerifier = Glacier2::PermissionsVerifierPrx::uncheckedCast(
-        registryAdapter->add(new NullPermissionsVerifierI(), nullPermVerifId)->ice_collocationOptimized(true));
-
-    Identity nullSSLPermVerifId;
-    nullSSLPermVerifId.category = _instanceName;
-    nullSSLPermVerifId.name = "NullSSLPermissionsVerifier";
-    _nullSSLPermissionsVerifier = Glacier2::SSLPermissionsVerifierPrx::uncheckedCast(
-        registryAdapter->add(new NullSSLPermissionsVerifierI(), nullSSLPermVerifId)->ice_collocationOptimized(true));
-}
-
 bool
-RegistryI::setupUserAccountMapper(const Ice::ObjectAdapterPtr& registryAdapter)
+RegistryI::setupUserAccountMapper()
 {
     Ice::PropertiesPtr properties = _communicator->getProperties();
 
@@ -672,8 +744,8 @@ RegistryI::setupUserAccountMapper(const Ice::ObjectAdapterPtr& registryAdapter)
             {
                 mapperId.name += "-" + _replicaName;
             }
-            registryAdapter->add(new FileUserAccountMapperI(userAccountFileProperty), mapperId);
-            _wellKnownObjects->add(registryAdapter->createProxy(mapperId), UserAccountMapper::ice_staticId());
+            _registryAdapter->add(new FileUserAccountMapperI(userAccountFileProperty), mapperId);
+            _wellKnownObjects->add(_registryAdapter->createProxy(mapperId), UserAccountMapper::ice_staticId());
         }
         catch(const std::string& msg)
         {
@@ -686,7 +758,7 @@ RegistryI::setupUserAccountMapper(const Ice::ObjectAdapterPtr& registryAdapter)
 }
 
 Ice::ObjectAdapterPtr
-RegistryI::setupClientSessionFactory(const Ice::ObjectAdapterPtr& registryAdapter, const IceGrid::LocatorPrx& locator)
+RegistryI::setupClientSessionFactory(const IceGrid::LocatorPrx& locator)
 {
     Ice::PropertiesPtr properties = _communicator->getProperties();
 
@@ -695,7 +767,7 @@ RegistryI::setupClientSessionFactory(const Ice::ObjectAdapterPtr& registryAdapte
     if(!properties->getProperty("IceGrid.Registry.SessionManager.Endpoints").empty())
     {
         adapter = _communicator->createObjectAdapter("IceGrid.Registry.SessionManager");
-        servantManager = new SessionServantManager(adapter, _instanceName, false, "", 0, 0);
+        servantManager = new SessionServantManager(adapter, _instanceName, false, "", 0, "", 0, "", 0, 0);
         adapter->addServantLocator(servantManager, "");
     }
 
@@ -726,20 +798,15 @@ RegistryI::setupClientSessionFactory(const Ice::ObjectAdapterPtr& registryAdapte
         _wellKnownObjects->addEndpoint("SessionManager", adapter->createDirectProxy(dummy));
     }
 
-    _clientVerifier = getPermissionsVerifier(registryAdapter,
-                                             locator,
-                                             "IceGrid.Registry.PermissionsVerifier",
-                                             properties->getProperty("IceGrid.Registry.CryptPasswords"));
-
+    _clientVerifier = getPermissionsVerifier(locator, "IceGrid.Registry.PermissionsVerifier");
     _sslClientVerifier = getSSLPermissionsVerifier(locator, "IceGrid.Registry.SSLPermissionsVerifier");
 
     return adapter;
 }
 
 Ice::ObjectAdapterPtr
-RegistryI::setupAdminSessionFactory(const Ice::ObjectAdapterPtr& registryAdapter, 
-                                    const Ice::ObjectPtr& router,
-                                    const IceGrid::LocatorPrx& locator)
+RegistryI::setupAdminSessionFactory(const Ice::ObjectPtr& serverAdminRouter, const Ice::ObjectPtr& nodeAdminRouter,
+                                    const Ice::ObjectPtr& replicaAdminRouter, const IceGrid::LocatorPrx& locator)
 {
     Ice::PropertiesPtr properties = _communicator->getProperties();
 
@@ -748,7 +815,10 @@ RegistryI::setupAdminSessionFactory(const Ice::ObjectAdapterPtr& registryAdapter
     if(!properties->getProperty("IceGrid.Registry.AdminSessionManager.Endpoints").empty())
     {
         adapter = _communicator->createObjectAdapter("IceGrid.Registry.AdminSessionManager");
-        servantManager = new SessionServantManager(adapter, _instanceName, false, getServerAdminCategory(), router, 0);
+        servantManager = new SessionServantManager(adapter, _instanceName, false,
+                                                   getServerAdminCategory(), serverAdminRouter,
+                                                   getNodeAdminCategory(), nodeAdminRouter,
+                                                   getReplicaAdminCategory(), replicaAdminRouter, 0);
         adapter->addServantLocator(servantManager, "");
     }
 
@@ -771,7 +841,7 @@ RegistryI::setupAdminSessionFactory(const Ice::ObjectAdapterPtr& registryAdapter
 
         adapter->add(new AdminSessionManagerI(_adminSessionFactory), sessionMgrId);
         adapter->add(new AdminSSLSessionManagerI(_adminSessionFactory), sslSessionMgrId);
-        
+
         _wellKnownObjects->add(adapter->createProxy(sessionMgrId), Glacier2::SessionManager::ice_staticId());
         _wellKnownObjects->add(adapter->createProxy(sslSessionMgrId), Glacier2::SSLSessionManager::ice_staticId());
     }
@@ -783,11 +853,7 @@ RegistryI::setupAdminSessionFactory(const Ice::ObjectAdapterPtr& registryAdapter
         _wellKnownObjects->addEndpoint("AdminSessionManager", adapter->createDirectProxy(dummy));
     }
 
-    _adminVerifier = getPermissionsVerifier(registryAdapter,
-                                            locator,
-                                            "IceGrid.Registry.AdminPermissionsVerifier",
-                                            properties->getProperty("IceGrid.Registry.AdminCryptPasswords"));
-
+    _adminVerifier = getPermissionsVerifier(locator, "IceGrid.Registry.AdminPermissionsVerifier");
     _sslAdminVerifier = getSSLPermissionsVerifier(locator, "IceGrid.Registry.AdminSSLPermissionsVerifier");
 
     return adapter;
@@ -796,8 +862,11 @@ RegistryI::setupAdminSessionFactory(const Ice::ObjectAdapterPtr& registryAdapter
 void
 RegistryI::stop()
 {
-    _session.destroy();
-    
+    if(_session.get())
+    {
+        _session->destroy();
+    }
+
     //
     // We destroy the topics before to shutdown the communicator to
     // ensure that there will be no more invocations on IceStorm once
@@ -805,7 +874,7 @@ RegistryI::stop()
     //
     if(_database)
     {
-        _database->destroyTopics();
+        _database->destroy();
     }
 
     try
@@ -817,7 +886,7 @@ RegistryI::stop()
     {
         Warning out(_communicator->getLogger());
         out << "unexpected exception while shutting down registry communicator:\n" << ex;
-    }    
+    }
 
     if(_reaper)
     {
@@ -903,7 +972,8 @@ RegistryI::createSession(const string& user, const string& password, const Curre
 
     SessionIPtr session = _clientSessionFactory->createSessionServant(user, 0);
     Ice::ObjectPrx proxy = session->_register(_servantManager, current.con);
-    _reaper->add(new SessionReapable<SessionI>(_traceLevels->logger, session), _sessionTimeout);
+    _reaper->add(new SessionReapableWithHeartbeat<SessionI>(_traceLevels->logger, session), _sessionTimeout,
+                 current.con);
     return SessionPrx::uncheckedCast(proxy);
 }
 
@@ -959,8 +1029,9 @@ RegistryI::createAdminSession(const string& user, const string& password, const 
 
     AdminSessionIPtr session = _adminSessionFactory->createSessionServant(user);
     Ice::ObjectPrx proxy = session->_register(_servantManager, current.con);
-    _reaper->add(new SessionReapable<AdminSessionI>(_traceLevels->logger, session), _sessionTimeout);
-    return AdminSessionPrx::uncheckedCast(proxy); 
+    _reaper->add(new SessionReapableWithHeartbeat<AdminSessionI>(_traceLevels->logger, session), _sessionTimeout,
+                 current.con);
+    return AdminSessionPrx::uncheckedCast(proxy);
 }
 
 SessionPrx
@@ -972,7 +1043,7 @@ RegistryI::createSessionFromSecureConnection(const Current& current)
         ex.reason = "client session creation is only allowed with the master registry.";
         throw ex;
     }
-    
+
     assert(_reaper && _clientSessionFactory);
 
     if(!_sslClientVerifier)
@@ -1024,7 +1095,8 @@ RegistryI::createSessionFromSecureConnection(const Current& current)
 
     SessionIPtr session = _clientSessionFactory->createSessionServant(userDN, 0);
     Ice::ObjectPrx proxy = session->_register(_servantManager, current.con);
-    _reaper->add(new SessionReapable<SessionI>(_traceLevels->logger, session), _sessionTimeout);
+    _reaper->add(new SessionReapableWithHeartbeat<SessionI>(_traceLevels->logger, session), _sessionTimeout,
+                 current.con);
     return SessionPrx::uncheckedCast(proxy);
 }
 
@@ -1072,13 +1144,14 @@ RegistryI::createAdminSessionFromSecureConnection(const Current& current)
         exc.reason = "internal server error";
         throw exc;
     }
-    
+
     //
     // We let the connection access the administrative interface.
     //
     AdminSessionIPtr session = _adminSessionFactory->createSessionServant(userDN);
     Ice::ObjectPrx proxy = session->_register(_servantManager, current.con);
-    _reaper->add(new SessionReapable<AdminSessionI>(_traceLevels->logger, session), _sessionTimeout);
+    _reaper->add(new SessionReapableWithHeartbeat<AdminSessionI>(_traceLevels->logger, session), _sessionTimeout,
+                 current.con);
     return AdminSessionPrx::uncheckedCast(proxy);
 }
 
@@ -1086,6 +1159,12 @@ int
 RegistryI::getSessionTimeout(const Ice::Current& /*current*/) const
 {
     return _sessionTimeout;
+}
+
+int
+RegistryI::getACMTimeout(const Ice::Current& current) const
+{
+    return current.con->getACM().timeout;
 }
 
 string
@@ -1114,113 +1193,43 @@ RegistryI::shutdown()
     _clientAdapter->deactivate();
 }
 
-Ice::ObjectPrx 
+Ice::ObjectPrx
 RegistryI::createAdminCallbackProxy(const Identity& id) const
 {
     return _serverAdapter->createProxy(id);
 }
 
+Ice::LocatorPrx
+RegistryI::getLocator()
+{
+    return _wellKnownObjects->getLocator();
+}
+
 Glacier2::PermissionsVerifierPrx
-RegistryI::getPermissionsVerifier(const ObjectAdapterPtr& adapter, 
-                                  const IceGrid::LocatorPrx& locator,
-                                  const string& verifierProperty,
-                                  const string& passwordsProperty)
+RegistryI::getPermissionsVerifier(const IceGrid::LocatorPrx& locator,
+                                  const string& verifierProperty)
 {
     //
-    // Get the permissions verifier, or create a default one if no
-    // verifier is specified.
+    // Get the permissions verifier
     //
-
     ObjectPrx verifier;
-    string verifierPropertyValue = _communicator->getProperties()->getProperty(verifierProperty);
-    if(!verifierPropertyValue.empty())
+
+    try
     {
-        try
-        {
-            try
-            {
-                verifier = _communicator->propertyToProxy(verifierProperty);
-            }
-            catch(const ProxyParseException&)
-            {
-                //
-                // Check if the property is just the identity of the null permissions verifier
-                // (the identity might contain spaces which would prevent it to be parsed as a
-                // proxy).
-                //
-                if(_communicator->stringToIdentity(verifierPropertyValue) ==
-                   _nullPermissionsVerifier->ice_getIdentity())
-                {
-                    verifier = _communicator->stringToProxy("\"" + verifierPropertyValue + "\"");
-                }
-            }
-
-            if(!verifier)
-            {
-                Error out(_communicator->getLogger());
-                out << "permissions verifier `" + verifierPropertyValue + "' is invalid";
-                return 0;
-            }
-            assert(_nullPermissionsVerifier);
-
-            if(verifier->ice_getIdentity() == _nullPermissionsVerifier->ice_getIdentity())
-            {
-                verifier = _nullPermissionsVerifier;
-            }
-        }
-        catch(const LocalException& ex)
-        {
-            Error out(_communicator->getLogger());
-            out << "permissions verifier `" + verifierPropertyValue + "' is invalid:\n" << ex;
-            return 0;
-        }
+        verifier = _communicator->propertyToProxy(verifierProperty);
     }
-    else if(!passwordsProperty.empty())
+    catch(const LocalException& ex)
     {
-        //
-        // No nativeToUTF8 conversion necessary here, since no string
-        // converter is installed by IceGrid the string is UTF-8.
-        //
-        IceUtilInternal::ifstream passwordFile(passwordsProperty);
-        if(!passwordFile)
-        {
-            Error out(_communicator->getLogger());
-            string err = strerror(errno);
-            out << "cannot open `" + passwordsProperty + "' for reading: " + err;
-            return 0;
-        }
-
-        map<string, string> passwords;
-
-        while(true)
-        {
-            string userId;
-            passwordFile >> userId;
-            if(!passwordFile)
-            {
-                break;
-            }
-
-            string password;
-            passwordFile >> password;
-            if(!passwordFile)
-            {
-                break;
-            }
-
-            assert(!userId.empty());
-            assert(!password.empty());
-            passwords.insert(make_pair(userId, password));
-        }
-
-        verifier = adapter->addWithUUID(new CryptPermissionsVerifierI(passwords));
-    }
-    else
-    {
+        Error out(_communicator->getLogger());
+        out << "permissions verifier `" << _communicator->getProperties()->getProperty(verifierProperty)
+            << "' is invalid:\n" << ex;
         return 0;
     }
 
-    assert(verifier);
+    if(!verifier)
+    {
+        return 0;
+    }
 
     Glacier2::PermissionsVerifierPrx verifierPrx;
     try
@@ -1235,16 +1244,18 @@ RegistryI::getPermissionsVerifier(const ObjectAdapterPtr& adapter,
         if(!verifierPrx)
         {
             Error out(_communicator->getLogger());
-            out << "permissions verifier `" + verifierProperty + "' is invalid";
+            out << "permissions verifier `" << _communicator->getProperties()->getProperty(verifierProperty)
+                << "' is invalid";
             return 0;
-        }    
+        }
     }
     catch(const LocalException& ex)
     {
         if(!_nowarn)
         {
             Warning out(_communicator->getLogger());
-            out << "couldn't contact permissions verifier `" + verifierProperty + "':\n" << ex;
+            out << "couldn't contact permissions verifier `"
+                << _communicator->getProperties()->getProperty(verifierProperty) << "':\n" << ex;
         }
         verifierPrx = Glacier2::PermissionsVerifierPrx::uncheckedCast(verifier->ice_locator(locator));
     }
@@ -1259,49 +1270,19 @@ RegistryI::getSSLPermissionsVerifier(const IceGrid::LocatorPrx& locator, const s
     // verifier is specified.
     //
     ObjectPrx verifier;
-    string verifierPropertyValue = _communicator->getProperties()->getProperty(verifierProperty);
-    if(!verifierPropertyValue.empty())
+    try
     {
-        try
-        {
-            try
-            {
-                verifier = _communicator->propertyToProxy(verifierProperty);
-            }
-            catch(const ProxyParseException&)
-            {
-                //
-                // Check if the property is just the identity of the null permissions verifier
-                // (the identity might contain spaces which would prevent it to be parsed as a
-                // proxy).
-                //
-                if(_communicator->stringToIdentity(verifierPropertyValue) ==
-                   _nullSSLPermissionsVerifier->ice_getIdentity())
-                {
-                    verifier = _communicator->stringToProxy("\"" + verifierPropertyValue + "\"");
-                }
-            }
-
-            if(!verifier)
-            {
-                Error out(_communicator->getLogger());
-                out << "ssl permissions verifier `" + verifierPropertyValue + "' is invalid";
-                return 0;
-            }
-            assert(_nullSSLPermissionsVerifier);
-            if(verifier->ice_getIdentity() == _nullSSLPermissionsVerifier->ice_getIdentity())
-            {
-                verifier = _nullSSLPermissionsVerifier;
-            }
-        }
-        catch(const LocalException& ex)
-        {
-            Error out(_communicator->getLogger());
-            out << "ssl permissions verifier `" + verifierPropertyValue + "' is invalid:\n" << ex;
-            return 0;
-        }
+        verifier = _communicator->propertyToProxy(verifierProperty);
     }
-    else
+    catch(const LocalException& ex)
+    {
+        Error out(_communicator->getLogger());
+        out << "ssl permissions verifier `" << _communicator->getProperties()->getProperty(verifierProperty)
+            << "' is invalid:\n" << ex;
+        return 0;
+    }
+
+    if(!verifier)
     {
         return 0;
     }
@@ -1319,16 +1300,18 @@ RegistryI::getSSLPermissionsVerifier(const IceGrid::LocatorPrx& locator, const s
         if(!verifierPrx)
         {
             Error out(_communicator->getLogger());
-            out << "ssl permissions verifier `" + verifierProperty + "' is invalid";
+            out << "ssl permissions verifier `" << _communicator->getProperties()->getProperty(verifierProperty)
+                << "' is invalid";
             return 0;
-        }    
+        }
     }
     catch(const LocalException& ex)
     {
         if(!_nowarn)
         {
             Warning out(_communicator->getLogger());
-            out << "couldn't contact ssl permissions verifier `" + verifierProperty + "':\n" << ex; 
+            out << "couldn't contact ssl permissions verifier `"
+                << _communicator->getProperties()->getProperty(verifierProperty) << "':\n" << ex;
         }
         verifierPrx = Glacier2::SSLPermissionsVerifierPrx::uncheckedCast(verifier->ice_locator(locator));
     }
@@ -1409,20 +1392,20 @@ RegistryI::registerReplicas(const InternalRegistryPrx& internalRegistry, const N
             continue; // Ignore the master registry proxy.
         }
         id.name = "InternalRegistry-" + id.name.substr(prefix.size());
-        
+
         Ice::ObjectPrx prx = (*p)->ice_identity(id)->ice_endpoints(Ice::EndpointSeq());
         id.name = "Locator";
         prx = prx->ice_locator(Ice::LocatorPrx::uncheckedCast((*p)->ice_identity(id)));
 
         for(map<InternalRegistryPrx, RegistryPrx>::iterator q = replicas.begin(); q != replicas.end(); ++q)
         {
-            if(q->first->ice_getIdentity() == prx->ice_getIdentity()) 
+            if(q->first->ice_getIdentity() == prx->ice_getIdentity())
             {
                 replicas.erase(q);
                 break;
             }
         }
-        replicas.insert(pair<InternalRegistryPrx, RegistryPrx>(InternalRegistryPrx::uncheckedCast(prx), 
+        replicas.insert(pair<InternalRegistryPrx, RegistryPrx>(InternalRegistryPrx::uncheckedCast(prx),
                                                                RegistryPrx::uncheckedCast(*p)));
     }
 
@@ -1451,16 +1434,16 @@ RegistryI::registerReplicas(const InternalRegistryPrx& internalRegistry, const N
             {
                 replicaName = replicaName.substr(prefix.size());
             }
-            
+
             Ice::Trace out(_traceLevels->logger, _traceLevels->replicaCat);
             out << "creating replica `" << replicaName << "' session";
         }
 
-        
+
         try
         {
             replica->end_registerWithReplica(*p);
-            
+
             NodePrxSeq nds = replica->getNodes();
             nodes.insert(nds.begin(), nds.end());
 
@@ -1479,18 +1462,18 @@ RegistryI::registerReplicas(const InternalRegistryPrx& internalRegistry, const N
             RegistryPrx registry;
             for(map<InternalRegistryPrx, RegistryPrx>::const_iterator q = replicas.begin(); q != replicas.end(); ++q)
             {
-                if(q->first->ice_getIdentity() == replica->ice_getIdentity()) 
+                if(q->first->ice_getIdentity() == replica->ice_getIdentity())
                 {
                     registry = q->second;
                     break;
                 }
             }
-	    ObjectInfoSeq infos;
+            ObjectInfoSeq infos;
             if(registry)
             {
                 try
                 {
-		    infos.push_back(_database->getObjectInfo(registry->ice_getIdentity()));
+                    infos.push_back(_database->getObjectInfo(registry->ice_getIdentity()));
                 }
                 catch(const ObjectNotRegisteredException&)
                 {
@@ -1498,12 +1481,12 @@ RegistryI::registerReplicas(const InternalRegistryPrx& internalRegistry, const N
             }
             try
             {
-	        infos.push_back(_database->getObjectInfo(replica->ice_getIdentity()));
+                infos.push_back(_database->getObjectInfo(replica->ice_getIdentity()));
             }
             catch(const ObjectNotRegisteredException&)
             {
             }
-	    _database->removeRegistryWellKnownObjects(infos);
+            _database->removeRegistryWellKnownObjects(infos);
 
             if(_traceLevels && _traceLevels->replica > 1)
             {
@@ -1512,7 +1495,7 @@ RegistryI::registerReplicas(const InternalRegistryPrx& internalRegistry, const N
             }
         }
     }
-    
+
     NodePrxSeq result;
     for(set<NodePrx>::iterator p = nodes.begin(); p != nodes.end(); ++p)
     {

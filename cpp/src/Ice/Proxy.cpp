@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,9 +14,6 @@
 #include <Ice/ObjectAdapterFactory.h>
 #include <Ice/Outgoing.h>
 #include <Ice/OutgoingAsync.h>
-#include <Ice/ConnectRequestHandler.h>
-#include <Ice/ConnectionRequestHandler.h>
-#include <Ice/Direct.h>
 #include <Ice/Reference.h>
 #include <Ice/EndpointI.h>
 #include <Ice/Instance.h>
@@ -40,6 +37,7 @@ const string ice_ids_name = "ice_ids";
 const string ice_id_name = "ice_id";
 const string ice_isA_name = "ice_isA";
 const string ice_invoke_name = "ice_invoke";
+const string ice_getConnection_name = "ice_getConnection";
 const string ice_flushBatchRequests_name = "ice_flushBatchRequests";
 
 }
@@ -71,8 +69,55 @@ IceInternal::checkedCastImpl(const ObjectPrx& b, const string& f, const string& 
 }
 
 #ifdef ICE_CPP11
+
+IceInternal::Cpp11FnCallbackNC::Cpp11FnCallbackNC(const ::std::function<void (const ::Ice::Exception&)>& excb,
+                                                  const ::std::function<void (bool)>& sentcb) :
+    _exception(excb),
+    _sent(sentcb)
+{
+}
+
+IceInternal::CallbackBasePtr
+IceInternal::Cpp11FnCallbackNC::verify(const ::Ice::LocalObjectPtr&)
+{
+    return this;
+}
+
 void
-IceInternal::Cpp11FnOnewayCallbackNC::__completed(const ::Ice::AsyncResultPtr& result) const
+IceInternal::Cpp11FnCallbackNC::sent(const ::Ice::AsyncResultPtr& result) const
+{
+    if(_sent != nullptr)
+    {
+        _sent(result->sentSynchronously());
+    }
+}
+
+bool
+IceInternal::Cpp11FnCallbackNC::hasSentCallback() const
+{
+    return _sent != nullptr;
+}
+
+void
+IceInternal::Cpp11FnCallbackNC::exception(const ::Ice::AsyncResultPtr&, const ::Ice::Exception& ex) const
+{
+    if(_exception != nullptr)
+    {
+        _exception(ex);
+    }
+}
+
+IceInternal::Cpp11FnOnewayCallbackNC::Cpp11FnOnewayCallbackNC(const ::std::function<void ()>& cb,
+                                                              const ::std::function<void (const ::Ice::Exception&)>& excb,
+                                                              const ::std::function<void (bool)>& sentcb) :
+    Cpp11FnCallbackNC(excb, sentcb),
+    _cb(cb)
+{
+    CallbackBase::checkCallback(true, cb || excb != nullptr);
+}
+
+void
+IceInternal::Cpp11FnOnewayCallbackNC::completed(const ::Ice::AsyncResultPtr& result) const
 {
     try
     {
@@ -80,7 +125,7 @@ IceInternal::Cpp11FnOnewayCallbackNC::__completed(const ::Ice::AsyncResultPtr& r
     }
     catch(const ::Ice::Exception& ex)
     {
-        Cpp11FnCallbackNC::__exception(result, ex);
+        Cpp11FnCallbackNC::exception(result, ex);
         return;
     }
     if(_cb != nullptr)
@@ -108,12 +153,6 @@ IceProxy::Ice::Object::operator<(const Object& r) const
     return _reference < r._reference;
 }
 
-Int
-IceProxy::Ice::Object::ice_getHash() const
-{
-    return _reference->hash();
-}
-
 CommunicatorPtr
 IceProxy::Ice::Object::ice_getCommunicator() const
 {
@@ -135,26 +174,34 @@ IceProxy::Ice::Object::ice_toString() const
 bool
 IceProxy::Ice::Object::ice_isA(const string& typeId, const Context* context)
 {
-    InvocationObserver __observer(this, ice_isA_name, context);
-    int __cnt = 0;
-    while(true)
+    __checkTwowayOnly(ice_isA_name);
+    Outgoing __og(this, ice_isA_name, ::Ice::Nonmutating, context);
+    try
     {
-        Handle< ::IceDelegate::Ice::Object> __del;
+        BasicStream* __os = __og.startWriteParams(DefaultFormat);
+        __os->write(typeId, false);
+        __og.endWriteParams();
+    }
+    catch(const ::Ice::LocalException& __ex)
+    {
+        __og.abort(__ex);
+    }
+    if(!__og.invoke())
+    {
         try
         {
-            __checkTwowayOnly(ice_isA_name);
-            __del = __getDelegate(false);
-            return __del->ice_isA(typeId, context, __observer);
+            __og.throwUserException();
         }
-        catch(const LocalExceptionWrapper& __ex)
+        catch(const ::Ice::UserException& __ex)
         {
-            __handleExceptionWrapperRelaxed(__del, __ex, true, __cnt, __observer);
-        }
-        catch(const LocalException& __ex)
-        {
-            __handleException(__del, __ex, true, __cnt, __observer);
+            throw ::Ice::UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
         }
     }
+    bool __ret;
+    BasicStream* __is = __og.startReadParams();
+    __is->read(__ret);
+    __og.endReadParams();
+    return __ret;
 }
 
 Ice::AsyncResultPtr
@@ -163,94 +210,371 @@ IceProxy::Ice::Object::begin_ice_isA(const string& typeId,
                                      const ::IceInternal::CallbackBasePtr& del,
                                      const ::Ice::LocalObjectPtr& cookie)
 {
-    OutgoingAsyncPtr __result = new OutgoingAsync(this, ice_isA_name, del, cookie);
     __checkAsyncTwowayOnly(ice_isA_name);
+    OutgoingAsyncPtr __result = new OutgoingAsync(this, ice_isA_name, del, cookie);
     try
     {
-        __result->__prepare(ice_isA_name, Nonmutating, ctx);
-        IceInternal::BasicStream* __os = __result->__startWriteParams(DefaultFormat);
+        __result->prepare(ice_isA_name, Nonmutating, ctx);
+        IceInternal::BasicStream* __os = __result->startWriteParams(DefaultFormat);
         __os->write(typeId);
-        __result->__endWriteParams();
-        __result->__send(true);
+        __result->endWriteParams();
+        __result->invoke();
     }
-    catch(const LocalException& __ex)
+    catch(const Exception& __ex)
     {
-        __result->__exceptionAsync(__ex);
+        __result->abort(__ex);
     }
     return __result;
 }
+
+#ifdef ICE_CPP11
+
+Ice::AsyncResultPtr
+IceProxy::Ice::Object::__begin_ice_isA(const ::std::string& typeId,
+                                       const ::Ice::Context* ctx,
+                                       const ::IceInternal::Function<void (bool)>& response,
+                                       const ::IceInternal::Function<void (const ::Ice::Exception&)>& exception,
+                                       const ::IceInternal::Function<void (bool)>& sent)
+{
+    class Cpp11CB : public ::IceInternal::Cpp11FnCallbackNC
+    {
+    public:
+
+        Cpp11CB(const ::std::function<void (bool)>& responseFunc,
+                const ::std::function<void (const ::Ice::Exception&)>& exceptionFunc,
+                const ::std::function<void (bool)>& sentFunc) :
+            ::IceInternal::Cpp11FnCallbackNC(exceptionFunc, sentFunc),
+            _response(responseFunc)
+        {
+            CallbackBase::checkCallback(true, responseFunc || exceptionFunc != nullptr);
+        }
+
+        virtual void completed(const ::Ice::AsyncResultPtr& __result) const
+        {
+            ::Ice::ObjectPrx __proxy = ::Ice::ObjectPrx::uncheckedCast(__result->getProxy());
+            bool __ret;
+            try
+            {
+                __ret = __proxy->end_ice_isA(__result);
+            }
+            catch(const ::Ice::Exception& ex)
+            {
+                Cpp11FnCallbackNC::exception(__result, ex);
+                return;
+            }
+            if(_response != nullptr)
+            {
+                _response(__ret);
+            }
+        }
+
+    private:
+
+        ::std::function<void (bool)> _response;
+    };
+
+    return begin_ice_isA(typeId, ctx, new Cpp11CB(response, exception, sent), 0);
+}
+
+Ice::AsyncResultPtr
+IceProxy::Ice::Object::__begin_ice_id(const ::Ice::Context* ctx,
+                                      const ::IceInternal::Function<void (const ::std::string&)>& response,
+                                      const ::IceInternal::Function<void (const ::Ice::Exception&)>& exception,
+                                      const ::IceInternal::Function<void (bool)>& sent)
+{
+    class Cpp11CB : public ::IceInternal::Cpp11FnCallbackNC
+    {
+    public:
+
+        Cpp11CB(const ::std::function<void (const ::std::string&)>& responseFunc,
+                const ::std::function<void (const ::Ice::Exception&)>& exceptionFunc,
+                const ::std::function<void (bool)>& sentFunc) :
+            ::IceInternal::Cpp11FnCallbackNC(exceptionFunc, sentFunc),
+            _response(responseFunc)
+        {
+            CallbackBase::checkCallback(true, responseFunc || exceptionFunc != nullptr);
+        }
+
+        virtual void completed(const ::Ice::AsyncResultPtr& __result) const
+        {
+            ::Ice::ObjectPrx __proxy = ::Ice::ObjectPrx::uncheckedCast(__result->getProxy());
+            ::std::string __ret;
+            try
+            {
+                __ret = __proxy->end_ice_id(__result);
+            }
+            catch(const ::Ice::Exception& ex)
+            {
+                Cpp11FnCallbackNC::exception(__result, ex);
+                return;
+            }
+            if(_response != nullptr)
+            {
+                _response(__ret);
+            }
+        }
+
+    private:
+
+        ::std::function<void (const ::std::string&)> _response;
+    };
+    return begin_ice_id(ctx, new Cpp11CB(response, exception, sent), 0);
+}
+
+Ice::AsyncResultPtr
+IceProxy::Ice::Object::__begin_ice_ids(
+    const ::Ice::Context* ctx,
+    const ::IceInternal::Function<void (const ::std::vector< ::std::string>&)>& response,
+    const ::IceInternal::Function<void (const ::Ice::Exception&)>& exception,
+    const ::IceInternal::Function<void (bool)>& sent)
+{
+    class Cpp11CB : public ::IceInternal::Cpp11FnCallbackNC
+    {
+    public:
+
+        Cpp11CB(const ::std::function<void (const ::std::vector< ::std::string>&)>& responseFunc,
+                const ::std::function<void (const ::Ice::Exception&)>& exceptionFunc,
+                const ::std::function<void (bool)>& sentFunc) :
+            ::IceInternal::Cpp11FnCallbackNC(exceptionFunc, sentFunc),
+            _response(responseFunc)
+        {
+            CallbackBase::checkCallback(true, responseFunc || exceptionFunc != nullptr);
+        }
+
+        virtual void completed(const ::Ice::AsyncResultPtr& __result) const
+        {
+            ::Ice::ObjectPrx __proxy = ::Ice::ObjectPrx::uncheckedCast(__result->getProxy());
+            ::std::vector< ::std::string> __ret;
+            try
+            {
+                __ret = __proxy->end_ice_ids(__result);
+            }
+            catch(const ::Ice::Exception& ex)
+            {
+                Cpp11FnCallbackNC::exception(__result, ex);
+                return;
+            }
+            if(_response != nullptr)
+            {
+                _response(__ret);
+            }
+        }
+
+    private:
+
+        ::std::function<void (const ::std::vector< ::std::string>&)> _response;
+    };
+    return begin_ice_ids(ctx, new Cpp11CB(response, exception, sent), 0);
+}
+
+Ice::AsyncResultPtr
+IceProxy::Ice::Object::__begin_ice_invoke(
+    const ::std::string& operation,
+    ::Ice::OperationMode mode,
+    const ::std::vector< ::Ice::Byte>& inParams,
+    const ::Ice::Context* ctx,
+    const ::IceInternal::Function<void (bool, const ::std::vector< ::Ice::Byte>&)>& response,
+    const ::IceInternal::Function<void (const ::Ice::Exception&)>& exception,
+    const ::IceInternal::Function<void (bool)>& sent)
+{
+    class Cpp11CB : public ::IceInternal::Cpp11FnCallbackNC
+    {
+    public:
+
+        Cpp11CB(const ::std::function<void (bool, const ::std::vector< ::Ice::Byte>&)>& responseFunc,
+                const ::std::function<void (const ::Ice::Exception&)>& exceptionFunc,
+                const ::std::function<void (bool)>& sentFunc) :
+            ::IceInternal::Cpp11FnCallbackNC(exceptionFunc, sentFunc),
+            _response(responseFunc)
+        {
+            CallbackBase::checkCallback(true, responseFunc || exceptionFunc != nullptr);
+        }
+
+        virtual void completed(const ::Ice::AsyncResultPtr& __result) const
+        {
+            ::Ice::ObjectPrx __proxy = ::Ice::ObjectPrx::uncheckedCast(__result->getProxy());
+            bool __ret;
+            ::std::vector< ::Ice::Byte> p1;
+            try
+            {
+                __ret = __proxy->end_ice_invoke(p1, __result);
+            }
+            catch(const ::Ice::Exception& ex)
+            {
+                Cpp11FnCallbackNC::exception(__result, ex);
+                return;
+            }
+            if(_response != nullptr)
+            {
+                _response(__ret, p1);
+            }
+        }
+
+    private:
+
+        ::std::function<void (bool, const ::std::vector< ::Ice::Byte>&)> _response;
+    };
+
+    return begin_ice_invoke(operation, mode, inParams, ctx, new Cpp11CB(response, exception, sent), 0);
+}
+
+Ice::AsyncResultPtr
+IceProxy::Ice::Object::__begin_ice_invoke(
+    const ::std::string& operation,
+    ::Ice::OperationMode mode,
+    const ::std::pair<const ::Ice::Byte*, const ::Ice::Byte*>& inParams,
+    const ::Ice::Context* ctx,
+    const ::IceInternal::Function<void (bool, const ::std::pair<const ::Ice::Byte*, const ::Ice::Byte*>&)>& response,
+    const ::IceInternal::Function<void (const ::Ice::Exception&)>& exception,
+    const ::IceInternal::Function<void (bool)>& sent)
+{
+    class Cpp11CB : public ::IceInternal::Cpp11FnCallbackNC
+    {
+    public:
+
+        Cpp11CB(const ::std::function<void (bool, const ::std::pair<const ::Ice::Byte*,
+                                            const ::Ice::Byte*>&)>& responseFunc,
+                const ::std::function<void (const ::Ice::Exception&)>& exceptionFunc,
+                const ::std::function<void (bool)>& sentFunc) :
+            ::IceInternal::Cpp11FnCallbackNC(exceptionFunc, sentFunc),
+            _response(responseFunc)
+        {
+            CallbackBase::checkCallback(true, _response || _exception != nullptr);
+        }
+
+        virtual void completed(const ::Ice::AsyncResultPtr& __result) const
+        {
+            bool __ret;
+            ::std::pair<const ::Ice::Byte*, const ::Ice::Byte*> p1;
+            try
+            {
+                __ret = __result->getProxy()->___end_ice_invoke(p1, __result);
+            }
+            catch(const ::Ice::Exception& ex)
+            {
+                Cpp11FnCallbackNC::exception(__result, ex);
+                return;
+            }
+            if(_response != nullptr)
+            {
+                _response(__ret, p1);
+            }
+        }
+
+    private:
+
+        ::std::function<void (bool, const ::std::pair<const ::Ice::Byte*, const ::Ice::Byte*>&)> _response;
+    };
+    return begin_ice_invoke(operation, mode, inParams, ctx, new Cpp11CB(response, exception, sent), 0);
+}
+
+Ice::AsyncResultPtr
+IceProxy::Ice::Object::begin_ice_getConnection(
+    const ::IceInternal::Function<void (const ::Ice::ConnectionPtr&)>& response,
+    const ::IceInternal::Function<void (const ::Ice::Exception&)>& exception)
+{
+    class Cpp11CB : public ::IceInternal::Cpp11FnCallbackNC
+    {
+    public:
+
+        Cpp11CB(const ::std::function<void (const ::Ice::ConnectionPtr&)>& responseFunc,
+                const ::std::function<void (const ::Ice::Exception&)>& exceptionFunc) :
+            ::IceInternal::Cpp11FnCallbackNC(exceptionFunc, nullptr),
+            _response(responseFunc)
+        {
+            CallbackBase::checkCallback(true, responseFunc || exceptionFunc != nullptr);
+        }
+
+        virtual void completed(const ::Ice::AsyncResultPtr& __result) const
+        {
+            ::Ice::ObjectPrx __proxy = ::Ice::ObjectPrx::uncheckedCast(__result->getProxy());
+            ::Ice::ConnectionPtr __ret;
+            try
+            {
+                __ret = __proxy->end_ice_getConnection(__result);
+            }
+            catch(const ::Ice::Exception& ex)
+            {
+                Cpp11FnCallbackNC::exception(__result, ex);
+                return;
+            }
+            if(_response != nullptr)
+            {
+                _response(__ret);
+            }
+        }
+
+    private:
+
+        ::std::function<void (const ::Ice::ConnectionPtr&)> _response;
+    };
+    return begin_ice_getConnectionInternal(new Cpp11CB(response, exception), 0);
+}
+
+#endif
+
 
 bool
 IceProxy::Ice::Object::end_ice_isA(const AsyncResultPtr& __result)
 {
     AsyncResult::__check(__result, this, ice_isA_name);
     bool __ok = __result->__wait();
-    try
+    if(!__ok)
     {
-        if(!__ok)
+        try
         {
-            try
-            {
-                __result->__throwUserException();
-            }
-            catch(const UserException& __ex)
-            {
-                throw UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
-            }
+            __result->__throwUserException();
         }
-        bool __ret;
-        IceInternal::BasicStream* __is = __result->__startReadParams();
-        __is->read(__ret);
-        __result->__endReadParams();
-        return __ret;
+        catch(const UserException& __ex)
+        {
+            throw UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
+        }
     }
-    catch(const ::Ice::LocalException& ex)
-    {
-        __result->__getObserver().failed(ex.ice_name());
-        throw;
-    }
+    bool __ret;
+    IceInternal::BasicStream* __is = __result->__startReadParams();
+    __is->read(__ret);
+    __result->__endReadParams();
+    return __ret;
 }
 
 void
 IceProxy::Ice::Object::ice_ping(const Context* context)
 {
-    InvocationObserver __observer(this, ice_ping_name, context);
-    int __cnt = 0;
-    while(true)
+    Outgoing __og(this, ice_ping_name, ::Ice::Nonmutating, context);
+    __og.writeEmptyParams();
+    bool __ok = __og.invoke();
+    if(__og.hasResponse())
     {
-        Handle<IceDelegate::Ice::Object> __del;
-        try
+        if(!__ok)
         {
-            __del = __getDelegate(false);
-            __del->ice_ping(context, __observer);
-            return;
+            try
+            {
+                __og.throwUserException();
+            }
+            catch(const ::Ice::UserException& __ex)
+            {
+                throw ::Ice::UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
+            }
         }
-        catch(const LocalExceptionWrapper& __ex)
-        {
-            __handleExceptionWrapperRelaxed(__del, __ex, true, __cnt, __observer);
-        }
-        catch(const LocalException& __ex)
-        {
-            __handleException(__del, __ex, true, __cnt, __observer);
-        }
+        __og.readEmptyParams();
     }
 }
 
 AsyncResultPtr
-IceProxy::Ice::Object::begin_ice_ping(const Context* ctx, 
+IceProxy::Ice::Object::begin_ice_ping(const Context* ctx,
                                       const ::IceInternal::CallbackBasePtr& del,
                                       const ::Ice::LocalObjectPtr& cookie)
 {
     OutgoingAsyncPtr __result = new OutgoingAsync(this, ice_ping_name, del, cookie);
     try
     {
-        __result->__prepare(ice_ping_name, Nonmutating, ctx);
-        __result->__writeEmptyParams();
-        __result->__send(true);
+        __result->prepare(ice_ping_name, Nonmutating, ctx);
+        __result->writeEmptyParams();
+        __result->invoke();
     }
-    catch(const LocalException& __ex)
+    catch(const Exception& __ex)
     {
-        __result->__exceptionAsync(__ex);
+        __result->abort(__ex);
     }
     return __result;
 }
@@ -264,69 +588,67 @@ IceProxy::Ice::Object::end_ice_ping(const AsyncResultPtr& __result)
 vector<string>
 IceProxy::Ice::Object::ice_ids(const Context* context)
 {
-    InvocationObserver __observer(this, ice_ids_name, context);
-    int __cnt = 0;
-    while(true)
+    __checkTwowayOnly(ice_ids_name);
+    Outgoing __og(this, ice_ids_name, ::Ice::Nonmutating, context);
+    __og.writeEmptyParams();
+    if(!__og.invoke())
     {
-        Handle<IceDelegate::Ice::Object> __del;
         try
         {
-            __checkTwowayOnly(ice_ids_name);
-            __del = __getDelegate(false);
-            return __del->ice_ids(context, __observer);
+            __og.throwUserException();
         }
-        catch(const LocalExceptionWrapper& __ex)
+        catch(const ::Ice::UserException& __ex)
         {
-            __handleExceptionWrapperRelaxed(__del, __ex, true, __cnt, __observer);
-        }
-        catch(const LocalException& __ex)
-        {
-            __handleException(__del, __ex, true, __cnt, __observer);
+            throw ::Ice::UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
         }
     }
+    vector<string> __ret;
+    BasicStream* __is = __og.startReadParams();
+    __is->read(__ret, false);
+    __og.endReadParams();
+    return __ret;
 }
 
 string
 IceProxy::Ice::Object::ice_id(const Context* context)
 {
-    InvocationObserver __observer(this, ice_id_name, context);
-    int __cnt = 0;
-    while(true)
+    __checkTwowayOnly(ice_id_name);
+    Outgoing __og(this, ice_id_name, ::Ice::Nonmutating, context);
+    __og.writeEmptyParams();
+    if(!__og.invoke())
     {
-        Handle<IceDelegate::Ice::Object> __del;
         try
         {
-            __checkTwowayOnly(ice_id_name);
-            __del = __getDelegate(false);
-            return __del->ice_id(context, __observer);
+            __og.throwUserException();
         }
-        catch(const LocalExceptionWrapper& __ex)
+        catch(const ::Ice::UserException& __ex)
         {
-            __handleExceptionWrapperRelaxed(__del, __ex, true, __cnt, __observer);
-        }
-        catch(const LocalException& __ex)
-        {
-            __handleException(__del, __ex, true, __cnt, __observer);
+            throw ::Ice::UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
         }
     }
+    string __ret;
+    BasicStream* __is = __og.startReadParams();
+    __is->read(__ret, false);
+    __og.endReadParams();
+    return __ret;
 }
 
 AsyncResultPtr
-IceProxy::Ice::Object::begin_ice_ids(const Context* ctx, 
+IceProxy::Ice::Object::begin_ice_ids(const Context* ctx,
                                      const ::IceInternal::CallbackBasePtr& del,
                                      const ::Ice::LocalObjectPtr& cookie)
 {
-    OutgoingAsyncPtr __result = new OutgoingAsync(this, ice_ids_name, del, cookie);
     __checkAsyncTwowayOnly(ice_ids_name);
+    OutgoingAsyncPtr __result = new OutgoingAsync(this, ice_ids_name, del, cookie);
     try
     {
-        __result->__prepare(ice_ids_name, Nonmutating, ctx);
-        __result->__writeEmptyParams();
-        __result->__send(true);
+        __result->prepare(ice_ids_name, Nonmutating, ctx);
+        __result->writeEmptyParams();
+        __result->invoke();
     }
-    catch(const LocalException& __ex)
+    catch(const Exception& __ex)
     {
-        __result->__exceptionAsync(__ex);
+        __result->abort(__ex);
     }
     return __result;
 }
@@ -336,48 +658,40 @@ IceProxy::Ice::Object::end_ice_ids(const AsyncResultPtr& __result)
 {
     AsyncResult::__check(__result, this, ice_ids_name);
     bool __ok = __result->__wait();
-    try
+    if(!__ok)
     {
-        if(!__ok)
+        try
         {
-            try
-            {
-                __result->__throwUserException();
-            }
-            catch(const UserException& __ex)
-            {
-                throw UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
-            }
+            __result->__throwUserException();
         }
-        vector<string> __ret;
-        IceInternal::BasicStream* __is = __result->__startReadParams();
-        __is->read(__ret);
-        __result->__endReadParams();
-        return __ret;
+        catch(const UserException& __ex)
+        {
+            throw UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
+        }
     }
-    catch(const ::Ice::LocalException& ex)
-    {
-        __result->__getObserver().failed(ex.ice_name());
-        throw;
-    }
+    vector<string> __ret;
+    IceInternal::BasicStream* __is = __result->__startReadParams();
+    __is->read(__ret);
+    __result->__endReadParams();
+    return __ret;
 }
 
 AsyncResultPtr
-IceProxy::Ice::Object::begin_ice_id(const Context* ctx, 
+IceProxy::Ice::Object::begin_ice_id(const Context* ctx,
                                     const ::IceInternal::CallbackBasePtr& del,
                                     const ::Ice::LocalObjectPtr& cookie)
 {
-    OutgoingAsyncPtr __result = new OutgoingAsync(this, ice_id_name, del, cookie);
     __checkAsyncTwowayOnly(ice_id_name);
+    OutgoingAsyncPtr __result = new OutgoingAsync(this, ice_id_name, del, cookie);
     try
     {
-        __result->__prepare(ice_id_name, Nonmutating, ctx);
-        __result->__writeEmptyParams();
-        __result->__send(true);
+        __result->prepare(ice_id_name, Nonmutating, ctx);
+        __result->writeEmptyParams();
+        __result->invoke();
     }
-    catch(const LocalException& __ex)
+    catch(const Exception& __ex)
     {
-        __result->__exceptionAsync(__ex);
+        __result->abort(__ex);
     }
     return __result;
 }
@@ -387,31 +701,22 @@ IceProxy::Ice::Object::end_ice_id(const AsyncResultPtr& __result)
 {
     AsyncResult::__check(__result, this, ice_id_name);
     bool __ok = __result->__wait();
-    try
+    if(!__ok)
     {
-        if(!__ok)
+        try
         {
-            try
-            {
-                __result->__throwUserException();
-            }
-            catch(const UserException& __ex)
-            {
-                throw UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
-            }
+            __result->__throwUserException();
         }
-        string __ret;
-        IceInternal::BasicStream* __is = __result->__startReadParams();
-        __is->read(__ret);
-        __result->__endReadParams();
-        return __ret;
-    
+        catch(const UserException& __ex)
+        {
+            throw UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
+        }
     }
-    catch(const ::Ice::LocalException& ex)
-    {
-        __result->__getObserver().failed(ex.ice_name());
-        throw;
-    }
+    string __ret;
+    IceInternal::BasicStream* __is = __result->__startReadParams();
+    __is->read(__ret);
+    __result->__endReadParams();
+    return __ret;
 }
 
 bool
@@ -434,61 +739,11 @@ IceProxy::Ice::Object::ice_invoke(const string& operation,
     return ice_invoke(operation, mode, inPair, outEncaps, context);
 }
 
-
-bool
-IceProxy::Ice::Object::ice_invoke_async(const AMI_Object_ice_invokePtr& cb,
-                                        const string& operation,
-                                        OperationMode mode,
-                                        const vector<Byte>& inEncaps)
-{
-    Callback_Object_ice_invokePtr del;
-    if(dynamic_cast< ::Ice::AMISentCallback*>(cb.get()))
-    {
-        del = newCallback_Object_ice_invoke(cb, 
-                                            &AMI_Object_ice_invoke::__response,
-                                            &AMI_Object_ice_invoke::__exception,
-                                            &AMI_Object_ice_invoke::__sent);
-    }
-    else
-    {
-        del = newCallback_Object_ice_invoke(cb, 
-                                            &AMI_Object_ice_invoke::__response,
-                                            &AMI_Object_ice_invoke::__exception);
-    }
-    ::Ice::AsyncResultPtr result = begin_ice_invoke(operation, mode, inEncaps, del);
-    return result->sentSynchronously();
-}
-
-bool
-IceProxy::Ice::Object::ice_invoke_async(const AMI_Object_ice_invokePtr& cb,
-                                        const string& operation,
-                                        OperationMode mode,
-                                        const vector<Byte>& inEncaps,
-                                        const Context& context)
-{
-    Callback_Object_ice_invokePtr del;
-    if(dynamic_cast< ::Ice::AMISentCallback*>(cb.get()))
-    {
-        del = newCallback_Object_ice_invoke(cb, 
-                                            &AMI_Object_ice_invoke::__response,
-                                            &AMI_Object_ice_invoke::__exception,
-                                            &AMI_Object_ice_invoke::__sent);
-    }
-    else
-    {
-        del = newCallback_Object_ice_invoke(cb, 
-                                            &AMI_Object_ice_invoke::__response,
-                                            &AMI_Object_ice_invoke::__exception);
-    }
-    ::Ice::AsyncResultPtr result = begin_ice_invoke(operation, mode, inEncaps, context, del);
-    return result->sentSynchronously();
-}
-
 AsyncResultPtr
 IceProxy::Ice::Object::begin_ice_invoke(const string& operation,
                                         OperationMode mode,
                                         const vector<Byte>& inEncaps,
-                                        const Context* ctx, 
+                                        const Context* ctx,
                                         const ::IceInternal::CallbackBasePtr& del,
                                         const ::Ice::LocalObjectPtr& cookie)
 {
@@ -512,18 +767,10 @@ IceProxy::Ice::Object::end_ice_invoke(vector<Byte>& outEncaps, const AsyncResult
     bool ok = __result->__wait();
     if(_reference->getMode() == Reference::ModeTwoway)
     {
-        try
-        {
-            const Byte* v;
-            Int sz;
-            __result->__readParamEncaps(v, sz);
-            vector<Byte>(v, v + sz).swap(outEncaps);
-        }
-        catch(const ::Ice::LocalException& ex)
-        {
-            __result->__getObserver().failed(ex.ice_name());
-            throw;
-        }
+        const Byte* v;
+        Int sz;
+        __result->__readParamEncaps(v, sz);
+        vector<Byte>(v, v + sz).swap(outEncaps);
     }
     return ok;
 }
@@ -535,102 +782,44 @@ IceProxy::Ice::Object::ice_invoke(const string& operation,
                                   vector<Byte>& outEncaps,
                                   const Context* context)
 {
-    InvocationObserver __observer(this, operation, context);
-    int __cnt = 0;
-    while(true)
+    Outgoing __og(this, operation, mode, context);
+    try
     {
-        Handle< ::IceDelegate::Ice::Object> __del;
-        try
-        {
-            __del = __getDelegate(false);
-            return __del->ice_invoke(operation, mode, inEncaps, outEncaps, context, __observer);
-        }
-        catch(const LocalExceptionWrapper& __ex)
-        {
-            bool canRetry = mode == Nonmutating || mode == Idempotent;
-            if(canRetry)
-            {
-                __handleExceptionWrapperRelaxed(__del, __ex, true, __cnt, __observer);
-            }
-            else
-            {
-                __handleExceptionWrapper(__del, __ex, __observer);
-            }
-        }
-        catch(const LocalException& __ex)
-        {
-            __handleException(__del, __ex, true, __cnt, __observer);
-        }
+        __og.writeParamEncaps(inEncaps.first, static_cast<Int>(inEncaps.second - inEncaps.first));
     }
-}
-
-bool
-IceProxy::Ice::Object::ice_invoke_async(const AMI_Array_Object_ice_invokePtr& cb,
-                                        const string& operation,
-                                        OperationMode mode,
-                                        const pair<const Byte*, const Byte*>& inEncaps)
-{
-    Callback_Object_ice_invokePtr del;
-    if(dynamic_cast< ::Ice::AMISentCallback*>(cb.get()))
+    catch(const ::Ice::LocalException& __ex)
     {
-        del = newCallback_Object_ice_invoke(cb, 
-                                            &AMI_Array_Object_ice_invoke::__response,
-                                            &AMI_Array_Object_ice_invoke::__exception,
-                                            &AMI_Array_Object_ice_invoke::__sent);
+        __og.abort(__ex);
     }
-    else
+    bool ok = __og.invoke();
+    if(_reference->getMode() == Reference::ModeTwoway)
     {
-        del = newCallback_Object_ice_invoke(cb, 
-                                            &AMI_Array_Object_ice_invoke::__response,
-                                            &AMI_Array_Object_ice_invoke::__exception);
+        const Byte* v;
+        Int sz;
+        __og.readParamEncaps(v, sz);
+        vector<Byte>(v, v + sz).swap(outEncaps);
     }
-    ::Ice::AsyncResultPtr result = begin_ice_invoke(operation, mode, inEncaps, del);
-    return result->sentSynchronously();
-}
-
-bool
-IceProxy::Ice::Object::ice_invoke_async(const AMI_Array_Object_ice_invokePtr& cb,
-                                        const string& operation,
-                                        OperationMode mode,
-                                        const pair<const Byte*, const Byte*>& inEncaps,
-                                        const Context& context)
-{
-    Callback_Object_ice_invokePtr del;
-    if(dynamic_cast< ::Ice::AMISentCallback*>(cb.get()))
-    {
-        del = newCallback_Object_ice_invoke(cb, 
-                                            &AMI_Array_Object_ice_invoke::__response,
-                                            &AMI_Array_Object_ice_invoke::__exception,
-                                            &AMI_Array_Object_ice_invoke::__sent);
-    }
-    else
-    {
-        del = newCallback_Object_ice_invoke(cb, 
-                                            &AMI_Array_Object_ice_invoke::__response,
-                                            &AMI_Array_Object_ice_invoke::__exception);
-    }
-    ::Ice::AsyncResultPtr result = begin_ice_invoke(operation, mode, inEncaps, context, del);
-    return result->sentSynchronously();
+    return ok;
 }
 
 AsyncResultPtr
 IceProxy::Ice::Object::begin_ice_invoke(const string& operation,
                                         OperationMode mode,
                                         const pair<const Byte*, const Byte*>& inEncaps,
-                                        const Context* ctx, 
+                                        const Context* ctx,
                                         const ::IceInternal::CallbackBasePtr& del,
                                         const ::Ice::LocalObjectPtr& cookie)
 {
     OutgoingAsyncPtr __result = new OutgoingAsync(this, ice_invoke_name, del, cookie);
     try
     {
-        __result->__prepare(operation, mode, ctx);
-        __result->__writeParamEncaps(inEncaps.first, static_cast<Int>(inEncaps.second - inEncaps.first));
-        __result->__send(true);
+        __result->prepare(operation, mode, ctx);
+        __result->writeParamEncaps(inEncaps.first, static_cast<Int>(inEncaps.second - inEncaps.first));
+        __result->invoke();
     }
-    catch(const LocalException& __ex)
+    catch(const Exception& __ex)
     {
-        __result->__exceptionAsync(__ex);
+        __result->abort(__ex);
     }
     return __result;
 }
@@ -642,17 +831,9 @@ IceProxy::Ice::Object::___end_ice_invoke(pair<const Byte*, const Byte*>& outEnca
     bool ok = __result->__wait();
     if(_reference->getMode() == Reference::ModeTwoway)
     {
-        try
-        {
-            Int sz;
-            __result->__readParamEncaps(outEncaps.first, sz);
-            outEncaps.second = outEncaps.first + sz;
-        }
-        catch(const ::Ice::LocalException& ex)
-        {
-            __result->__getObserver().failed(ex.ice_name());
-            throw;
-        }
+        Int sz;
+        __result->__readParamEncaps(outEncaps.first, sz);
+        outEncaps.second = outEncaps.first + sz;
     }
     return ok;
 }
@@ -780,6 +961,12 @@ IceProxy::Ice::Object::ice_getLocatorCacheTimeout() const
 ObjectPrx
 IceProxy::Ice::Object::ice_locatorCacheTimeout(Int newTimeout) const
 {
+    if(newTimeout < -1)
+    {
+        ostringstream s;
+        s << "invalid value passed to ice_locatorCacheTimeout: " << newTimeout;
+        throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, s.str());
+    }
     if(newTimeout == _reference->getLocatorCacheTimeout())
     {
         return ObjectPrx(const_cast< ::IceProxy::Ice::Object*>(this));
@@ -964,6 +1151,33 @@ IceProxy::Ice::Object::ice_collocationOptimized(bool b) const
     }
 }
 
+Int
+IceProxy::Ice::Object::ice_getInvocationTimeout() const
+{
+    return _reference->getInvocationTimeout();
+}
+
+ObjectPrx
+IceProxy::Ice::Object::ice_invocationTimeout(Int newTimeout) const
+{
+    if(newTimeout < 1 && newTimeout != -1 && newTimeout != -2)
+    {
+        ostringstream s;
+        s << "invalid value passed to ice_invocationTimeout: " << newTimeout;
+        throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, s.str());
+    }
+    if(newTimeout == _reference->getInvocationTimeout())
+    {
+        return ObjectPrx(const_cast< ::IceProxy::Ice::Object*>(this));
+    }
+    else
+    {
+        ObjectPrx proxy = __newInstance();
+        proxy->setup(_reference->changeInvocationTimeout(newTimeout));
+        return proxy;
+    }
+}
+
 ObjectPrx
 IceProxy::Ice::Object::ice_twoway() const
 {
@@ -1088,6 +1302,12 @@ IceProxy::Ice::Object::ice_compress(bool b) const
 ObjectPrx
 IceProxy::Ice::Object::ice_timeout(int t) const
 {
+    if(t < 1 && t != -1)
+    {
+        ostringstream s;
+        s << "invalid value passed to ice_timeout: " << t;
+        throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, s.str());
+    }
     ReferencePtr ref = _reference->changeTimeout(t);
     if(ref == _reference)
     {
@@ -1126,38 +1346,78 @@ IceProxy::Ice::Object::ice_getConnectionId() const
 ConnectionPtr
 IceProxy::Ice::Object::ice_getConnection()
 {
-    InvocationObserver __observer(this, "ice_getConnection", 0);
-    int __cnt = 0;
+    InvocationObserver observer(this, "ice_getConnection", 0);
+    int cnt = 0;
     while(true)
     {
-        Handle< ::IceDelegate::Ice::Object> __del;
+        RequestHandlerPtr handler;
         try
         {
-            __del = __getDelegate(false);
-            return __del->__getRequestHandler()->getConnection(true); // Wait for the connection to be established.
-
+            handler = __getRequestHandler();
+            return handler->waitForConnection(); // Wait for the connection to be established.
         }
-        catch(const LocalException& __ex)
+        catch(const IceInternal::RetryException&)
         {
-            __handleException(__del, __ex, true, __cnt, __observer);
+            __updateRequestHandler(handler, 0); // Clear request handler and retry.
+        }
+        catch(const Exception& ex)
+        {
+            try
+            {
+                int interval = __handleException(ex, handler, Idempotent, false, cnt);
+                observer.retried();
+                if(interval > 0)
+                {
+                    IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(interval));
+                }
+            }
+            catch(const Exception& exc)
+            {
+                observer.failed(exc.ice_name());
+                throw;
+            }
         }
     }
+}
+
+AsyncResultPtr
+IceProxy::Ice::Object::begin_ice_getConnectionInternal(const ::IceInternal::CallbackBasePtr& del,
+                                                       const ::Ice::LocalObjectPtr& cookie)
+{
+    ProxyGetConnectionPtr result = new ProxyGetConnection(this, ice_getConnection_name, del, cookie);
+    try
+    {
+        result->invoke();
+    }
+    catch(const Exception& ex)
+    {
+        result->abort(ex);
+    }
+    return result;
+}
+
+ConnectionPtr
+IceProxy::Ice::Object::end_ice_getConnection(const AsyncResultPtr& __result)
+{
+    AsyncResult::__check(__result, this, ice_getConnection_name);
+    __result->__wait();
+    return ice_getCachedConnection();
 }
 
 ConnectionPtr
 IceProxy::Ice::Object::ice_getCachedConnection() const
 {
-    Handle< ::IceDelegate::Ice::Object> __del;
+    RequestHandlerPtr __handler;
     {
         IceUtil::Mutex::Lock sync(_mutex);
-        __del =  _delegate;
+        __handler =  _requestHandler;
     }
 
-    if(__del)
+    if(__handler)
     {
         try
         {
-            return __del->__getRequestHandler()->getConnection(false);
+            return __handler->getConnection();
         }
         catch(const LocalException&)
         {
@@ -1169,64 +1429,31 @@ IceProxy::Ice::Object::ice_getCachedConnection() const
 void
 IceProxy::Ice::Object::ice_flushBatchRequests()
 {
-    //
-    // We don't automatically retry if ice_flushBatchRequests fails. Otherwise, if some batch
-    // requests were queued with the connection, they would be lost without being noticed.
-    //
-    InvocationObserver __observer(this, ice_flushBatchRequests_name, 0);
-    Handle< ::IceDelegate::Ice::Object> __del;
-    int __cnt = -1; // Don't retry.
-    try
-    {
-        __del = __getDelegate(false);
-        __del->ice_flushBatchRequests(__observer);
-    }
-    catch(const LocalException& __ex)
-    {
-        __handleException(__del, __ex, true, __cnt, __observer);
-    }
-}
-
-bool
-IceProxy::Ice::Object::ice_flushBatchRequests_async(const AMI_Object_ice_flushBatchRequestsPtr& cb)
-{
-    Callback_Object_ice_flushBatchRequestsPtr __del;
-    if(dynamic_cast< AMISentCallback*>(cb.get()))
-    {
-        __del = newCallback_Object_ice_flushBatchRequests(cb, 
-                                                          &AMI_Object_ice_flushBatchRequests::__exception, 
-                                                          &AMI_Object_ice_flushBatchRequests::__sent);
-    }
-    else
-    {
-        __del = newCallback_Object_ice_flushBatchRequests(cb, &AMI_Object_ice_flushBatchRequests::__exception);
-    }
-    ::Ice::AsyncResultPtr result = begin_ice_flushBatchRequestsInternal(__del, 0);
-    return result->sentSynchronously();
+    ProxyFlushBatch og(this, ice_flushBatchRequests_name);
+    og.invoke();
 }
 
 ::Ice::AsyncResultPtr
 IceProxy::Ice::Object::begin_ice_flushBatchRequestsInternal(const ::IceInternal::CallbackBasePtr& del,
                                                             const ::Ice::LocalObjectPtr& cookie)
 {
-    ::IceInternal::ProxyBatchOutgoingAsyncPtr __result = 
-        new ::IceInternal::ProxyBatchOutgoingAsync(this, ice_flushBatchRequests_name, del, cookie);
+    ProxyFlushBatchAsyncPtr result = new ProxyFlushBatchAsync(this, ice_flushBatchRequests_name, del, cookie);
     try
     {
-        __result->__send();
+        result->invoke();
     }
-    catch(const LocalException& __ex)
+    catch(const Exception& ex)
     {
-        __result->__exceptionAsync(__ex);
+        result->abort(ex);
     }
-    return __result;
+    return result;
 }
 
 void
-IceProxy::Ice::Object::end_ice_flushBatchRequests(const AsyncResultPtr& __result)
+IceProxy::Ice::Object::end_ice_flushBatchRequests(const AsyncResultPtr& result)
 {
-    AsyncResult::__check(__result, this, ice_flushBatchRequests_name);
-    __result->__wait();
+    AsyncResult::__check(result, this, ice_flushBatchRequests_name);
+    result->__wait();
 }
 
 Int
@@ -1238,80 +1465,44 @@ IceProxy::Ice::Object::__hash() const
 void
 IceProxy::Ice::Object::__copyFrom(const ObjectPrx& from)
 {
-    ReferencePtr ref;
-    Handle< ::IceDelegateD::Ice::Object> delegateD;
-    Handle< ::IceDelegateM::Ice::Object> delegateM;
-
-    {
-        IceUtil::Mutex::Lock sync(from->_mutex);
-
-        ref = from->_reference;
-        delegateD = dynamic_cast< ::IceDelegateD::Ice::Object*>(from->_delegate.get());
-        delegateM = dynamic_cast< ::IceDelegateM::Ice::Object*>(from->_delegate.get());
-    }
-
-    //
-    // No need to synchronize "*this", as this operation is only
-    // called upon initialization.
-    //
-
-    assert(!_reference);
-    assert(!_delegate);
-
-    _reference = ref;
-
-    if(_reference->getCacheConnection())
-    {
-        //
-        // The _delegate attribute is only used if "cache connection"
-        // is enabled. If it's not enabled, we don't keep track of the
-        // delegate -- a new delegate is created for each invocations.
-        //      
-
-        if(delegateD)
-        {
-            Handle< ::IceDelegateD::Ice::Object> delegate = __createDelegateD();
-            delegate->__copyFrom(delegateD);
-            _delegate = delegate;
-        }
-        else if(delegateM)
-        {
-            Handle< ::IceDelegateM::Ice::Object> delegate = __createDelegateM();
-            delegate->__copyFrom(delegateM);
-            _delegate = delegate;
-        }
-    }
+    IceUtil::Mutex::Lock sync(from->_mutex);
+    _reference = from->_reference;
+    _requestHandler = from->_requestHandler;
 }
 
 int
-IceProxy::Ice::Object::__handleException(const ::IceInternal::Handle< ::IceDelegate::Ice::Object>& delegate,
-                                         const LocalException& ex, 
-                                         bool sleep,
-                                         int& cnt,
-                                         InvocationObserver& observer)
+IceProxy::Ice::Object::__handleException(const Exception& ex,
+                                         const RequestHandlerPtr& handler,
+                                         OperationMode mode,
+                                         bool sent,
+                                         int& cnt)
 {
-    //
-    // Only _delegate needs to be mutex protected here.
-    //
-    {
-        IceUtil::Mutex::Lock sync(_mutex);
-        if(delegate.get() == _delegate.get())
-        {
-            _delegate = 0;
-        }
-    }
+    __updateRequestHandler(handler, 0); // Clear the request handler
 
-    try
+    //
+    // We only retry local exception, system exceptions aren't retried.
+    //
+    // A CloseConnectionException indicates graceful server shutdown, and is therefore
+    // always repeatable without violating "at-most-once". That's because by sending a
+    // close connection message, the server guarantees that all outstanding requests
+    // can safely be repeated.
+    //
+    // An ObjectNotExistException can always be retried as well without violating
+    // "at-most-once" (see the implementation of the checkRetryAfterException method
+    //  of the ProxyFactory class for the reasons why it can be useful).
+    //
+    // If the request didn't get sent or if it's non-mutating or idempotent it can
+    // also always be retried if the retry count isn't reached.
+    //
+    const LocalException* localEx = dynamic_cast<const LocalException*>(&ex);
+    if(localEx && (!sent ||
+                   mode == Nonmutating || mode == Idempotent ||
+                   dynamic_cast<const CloseConnectionException*>(&ex) ||
+                   dynamic_cast<const ObjectNotExistException*>(&ex)))
     {
-        if(cnt == -1) // Don't retry if the retry count is -1.
-        {
-            ex.ice_throw();
-        }
-
-        int interval = 0;
         try
         {
-            interval = _reference->getInstance()->proxyFactory()->checkRetryAfterException(ex, _reference, sleep, cnt);
+            return _reference->getInstance()->proxyFactory()->checkRetryAfterException(*localEx, _reference, cnt);
         }
         catch(const CommunicatorDestroyedException&)
         {
@@ -1320,61 +1511,12 @@ IceProxy::Ice::Object::__handleException(const ::IceInternal::Handle< ::IceDeleg
             //
             ex.ice_throw();
         }
-        observer.retried();
-        return interval;
-    }
-    catch(const ::Ice::LocalException& ex)
-    {
-        observer.failed(ex.ice_name());
-        throw;
-    }
-    return 0; // Keep the compiler happy.
-}
-
-int
-IceProxy::Ice::Object::__handleExceptionWrapper(const ::IceInternal::Handle< ::IceDelegate::Ice::Object>& delegate,
-                                                const LocalExceptionWrapper& ex,
-                                                InvocationObserver& observer)
-{
-    {
-        IceUtil::Mutex::Lock sync(_mutex);
-        if(delegate.get() == _delegate.get())
-        {
-            _delegate = 0;
-        }
-    }
-
-    if(!ex.retry())
-    {
-        observer.failed(ex.get()->ice_name());
-        ex.get()->ice_throw();
-    }
-
-    return 0;
-}
-
-int
-IceProxy::Ice::Object::__handleExceptionWrapperRelaxed(const ::IceInternal::Handle< ::IceDelegate::Ice::Object>& del,
-                                                       const LocalExceptionWrapper& ex, 
-                                                       bool sleep,
-                                                       int& cnt,
-                                                       InvocationObserver& observer)
-{
-    if(!ex.retry())
-    {
-        return __handleException(del, *ex.get(), sleep, cnt, observer);
     }
     else
     {
-        {
-            IceUtil::Mutex::Lock sync(_mutex);
-            if(del.get() == _delegate.get())
-            {
-                _delegate = 0;
-            }
-        }
-        return 0;
+        ex.ice_throw(); // Retry could break at-most-once semantics, don't retry.
     }
+    return 0; // Keep the compiler happy.
 }
 
 void
@@ -1399,9 +1541,36 @@ IceProxy::Ice::Object::__checkAsyncTwowayOnly(const string& name) const
     //
     if(!ice_isTwoway())
     {
-        throw IceUtil::IllegalArgumentException(__FILE__, 
-                                                __LINE__, 
+        throw IceUtil::IllegalArgumentException(__FILE__,
+                                                __LINE__,
                                                 "`" + name + "' can only be called with a twoway proxy");
+    }
+}
+
+void
+IceProxy::Ice::Object::__invoke(Outgoing& __og) const
+{
+    //
+    // Helper for operations without out/return parameters and user
+    // exceptions.
+    //
+
+    bool __ok = __og.invoke();
+    if(__og.hasResponse())
+    {
+        if(!__ok)
+        {
+            try
+            {
+                __og.throwUserException();
+            }
+            catch(const ::Ice::UserException& __ex)
+            {
+                ::Ice::UnknownUserException __uue(__FILE__, __LINE__, __ex.ice_name());
+                throw __uue;
+            }
+        }
+        __og.readEmptyParams();
     }
 }
 
@@ -1412,28 +1581,26 @@ IceProxy::Ice::Object::__end(const ::Ice::AsyncResultPtr& __result, const std::s
     bool __ok = __result->__wait();
     if(_reference->getMode() == Reference::ModeTwoway)
     {
-        try
+        if(!__ok)
         {
-            if(!__ok)
+            try
             {
-                try
-                {
-                    __result->__throwUserException();
-                }
-                catch(const UserException& __ex)
-                {
-                    throw UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
-                }
+                __result->__throwUserException();
             }
-            __result->__readEmptyParams();
+            catch(const UserException& __ex)
+            {
+                throw UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
+            }
         }
-        catch(const ::Ice::LocalException& ex)
-        {
-            __result->__getObserver().failed(ex.ice_name());
-            throw;
-        }
+        __result->__readEmptyParams();
     }
 }
+
+namespace IceProxy
+{
+
+namespace Ice
+{
 
 ostream&
 operator<<(ostream& os, const ::IceProxy::Ice::Object& p)
@@ -1441,84 +1608,76 @@ operator<<(ostream& os, const ::IceProxy::Ice::Object& p)
     return os << p.ice_toString();
 }
 
-Handle< ::IceDelegate::Ice::Object>
-IceProxy::Ice::Object::__getDelegate(bool ami)
+}
+
+}
+
+::IceInternal::RequestHandlerPtr
+IceProxy::Ice::Object::__getRequestHandler()
+{
+    RequestHandlerPtr handler;
+    if(_reference->getCacheConnection())
+    {
+        IceUtil::Mutex::Lock sync(_mutex);
+        if(_requestHandler)
+        {
+            return _requestHandler;
+        }
+    }
+    return _reference->getRequestHandler(this);
+}
+
+IceInternal::BatchRequestQueuePtr
+IceProxy::Ice::Object::__getBatchRequestQueue()
+{
+    IceUtil::Mutex::Lock sync(_mutex);
+    if(!_batchRequestQueue)
+    {
+        _batchRequestQueue = _reference->getBatchRequestQueue();
+    }
+    return _batchRequestQueue;
+}
+
+::IceInternal::RequestHandlerPtr
+IceProxy::Ice::Object::__setRequestHandler(const ::IceInternal::RequestHandlerPtr& handler)
 {
     if(_reference->getCacheConnection())
     {
         IceUtil::Mutex::Lock sync(_mutex);
-        if(_delegate)
+        if(!_requestHandler)
         {
-            return _delegate;
+            _requestHandler = handler;
         }
-        _delegate = createDelegate(true); // Connect asynchrously to avoid blocking with the proxy mutex locked.
-        return _delegate;
+        return _requestHandler;
     }
-    else
-    {
-        const Reference::Mode mode = _reference->getMode();
-        return createDelegate(ami || mode == Reference::ModeBatchOneway || mode == Reference::ModeBatchDatagram);
-    }
+    return handler;
 }
 
 void
-IceProxy::Ice::Object::__setRequestHandler(const Handle< ::IceDelegate::Ice::Object>& delegate,
-                                           const ::IceInternal::RequestHandlerPtr& handler)
+IceProxy::Ice::Object::__updateRequestHandler(const ::IceInternal::RequestHandlerPtr& previous,
+                                              const ::IceInternal::RequestHandlerPtr& handler)
 {
-    if(_reference->getCacheConnection())
+    if(_reference->getCacheConnection() && previous)
     {
         IceUtil::Mutex::Lock sync(_mutex);
-        if(_delegate.get() == delegate.get())
+        if(_requestHandler && _requestHandler.get() != handler.get())
         {
-            if(dynamic_cast< ::IceDelegateM::Ice::Object*>(_delegate.get()))
-            {
-                _delegate = __createDelegateM();
-                _delegate->__setRequestHandler(handler);
-            }
-            else if(dynamic_cast< ::IceDelegateD::Ice::Object*>(_delegate.get()))
-            {
-                _delegate = __createDelegateD();
-                _delegate->__setRequestHandler(handler);
-            }
+            //
+            // Update the request handler only if "previous" is the same
+            // as the current request handler. This is called after
+            // connection binding by the connect request handler. We only
+            // replace the request handler if the current handler is the
+            // connect request handler.
+            //
+            _requestHandler = _requestHandler->update(previous, handler);
         }
     }
-}
-
-Handle< ::IceDelegateM::Ice::Object>
-IceProxy::Ice::Object::__createDelegateM()
-{
-    return Handle< ::IceDelegateM::Ice::Object>(new ::IceDelegateM::Ice::Object);
-}
-
-Handle< ::IceDelegateD::Ice::Object>
-IceProxy::Ice::Object::__createDelegateD()
-{
-    return Handle< ::IceDelegateD::Ice::Object>(new ::IceDelegateD::Ice::Object);
 }
 
 IceProxy::Ice::Object*
 IceProxy::Ice::Object::__newInstance() const
 {
     return new Object;
-}
-
-Handle< ::IceDelegate::Ice::Object>
-IceProxy::Ice::Object::createDelegate(bool async)
-{
-    if(_reference->getCollocationOptimized())
-    {
-        ObjectAdapterPtr adapter = _reference->getInstance()->objectAdapterFactory()->findObjectAdapter(this);
-        if(adapter)
-        {
-            Handle< ::IceDelegateD::Ice::Object> d = __createDelegateD();
-            d->setup(_reference, adapter);
-            return d;
-        }
-    }
-    
-    Handle< ::IceDelegateM::Ice::Object> d = __createDelegateM();
-    d->setup(_reference, this, async);
-    return d;
 }
 
 void
@@ -1530,591 +1689,9 @@ IceProxy::Ice::Object::setup(const ReferencePtr& ref)
     //
 
     assert(!_reference);
-    assert(!_delegate);
+    assert(!_requestHandler);
 
     _reference = ref;
-}
-
-IceDelegateM::Ice::Object::~Object()
-{
-}
-
-bool
-IceDelegateM::Ice::Object::ice_isA(const string& __id, const Context* context, InvocationObserver& observer)
-{
-    Outgoing __og(__handler.get(), ice_isA_name, ::Ice::Nonmutating, context, observer);
-    try
-    {
-        BasicStream* __os = __og.startWriteParams(DefaultFormat);
-        __os->write(__id, false);
-        __og.endWriteParams();
-    }
-    catch(const ::Ice::LocalException& __ex)
-    {
-        __og.abort(__ex);
-    }
-    bool __ret;
-    bool __ok = __og.invoke();
-    try
-    {
-        if(!__ok)
-        {
-            try
-            {
-                __og.throwUserException();
-            }
-            catch(const ::Ice::UserException& __ex)
-            {
-                throw ::Ice::UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
-            }
-        }
-        BasicStream* __is = __og.startReadParams();
-        __is->read(__ret);
-        __og.endReadParams();
-    }
-    catch(const ::Ice::LocalException& __ex)
-    {
-        throw ::IceInternal::LocalExceptionWrapper(__ex, false);
-    }
-    return __ret;
-}
-
-void
-IceDelegateM::Ice::Object::ice_ping(const Context* context, InvocationObserver& observer)
-{
-    Outgoing __og(__handler.get(), ice_ping_name, ::Ice::Nonmutating, context, observer);
-    __og.writeEmptyParams();
-    bool __ok = __og.invoke();
-    if(__og.hasResponse())
-    {
-        try
-        {
-            if(!__ok)
-            {
-                try
-                {
-                    __og.throwUserException();
-                }
-                catch(const ::Ice::UserException& __ex)
-                {
-                    throw ::Ice::UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
-                }
-            }
-            __og.readEmptyParams();
-        }
-        catch(const ::Ice::LocalException& __ex)
-        {
-            throw ::IceInternal::LocalExceptionWrapper(__ex, false);
-        }
-    }
-}
-
-vector<string>
-IceDelegateM::Ice::Object::ice_ids(const Context* context, InvocationObserver& observer)
-{
-    Outgoing __og(__handler.get(), ice_ids_name, ::Ice::Nonmutating, context, observer);
-    __og.writeEmptyParams();
-    vector<string> __ret;
-    bool __ok = __og.invoke();
-    try
-    {
-        if(!__ok)
-        {
-            try
-            {
-                __og.throwUserException();
-            }
-            catch(const ::Ice::UserException& __ex)
-            {
-                throw ::Ice::UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
-            }
-        }
-        BasicStream* __is = __og.startReadParams();
-        __is->read(__ret, false);
-        __og.endReadParams();
-    }
-    catch(const ::Ice::LocalException& __ex)
-    {
-        throw ::IceInternal::LocalExceptionWrapper(__ex, false);
-    }
-    return __ret;
-}
-
-string
-IceDelegateM::Ice::Object::ice_id(const Context* context, InvocationObserver& observer)
-{
-    Outgoing __og(__handler.get(), ice_id_name, ::Ice::Nonmutating, context, observer);
-    __og.writeEmptyParams();
-    string __ret;
-    bool __ok = __og.invoke();
-    try
-    {
-        if(!__ok)
-        {
-            try
-            {
-                __og.throwUserException();
-            }
-            catch(const ::Ice::UserException& __ex)
-            {
-                throw ::Ice::UnknownUserException(__FILE__, __LINE__, __ex.ice_name());
-            }
-        }
-        BasicStream* __is = __og.startReadParams();
-        __is->read(__ret, false);
-        __og.endReadParams();
-    }
-    catch(const ::Ice::LocalException& __ex)
-    {
-        throw ::IceInternal::LocalExceptionWrapper(__ex, false);
-    }
-    return __ret;
-}
-
-bool
-IceDelegateM::Ice::Object::ice_invoke(const string& operation,
-                                      OperationMode mode,
-                                      const pair<const Byte*, const Byte*>& inEncaps,
-                                      vector<Byte>& outEncaps,
-                                      const Context* context,
-                                      InvocationObserver& observer)
-{
-    Outgoing __og(__handler.get(), operation, mode, context, observer);
-    try
-    {
-        __og.writeParamEncaps(inEncaps.first, static_cast<Int>(inEncaps.second - inEncaps.first));
-    }
-    catch(const ::Ice::LocalException& __ex)
-    {
-        __og.abort(__ex);
-    }
-    bool ok = __og.invoke();
-    if(__handler->getReference()->getMode() == Reference::ModeTwoway)
-    {
-        try
-        {
-            const Byte* v;
-            Int sz;
-            __og.readParamEncaps(v, sz);
-            vector<Byte>(v, v + sz).swap(outEncaps);
-        }
-        catch(const ::Ice::LocalException& __ex)
-        {
-            throw ::IceInternal::LocalExceptionWrapper(__ex, false);
-        }
-    }
-    return ok;
-}
-
-void
-IceDelegateM::Ice::Object::ice_flushBatchRequests(InvocationObserver& observer)
-{
-    BatchOutgoing __og(__handler.get(), observer);
-    __og.invoke();
-}
-
-RequestHandlerPtr
-IceDelegateM::Ice::Object::__getRequestHandler() const
-{
-    return __handler;
-}
-
-void
-IceDelegateM::Ice::Object::__setRequestHandler(const RequestHandlerPtr& handler)
-{
-    __handler = handler;
-}
-
-void
-IceDelegateM::Ice::Object::__copyFrom(const ::IceInternal::Handle< ::IceDelegateM::Ice::Object>& from)
-{
-    //
-    // No need to synchronize "from", as the delegate is immutable
-    // after creation.
-    //
-
-    //
-    // No need to synchronize "*this", as this operation is only
-    // called upon initialization.
-    //
-    
-    assert(!__handler);
-    
-    __handler = from->__handler;
-}
-
-void
-IceDelegateM::Ice::Object::setup(const ReferencePtr& ref, const ::Ice::ObjectPrx& proxy, bool async)
-{
-    //
-    // No need to synchronize "*this", as this operation is only
-    // called upon initialization.
-    //
-
-    assert(!__handler);
-
-    if(async)
-    {
-        IceInternal::ConnectRequestHandlerPtr handler = new ::IceInternal::ConnectRequestHandler(ref, proxy, this);
-        __handler = handler->connect();
-    }
-    else
-    {
-        __handler = new ::IceInternal::ConnectionRequestHandler(ref, proxy);
-    }
-}
-
-bool
-IceDelegateD::Ice::Object::ice_isA(const string& __id, const Context* context, InvocationObserver& /*observer*/)
-{ 
-    class DirectI : public Direct
-    {
-    public:
-
-        DirectI(bool& __result, const string& __id, const Current& __current) : 
-            Direct(__current),
-            _result(__result),
-            _id(__id)
-        {
-        }
-        
-        virtual ::Ice::DispatchStatus
-        run(::Ice::Object* object)
-        {
-            _result = object->ice_isA(_id, _current);
-            return DispatchOK;
-        }
-        
-    private:
-        
-        bool& _result;
-        const string& _id;
-    };
-
-    Current __current;
-    __initCurrent(__current, "ice_isA", ::Ice::Nonmutating, context);
-    bool __result;
-   
-    try
-    {
-        DirectI __direct(__result, __id, __current);
-    
-        try
-        {
-            __direct.getServant()->__collocDispatch(__direct);
-        }
-        catch(const ::std::exception& __ex)
-        {
-            __direct.destroy();
-            LocalExceptionWrapper::throwWrapper(__ex);
-        }
-        catch(...)
-        {
-            __direct.destroy();
-            throw UnknownException(__FILE__, __LINE__, "unknown c++ exception");
-        }
-        __direct.destroy();
-    }
-    catch(const LocalExceptionWrapper&)
-    {
-        throw;
-    }
-    catch(const ::std::exception& __ex)
-    {
-        LocalExceptionWrapper::throwWrapper(__ex);
-    }
-    catch(...)
-    {
-        throw LocalExceptionWrapper(UnknownException(__FILE__, __LINE__, "unknown c++ exception"), false);
-    }
-    return __result;
-}
-
-void
-IceDelegateD::Ice::Object::ice_ping(const ::Ice::Context* context, InvocationObserver&)
-{
-    class DirectI : public Direct
-    {
-    public:
-
-        DirectI(const Current& __current) : 
-            Direct(__current)
-        {
-        }
-        
-        virtual ::Ice::DispatchStatus
-        run(::Ice::Object* object)
-        {
-            object->ice_ping(_current);
-            return DispatchOK;
-        }
-    };
-
-    Current __current;
-    __initCurrent(__current, "ice_ping", ::Ice::Nonmutating, context);
-   
-    try
-    {
-        DirectI __direct(__current);
-    
-        try
-        {
-            __direct.getServant()->__collocDispatch(__direct);
-        }
-        catch(const ::std::exception& __ex)
-        {
-            __direct.destroy();
-            LocalExceptionWrapper::throwWrapper(__ex);
-        }
-        catch(...)
-        {
-            __direct.destroy();
-            throw UnknownException(__FILE__, __LINE__, "unknown c++ exception");
-        }
-        __direct.destroy();
-    }
-    catch(const LocalExceptionWrapper&)
-    {
-        throw;
-    }
-    catch(const ::std::exception& __ex)
-    {
-        LocalExceptionWrapper::throwWrapper(__ex);
-    }
-    catch(...)
-    {
-        throw LocalExceptionWrapper(UnknownException(__FILE__, __LINE__, "unknown c++ exception"), false);
-    }
-}
-
-vector<string>
-IceDelegateD::Ice::Object::ice_ids(const ::Ice::Context* context, InvocationObserver&)
-{
-    class DirectI : public Direct
-    {
-    public:
-
-        DirectI(vector<string>& __result, const Current& __current) : 
-            Direct(__current),
-            _result(__result)
-        {
-        }
-        
-        virtual ::Ice::DispatchStatus
-        run(::Ice::Object* object)
-        {
-            _result = object->ice_ids(_current);
-            return DispatchOK;
-        }
-        
-    private:
-        
-        vector<string>& _result;
-    };
-
-    Current __current;
-    __initCurrent(__current, "ice_ids", ::Ice::Nonmutating, context);
-    vector<string> __result;
-   
-    try
-    {
-        DirectI __direct(__result, __current);
-    
-        try
-        {
-            __direct.getServant()->__collocDispatch(__direct);
-        }
-        catch(const ::std::exception& __ex)
-        {
-            __direct.destroy();
-            LocalExceptionWrapper::throwWrapper(__ex);
-        }
-        catch(...)
-        {
-            __direct.destroy();
-            throw UnknownException(__FILE__, __LINE__, "unknown c++ exception");
-        }
-        __direct.destroy();
-    }
-    catch(const LocalExceptionWrapper&)
-    {
-        throw;
-    }
-    catch(const ::std::exception& __ex)
-    {
-        LocalExceptionWrapper::throwWrapper(__ex);
-    }
-    catch(...)
-    {
-        throw LocalExceptionWrapper(UnknownException(__FILE__, __LINE__, "unknown c++ exception"), false);
-    }
-    return __result;
-}
-
-string
-IceDelegateD::Ice::Object::ice_id(const ::Ice::Context* context, InvocationObserver&)
-{
-    class DirectI : public Direct
-    {
-    public:
-
-        DirectI(string& __result, const Current& __current) : 
-            Direct(__current),
-            _result(__result)
-        {
-        }
-        
-        virtual ::Ice::DispatchStatus
-        run(::Ice::Object* object)
-        {
-            _result = object->ice_id(_current);
-            return DispatchOK;
-        }
-        
-    private:
-        
-        string& _result;
-    };
-
-    Current __current;
-    __initCurrent(__current, "ice_id", ::Ice::Nonmutating, context);
-    string __result;
-   
-    try
-    {
-        DirectI __direct(__result, __current);
-    
-        try
-        {
-            __direct.getServant()->__collocDispatch(__direct);
-        }
-        catch(const ::std::exception& __ex)
-        {
-            __direct.destroy();
-            LocalExceptionWrapper::throwWrapper(__ex);
-        }
-        catch(...)
-        {
-            __direct.destroy();
-            throw UnknownException(__FILE__, __LINE__, "unknown c++ exception");
-        }
-        __direct.destroy();
-    }
-    catch(const LocalExceptionWrapper&)
-    {
-        throw;
-    }
-    catch(const ::std::exception& __ex)
-    {
-        LocalExceptionWrapper::throwWrapper(__ex);
-    }
-    catch(...)
-    {
-        throw LocalExceptionWrapper(UnknownException(__FILE__, __LINE__, "unknown c++ exception"), false);
-    }
-    return __result;
-}
-
-bool
-IceDelegateD::Ice::Object::ice_invoke(const string&,
-                                      OperationMode,
-                                      const pair<const Byte*, const Byte*>& /*inEncaps*/,
-                                      vector<Byte>&,
-                                      const Context*,
-                                      InvocationObserver&)
-{
-    throw CollocationOptimizationException(__FILE__, __LINE__);
-    return false;
-}
-
-void
-IceDelegateD::Ice::Object::ice_flushBatchRequests(InvocationObserver& /*observer*/)
-{
-    throw CollocationOptimizationException(__FILE__, __LINE__);
-}
-
-RequestHandlerPtr
-IceDelegateD::Ice::Object::__getRequestHandler() const
-{
-    throw CollocationOptimizationException(__FILE__, __LINE__);
-    return 0;
-}
-
-void
-IceDelegateD::Ice::Object::__setRequestHandler(const RequestHandlerPtr&)
-{
-    throw CollocationOptimizationException(__FILE__, __LINE__);
-}
-
-void
-IceDelegateD::Ice::Object::__copyFrom(const ::IceInternal::Handle< ::IceDelegateD::Ice::Object>& from)
-{
-    //
-    // No need to synchronize "from", as the delegate is immutable
-    // after creation.
-    //
-
-    //
-    // No need to synchronize "*this", as this operation is only
-    // called upon initialization.
-    //
-
-    assert(!__reference);
-    assert(!__adapter);
-
-    __reference = from->__reference;
-    __adapter = from->__adapter;
-}
-
-void
-IceDelegateD::Ice::Object::__initCurrent(Current& current, const string& op, OperationMode mode,
-                                         const Context* context)
-{
-    current.adapter = __adapter;
-    current.id = __reference->getIdentity();
-    current.facet = __reference->getFacet();
-    current.operation = op;
-    current.mode = mode;
-    if(context != 0)
-    {
-        //
-        // Explicit context
-        //
-        current.ctx = *context;
-    }
-    else
-    {
-        //
-        // Implicit context
-        //
-        const ImplicitContextIPtr& implicitContext = __reference->getInstance()->getImplicitContext();
-        const Context& prxContext = __reference->getContext()->getValue();
-
-        if(implicitContext == 0)
-        {
-            current.ctx = prxContext;
-        }
-        else
-        {
-            implicitContext->combine(prxContext, current.ctx);
-        }
-    }
-    current.requestId = -1;
-}
-
-void
-IceDelegateD::Ice::Object::setup(const ReferencePtr& ref, const ObjectAdapterPtr& adapter)
-{
-    //
-    // No need to synchronize "*this", as this operation is only
-    // called upon initialization.
-    //
-
-    assert(!__reference);
-    assert(!__adapter);
-
-    __reference = ref;
-    __adapter = adapter;
 }
 
 bool
@@ -2178,7 +1755,7 @@ Ice::proxyIdentityAndFacetLess(const ObjectPrx& lhs, const ObjectPrx& rhs)
     {
         Identity lhsIdentity = lhs->ice_getIdentity();
         Identity rhsIdentity = rhs->ice_getIdentity();
-        
+
         if(lhsIdentity < rhsIdentity)
         {
             return true;
@@ -2187,10 +1764,10 @@ Ice::proxyIdentityAndFacetLess(const ObjectPrx& lhs, const ObjectPrx& rhs)
         {
             return false;
         }
-        
+
         string lhsFacet = lhs->ice_getFacet();
         string rhsFacet = rhs->ice_getFacet();
-        
+
         if(lhsFacet < rhsFacet)
         {
             return true;
@@ -2199,7 +1776,7 @@ Ice::proxyIdentityAndFacetLess(const ObjectPrx& lhs, const ObjectPrx& rhs)
         {
             return false;
         }
-        
+
         return false;
     }
 }
@@ -2223,18 +1800,18 @@ Ice::proxyIdentityAndFacetEqual(const ObjectPrx& lhs, const ObjectPrx& rhs)
     {
         Identity lhsIdentity = lhs->ice_getIdentity();
         Identity rhsIdentity = rhs->ice_getIdentity();
-        
+
         if(lhsIdentity == rhsIdentity)
         {
             string lhsFacet = lhs->ice_getFacet();
             string rhsFacet = rhs->ice_getFacet();
-            
+
             if(lhsFacet == rhsFacet)
             {
                 return true;
             }
         }
-        
+
         return false;
     }
 }

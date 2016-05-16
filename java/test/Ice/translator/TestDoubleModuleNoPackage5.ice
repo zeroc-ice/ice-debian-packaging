@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -48,22 +48,6 @@ class dmnpTest5Class extends ::M1::M2::dmnpBaseClass implements ::M1::M2::dmnpBa
 {
     ::M1::M2::dmnpStruct
     dmnpTest5Op1(::M1::M2::dmnpEnum i1,
-                 ::M1::M2::dmnpStruct i2,
-                 ::M1::M2::dmnpStructSeq i3,
-                 ::M1::M2::dmnpStringStructDict i4,
-                 ::M1::M2::dmnpInterface i5,
-                 ::M1::M2::dmnpClass i6,
-                 out ::M1::M2::dmnpEnum o1,
-                 out ::M1::M2::dmnpStruct o2,
-                 out ::M1::M2::dmnpStructSeq o3,
-                 out ::M1::M2::dmnpStringStructDict o4,
-                 out ::M1::M2::dmnpInterface o5,
-                 out ::M1::M2::dmnpClass o6)
-        throws ::M1::M2::dmnpException;
-
-    ["ami"]
-    ::M1::M2::dmnpStruct
-    dmnpTest5Op2(::M1::M2::dmnpEnum i1,
                  ::M1::M2::dmnpStruct i2,
                  ::M1::M2::dmnpStructSeq i3,
                  ::M1::M2::dmnpStringStructDict i4,

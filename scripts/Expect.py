@@ -1,22 +1,24 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
 #
 # **********************************************************************
 
-import threading
-import subprocess
-import string
-import time
-import re
-import traceback
-import sys
+import atexit
 import os
+import re
 import signal
+import string
+import subprocess
 import sys
+import sys
+import threading
+import time
+import traceback
+import types
 
 __all__ = ["Expect", "EOF", "TIMEOUT" ]
 
@@ -95,13 +97,23 @@ class reader(threading.Thread):
         self._tbuf = getStringIO()
         self._tracesuppress = None
         self.logfile = logfile
+        self.watchDog = None
+        self._finish = False
         threading.Thread.__init__(self)
+
+    def setWatchDog(self, watchDog):
+        self.watchDog = watchDog
 
     def run(self):
         try:
             while True:
                 c = self.p.stdout.read(1)
-                if not c: break
+                if not c:
+                    self.cv.acquire()
+                    self._finish = True # We have finished processing output
+                    self.cv.notify()
+                    self.cv.release()
+                    break
                 if c == '\r': continue
 
                 self.cv.acquire()
@@ -111,6 +123,8 @@ class reader(threading.Thread):
                     if type(c) != str:
                         c = c.decode()
                     self.trace(c)
+                    if self.watchDog is not None:
+                        self.watchDog.reset()
                     self.buf.write(c)
                     self.cv.notify()
                 finally:
@@ -126,7 +140,9 @@ class reader(threading.Thread):
                     content = self._tbuf.getvalue()
                     suppress = False
                     for p in self._tracesuppress:
-                        if p.search(content):
+                        if isinstance(p, types.LambdaType) or isinstance(p, types.FunctionType):
+                            content = p(content)
+                        elif p.search(content):
                             suppress = True
                             break
                     if not suppress:
@@ -157,8 +173,7 @@ class reader(threading.Thread):
         return buf
 
     def match(self, pattern, timeout, matchall = False):
-        """pattern is a list of string, regexp duples.
-        """
+        # pattern is a list of string, regexp duples.
 
         if timeout is not None:
             end = time.time() + timeout
@@ -245,6 +260,11 @@ class reader(threading.Thread):
                     if len(pattern) != olen:
                         continue
 
+                    # If no match and we have finished processing output rasise a TIMEOUT
+                    if self._finish:
+                      raise  TIMEOUT ('timeout exceeded in match\npattern: "%s"\nbuffer: "%s"\n' %
+                                           (escape(s), escape(buf, False)))
+
                     if timeout is None:
                         self.cv.wait()
                     else:
@@ -314,6 +334,25 @@ def splitCommand(command_line):
 
     return arg_list
 
+processes = {}
+
+def cleanup():
+    for k in processes:
+        try:
+            processes[k].terminate()
+        except:
+            pass
+    processes.clear()
+atexit.register(cleanup)
+
+def signal_handler(signal, frame):
+    cleanup()
+    sys.exit(0)
+
+if win32:
+    signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
 class Expect (object):
     def __init__(self, command, startReader = True, timeout=30, logfile=None, mapping = None, desc = None, cwd = None, env = None):
         self.buf = "" # The part before the match
@@ -351,27 +390,26 @@ class Expect (object):
         else:
             self.p = subprocess.Popen(splitCommand(command), env = env, cwd = cwd, shell=False, bufsize=0,
                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        global processes
+        processes[self.p.pid] = self.p
+
         self.r = reader(desc, self.p, logfile)
 
         # The thread is marked as a daemon thread. This is done so that if
         # an expect script runs off the end of main without kill/wait on each
         # spawned process the script will not hang tring to join with the
-        # reader thread. Instead __del__ (below) will be called which
-        # terminates and joins with the reader thread.
+        # reader thread.
         self.r.setDaemon(True)
 
         if startReader:
             self.startReader()
 
-    def startReader(self):
+    def startReader(self, watchDog = None):
+        if watchDog is not None:
+            self.r.setWatchDog(watchDog)
         self.r.start()
 
-    def __del__(self):
-        # Terminate and clean up.
-        if self.p is not None:
-            self.terminate()
-
-    def expect(self, pattern, timeout = 20):
+    def expect(self, pattern, timeout = 60):
         """pattern is either a string, or a list of string regexp patterns.
 
            timeout == None expect can block indefinitely.
@@ -399,7 +437,7 @@ class Expect (object):
             raise e
         return self.matchindex
 
-    def expectall(self, pattern, timeout = 10):
+    def expectall(self, pattern, timeout = 60):
         """pattern is a list of string regexp patterns.
 
            timeout == None expect can block indefinitely.
@@ -444,29 +482,36 @@ class Expect (object):
            The exit status is returned. A negative exit status means
            the application was killed by a signal.
         """
-        if self.p is not None:
+        if self.p is None:
+            return self.exitstatus
 
-            # Unfortunately, with the subprocess module there is no
-            # better method of doing a timed wait.
-            if timeout is not None:
-                end = time.time() + timeout
-                while time.time() < end and self.p.poll() is None:
-                    time.sleep(0.1)
-                if self.p.poll() is None:
-                    raise TIMEOUT ('timedwait exceeded timeout')
+        # Unfortunately, with the subprocess module there is no
+        # better method of doing a timed wait.
+        if timeout is not None:
+            end = time.time() + timeout
+            while time.time() < end and self.p and self.p.poll() is None:
+                time.sleep(0.1)
+            if self.p and self.p.poll() is None:
+                raise TIMEOUT ('timedwait exceeded timeout')
 
-            self.exitstatus = self.p.wait()
+        if self.p is None:
+            return self.exitstatus
 
-            # A Windows application killed with CTRL_BREAK. Fudge the exit status.
-            if win32 and self.exitstatus != 0 and self.killed is not None:
-                self.exitstatus = -self.killed
-            self.p = None
-            self.r.join()
-            # Simulate a match on EOF
-            self.buf = self.r.getbuf()
-            self.before = self.buf
-            self.after = ""
-            self.r = None
+        self.exitstatus = self.p.wait()
+
+        # A Windows application killed with CTRL_BREAK. Fudge the exit status.
+        if win32 and self.exitstatus != 0 and self.killed is not None:
+            self.exitstatus = -self.killed
+        global processes
+        del processes[self.p.pid]
+        self.p = None
+        self.r.join()
+        # Simulate a match on EOF
+        self.buf = self.r.getbuf()
+        self.before = self.buf
+        self.after = ""
+        self.r = None
+
         return self.exitstatus
 
     def terminate(self):
@@ -553,29 +598,37 @@ class Expect (object):
                 print("unexpected exit status: expected: %d, got %d" % (expected, result))
                 sys.exit(1)
 
-        self.wait(timeout)
-        if self.mapping == "java":
-            if self.killed is not None:
-                if win32:
-                    test(self.exitstatus, -self.killed)
-                else:
-                    if self.killed == signal.SIGINT:
-                        test(130, self.exitstatus)
+        try:
+            self.wait(timeout)
+            if self.mapping == "java":
+                if self.killed is not None:
+                    if win32:
+                        test(self.exitstatus, -self.killed)
                     else:
-                        sys.exit(1)
+                        if self.killed == signal.SIGINT:
+                            test(130, self.exitstatus)
+                        else:
+                            sys.exit(1)
+                else:
+                    test(self.exitstatus, exitstatus)
             else:
                 test(self.exitstatus, exitstatus)
-        else:
-            test(self.exitstatus, exitstatus)
+
+        except:
+            cleanup()
+            raise
 
     def waitTestFail(self, timeout = None):
         """Wait for the process to terminate for up to timeout seconds, and
            validate the exit status is as expected."""
-
-        self.wait(timeout)
-        if self.exitstatus == 0:
-            print("unexpected non-zero exit status")
-            sys.exit(1)
+        try:
+            self.wait(timeout)
+            if self.exitstatus == 0:
+                print("unexpected non-zero exit status")
+                sys.exit(1)
+        except:
+            cleanup()
+            raise
 
     def trace(self, suppress = None):
         self.r.enabletrace(suppress)

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -25,7 +25,7 @@ interface TestIntf
     void opWithPayload(Ice::ByteSeq seq);
     int opWithResult();
     void opWithUE()
-        throws TestIntfException;    
+        throws TestIntfException;
     void opBatch();
 
     void opWithArgs(out int one, out int two, out int three, out int four, out int five, out int six, out int seven,
@@ -34,6 +34,8 @@ interface TestIntf
     bool waitForBatch(int count);
     void close(bool force);
     void shutdown();
+
+    bool supportsFunctionalTests();
 };
 
 interface TestIntfController

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -25,8 +25,11 @@ class SessionServantManager : public Ice::ServantLocator, public IceUtil::Mutex
 {
 public:
 
-    SessionServantManager(const Ice::ObjectAdapterPtr&, const std::string&, bool, const std::string&,
-                          const Ice::ObjectPtr&, const AdminCallbackRouterPtr&);
+    SessionServantManager(const Ice::ObjectAdapterPtr&, const std::string&, bool, 
+                          const std::string&, const Ice::ObjectPtr&, 
+                          const std::string&, const Ice::ObjectPtr&,
+                          const std::string&, const Ice::ObjectPtr&,
+                          const AdminCallbackRouterPtr&);
 
     Ice::ObjectPtr locate(const Ice::Current&, Ice::LocalObjectPtr&);
     void finished(const Ice::Current&, const Ice::ObjectPtr&, const Ice::LocalObjectPtr&);
@@ -40,6 +43,9 @@ public:
 
     Ice::ObjectPrx add(const Ice::ObjectPtr&, const Ice::ObjectPtr&);
     void remove(const Ice::Identity&);
+
+    void connectionHeartbeat(const Ice::ConnectionPtr&);
+    void connectionClosed(const Ice::ConnectionPtr&);
 
 private:
 
@@ -74,6 +80,10 @@ private:
     const bool _checkConnection;
     const std::string _serverAdminCategory;
     const Ice::ObjectPtr _serverAdminRouter;
+    const std::string _nodeAdminCategory;
+    const Ice::ObjectPtr _nodeAdminRouter;
+    const std::string _replicaAdminCategory;
+    const Ice::ObjectPtr _replicaAdminRouter;
     const AdminCallbackRouterPtr _adminCallbackRouter;
 
     std::map<Ice::Identity, ServantInfo> _servants;

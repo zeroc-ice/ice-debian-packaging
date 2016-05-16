@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -59,34 +59,6 @@ namespace Freeze
 
 
 class BackgroundSaveEvictorI;
-
-//
-// The WatchDogThread is used by the saving thread to ensure the
-// streaming of some object does not take more than timeout ms.
-// We only measure the time necessary to acquire the lock on the
-// object (servant), not the streaming itself.
-//
-
-class WatchDogThread : public IceUtil::Thread, private IceUtil::Monitor<IceUtil::Mutex>
-{
-public:
-    
-    WatchDogThread(long, BackgroundSaveEvictorI&);
-    
-    void run();
-
-    void activate();
-    void deactivate();
-    void terminate();
-    
-private:
-    const IceUtil::Time _timeout;
-    BackgroundSaveEvictorI& _evictor;
-    bool _done;
-    bool _active;
-};
-
-typedef IceUtil::Handle<WatchDogThread> WatchDogThreadPtr;
 
 struct BackgroundSaveEvictorElement;
 typedef IceUtil::Handle<BackgroundSaveEvictorElement> BackgroundSaveEvictorElementPtr;
@@ -158,13 +130,30 @@ public:
     //
     virtual void run();
 
-    struct StreamedObject
+    struct StreamedObject : public IceUtil::Shared
     {
-        Key key;
-        Value value;
+        StreamedObject() :
+            key(0), value(0)
+        {
+        }
+
+        ~StreamedObject()
+        {
+            delete key;
+            delete value;
+        }
+
+        ObjectStoreBase::KeyMarshaler* key;
+        ObjectStoreBase::ValueMarshaler* value;
         Ice::Byte status;
         ObjectStore<BackgroundSaveEvictorElement>* store;
+
+    private:
+
+        StreamedObject(const StreamedObject&) {}
+        void operator=(const StreamedObject&) {}
     };
+    typedef IceUtil::Handle<StreamedObject> StreamedObjectPtr;
 
 protected:
    
@@ -182,7 +171,7 @@ private:
     void addToModifiedQueue(const BackgroundSaveEvictorElementPtr&);
     void fixEvictPosition(const BackgroundSaveEvictorElementPtr&);
 
-    void stream(const BackgroundSaveEvictorElementPtr&, Ice::Long, StreamedObject&);
+    void stream(const BackgroundSaveEvictorElementPtr&, Ice::Long, const StreamedObjectPtr&);
   
     //
     // The _evictorList contains a list of all objects we keep,
@@ -199,7 +188,8 @@ private:
     std::deque<BackgroundSaveEvictorElementPtr> _modifiedQueue;
 
     bool _savingThreadDone;
-    WatchDogThreadPtr _watchDogThread;
+    long _streamTimeout;
+    IceUtil::TimerPtr _timer;
     
     //
     // Threads that have requested a "saveNow" and are waiting for

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -52,7 +52,7 @@ testUOE(const Ice::CommunicatorPtr& communicator)
 }
 
 InitialPrx
-allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
+allTests(const Ice::CommunicatorPtr& communicator)
 {
     cout << "testing stringToProxy... " << flush;
     string ref = "initial:default -p 12010";
@@ -140,15 +140,14 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
     test(BPtr::dynamicCast(b1->theA)->theB == b1);
     test(CPtr::dynamicCast(BPtr::dynamicCast(b1->theA)->theC));
     test(CPtr::dynamicCast(BPtr::dynamicCast(b1->theA)->theC)->theB == b1->theA);
-    if(!collocated)
-    {
-        test(b1->preMarshalInvoked);
-        test(b1->postUnmarshalInvoked());
-        test(b1->theA->preMarshalInvoked);
-        test(b1->theA->postUnmarshalInvoked());
-        test(BPtr::dynamicCast(b1->theA)->theC->preMarshalInvoked);
-        test(BPtr::dynamicCast(b1->theA)->theC->postUnmarshalInvoked());
-    }
+
+    test(b1->preMarshalInvoked);
+    test(b1->postUnmarshalInvoked());
+    test(b1->theA->preMarshalInvoked);
+    test(b1->theA->postUnmarshalInvoked());
+    test(BPtr::dynamicCast(b1->theA)->theC->preMarshalInvoked);
+    test(BPtr::dynamicCast(b1->theA)->theC->postUnmarshalInvoked());
+    
     // More tests possible for b2 and d, but I think this is already sufficient.
     test(b2->theA == b2);
     test(d->theC == 0);
@@ -179,17 +178,16 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
     test(d->theA == b1);
     test(d->theB == b2);
     test(d->theC == 0);
-    if(!collocated)
-    {
-        test(d->preMarshalInvoked);
-        test(d->postUnmarshalInvoked());
-        test(d->theA->preMarshalInvoked);
-        test(d->theA->postUnmarshalInvoked());
-        test(d->theB->preMarshalInvoked);
-        test(d->theB->postUnmarshalInvoked());
-        test(d->theB->theC->preMarshalInvoked);
-        test(d->theB->theC->postUnmarshalInvoked());
-    }
+    
+    test(d->preMarshalInvoked);
+    test(d->postUnmarshalInvoked());
+    test(d->theA->preMarshalInvoked);
+    test(d->theA->postUnmarshalInvoked());
+    test(d->theB->preMarshalInvoked);
+    test(d->theB->postUnmarshalInvoked());
+    test(d->theB->theC->preMarshalInvoked);
+    test(d->theB->theC->postUnmarshalInvoked());
+
     cout << "ok" << endl;
 
     cout << "testing protected members... " << flush;
@@ -207,6 +205,30 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
     test(j && JPtr::dynamicCast(j));
     IPtr h = initial->getH();
     test(h && HPtr::dynamicCast(h));
+    cout << "ok" << endl;
+    
+    cout << "getting D1... " << flush;
+    D1Ptr d1 = new D1(new A1("a1"), new A1("a2"), new A1("a3"), new A1("a4"));
+    d1 = initial->getD1(d1);
+    test(d1->a1->name == "a1");
+    test(d1->a2->name == "a2");
+    test(d1->a3->name == "a3");
+    test(d1->a4->name == "a4");
+    cout << "ok" << endl;
+    
+    cout << "throw EDerived... " << flush;
+    try
+    {
+        initial->throwEDerived();
+        test(false);
+    }
+    catch(const EDerived& ederived)
+    {
+        test(ederived.a1->name == "a1");
+        test(ederived.a2->name == "a2");
+        test(ederived.a3->name == "a3");
+        test(ederived.a4->name == "a4");
+    }
     cout << "ok" << endl;
 
     cout << "setting I... " << flush;
@@ -235,11 +257,42 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
     }
     cout << "ok" << endl;
 
-    if(!collocated)
+    cout << "testing UnexpectedObjectException... " << flush;
+    testUOE(communicator);
+    cout << "ok" << endl;
+
+    try
     {
+        string ref = "test:default -p 12010";
+        TestIntfPrx p = TestIntfPrx::checkedCast(communicator->stringToProxy(ref));
+
         cout << "testing UnexpectedObjectException... " << flush;
         testUOE(communicator);
         cout << "ok" << endl;
+
+        cout << "testing Object factory registration... " << flush;
+        {
+            BasePtr base = p->opDerived();
+            test(base);
+            test(base->ice_id() == "::Test::Derived");
+        }
+        cout << "ok" << endl;
+
+        cout << "testing Exception factory registration... " << flush;
+        {
+            try
+            {
+                p->throwDerived();
+            }
+            catch(const BaseEx& ex)
+            {
+                test(ex.ice_name() == "Test::DerivedEx");
+            }
+        }
+        cout << "ok" << endl;
+    }
+    catch(const Ice::ObjectNotExistException&)
+    {
     }
 
     return initial;

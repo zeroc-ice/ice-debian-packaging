@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -232,6 +232,8 @@ protected:
     bool getDictionaryTypes(const DictionaryPtr&, const std::string&, const StringList&,
                             std::string&, std::string&) const;
     bool getSequenceTypes(const SequencePtr&, const std::string&, const StringList&, std::string&, std::string&) const;
+
+    bool sequenceHasHolder(const SequencePtr&) const;
 
     virtual JavaOutput* createOutput();
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -48,22 +48,6 @@ class dmwpTest6Class extends ::M1::M2::dmwpBaseClass implements ::M1::M2::dmwpBa
 {
     ::M1::M2::dmwpStruct
     dmwpTest6Op1(::M1::M2::dmwpEnum i1,
-                 ::M1::M2::dmwpStruct i2,
-                 ::M1::M2::dmwpStructSeq i3,
-                 ::M1::M2::dmwpStringStructDict i4,
-                 ::M1::M2::dmwpInterface i5,
-                 ::M1::M2::dmwpClass i6,
-                 out ::M1::M2::dmwpEnum o1,
-                 out ::M1::M2::dmwpStruct o2,
-                 out ::M1::M2::dmwpStructSeq o3,
-                 out ::M1::M2::dmwpStringStructDict o4,
-                 out ::M1::M2::dmwpInterface o5,
-                 out ::M1::M2::dmwpClass o6)
-        throws ::M1::M2::dmwpException;
-
-    ["ami"]
-    ::M1::M2::dmwpStruct
-    dmwpTest6Op2(::M1::M2::dmwpEnum i1,
                  ::M1::M2::dmwpStruct i2,
                  ::M1::M2::dmwpStructSeq i3,
                  ::M1::M2::dmwpStringStructDict i4,

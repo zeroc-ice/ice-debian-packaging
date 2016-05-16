@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,8 +9,10 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["cpp:include:IceGrid/Config.h"]]
 
+["objc:prefix:ICEGRID"]
 module IceGrid
 {
 
@@ -47,7 +49,7 @@ interface UserAccountMapper
      *
      * @throws UserAccountNotFoundException Raised if no user account
      * is found for the given user.
-     * 
+     *
      **/
     string getUserAccount(string user)
         throws UserAccountNotFoundException;

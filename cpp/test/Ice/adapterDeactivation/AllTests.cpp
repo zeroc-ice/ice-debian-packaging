@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -30,12 +30,14 @@ allTests(const CommunicatorPtr& communicator)
     cout << "ok" << endl;
 
     {
+        string host = communicator->getProperties()->getPropertyAsIntWithDefault("Ice.IPv6", 0) == 0 ?
+            "127.0.0.1" : "\"0:0:0:0:0:0:0:1\"";
         cout << "creating/destroying/recreating object adapter... " << flush;
-        ObjectAdapterPtr adapter = 
-            communicator->createObjectAdapterWithEndpoints("TransientTestAdapter", "default");
+        ObjectAdapterPtr adapter =
+            communicator->createObjectAdapterWithEndpoints("TransientTestAdapter", "default -h " + host);
         try
         {
-            communicator->createObjectAdapterWithEndpoints("TransientTestAdapter", "default");
+            communicator->createObjectAdapterWithEndpoints("TransientTestAdapter", "default -h " + host);
             test(false);
         }
         catch(const AlreadyRegisteredException&)
@@ -46,13 +48,14 @@ allTests(const CommunicatorPtr& communicator)
         //
         // Use a different port than the first adapter to avoid an "address already in use" error.
         //
-        adapter = communicator->createObjectAdapterWithEndpoints("TransientTestAdapter", "default");
+        adapter = communicator->createObjectAdapterWithEndpoints("TransientTestAdapter", "default -h " + host);
         adapter->destroy();
         cout << "ok" << endl;
     }
 
     cout << "creating/activating/deactivating object adapter in one operation... " << flush;
     obj->transient();
+    obj->end_transient(obj->begin_transient());
     cout << "ok" << endl;
 
     {

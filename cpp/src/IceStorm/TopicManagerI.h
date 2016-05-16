@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -16,6 +16,8 @@
 #include <IceStorm/Election.h>
 #include <IceStorm/Instrumentation.h>
 
+#include <Freeze/Freeze.h>
+
 #include <IceUtil/RecMutex.h>
 
 namespace IceStorm
@@ -26,9 +28,6 @@ namespace IceStorm
 //
 class Instance;
 typedef IceUtil::Handle<Instance> InstancePtr;
-
-class ConnectionPool;
-typedef IceUtil::Handle<ConnectionPool> ConnectionPoolPtr;
 
 class TopicImpl;
 typedef IceUtil::Handle<TopicImpl> TopicImplPtr;
@@ -83,7 +82,7 @@ private:
                           const IceStorm::SubscriberRecordSeq& = IceStorm::SubscriberRecordSeq());
 
     const InstancePtr _instance;
-    const ConnectionPoolPtr _connectionPool;
+    const Freeze::ConnectionPtr _connection;
 
     std::map<std::string, TopicImplPtr> _topics;
 

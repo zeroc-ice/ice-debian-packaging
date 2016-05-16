@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -12,6 +12,8 @@
 #include <TestCommon.h>
 #include <functional>
 #include <iterator>
+
+using namespace std;
 
 class Thread_opVoid : public IceUtil::Thread
 {
@@ -31,6 +33,10 @@ private:
 
     const Test::AMD_MyClass_opVoidPtr _cb;
 };
+
+MyDerivedClassI::MyDerivedClassI() : _opByteSOnewayCallCount(0)
+{
+}
 
 bool
 MyDerivedClassI::ice_isA(const std::string& id, const Ice::Current& current) const
@@ -420,6 +426,212 @@ MyDerivedClassI::opMyStructMyEnumD_async(const Test::AMD_MyClass_opMyStructMyEnu
 }
 
 void
+MyDerivedClassI::opByteBoolDS_async(const Test::AMD_MyClass_opByteBoolDSPtr& cb,
+                                    const Test::ByteBoolDS& p1,
+                                    const Test::ByteBoolDS& p2,
+                                    const Ice::Current&)
+{
+    Test::ByteBoolDS p3 = p2;
+    std::copy(p1.begin(), p1.end(), std::back_inserter(p3));
+    Test::ByteBoolDS r;
+    r.resize(p1.size());
+    std::reverse_copy(p1.begin(), p1.end(), r.begin());
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opShortIntDS_async(const Test::AMD_MyClass_opShortIntDSPtr& cb,
+                                       const Test::ShortIntDS& p1,
+                                       const Test::ShortIntDS& p2,
+                                       const Ice::Current&)
+{
+    Test::ShortIntDS p3 = p2;
+    std::copy(p1.begin(), p1.end(), std::back_inserter(p3));
+    Test::ShortIntDS r;
+    r.resize(p1.size());
+    std::reverse_copy(p1.begin(), p1.end(), r.begin());
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opLongFloatDS_async(const Test::AMD_MyClass_opLongFloatDSPtr& cb,
+                                       const Test::LongFloatDS& p1,
+                                       const Test::LongFloatDS& p2,
+                                       const Ice::Current&)
+{
+    Test::LongFloatDS p3 = p2;
+    std::copy(p1.begin(), p1.end(), std::back_inserter(p3));
+    Test::LongFloatDS r;
+    r.resize(p1.size());
+    std::reverse_copy(p1.begin(), p1.end(), r.begin());
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opStringStringDS_async(const Test::AMD_MyClass_opStringStringDSPtr& cb,
+                                       const Test::StringStringDS& p1,
+                                       const Test::StringStringDS& p2,
+                                       const Ice::Current&)
+{
+    Test::StringStringDS p3 = p2;
+    std::copy(p1.begin(), p1.end(), std::back_inserter(p3));
+    Test::StringStringDS r;
+    r.resize(p1.size());
+    std::reverse_copy(p1.begin(), p1.end(), r.begin());
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opStringMyEnumDS_async(const Test::AMD_MyClass_opStringMyEnumDSPtr& cb,
+                                       const Test::StringMyEnumDS& p1,
+                                       const Test::StringMyEnumDS& p2,
+                                       const Ice::Current&)
+{
+    Test::StringMyEnumDS p3 = p2;
+    std::copy(p1.begin(), p1.end(), std::back_inserter(p3));
+    Test::StringMyEnumDS r;
+    r.resize(p1.size());
+    std::reverse_copy(p1.begin(), p1.end(), r.begin());
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opMyEnumStringDS_async(const Test::AMD_MyClass_opMyEnumStringDSPtr& cb,
+                                       const Test::MyEnumStringDS& p1,
+                                       const Test::MyEnumStringDS& p2,
+                                       const Ice::Current&)
+{
+    Test::MyEnumStringDS p3 = p2;
+    std::copy(p1.begin(), p1.end(), std::back_inserter(p3));
+    Test::MyEnumStringDS r;
+    r.resize(p1.size());
+    std::reverse_copy(p1.begin(), p1.end(), r.begin());
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opMyStructMyEnumDS_async(const Test::AMD_MyClass_opMyStructMyEnumDSPtr& cb,
+                                       const Test::MyStructMyEnumDS& p1,
+                                       const Test::MyStructMyEnumDS& p2,
+                                       const Ice::Current&)
+{
+    Test::MyStructMyEnumDS p3 = p2;
+    std::copy(p1.begin(), p1.end(), std::back_inserter(p3));
+    Test::MyStructMyEnumDS r;
+    r.resize(p1.size());
+    std::reverse_copy(p1.begin(), p1.end(), r.begin());
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opByteByteSD_async(const Test::AMD_MyClass_opByteByteSDPtr& cb,
+                                       const Test::ByteByteSD& p1,
+                                       const Test::ByteByteSD& p2,
+                                       const Ice::Current&)
+{
+    Test::ByteByteSD p3 = p2;
+    Test::ByteByteSD r;
+    std::set_union(p1.begin(), p1.end(), p2.begin(), p2.end(), std::inserter(r, r.end()));
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opBoolBoolSD_async(const Test::AMD_MyClass_opBoolBoolSDPtr& cb,
+                                       const Test::BoolBoolSD& p1,
+                                       const Test::BoolBoolSD& p2,
+                                       const Ice::Current&)
+{
+    Test::BoolBoolSD p3 = p2;
+    Test::BoolBoolSD r;
+    std::set_union(p1.begin(), p1.end(), p2.begin(), p2.end(), std::inserter(r, r.end()));
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opShortShortSD_async(const Test::AMD_MyClass_opShortShortSDPtr& cb,
+                                       const Test::ShortShortSD& p1,
+                                       const Test::ShortShortSD& p2,
+                                       const Ice::Current&)
+{
+    Test::ShortShortSD p3 = p2;
+    Test::ShortShortSD r;
+    std::set_union(p1.begin(), p1.end(), p2.begin(), p2.end(), std::inserter(r, r.end()));
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opIntIntSD_async(const Test::AMD_MyClass_opIntIntSDPtr& cb,
+                                       const Test::IntIntSD& p1,
+                                       const Test::IntIntSD& p2,
+                                       const Ice::Current&)
+{
+    Test::IntIntSD p3 = p2;
+    Test::IntIntSD r;
+    std::set_union(p1.begin(), p1.end(), p2.begin(), p2.end(), std::inserter(r, r.end()));
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opLongLongSD_async(const Test::AMD_MyClass_opLongLongSDPtr& cb,
+                                       const Test::LongLongSD& p1,
+                                       const Test::LongLongSD& p2,
+                                       const Ice::Current&)
+{
+    Test::LongLongSD p3 = p2;
+    Test::LongLongSD r;
+    std::set_union(p1.begin(), p1.end(), p2.begin(), p2.end(), std::inserter(r, r.end()));
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opStringFloatSD_async(const Test::AMD_MyClass_opStringFloatSDPtr& cb,
+                                       const Test::StringFloatSD& p1,
+                                       const Test::StringFloatSD& p2,
+                                       const Ice::Current&)
+{
+    Test::StringFloatSD p3 = p2;
+    Test::StringFloatSD r;
+    std::set_union(p1.begin(), p1.end(), p2.begin(), p2.end(), std::inserter(r, r.end()));
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opStringDoubleSD_async(const Test::AMD_MyClass_opStringDoubleSDPtr& cb,
+                                       const Test::StringDoubleSD& p1,
+                                       const Test::StringDoubleSD& p2,
+                                       const Ice::Current&)
+{
+    Test::StringDoubleSD p3 = p2;
+    Test::StringDoubleSD r;
+    std::set_union(p1.begin(), p1.end(), p2.begin(), p2.end(), std::inserter(r, r.end()));
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opStringStringSD_async(const Test::AMD_MyClass_opStringStringSDPtr& cb,
+                                       const Test::StringStringSD& p1,
+                                       const Test::StringStringSD& p2,
+                                       const Ice::Current&)
+{
+    Test::StringStringSD p3 = p2;
+    Test::StringStringSD r;
+    std::set_union(p1.begin(), p1.end(), p2.begin(), p2.end(), std::inserter(r, r.end()));
+    cb->ice_response(r, p3);
+}
+
+void
+MyDerivedClassI::opMyEnumMyEnumSD_async(const Test::AMD_MyClass_opMyEnumMyEnumSDPtr& cb,
+                                       const Test::MyEnumMyEnumSD& p1,
+                                       const Test::MyEnumMyEnumSD& p2,
+                                       const Ice::Current&)
+{
+    Test::MyEnumMyEnumSD p3 = p2;
+    Test::MyEnumMyEnumSD r;
+    std::set_union(p1.begin(), p1.end(), p2.begin(), p2.end(), std::inserter(r, r.end()));
+    cb->ice_response(r, p3);
+}
+
+void
 MyDerivedClassI::opIntS_async(const Test::AMD_MyClass_opIntSPtr& cb, const Test::IntS& s, const Ice::Current&)
 {
     Test::IntS r;
@@ -431,7 +643,18 @@ void
 MyDerivedClassI::opByteSOneway_async(const Test::AMD_MyClass_opByteSOnewayPtr& cb, const Test::ByteS&,
                                      const Ice::Current&)
 {
+    IceUtil::Mutex::Lock sync(_mutex);
+    ++_opByteSOnewayCallCount;
     cb->ice_response();
+}
+
+void
+MyDerivedClassI::opByteSOnewayCallCount_async(const Test::AMD_MyClass_opByteSOnewayCallCountPtr& cb, 
+                                              const Ice::Current&)
+{
+    IceUtil::Mutex::Lock sync(_mutex);
+    cb->ice_response(_opByteSOnewayCallCount);
+    _opByteSOnewayCallCount = 0;
 }
 
 void
@@ -441,7 +664,7 @@ MyDerivedClassI::opContext_async(const Test::AMD_MyClass_opContextPtr& cb, const
     cb->ice_response(r);
 }
 
-void 
+void
 MyDerivedClassI::opDoubleMarshaling_async(const Test::AMD_MyClass_opDoubleMarshalingPtr& cb,
                                           Ice::Double p1, const Test::DoubleS& p2, const Ice::Current&)
 {
@@ -472,4 +695,171 @@ void
 MyDerivedClassI::opDerived_async(const Test::AMD_MyDerivedClass_opDerivedPtr& cb, const Ice::Current&)
 {
     cb->ice_response();
+}
+
+void
+MyDerivedClassI::opByte1_async(const Test::AMD_MyClass_opByte1Ptr& cb, Ice::Byte b, const Ice::Current&)
+{
+    cb->ice_response(b);
+}
+
+void
+MyDerivedClassI::opShort1_async(const Test::AMD_MyClass_opShort1Ptr& cb, Ice::Short s, const Ice::Current&)
+{
+    cb->ice_response(s);
+}
+
+void
+MyDerivedClassI::opInt1_async(const Test::AMD_MyClass_opInt1Ptr& cb, Ice::Int i, const Ice::Current&)
+{
+    cb->ice_response(i);
+}
+
+void
+MyDerivedClassI::opLong1_async(const Test::AMD_MyClass_opLong1Ptr& cb, Ice::Long l, const Ice::Current&)
+{
+    cb->ice_response(l);
+}
+
+void
+MyDerivedClassI::opFloat1_async(const Test::AMD_MyClass_opFloat1Ptr& cb, Ice::Float f, const Ice::Current&)
+{
+    cb->ice_response(f);
+}
+
+void
+MyDerivedClassI::opDouble1_async(const Test::AMD_MyClass_opDouble1Ptr& cb, Ice::Double d, const Ice::Current&)
+{
+    cb->ice_response(d);
+}
+
+void
+MyDerivedClassI::opString1_async(const Test::AMD_MyClass_opString1Ptr& cb, const std::string& s,
+                                 const Ice::Current&)
+{
+    cb->ice_response(s);
+}
+
+void
+MyDerivedClassI::opStringS1_async(const Test::AMD_MyClass_opStringS1Ptr& cb, const Test::StringS& seq,
+                                  const Ice::Current&)
+{
+    cb->ice_response(seq);
+}
+
+void
+MyDerivedClassI::opByteBoolD1_async(const Test::AMD_MyClass_opByteBoolD1Ptr& cb, const Test::ByteBoolD& dict,
+                                    const Ice::Current&)
+{
+    cb->ice_response(dict);
+}
+
+void
+MyDerivedClassI::opStringS2_async(const Test::AMD_MyClass_opStringS2Ptr& cb, const Test::StringS& seq,
+                                  const Ice::Current&)
+{
+    cb->ice_response(seq);
+}
+
+void
+MyDerivedClassI::opByteBoolD2_async(const Test::AMD_MyClass_opByteBoolD2Ptr& cb, const Test::ByteBoolD& dict,
+                                    const Ice::Current&)
+{
+    cb->ice_response(dict);
+}
+
+void
+MyDerivedClassI::opMyStruct1_async(const Test::AMD_MyDerivedClass_opMyStruct1Ptr& cb, const Test::MyStruct1& s, const Ice::Current&)
+{
+    cb->ice_response(s);
+}
+
+void
+MyDerivedClassI::opMyClass1_async(const Test::AMD_MyDerivedClass_opMyClass1Ptr& cb, const Test::MyClass1Ptr& c, const Ice::Current&)
+{
+    cb->ice_response(c);
+}
+
+void
+MyDerivedClassI::opStringLiterals_async(const Test::AMD_MyClass_opStringLiteralsPtr& cb,
+                                        const Ice::Current&)
+{
+    Test::StringS data;
+    data.push_back(Test::s0);
+    data.push_back(Test::s1);
+    data.push_back(Test::s2);
+    data.push_back(Test::s3);
+    data.push_back(Test::s4);
+    data.push_back(Test::s5);
+    data.push_back(Test::s6);
+    data.push_back(Test::s7);
+    data.push_back(Test::s8);
+    data.push_back(Test::s9);
+    data.push_back(Test::s10);
+
+    data.push_back(Test::sw0);
+    data.push_back(Test::sw1);
+    data.push_back(Test::sw2);
+    data.push_back(Test::sw3);
+    data.push_back(Test::sw4);
+    data.push_back(Test::sw5);
+    data.push_back(Test::sw6);
+    data.push_back(Test::sw7);
+    data.push_back(Test::sw8);
+    data.push_back(Test::sw9);
+    data.push_back(Test::sw10);
+
+    data.push_back(Test::ss0);
+    data.push_back(Test::ss1);
+    data.push_back(Test::ss2);
+    data.push_back(Test::ss3);
+    data.push_back(Test::ss4);
+    data.push_back(Test::ss5);
+
+    data.push_back(Test::su0);
+    data.push_back(Test::su1);
+    data.push_back(Test::su2);
+    cb->ice_response(data);
+}
+
+void
+MyDerivedClassI::opWStringLiterals_async(const Test::AMD_MyClass_opWStringLiteralsPtr& cb,
+                                         const Ice::Current&)
+{
+    Test::WStringS data;
+    data.push_back(Test::ws0);
+    data.push_back(Test::ws1);
+    data.push_back(Test::ws2);
+    data.push_back(Test::ws3);
+    data.push_back(Test::ws4);
+    data.push_back(Test::ws5);
+    data.push_back(Test::ws6);
+    data.push_back(Test::ws7);
+    data.push_back(Test::ws8);
+    data.push_back(Test::ws9);
+    data.push_back(Test::ws10);
+
+    data.push_back(Test::wsw0);
+    data.push_back(Test::wsw1);
+    data.push_back(Test::wsw2);
+    data.push_back(Test::wsw3);
+    data.push_back(Test::wsw4);
+    data.push_back(Test::wsw5);
+    data.push_back(Test::wsw6);
+    data.push_back(Test::wsw7);
+    data.push_back(Test::wsw8);
+    data.push_back(Test::wsw9);
+    data.push_back(Test::wsw10);
+
+    data.push_back(Test::wss0);
+    data.push_back(Test::wss1);
+    data.push_back(Test::wss2);
+    data.push_back(Test::wss3);
+    data.push_back(Test::wss4);
+    data.push_back(Test::wss5);
+
+    data.push_back(Test::wsu0);
+    data.push_back(Test::wsu1);
+    data.push_back(Test::wsu2);
+    cb->ice_response(data);
 }

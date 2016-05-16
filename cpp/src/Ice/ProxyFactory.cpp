@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -110,18 +110,15 @@ IceInternal::ProxyFactory::referenceToProxy(const ReferencePtr& ref) const
 }
 
 int
-IceInternal::ProxyFactory::checkRetryAfterException(const LocalException& ex, 
-                                                    const ReferencePtr& ref, 
-                                                    bool sleep,
-                                                    int& cnt) const
+IceInternal::ProxyFactory::checkRetryAfterException(const LocalException& ex, const ReferencePtr& ref, int& cnt) const
 {
     TraceLevelsPtr traceLevels = _instance->traceLevels();
     LoggerPtr logger = _instance->initializationData().logger;
 
     //
-    // We don't retry batch requests because the exception might have caused
-    // the all the requests batched with the connection to be aborted and we
-    // want the application to be notified.
+    // We don't retry batch requests because the exception might have
+    // caused all the requests batched with the connection to be
+    // aborted and we want the application to be notified.
     //
     if(ref->getMode() == Reference::ModeBatchOneway || ref->getMode() == Reference::ModeBatchDatagram)
     {
@@ -129,7 +126,6 @@ IceInternal::ProxyFactory::checkRetryAfterException(const LocalException& ex,
     }
 
     const ObjectNotExistException* one = dynamic_cast<const ObjectNotExistException*>(&ex);
-
     if(one)
     {
         if(ref->getRouterInfo() && one->operation == "ice_add_proxy")
@@ -214,12 +210,29 @@ IceInternal::ProxyFactory::checkRetryAfterException(const LocalException& ex,
         ex.ice_throw();
     }
 
+    //
+    // Don't retry if the communicator is destroyed or object adapter
+    // deactivated.
+    //
+    if(dynamic_cast<const CommunicatorDestroyedException*>(&ex) ||
+       dynamic_cast<const ObjectAdapterDeactivatedException*>(&ex))
+    {
+        ex.ice_throw();
+    }
+
+    //
+    // Don't retry invocation timeouts.
+    //
+    if(dynamic_cast<const InvocationTimeoutException*>(&ex) || dynamic_cast<const InvocationCanceledException*>(&ex))
+    {
+        ex.ice_throw();
+    }
+
     ++cnt;
     assert(cnt > 0);
 
     int interval = -1;
-    if(cnt == static_cast<int>(_retryIntervals.size() + 1) && 
-       dynamic_cast<const CloseConnectionException*>(&ex))
+    if(cnt == static_cast<int>(_retryIntervals.size() + 1) && dynamic_cast<const CloseConnectionException*>(&ex))
     {
         //
         // A close connection exception is always retried at least once, even if the retry
@@ -250,14 +263,6 @@ IceInternal::ProxyFactory::checkRetryAfterException(const LocalException& ex,
             out << " in " << interval << "ms";
         }
         out << " because of exception\n" << ex;
-    }
-
-    if(sleep && interval > 0)
-    {
-        //
-        // Sleep before retrying.
-        //
-        IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(interval));
     }
     return interval;
 }

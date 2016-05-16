@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -57,10 +57,11 @@ void
 usage(const char* n)
 {
     getErrorStream() << "Usage: " << n << " [options] slice-files...\n";
-    getErrorStream() <<        
+    getErrorStream() <<
         "Options:\n"
         "-h, --help              Show this message.\n"
         "-v, --version           Display the Ice version.\n"
+        "--validate               Validate command line options.\n"
         "-DNAME                  Define NAME as 1.\n"
         "-DNAME=DEF              Define NAME as DEF.\n"
         "-UNAME                  Remove any definition for NAME.\n"
@@ -71,9 +72,11 @@ usage(const char* n)
         "--impl                  Generate sample implementations.\n"
         "--impl-tie              Generate sample TIE implementations.\n"
         "--depend                Generate Makefile dependencies.\n"
+        "--depend-xml            Generate dependencies in XML format.\n"
+        "--depend-file FILE      Write dependencies to FILE instead of standard output.\n"
         "-d, --debug             Print debug messages.\n"
-        "--ice                   Permit `Ice' prefix (for building Ice source code only).\n"
-        "--underscore            Permit underscores in Slice identifiers.\n"
+        "--ice                   Allow reserved Ice prefix in Slice identifiers.\n"
+        "--underscore            Allow underscores in Slice identifiers.\n"
         "--checksum              Generate checksums for Slice definitions.\n"
         "--stream                Generate marshaling support for public stream API.\n"
         ;
@@ -85,6 +88,7 @@ compile(int argc, char* argv[])
     IceUtilInternal::Options opts;
     opts.addOpt("h", "help");
     opts.addOpt("v", "version");
+    opts.addOpt("", "validate");
     opts.addOpt("D", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
     opts.addOpt("U", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
     opts.addOpt("I", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
@@ -94,21 +98,36 @@ compile(int argc, char* argv[])
     opts.addOpt("", "impl");
     opts.addOpt("", "impl-tie");
     opts.addOpt("", "depend");
+    opts.addOpt("", "depend-xml");
+    opts.addOpt("", "depend-file", IceUtilInternal::Options::NeedArg, "");
     opts.addOpt("d", "debug");
     opts.addOpt("", "ice");
     opts.addOpt("", "underscore");
     opts.addOpt("", "checksum");
     opts.addOpt("", "stream");
 
+    bool validate = false;
+    for(int i = 0; i < argc; ++i)
+    {
+        if(string(argv[i]) == "--validate")
+        {
+            validate = true;
+            break;
+        }
+    }
+
     vector<string> args;
     try
     {
-        args = opts.parse(argc, (const char**)argv);
+        args = opts.parse(argc, const_cast<const char**>(argv));
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
         getErrorStream() << argv[0] << ": error: " << e.reason << endl;
-        usage(argv[0]);
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
         return EXIT_FAILURE;
     }
 
@@ -155,6 +174,10 @@ compile(int argc, char* argv[])
 
     bool depend = opts.isSet("depend");
 
+    bool dependxml = opts.isSet("depend-xml");
+
+    string dependFile = opts.optArg("depend-file");
+
     bool debug = opts.isSet("debug");
 
     bool ice = opts.isSet("ice");
@@ -168,21 +191,48 @@ compile(int argc, char* argv[])
     if(args.empty())
     {
         getErrorStream() << argv[0] << ": error: no input file" << endl;
-        usage(argv[0]);
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
         return EXIT_FAILURE;
     }
 
     if(impl && implTie)
     {
         getErrorStream() << argv[0] << ": error: cannot specify both --impl and --impl-tie" << endl;
-        usage(argv[0]);
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
         return EXIT_FAILURE;
+    }
+
+    if(depend && dependxml)
+    {
+        getErrorStream() << argv[0] << ": error: cannot specify both --depend and --depend-xml" << endl;
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
+        return EXIT_FAILURE;
+    }
+
+    if(validate)
+    {
+        return EXIT_SUCCESS;
     }
 
     int status = EXIT_SUCCESS;
 
     IceUtil::CtrlCHandler ctrlCHandler;
     ctrlCHandler.setCallback(interruptedCallback);
+
+    DependOutputUtil out(dependFile);
+    if(dependxml)
+    {
+        out.os() << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<dependencies>" << endl;
+    }
 
     for(vector<string>::const_iterator i = args.begin(); i != args.end(); ++i)
     {
@@ -195,13 +245,14 @@ compile(int argc, char* argv[])
             continue;
         }
 
-        if(depend)
+        if(depend || dependxml)
         {
             PreprocessorPtr icecpp = Preprocessor::create(argv[0], *i, cppArgs);
             FILE* cppHandle = icecpp->preprocess(false, "-D__SLICE2CS__");
 
             if(cppHandle == 0)
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
 
@@ -211,17 +262,20 @@ compile(int argc, char* argv[])
 
             if(parseStatus == EXIT_FAILURE)
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
 
-            if(!icecpp->printMakefileDependencies(Preprocessor::CSharp, includePaths, 
+            if(!icecpp->printMakefileDependencies(out.os(), depend ? Preprocessor::CSharp : Preprocessor::SliceXML, includePaths,
                                                   "-D__SLICE2CS__"))
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
 
             if(!icecpp->close())
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
         }
@@ -247,7 +301,7 @@ compile(int argc, char* argv[])
                 if(!icecpp->close())
                 {
                     return EXIT_FAILURE;
-                }           
+                }
             }
             else
             {
@@ -258,8 +312,8 @@ compile(int argc, char* argv[])
                 {
                     p->destroy();
                     return EXIT_FAILURE;
-                }           
-                
+                }
+
                 if(parseStatus == EXIT_FAILURE)
                 {
                     status = EXIT_FAILURE;
@@ -307,10 +361,16 @@ compile(int argc, char* argv[])
 
             if(interrupted)
             {
+                out.cleanup();
                 FileTracker::instance()->cleanup();
                 return EXIT_FAILURE;
             }
         }
+    }
+
+    if(dependxml)
+    {
+        out.os() << "</dependencies>\n";
     }
 
     return status;

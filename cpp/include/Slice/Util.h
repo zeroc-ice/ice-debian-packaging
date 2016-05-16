@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -12,6 +12,9 @@
 
 #include <Slice/Parser.h>
 #include <IceUtil/OutputUtil.h>
+
+#include <ostream>
+#include <fstream>
 
 namespace Slice
 {
@@ -27,6 +30,21 @@ SLICE_API void emitWarning(const std::string&, const std::string&, const std::st
 SLICE_API void emitRaw(const char*);
 SLICE_API std::vector<std::string> filterMcppWarnings(const std::string&);
 SLICE_API void printGeneratedHeader(IceUtilInternal::Output& out, const std::string&, const std::string& commentStyle = "//");
+
+class SLICE_API DependOutputUtil : IceUtil::noncopyable
+{
+public:
+
+    DependOutputUtil(std::string& file);
+    ~DependOutputUtil();
+    void cleanup();
+    std::ostream& os();
+
+private:
+
+    const std::string _file;
+    std::ofstream _os;
+};
 
 }
 

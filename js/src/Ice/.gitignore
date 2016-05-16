@@ -1,0 +1,23 @@
+# Ignore generated files
+BuiltinSequences.js
+Connection.js
+ConnectionInfo.js
+Current.js
+Endpoint.js
+EndpointInfo.js
+EndpointTypes.js
+Identity.js
+LocalException.js
+Locator.js
+Metrics.js
+Process.js
+PropertiesAdmin.js
+RemoteLogger.js
+Router.js
+ServantLocator.js
+SliceChecksumDict.js
+Version.js
+ConnectionF.js
+EndpointF.js
+ObjectAdapterF.js
+ProcessF.js

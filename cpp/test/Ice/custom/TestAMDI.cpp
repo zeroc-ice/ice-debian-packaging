@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -78,15 +78,6 @@ TestIntfI::opVariableRange_async(const Test::AMD_TestIntf_opVariableRangePtr& op
 }
 
 void
-TestIntfI::opBoolRangeType_async(const Test::AMD_TestIntf_opBoolRangeTypePtr& opBoolRangeTypeCB,
-                                 const std::pair<const bool*, const bool*>& inSeq,
-                                 const Ice::Current&)
-{
-    Test::BoolSeq outSeq(inSeq.first, inSeq.second);
-    opBoolRangeTypeCB->ice_response(outSeq, outSeq);
-}
-
-void
 TestIntfI::opByteRangeType_async(const Test::AMD_TestIntf_opByteRangeTypePtr& opByteRangeTypeCB,
                                  const std::pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>& inSeq,
                                  const Ice::Current&)
@@ -152,6 +143,14 @@ TestIntfI::opMyByteSeq_async(const Test::AMD_TestIntf_opMyByteSeqPtr& opMyByteSe
 {
     MyByteSeq outSeq(inSeq);
     opMyByteSeqCB->ice_response(outSeq, outSeq);
+}
+
+void 
+TestIntfI::opString_async(const Test::AMD_TestIntf_opStringPtr& opStringCB,
+                         const Util::string_view& inString,
+                         const Ice::Current&)
+{
+    opStringCB->ice_response(inString, inString);
 }
 
 void
@@ -327,6 +326,14 @@ TestIntfI::opVarDict_async(const ::Test::AMD_TestIntf_opVarDictPtr& cb,
         result[i] = i*i;
     }
     cb->ice_response(result, inDict);
+}
+
+void
+TestIntfI::opCustomIntStringDict_async(const ::Test::AMD_TestIntf_opCustomIntStringDictPtr& cb,
+                                       const std::map<Ice::Int, Util::string_view>& data,
+                                       const Ice::Current&)
+{
+    cb->ice_response(data, data);
 }
 
 void

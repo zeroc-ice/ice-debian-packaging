@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -51,9 +51,8 @@ ObserverTopic::ObserverTopic(const IceStorm::TopicManagerPrx& topicManager, cons
         // topic because the subscribe() method is given a fixed proxy
         // which can't be marshalled.
         //
-        _topics[encodings[i]] = t->ice_collocationOptimized(true);
-        _basePublishers.push_back(
-            t->getPublisher()->ice_collocationOptimized(false)->ice_encodingVersion(encodings[i]));
+        _topics[encodings[i]] = t;
+        _basePublishers.push_back(t->getPublisher()->ice_encodingVersion(encodings[i]));
     }
 }
 
@@ -110,7 +109,13 @@ ObserverTopic::unsubscribe(const Ice::ObjectPrx& observer, const string& name)
     {
         return;
     }
-    p->second->unsubscribe(observer);
+    try
+    {
+        p->second->unsubscribe(observer);
+    }
+    catch(const Ice::ObjectAdapterDeactivatedException&)
+    {
+    }
 
     assert(observer);
 
@@ -561,9 +566,9 @@ NodeObserverTopic::initObserver(const Ice::ObjectPrx& obsv)
 }
 
 ApplicationObserverTopic::ApplicationObserverTopic(const IceStorm::TopicManagerPrx& topicManager,
-                                                   const ApplicationsWrapperPtr& wrapper) :
-    ObserverTopic(topicManager, "ApplicationObserver", wrapper->getSerial()),
-    _applications(wrapper->getMap())
+                                                   const map<string, ApplicationInfo>& applications, Ice::Long serial) :
+    ObserverTopic(topicManager, "ApplicationObserver", serial),
+    _applications(applications)
 {
     _publishers = getPublishers<ApplicationObserverPrx>();
 }
@@ -726,9 +731,9 @@ ApplicationObserverTopic::initObserver(const Ice::ObjectPrx& obsv)
 }
 
 AdapterObserverTopic::AdapterObserverTopic(const IceStorm::TopicManagerPrx& topicManager,
-                                           const AdaptersWrapperPtr& wrapper) :
-    ObserverTopic(topicManager, "AdapterObserver", wrapper->getSerial()),
-    _adapters(wrapper->getMap())
+                                           const map<string, AdapterInfo>& adapters, Ice::Long serial) :
+    ObserverTopic(topicManager, "AdapterObserver", serial),
+    _adapters(adapters)
 {
     _publishers = getPublishers<AdapterObserverPrx>();
 }
@@ -854,9 +859,9 @@ AdapterObserverTopic::initObserver(const Ice::ObjectPrx& obsv)
 }
 
 ObjectObserverTopic::ObjectObserverTopic(const IceStorm::TopicManagerPrx& topicManager,
-                                         const ObjectsWrapperPtr& wrapper) :
-    ObserverTopic(topicManager, "ObjectObserver", wrapper->getSerial()),
-    _objects(wrapper->getMap())
+                                         const map<Ice::Identity, ObjectInfo>& objects, Ice::Long serial) :
+    ObserverTopic(topicManager, "ObjectObserver", serial),
+    _objects(objects)
 {
     _publishers = getPublishers<ObjectObserverPrx>();
 }

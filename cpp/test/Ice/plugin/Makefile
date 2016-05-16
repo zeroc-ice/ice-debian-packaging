@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -22,9 +22,8 @@ COBJS		= Client.o \
 
 POBJS		= Plugin.o
 
-SRCS		= $(COBJS:.o=.cpp) \
-		  $(SOBJS:.o=.cpp) \
-		  $(POBJS:.o=.cpp)
+OBJS		= $(COBJS) \
+		  $(POBJS)
 
 LINKWITH        := -lIceUtil -lIce
 
@@ -47,5 +46,3 @@ $(PLUGINDIR)/$(SONAME): $(PLUGINDIR)/$(LIBFILENAME)
 $(PLUGINDIR)/$(LIBNAME): $(PLUGINDIR)/$(SONAME)
 	rm -f $@
 	ln -s $(SONAME) $@
-
-include .depend

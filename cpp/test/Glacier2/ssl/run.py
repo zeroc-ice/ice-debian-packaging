@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -35,7 +35,6 @@ serverProc = TestUtil.startServer(server)
 print("ok")
 
 args = ' --Ice.Warn.Dispatch=0' + \
-       ' --Glacier2.AddSSLContext=1' + \
        ' --Glacier2.AddConnectionContext=1' + \
        ' --Glacier2.Client.Endpoints="tcp -h 127.0.0.1 -p 12347:ssl -h 127.0.0.1 -p 12348"' + \
        ' --Glacier2.Server.Endpoints="tcp -h 127.0.0.1"' \

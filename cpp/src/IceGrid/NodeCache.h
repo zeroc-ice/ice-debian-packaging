@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -52,10 +52,12 @@ public:
     LoadInfo getLoadInfoAndLoadFactor(const std::string&, float&) const;
     NodeSessionIPtr getSession() const;
 
+    Ice::ObjectPrx getAdminProxy() const;
+
     bool canRemove();
     
     void loadServer(const ServerEntryPtr&, const ServerInfo&, const SessionIPtr&, int, bool);
-    void destroyServer(const ServerEntryPtr&, const ServerInfo&, int);
+    void destroyServer(const ServerEntryPtr&, const ServerInfo&, int, bool);
 
     ServerInfo getServerInfo(const ServerInfo&, const SessionIPtr&);
     InternalServerDescriptorPtr getInternalServerDescriptor(const ServerInfo&, const SessionIPtr&);

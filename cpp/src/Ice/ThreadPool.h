@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -36,6 +36,35 @@ class ThreadPoolCurrent;
 
 class ThreadPoolWorkQueue;
 typedef IceUtil::Handle<ThreadPoolWorkQueue> ThreadPoolWorkQueuePtr;
+
+class ThreadPoolWorkItem : virtual public IceUtil::Shared
+{
+public:
+    
+    virtual void execute(ThreadPoolCurrent&) = 0;
+};
+typedef IceUtil::Handle<ThreadPoolWorkItem> ThreadPoolWorkItemPtr;
+
+class DispatchWorkItem : public ThreadPoolWorkItem, public Ice::DispatcherCall
+{
+public:
+
+    DispatchWorkItem();
+    DispatchWorkItem(const Ice::ConnectionPtr& connection);
+ 
+    const Ice::ConnectionPtr& 
+    getConnection()
+    {
+        return _connection;
+    }
+
+private:
+
+    virtual void execute(ThreadPoolCurrent&);
+
+    const Ice::ConnectionPtr _connection;
+};
+typedef IceUtil::Handle<DispatchWorkItem> DispatchWorkItemPtr;
 
 class ThreadPool : public IceUtil::Shared, public IceUtil::Monitor<IceUtil::Mutex>
 {
@@ -76,8 +105,10 @@ public:
     {
         update(handler, status, SocketOperationNone);
     }
-    void finish(const EventHandlerPtr&);
-    void execute(const ThreadPoolWorkItemPtr&);
+    bool finish(const EventHandlerPtr&, bool);
+
+    void dispatchFromThisThread(const DispatchWorkItemPtr&);
+    void dispatch(const DispatchWorkItemPtr&);
 
     void joinWithAllThreads();
 
@@ -100,6 +131,7 @@ private:
     std::string nextThreadId();
 
     const InstancePtr _instance;
+    const Ice::DispatcherPtr _dispatcher;
     ThreadPoolWorkQueuePtr _workQueue;
     bool _destroyed;
     const std::string _prefix;
@@ -126,6 +158,7 @@ private:
     int _inUseIO; // Number of threads that are currently performing IO.
     std::vector<std::pair<EventHandler*, SocketOperation> > _handlers;
     std::vector<std::pair<EventHandler*, SocketOperation> >::const_iterator _nextHandler;
+    std::set<EventHandler*> _pendingHandlers;
 #endif
 
     bool _promote;
@@ -155,7 +188,17 @@ public:
     {
         _threadPool->finishMessage(const_cast<ThreadPoolCurrent&>(*this));
     }
+#else
+    bool ioReady()
+    {
+        return (_handler->_registered & operation) != 0;
+    }
 #endif
+
+    void dispatchFromThisThread(const DispatchWorkItemPtr& workItem)
+    {
+        _threadPool->dispatchFromThisThread(workItem);
+    }
 
 private:
 
@@ -165,28 +208,11 @@ private:
     bool _ioCompleted;
 #if !defined(ICE_USE_IOCP) && !defined(ICE_OS_WINRT)
     bool _leader;
+#else
+    DWORD _count;
+    int _error;
 #endif
     friend class ThreadPool;
-};    
-
-class ThreadPoolWorkItem : virtual public IceUtil::Shared
-{
-public:
-    
-    virtual void execute(ThreadPoolCurrent&) = 0;
-};
-
-class DispatchWorkItem : public ThreadPoolWorkItem, public Ice::DispatcherCall
-{
-public:
-    
-    DispatchWorkItem(const InstancePtr&);
- 
-    virtual void execute(ThreadPoolCurrent&);
-
-private:
-
-    const InstancePtr _instance;
 };
 
 class ThreadPoolWorkQueue : public EventHandler, public IceUtil::Mutex
@@ -205,7 +231,7 @@ public:
 #endif
 
     virtual void message(ThreadPoolCurrent&);
-    virtual void finished(ThreadPoolCurrent&);
+    virtual void finished(ThreadPoolCurrent&, bool);
     virtual std::string toString() const;
     virtual NativeInfoPtr getNativeInfo();
     virtual void postMessage();
@@ -255,7 +281,7 @@ public:
 
         operator bool()
         {
-            return true;
+            return _message._current.ioReady(); // Ensure the handler is still interested in the operation.
         }
 
         void completed()

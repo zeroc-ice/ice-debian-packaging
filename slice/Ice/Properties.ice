@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,10 +9,11 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc"]]
 
 #include <Ice/PropertiesAdmin.ice>
 
+["objc:prefix:ICE"]
 module Ice
 {
 
@@ -92,11 +93,12 @@ local interface Properties
 
      /**
      *
-     * Get a property as a list of strings. If the property is not set,
+     * Get a property as a list of strings. The strings must be
+     * separated by whitespace or comma. If the property is not set,
      * an empty list is returned. The strings in the list can contain
-     * whitespace if they are enclosed in single or double quotes.
-     * If quotes are mismatched, an empty list is returned.
-     * Within single quotes or double-quotes, you can escape the
+     * whitespace and commas if they are enclosed in single or double 
+     * quotes. If quotes are mismatched, an empty list is returned.
+     * Within single quotes or double quotes, you can escape the
      * quote in question with \, e.g. O'Reilly can be written as
      * O'Reilly, "O'Reilly" or 'O\'Reilly'.
      *
@@ -111,11 +113,12 @@ local interface Properties
 
     /**
      *
-     * Get a property as a list of strings. If the property is not set,
+     * Get a property as a list of strings.  The strings must be
+     * separated by whitespace or comma. If the property is not set,
      * the default list is returned. The strings in the list can contain
-     * whitespace if they are enclosed in single or double quotes.
-     * If quotes are mismatched, the default list is returned.
-     * Within single quotes or double-quotes, you can escape the
+     * whitespace and commas if they are enclosed in single or double 
+     * quotes. If quotes are mismatched, the default list is returned.
+     * Within single quotes or double quotes, you can escape the
      * quote in question with \, e.g. O'Reilly can be written as
      * O'Reilly, "O'Reilly" or 'O\'Reilly'.
      *

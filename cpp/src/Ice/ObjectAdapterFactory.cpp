@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -27,7 +27,7 @@ IceInternal::ObjectAdapterFactory::shutdown()
 
     {
         IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
-        
+
         //
         // Ignore shutdown requests if the object adapter factory has
         // already been shut down.
@@ -36,15 +36,15 @@ IceInternal::ObjectAdapterFactory::shutdown()
         {
             return;
         }
-        
+
         adapters = _adapters;
-        
+
         _instance = 0;
         _communicator = 0;
-        
+
         notifyAll();
     }
-    
+
     //
     // Deactivate outside the thread synchronization, to avoid
     // deadlocks.
@@ -59,7 +59,7 @@ IceInternal::ObjectAdapterFactory::waitForShutdown()
 
     {
         IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
-        
+
         //
         // First we wait for the shutdown of the factory itself.
         //
@@ -131,7 +131,7 @@ IceInternal::ObjectAdapterFactory::createObjectAdapter(const string& name, const
 
     if(!_instance)
     {
-        throw ObjectAdapterDeactivatedException(__FILE__, __LINE__);
+        throw CommunicatorDestroyedException(__FILE__, __LINE__);
     }
 
     ObjectAdapterIPtr adapter;
@@ -167,7 +167,7 @@ IceInternal::ObjectAdapterFactory::findObjectAdapter(const ObjectPrx& proxy)
         {
             return 0;
         }
-        
+
         adapters = _adapters;
     }
 
@@ -211,7 +211,7 @@ IceInternal::ObjectAdapterFactory::removeObjectAdapter(const ObjectAdapterPtr& a
 }
 
 void
-IceInternal::ObjectAdapterFactory::flushAsyncBatchRequests(const CommunicatorBatchOutgoingAsyncPtr& outAsync) const
+IceInternal::ObjectAdapterFactory::flushAsyncBatchRequests(const CommunicatorFlushBatchAsyncPtr& outAsync) const
 {
     list<ObjectAdapterIPtr> adapters;
     {

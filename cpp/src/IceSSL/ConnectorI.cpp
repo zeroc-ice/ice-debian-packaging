@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,12 +9,18 @@
 
 #include <IceSSL/ConnectorI.h>
 #include <IceSSL/Instance.h>
-#include <IceSSL/TransceiverI.h>
+
+#include <IceSSL/OpenSSLTransceiverI.h>
+#include <IceSSL/SecureTransportTransceiverI.h>
+#include <IceSSL/SChannelTransceiverI.h>
+
 #include <IceSSL/EndpointI.h>
 #include <IceSSL/Util.h>
 #include <Ice/Communicator.h>
 #include <Ice/LocalException.h>
+#include <Ice/StreamSocket.h>
 #include <Ice/LoggerUtil.h>
+#include <Ice/NetworkProxy.h>
 
 using namespace std;
 using namespace Ice;
@@ -26,38 +32,21 @@ IceSSL::ConnectorI::connect()
     //
     // The plug-in may not be initialized.
     //
-    if(!_instance->context())
+    if(!_instance->initialized())
     {
         PluginInitializationException ex(__FILE__, __LINE__);
         ex.reason = "IceSSL: plug-in is not initialized";
         throw ex;
     }
 
-    if(_instance->networkTraceLevel() >= 2)
-    {
-        Trace out(_logger, _instance->networkTraceCategory());
-        out << "trying to establish ssl connection to " << toString();
-    }
-
-    try
-    {
-        return new TransceiverI(_instance, IceInternal::createSocket(false, _addr), _proxy, _host, _addr);
-    }
-    catch(const Ice::LocalException& ex)
-    {
-        if(_instance->networkTraceLevel() >= 2)
-        {
-            Trace out(_logger, _instance->networkTraceCategory());
-            out << "failed to establish ssl connection to " << toString() << "\n" << ex;
-        }
-        throw;
-    }
+    IceInternal::StreamSocketPtr stream = new IceInternal::StreamSocket(_instance, _proxy, _addr, _sourceAddr);
+    return new TransceiverI(_instance, stream, _host, false);
 }
 
 Short
 IceSSL::ConnectorI::type() const
 {
-    return IceSSL::EndpointType;
+    return _instance->type();
 }
 
 string
@@ -81,6 +70,11 @@ IceSSL::ConnectorI::operator==(const IceInternal::Connector& r) const
     }
 
     if(_timeout != p->_timeout)
+    {
+        return false;
+    }
+
+    if(IceInternal::compareAddress(_sourceAddr, p->_sourceAddr) != 0)
     {
         return false;
     }
@@ -117,6 +111,16 @@ IceSSL::ConnectorI::operator<(const IceInternal::Connector& r) const
         return false;
     }
 
+    int rc = compareAddress(_sourceAddr, p->_sourceAddr);
+    if(rc < 0)
+    {
+        return true;
+    }
+    else if(rc > 0)
+    {
+        return false;
+    }
+
     if(_connectionId < p->_connectionId)
     {
         return true;
@@ -130,13 +134,13 @@ IceSSL::ConnectorI::operator<(const IceInternal::Connector& r) const
 }
 
 IceSSL::ConnectorI::ConnectorI(const InstancePtr& instance, const string& host, const IceInternal::Address& addr,
-                               const IceInternal::NetworkProxyPtr& proxy, Ice::Int timeout,
-                               const string& connectionId) :
+                               const IceInternal::NetworkProxyPtr& proxy, const IceInternal::Address& sourceAddr,
+                               Ice::Int timeout, const string& connectionId) :
     _instance(instance),
-    _logger(instance->communicator()->getLogger()),
     _host(host),
     _addr(addr),
     _proxy(proxy),
+    _sourceAddr(sourceAddr),
     _timeout(timeout),
     _connectionId(connectionId)
 {

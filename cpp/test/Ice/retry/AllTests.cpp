@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,6 +10,8 @@
 #include <Ice/Ice.h>
 #include <TestCommon.h>
 #include <Test.h>
+#include <InstrumentationI.h>
+#include <SystemFailure.h>
 
 using namespace std;
 using namespace Test;
@@ -79,17 +81,17 @@ public:
 
     void exception(const ::Ice::Exception& ex)
     {
-        test(dynamic_cast<const Ice::ConnectionLostException*>(&ex));
+        test(dynamic_cast<const Ice::ConnectionLostException*>(&ex) ||
+             dynamic_cast<const Ice::UnknownLocalException*>(&ex));
         called();
     }
 };
 typedef IceUtil::Handle<CallbackFail> CallbackFailPtr;
 
 RetryPrx
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(const Ice::CommunicatorPtr& communicator, const Ice::CommunicatorPtr& communicator2, const string& ref)
 {
     cout << "testing stringToProxy... " << flush;
-    string ref = "retry:default -p 12010";
     Ice::ObjectPrx base1 = communicator->stringToProxy(ref);
     test(base1);
     Ice::ObjectPrx base2 = communicator->stringToProxy(ref);
@@ -109,19 +111,31 @@ allTests(const Ice::CommunicatorPtr& communicator)
     retry1->op(false);
     cout << "ok" << endl;
 
+    testInvocationCount(3);
+
     cout << "calling operation to kill connection with second proxy... " << flush;
     try
     {
         retry2->op(true);
         test(false);
     }
-    catch(Ice::ConnectionLostException)
+    catch(const Ice::UnknownLocalException&)
     {
-        cout << "ok" << endl;
+        // Expected with collocation
     }
+    catch(const Ice::ConnectionLostException&)
+    {
+    }
+    testInvocationCount(1);
+    testFailureCount(1);
+    testRetryCount(0);
+    cout << "ok" << endl;
 
     cout << "calling regular operation with first proxy again... " << flush;
     retry1->op(false);
+    testInvocationCount(1);
+    testFailureCount(0);
+    testRetryCount(0);
     cout << "ok" << endl;
 
     CallbackSuccessPtr cb1 = new CallbackSuccess();
@@ -130,16 +144,118 @@ allTests(const Ice::CommunicatorPtr& communicator)
     cout << "calling regular AMI operation with first proxy... " << flush;
     retry1->begin_op(false, newCallback_Retry_op(cb1, &CallbackSuccess::response, &CallbackSuccess::exception));
     cb1->check();
+    testInvocationCount(1);
+    testFailureCount(0);
+    testRetryCount(0);
     cout << "ok" << endl;
 
     cout << "calling AMI operation to kill connection with second proxy... " << flush;
     retry2->begin_op(true, newCallback_Retry_op(cb2, &CallbackFail::response, &CallbackFail::exception));
     cb2->check();
+    testInvocationCount(1);
+    testFailureCount(1);
+    testRetryCount(0);
     cout << "ok" << endl;
 
     cout << "calling regular AMI operation with first proxy again... " << flush;
     retry1->begin_op(false, newCallback_Retry_op(cb1, &CallbackSuccess::response, &CallbackSuccess::exception));
     cb1->check();
+    testInvocationCount(1);
+    testFailureCount(0);
+    testRetryCount(0);
+    cout << "ok" << endl;
+    
+    cout << "testing idempotent operation... " << flush;
+    test(retry1->opIdempotent(4) == 4);
+    testInvocationCount(1);
+    testFailureCount(0);
+    testRetryCount(4);
+    test(retry1->end_opIdempotent(retry1->begin_opIdempotent(4)) == 4);
+    testInvocationCount(1);
+    testFailureCount(0);
+    testRetryCount(4);
+    cout << "ok" << endl;
+
+    cout << "testing non-idempotent operation... " << flush;
+    try
+    {
+        retry1->opNotIdempotent();
+        test(false);
+    }
+    catch(const Ice::LocalException&)
+    {
+    }
+    testInvocationCount(1);
+    testFailureCount(1);
+    testRetryCount(0);
+    try
+    {
+        retry1->end_opNotIdempotent(retry1->begin_opNotIdempotent());
+        test(false);
+    }
+    catch(const Ice::LocalException&)
+    {
+    }
+    testInvocationCount(1);
+    testFailureCount(1);
+    testRetryCount(0);
+    cout << "ok" << endl;
+
+    if(!retry1->ice_getConnection())
+    {
+        testInvocationCount(-1);
+        cout << "testing system exception... " << flush;
+        try
+        {
+            retry1->opSystemException();
+            test(false);
+        }
+        catch(const SystemFailure&)
+        {
+        }
+        testInvocationCount(1);
+        testFailureCount(1);
+        testRetryCount(0);
+        try
+        {
+            retry1->end_opSystemException(retry1->begin_opSystemException());
+            test(false);
+        }
+        catch(const SystemFailure&)
+        {
+        }
+        testInvocationCount(1);
+        testFailureCount(1);
+        testRetryCount(0);
+        cout << "ok" << endl;
+    }
+
+    cout << "testing invocation timeout and retries... " << flush;
+    retry2 = RetryPrx::checkedCast(communicator2->stringToProxy(retry1->ice_toString()));
+    try
+    {
+        retry2->ice_invocationTimeout(500)->opIdempotent(4);  // No more than 2 retries before timeout kicks-in
+        test(false);
+    }
+    catch(const Ice::InvocationTimeoutException&)
+    {
+        testRetryCount(2);
+        retry2->opIdempotent(-1); // Reset the counter
+        testRetryCount(-1);
+    }
+    try
+    {
+        // No more than 2 retries before timeout kicks-in
+        RetryPrx prx = retry2->ice_invocationTimeout(500);
+        prx->end_opIdempotent(prx->begin_opIdempotent(4));
+        test(false);
+    }
+    catch(const Ice::InvocationTimeoutException&)
+    {
+        testRetryCount(2);
+        retry2->opIdempotent(-1);
+        testRetryCount(-1);
+    }
     cout << "ok" << endl;
 
     return retry1;

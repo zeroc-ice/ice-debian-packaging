@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -25,7 +25,7 @@ Ice::Context emptyCtx;
 
 IceInternal::InvocationObserver::InvocationObserver(IceProxy::Ice::Object* proxy, const string& op, const Context* ctx)
 {
-    const CommunicatorObserverPtr& obsv = proxy->__reference()->getInstance()->getObserver();
+    const CommunicatorObserverPtr& obsv = proxy->__reference()->getInstance()->initializationData().observer;
     if(!obsv)
     {
         return;
@@ -43,7 +43,7 @@ IceInternal::InvocationObserver::InvocationObserver(IceProxy::Ice::Object* proxy
 
 IceInternal::InvocationObserver::InvocationObserver(IceInternal::Instance* instance, const string& op)
 {
-    const CommunicatorObserverPtr& obsv = instance->getObserver();
+    const CommunicatorObserverPtr& obsv = instance->initializationData().observer;
     if(!obsv)
     {
         return;
@@ -55,7 +55,7 @@ IceInternal::InvocationObserver::InvocationObserver(IceInternal::Instance* insta
 void
 IceInternal::InvocationObserver::attach(IceProxy::Ice::Object* proxy, const string& op, const Context* ctx)
 {
-    const CommunicatorObserverPtr& obsv = proxy->__reference()->getInstance()->getObserver();
+    const CommunicatorObserverPtr& obsv = proxy->__reference()->getInstance()->initializationData().observer;
     if(!obsv)
     {
         return;
@@ -74,7 +74,7 @@ IceInternal::InvocationObserver::attach(IceProxy::Ice::Object* proxy, const stri
 void
 IceInternal::InvocationObserver::attach(IceInternal::Instance* instance, const string& op)
 {
-    const CommunicatorObserverPtr& obsv = instance->getObserver();
+    const CommunicatorObserverPtr& obsv = instance->initializationData().observer;
     if(!obsv)
     {
         return;

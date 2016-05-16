@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -67,6 +67,10 @@ public:
     virtual IceUtil::Optional< ::std::string> opString(const IceUtil::Optional< ::std::string>&,
                                                        IceUtil::Optional< ::std::string>&,
                                                        const ::Ice::Current&);
+
+    virtual IceUtil::Optional< ::std::string> opCustomString(const IceUtil::Optional< Util::string_view>&,
+                                                               IceUtil::Optional< ::std::string>&,
+                                                               const ::Ice::Current&);
 
     virtual IceUtil::Optional< Test::MyEnum> opMyEnum(const IceUtil::Optional<Test::MyEnum>&,
                                                       IceUtil::Optional<Test::MyEnum>&,
@@ -170,17 +174,26 @@ public:
         IceUtil::Optional< ::Test::StringIntDict>&,
         const ::Ice::Current& = ::Ice::Current());
 
+    virtual IceUtil::Optional< ::Test::IntStringDict> opCustomIntStringDict(
+        const IceUtil::Optional<std::map<int, Util::string_view> >&,
+        IceUtil::Optional< ::Test::IntStringDict>&,
+        const ::Ice::Current& = ::Ice::Current());
+
     virtual void opClassAndUnknownOptional(const Test::APtr&, const Ice::Current&);
 
     virtual void sendOptionalClass(bool, const IceUtil::Optional<Test::OneOptionalPtr>&, const Ice::Current&);
 
     virtual void returnOptionalClass(bool, IceUtil::Optional<Test::OneOptionalPtr>&, const Ice::Current&);
+    
+    virtual ::Test::GPtr opG(const ::Test::GPtr& g, const Ice::Current&);
 
     virtual bool supportsRequiredParams(const Ice::Current&);
 
     virtual bool supportsJavaSerializable(const Ice::Current&);
 
     virtual bool supportsCsharpSerializable(const Ice::Current&);
+
+    virtual bool supportsCppStringView(const Ice::Current&);
 };
 
 #endif

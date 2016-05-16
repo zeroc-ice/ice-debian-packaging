@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,11 +8,11 @@
 // **********************************************************************
 
 #include <IceUtil/StringUtil.h>
-#include <IceUtil/Unicode.h>
+#include <IceUtil/StringConverter.h>
 #include <cstring>
 
 #ifdef ICE_OS_WINRT
-#include <IceUtil/ScopedArray.h>
+#  include <IceUtil/ScopedArray.h>
 #endif
 
 using namespace std;
@@ -178,7 +178,7 @@ checkChar(const string& s, string::size_type pos)
         {
             ostr << "first character";
         }
-        ostr << " is not a printable ASCII character (ordinal " << (int)c << ")";
+        ostr << " is not a printable ASCII character (ordinal " << static_cast<int>(c) << ")";
         throw IllegalArgumentException(__FILE__, __LINE__, ostr.str());
     }
     return c;
@@ -273,7 +273,7 @@ decodeChar(const string& s, string::size_type start, string::size_type end, stri
                     ostr << "octal value \\" << oct << val << dec << " (" << val << ") is out of range";
                     throw IllegalArgumentException(__FILE__, __LINE__, ostr.str());
                 }
-                c = (char)val;
+                c = static_cast<char>(val);
                 break;
             }
             default:
@@ -575,7 +575,7 @@ IceUtilInternal::errorToString(int error, LPCVOID source)
                 LocalFree(msg);
             }
 #endif
-            return IceUtil::wstringToString(result);
+            return wstringToString(result, getProcessStringConverter(), getProcessWstringConverter());
         }
         else
         {

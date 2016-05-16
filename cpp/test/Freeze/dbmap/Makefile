@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -14,13 +14,13 @@ CLIENT		= client
 TARGETS		= $(CLIENT)
 
 OBJS		= Client.o \
-                  ByteIntMap.o \
-                  IntIdentityMap.o \
-                  IntIdentityMapWithIndex.o \
-                  SortedMap.o \
+		  ByteIntMap.o \
+		  IntIdentityMap.o \
+		  IntIdentityMapWithIndex.o \
+		  SortedMap.o \
 		  WstringWstringMap.o
 
-SRCS		= $(OBJS:.o=.cpp)
+all:: ByteIntMap.cpp IntIdentityMap.cpp IntIdentityMapWithIndex.cpp SortedMap.cpp
 
 GENPIC          = no
 
@@ -30,7 +30,7 @@ CPPFLAGS	:= -I. -I../../include $(CPPFLAGS)
 
 $(CLIENT): $(OBJS)
 	rm -f $@
-	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(DB_RPATH_LINK) -lFreeze $(LIBS)
+	$(CXX) $(LDFLAGS) $(LDEXEFLAGS) -o $@ $(OBJS) $(DB_RPATH_LINK) -lFreeze $(LIBS)
 
 # The slice2freeze rules are structured like this to avoid issues with
 # parallel make.
@@ -66,5 +66,3 @@ clean::
 	-rm -f SortedMap.h SortedMap.cpp
 	-rm -f WstringWstringMap.h WstringWstringMap.cpp
 	-rm -rf db/*
-
-include .depend

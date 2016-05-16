@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -387,6 +387,10 @@ MetricsAdminI::MetricsAdminI(const PropertiesPtr& properties, const LoggerPtr& l
     updateViews();
 }
 
+MetricsAdminI::~MetricsAdminI()
+{
+}
+
 void
 MetricsAdminI::destroy()
 {
@@ -603,12 +607,6 @@ const LoggerPtr&
 MetricsAdminI::getLogger() const
 {
     return _logger;
-}
-
-void
-MetricsAdminI::setProperties(const ::Ice::PropertiesPtr& properties)
-{
-    _properties = properties;
 }
 
 MetricsViewIPtr

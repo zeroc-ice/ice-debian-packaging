@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,7 +9,8 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc"]]
+[["cpp:include:IceBox/Config.h"]]
 
 #include <Ice/BuiltinSequences.ice>
 #include <Ice/CommunicatorF.ice>
@@ -26,7 +27,7 @@
  **/
 module IceBox
 {
-    
+
 /**
  *
  * This exception is a general failure notification. It is thrown
@@ -152,7 +153,7 @@ interface ServiceManager
     /**
      *
      * Start an individual service.
-     * 
+     *
      * @param service The service name.
      *
      **/
@@ -162,18 +163,18 @@ interface ServiceManager
     /**
      *
      * Stop an individual service.
-     * 
+     *
      * @param service The service name.
      *
      **/
     void stopService(string service)
         throws AlreadyStoppedException, NoSuchServiceException;
 
-    
+
     /**
      *
      * Registers a new observer with the ServiceManager.
-     * 
+     *
      * @param observer The new observer
      *
      **/

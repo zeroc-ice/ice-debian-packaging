@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -20,7 +20,7 @@ if len(path) == 0:
 sys.path.append(os.path.join(path[0], "scripts"))
 import TestUtil
 
-slice2cpp = '"%s"' % os.path.join(TestUtil.getCppBinDir(), "slice2cpp")
+slice2cpp = '"%s"' % TestUtil.getSliceTranslator()
 
 regex1 = re.compile("\.ice$", re.IGNORECASE)
 files = []
@@ -39,7 +39,6 @@ for file in files:
         command = slice2cpp + ' --underscore -I. "%s"' % os.path.join(os.getcwd(), file)
     else:
         command = slice2cpp + ' -I. "%s"' % os.path.join(os.getcwd(), file)
-
     p = TestUtil.runCommand(command)
     (stdin, stdout, stderr) = (p.stdin, p.stdout, p.stderr)
     

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -63,14 +63,8 @@ public:
     typedef IceUtil::Handle<Update> UpdatePtr;
 
     NodeI(const Ice::ObjectAdapterPtr&, NodeSessionManager&, const ActivatorPtr&, const IceUtil::TimerPtr&, 
-          const TraceLevelsPtr&, const NodePrx&, const std::string&, const UserAccountMapperPrx&);
+          const TraceLevelsPtr&, const NodePrx&, const std::string&, const UserAccountMapperPrx&, const std::string&);
     virtual ~NodeI();
-
-    virtual void loadServer_async(const AMD_Node_loadServerPtr&, 
-                                  const InternalServerDescriptorPtr&, 
-                                  const std::string&,
-                                  bool,
-                                  const Ice::Current&);
 
     virtual void loadServer_async(const AMD_Node_loadServerPtr&, 
                                   const InternalServerDescriptorPtr&, 
@@ -89,6 +83,13 @@ public:
                                      const std::string&,
                                      const Ice::Current&);
 
+    virtual void destroyServerWithoutRestart_async(const AMD_Node_destroyServerWithoutRestartPtr&, 
+                                                   const std::string&, 
+                                                   const std::string&,
+                                                   int, 
+                                                   const std::string&,
+                                                   const Ice::Current&);
+    
     virtual void patch_async(const AMD_Node_patchPtr&, const PatcherFeedbackPrx&, const std::string&, 
                              const std::string&, const InternalDistributionDescriptorPtr&, bool, const Ice::Current&);
 
@@ -119,6 +120,7 @@ public:
     FileCachePtr getFileCache() const;
     NodePrx getProxy() const;
     const PropertyDescriptorSeq& getPropertiesOverride() const;
+    const std::string& getInstanceName() const;
 
     std::string getOutputDir() const;
     bool getRedirectErrToOut() const;
@@ -150,6 +152,12 @@ private:
     
     std::set<ServerIPtr> getApplicationServers(const std::string&) const;
     std::string getFilePath(const std::string&) const;
+
+    void loadServer(const AMD_Node_loadServerPtr&, const InternalServerDescriptorPtr&, const std::string&, bool,
+                    const Ice::Current&);
+
+    void destroyServer(const AMD_Node_destroyServerPtr&, const std::string&, const std::string&, int, 
+                       const std::string&, bool, const Ice::Current&);
 
     const Ice::CommunicatorPtr _communicator;
     const Ice::ObjectAdapterPtr _adapter;

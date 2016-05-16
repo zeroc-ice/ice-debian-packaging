@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,12 +9,13 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
 
 #include <Ice/Identity.ice>
 #include <Ice/Version.ice>
 #include <Ice/BuiltinSequences.ice>
 
+["objc:prefix:ICE"]
 module Ice
 {
 
@@ -57,7 +58,7 @@ local exception PluginInitializationException
  * supported with collocation optimization.
  *
  **/
-["cpp:ice_print"]
+["cpp:ice_print", "deprecate:this exception isn't used anymore by the Ice runtime"]
 local exception CollocationOptimizationException
 {
 };
@@ -99,7 +100,7 @@ local exception AlreadyRegisteredException
  * registered with the Ice run time or Ice locator.
  *
  * This exception is raised if an attempt is made to remove a servant,
- * servant locator, facet, object factory, plug-in, object adapter, 
+ * servant locator, facet, object factory, plug-in, object adapter,
  * object, or user exception factory that is not currently registered.
  *
  * It's also raised if the Ice locator can't find an object or object
@@ -113,7 +114,7 @@ local exception NotRegisteredException
     /**
      *
      * The kind of object that could not be removed: "servant",
-     * "servant locator", "object factory", "plug-in", 
+     * "servant locator", "object factory", "plug-in",
      * "object adapter", "object", or "user exception factory".
      *
      **/
@@ -178,13 +179,13 @@ local exception UnknownException
 {
     /**
      *
-     * This field is set to the textual representation of the unknown 
+     * This field is set to the textual representation of the unknown
      * exception if available.
      *
      **/
     string unknown;
 };
-    
+
 /**
  *
  * This exception is raised if an operation call on a server raises a
@@ -257,7 +258,7 @@ local exception CommunicatorDestroyedException
 local exception ObjectAdapterDeactivatedException
 {
     /**
-     * 
+     *
      * Name of the adapter.
      *
      **/
@@ -292,7 +293,7 @@ local exception ObjectAdapterIdInUseException
 local exception NoEndpointException
 {
     /**
-     * 
+     *
      * The stringified proxy for which no suitable endpoint is
      * available.
      *
@@ -403,6 +404,24 @@ local exception IllegalIdentityException
 
 /**
  *
+ * This exception is raised to reject an illegal servant (typically
+ * a null servant)
+ *
+ **/
+["cpp:ice_print"]
+local exception IllegalServantException
+{
+    /**
+     *
+     * Describes why this servant is illegal.
+     *
+     **/
+    string reason;
+};
+
+
+/**
+ *
  * This exception is raised if a request failed. This exception, and
  * all exceptions derived from {@link RequestFailedException}, are
  * transmitted by the Ice protocol, even though they are declared
@@ -491,6 +510,24 @@ local exception SocketException extends SyscallException
 
 /**
  *
+ * This exception indicates CFNetwork errors.
+ *
+ **/
+#ifdef ICE_USE_CFSTREAM
+["cpp:ice_print"]
+local exception CFNetworkException extends SocketException
+{
+    /**
+     *
+     * The domain of the error.
+     *
+     **/
+    string domain;
+};
+#endif
+
+/**
+ *
  * This exception indicates file errors.
  *
  **/
@@ -561,6 +598,16 @@ local exception DNSException
 
 /**
  *
+ * This exception indicates a request was interrupted.
+ *
+ **/
+["cpp:ice_print"]
+local exception OperationInterruptedException
+{
+};
+
+/**
+ *
  * This exception indicates a timeout condition.
  *
  **/
@@ -597,6 +644,29 @@ local exception CloseTimeoutException extends TimeoutException
  **/
 ["cpp:ice_print"]
 local exception ConnectionTimeoutException extends TimeoutException
+{
+};
+
+/**
+ *
+ * This exception indicates that an invocation failed because it timed
+ * out.
+ *
+ **/
+["cpp:ice_print"]
+local exception InvocationTimeoutException extends TimeoutException
+{
+};
+
+/**
+ *
+ * This exception indicates that an asynchronous invocation failed
+ * because it was canceled explicitly by the user using the
+ * <tt>Ice::AsyncResult::cancel</tt> method.
+ *
+ **/
+["cpp:ice_print"]
+local exception InvocationCanceledException
 {
 };
 
@@ -869,7 +939,9 @@ local exception UnexpectedObjectException extends MarshalException
 
 /**
  *
- * This exception is raised if a request size exceeds the limit specified by the <tt>Ice.MessageSizeMax</tt> property.
+ * This exception is raised when Ice receives a request or reply
+ * message whose size exceeds the limit specified by the
+ * <tt>Ice.MessageSizeMax</tt> property.
  *
  **/
 ["cpp:ice_print"]
@@ -879,9 +951,8 @@ local exception MemoryLimitException extends MarshalException
 
 /**
  *
- * This exception is
- * raised when a string conversion to or from UTF-8 fails during 
- * marshaling or unmarshaling.
+ * This exception is raised when a string conversion to or from UTF-8
+ * fails during marshaling or unmarshaling.
  *
  **/
 ["cpp:ice_print"]
@@ -937,7 +1008,7 @@ local exception SecurityException
 };
 
 /**
- * 
+ *
  * This exception indicates that an attempt has been made to
  * change the connection properties of a fixed proxy.
  *
@@ -948,7 +1019,7 @@ local exception FixedProxyException
 };
 
 /**
- * 
+ *
  * Indicates that the response to a request has already been sent;
  * re-dispatching such a request is not possible.
  *

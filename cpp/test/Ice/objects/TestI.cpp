@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -116,6 +116,11 @@ InitialI::InitialI(const Ice::ObjectAdapterPtr& adapter) :
     _e(new EI),
     _f(new FI(_e))
 {
+    _b1->ice_collectable(true);
+    _b2->ice_collectable(true);
+    _c->ice_collectable(true);
+    _d->ice_collectable(true);
+
     _b1->theA = _b2; // Cyclic reference to another B
     _b1->theB = _b1; // Self reference.
     _b1->theC = 0; // Null reference.
@@ -223,6 +228,34 @@ InitialI::getCompact(const Ice::Current&)
     return new CompactExt();
 }
 
+Test::Inner::APtr
+InitialI::getInnerA(const Ice::Current&)
+{
+    return new Inner::A(_b1);
+}
+
+Test::Inner::Sub::APtr
+InitialI::getInnerSubA(const Ice::Current&)
+{
+    return new Inner::Sub::A(new Inner::A(_b1));
+}
+
+void
+InitialI::throwInnerEx(const Ice::Current&)
+{
+    Inner::Ex ex;
+    ex.reason = "Inner::Ex";
+    throw ex;
+}
+
+void
+InitialI::throwInnerSubEx(const Ice::Current&)
+{
+    Inner::Sub::Ex ex;
+    ex.reason = "Inner::Sub::Ex";
+    throw ex;
+}
+
 IPtr
 InitialI::getJ(const Ice::Current&)
 {
@@ -233,6 +266,18 @@ IPtr
 InitialI::getH(const Ice::Current&)
 {
     return new HI();
+}
+
+D1Ptr
+InitialI::getD1(const Test::D1Ptr& d1, const Ice::Current&)
+{
+    return d1;
+}
+
+void
+InitialI::throwEDerived(const Ice::Current&)
+{
+    throw EDerived(new A1("a1"), new A1("a2"), new A1("a3"), new A1("a4"));
 }
 
 bool

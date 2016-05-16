@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -222,7 +222,7 @@ Timer::run()
         {
             try
             {
-                token.task->runTimerTask();
+                runTimerTask(token.task);
             }
             catch(const IceUtil::Exception& e)
             {
@@ -242,4 +242,10 @@ Timer::run()
             }
         }
     }
+}
+
+void
+Timer::runTimerTask(const TimerTaskPtr& task)
+{
+    task->runTimerTask();
 }

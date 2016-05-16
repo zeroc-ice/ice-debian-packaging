@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,6 +9,7 @@
 
 #include <Ice/ConnectRequestHandler.h>
 #include <Ice/ConnectionRequestHandler.h>
+#include <Ice/RequestHandlerFactory.h>
 #include <Ice/Instance.h>
 #include <Ice/Proxy.h>
 #include <Ice/ConnectionI.h>
@@ -22,98 +23,13 @@
 using namespace std;
 using namespace IceInternal;
 
-namespace
-{
+IceUtil::Shared* IceInternal::upCast(ConnectRequestHandler* p) { return p; }
 
-class FlushRequestsWithException : public DispatchWorkItem
-{
-public:
-    
-    FlushRequestsWithException(const InstancePtr& instance,
-                               const ConnectRequestHandlerPtr& handler, 
-                               const Ice::LocalException& ex) :
-        DispatchWorkItem(instance),
-        _handler(handler),
-        _exception(ex.ice_clone())
-    {
-    }
-    
-    virtual void
-    run()
-    {
-        _handler->flushRequestsWithException(*_exception.get());
-    }
-    
-private:
-    
-    const ConnectRequestHandlerPtr _handler;
-    const IceUtil::UniquePtr<Ice::LocalException> _exception;
-};
-
-class FlushRequestsWithExceptionWrapper : public DispatchWorkItem
-{
-public:
-    
-    FlushRequestsWithExceptionWrapper(const InstancePtr& instance,
-                                      const ConnectRequestHandlerPtr& handler, 
-                                      const LocalExceptionWrapper& ex) :
-        DispatchWorkItem(instance),
-        _handler(handler),
-        _exception(ex)
-    {
-    }
-    
-    virtual void
-    run()
-    {
-        _handler->flushRequestsWithException(_exception);
-    }
-    
-private:
-    
-    const ConnectRequestHandlerPtr _handler;
-    const LocalExceptionWrapper _exception;
-};
-
-class FlushSentRequests : public DispatchWorkItem
-{
-public:
-    
-    FlushSentRequests(const InstancePtr& instance, const vector<OutgoingAsyncMessageCallbackPtr>& callbacks) :
-        DispatchWorkItem(instance), _callbacks(callbacks)
-    {
-    }
-
-    virtual void
-    run()
-    {
-        for(vector<OutgoingAsyncMessageCallbackPtr>::const_iterator p = _callbacks.begin(); p != _callbacks.end(); ++p)
-        {
-            (*p)->__sent();
-        }
-    }
-
-private:
-
-    vector<OutgoingAsyncMessageCallbackPtr> _callbacks;
-};
-
-};
-
-ConnectRequestHandler::ConnectRequestHandler(const ReferencePtr& ref, 
-                                             const Ice::ObjectPrx& proxy,
-                                             const Handle< ::IceDelegate::Ice::Object>& delegate) :
+ConnectRequestHandler::ConnectRequestHandler(const ReferencePtr& ref, const Ice::ObjectPrx& proxy) :
     RequestHandler(ref),
     _proxy(proxy),
-    _delegate(delegate),
-    _batchAutoFlush(
-        ref->getInstance()->initializationData().properties->getPropertyAsIntWithDefault("Ice.BatchAutoFlush", 1) > 0),
     _initialized(false),
-    _flushing(false),
-    _batchRequestInProgress(false),
-    _batchRequestsSize(sizeof(requestBatchHdr)),
-    _batchStream(ref->getInstance().get(), Ice::currentProtocolEncoding, _batchAutoFlush),
-    _updateRequestHandler(false)
+    _flushing(false)
 {
 }
 
@@ -122,114 +38,24 @@ ConnectRequestHandler::~ConnectRequestHandler()
 }
 
 RequestHandlerPtr
-ConnectRequestHandler::connect()
+ConnectRequestHandler::connect(const Ice::ObjectPrx& proxy)
 {
-    _reference->getConnection(this);
-
     Lock sync(*this);
-    if(initialized())
+    if(!initialized())
     {
-        assert(_connection);
-        return new ConnectionRequestHandler(_reference, _connection, _compress);
+        _proxies.insert(proxy);
     }
-    else
-    {
-        _updateRequestHandler = true; // The proxy request handler will be updated when the connection is set.
-        return this;
-    }
+    return _requestHandler ? _requestHandler : this;
 }
 
-void
-ConnectRequestHandler::prepareBatchRequest(BasicStream* os)
+RequestHandlerPtr
+ConnectRequestHandler::update(const RequestHandlerPtr& previousHandler, const RequestHandlerPtr& newHandler)
 {
-    {
-        Lock sync(*this);
-        while(_batchRequestInProgress)
-        {
-            wait();
-        }
-
-        if(!initialized())
-        {
-            _batchRequestInProgress = true;
-            _batchStream.swap(*os);
-            return;
-        }
-    }
-    _connection->prepareBatchRequest(os);
+    return previousHandler.get() == this ? newHandler : this;
 }
 
-void
-ConnectRequestHandler::finishBatchRequest(BasicStream* os)
-{
-    {
-        Lock sync(*this);
-        if(!initialized())
-        {
-            assert(_batchRequestInProgress);
-            _batchRequestInProgress = false;
-            notifyAll();
-
-            _batchStream.swap(*os);
-
-            if(!_batchAutoFlush && 
-               _batchStream.b.size() + _batchRequestsSize > _reference->getInstance()->messageSizeMax())
-            {
-                Ex::throwMemoryLimitException(__FILE__, __LINE__, _batchStream.b.size() + _batchRequestsSize,
-                                              _reference->getInstance()->messageSizeMax());
-            }
-
-            _batchRequestsSize += _batchStream.b.size();
-
-            Request req;
-            req.os = new BasicStream(_reference->getInstance().get(), Ice::currentProtocolEncoding, _batchAutoFlush);
-            req.os->swap(_batchStream);
-            _requests.push_back(req);
-            return;
-        }
-    }
-    _connection->finishBatchRequest(os, _compress);
-}
-
-void
-ConnectRequestHandler::abortBatchRequest()
-{
-    {
-        Lock sync(*this);
-        if(!initialized())
-        {
-            assert(_batchRequestInProgress);
-            _batchRequestInProgress = false;
-            notifyAll();
-
-            BasicStream dummy(_reference->getInstance().get(), Ice::currentProtocolEncoding, _batchAutoFlush);
-            _batchStream.swap(dummy);
-            _batchRequestsSize = sizeof(requestBatchHdr);
-
-            return;
-        }
-    }
-    _connection->abortBatchRequest();
-}
-
-Ice::ConnectionI*
-ConnectRequestHandler::sendRequest(Outgoing* out)
-{
-    // Must be called first, _compress might not be initialized before this returns.
-    Ice::ConnectionIPtr connection = getConnection(true);
-    assert(connection);
-    if(!connection->sendRequest(out, _compress, _response) || _response)
-    {
-        return _connection.get(); // The request hasn't been sent or we're expecting a response.
-    }
-    else
-    {
-        return 0; // The request has been sent.
-    }
-}
-
-AsyncStatus
-ConnectRequestHandler::sendAsyncRequest(const OutgoingAsyncPtr& out)
+bool
+ConnectRequestHandler::sendRequest(ProxyOutgoingBase* out)
 {
     {
         Lock sync(*this);
@@ -238,49 +64,93 @@ ConnectRequestHandler::sendAsyncRequest(const OutgoingAsyncPtr& out)
             Request req;
             req.out = out;
             _requests.push_back(req);
-            return AsyncStatusQueued;
+            return false; // Not sent
         }
     }
-    return _connection->sendAsyncRequest(out, _compress, _response);
-}
-
-bool
-ConnectRequestHandler::flushBatchRequests(BatchOutgoing* out)
-{
-    return getConnection(true)->flushBatchRequests(out);
+    return out->invokeRemote(_connection, _compress, _response) && !_response; // Finished if sent and no response.
 }
 
 AsyncStatus
-ConnectRequestHandler::flushAsyncBatchRequests(const BatchOutgoingAsyncPtr& out)
+ConnectRequestHandler::sendAsyncRequest(const ProxyOutgoingAsyncBasePtr& out)
 {
     {
         Lock sync(*this);
+        if(!_initialized)
+        {
+            out->cancelable(this); // This will throw if the request is canceled
+        }
+
         if(!initialized())
         {
             Request req;
-            req.batchOut = out;
+            req.outAsync = out;
             _requests.push_back(req);
             return AsyncStatusQueued;
         }
     }
-    return _connection->flushAsyncBatchRequests(out);
+    return out->invokeRemote(_connection, _compress, _response);
 }
-    
-Ice::ConnectionIPtr
-ConnectRequestHandler::getConnection(bool waitInit)
+
+void
+ConnectRequestHandler::requestCanceled(OutgoingBase* out, const Ice::LocalException& ex)
 {
-    if(waitInit)
     {
-        //
-        // Wait for the connection establishment to complete or fail.
-        //
         Lock sync(*this);
-        while(!_initialized && !_exception.get())
+        if(_exception.get())
         {
-            wait();
+            return; // The request has been notified of a failure already.
+        }
+
+        if(!initialized())
+        {
+            for(deque<Request>::iterator p = _requests.begin(); p != _requests.end(); ++p)
+            {
+                if(p->out == out)
+                {
+                    out->completed(ex);
+                    _requests.erase(p);
+                    return;
+                }
+            }
+            assert(false); // The request has to be queued if it timed out and we're not initialized yet.
         }
     }
-     
+    _connection->requestCanceled(out, ex);
+}
+
+void
+ConnectRequestHandler::asyncRequestCanceled(const OutgoingAsyncBasePtr& outAsync, const Ice::LocalException& ex)
+{
+    {
+        Lock sync(*this);
+        if(_exception.get())
+        {
+            return; // The request has been notified of a failure already.
+        }
+
+        if(!initialized())
+        {
+            for(deque<Request>::iterator p = _requests.begin(); p != _requests.end(); ++p)
+            {
+                if(p->outAsync.get() == outAsync.get())
+                {
+                    _requests.erase(p);
+                    if(outAsync->completed(ex))
+                    {
+                        outAsync->invokeCompletedAsync();
+                    }
+                    return;
+                }
+            }
+        }
+    }
+    _connection->asyncRequestCanceled(outAsync, ex);
+}
+
+Ice::ConnectionIPtr
+ConnectRequestHandler::getConnection()
+{
+    Lock sync(*this);
     if(_exception.get())
     {
         _exception->ice_throw();
@@ -288,7 +158,34 @@ ConnectRequestHandler::getConnection(bool waitInit)
     }
     else
     {
-        assert(!waitInit || _initialized);
+        return _connection;
+    }
+}
+
+Ice::ConnectionIPtr
+ConnectRequestHandler::waitForConnection()
+{
+    Lock sync(*this);
+    if(_exception.get())
+    {
+        throw RetryException(*_exception.get());
+    }
+
+    //
+    // Wait for the connection establishment to complete or fail.
+    //
+    while(!_initialized && !_exception.get())
+    {
+        wait();
+    }
+
+    if(_exception.get())
+    {
+        _exception->ice_throw();
+        return 0; // Keep the compiler happy.
+    }
+    else
+    {
         return _connection;
     }
 }
@@ -299,12 +196,10 @@ ConnectRequestHandler::setConnection(const Ice::ConnectionIPtr& connection, bool
     {
         Lock sync(*this);
         assert(!_exception.get() && !_connection);
-        assert(_updateRequestHandler || _requests.empty());
-
         _connection = connection;
         _compress = compress;
     }
-    
+
     //
     // If this proxy is for a non-local object, and we are using a router, then
     // add this proxy to the router info object.
@@ -326,23 +221,40 @@ ConnectRequestHandler::setException(const Ice::LocalException& ex)
 {
     Lock sync(*this);
     assert(!_initialized && !_exception.get());
-    assert(_updateRequestHandler || _requests.empty());
-
     _exception.reset(ex.ice_clone());
+    _proxies.clear();
     _proxy = 0; // Break cyclic reference count.
-    _delegate = 0; // Break cyclic reference count.
 
     //
-    // If some requests were queued, we notify them of the failure. This is done from a thread
-    // from the client thread pool since this will result in ice_exception callbacks to be 
-    // called.
+    // NOTE: remove the request handler *before* notifying the
+    // requests that the connection failed. It's important to ensure
+    // that future invocations will obtain a new connect request
+    // handler once invocations are notified.
     //
-    if(!_requests.empty())
+    try
     {
-        const InstancePtr instance = _reference->getInstance();
-        instance->clientThreadPool()->execute(new FlushRequestsWithException(instance, this, ex));
+        _reference->getInstance()->requestHandlerFactory()->removeRequestHandler(_reference, this);
+    }
+    catch(const Ice::CommunicatorDestroyedException&)
+    {
+        // Ignore
     }
 
+    for(deque<Request>::const_iterator p = _requests.begin(); p != _requests.end(); ++p)
+    {
+        if(p->out)
+        {
+            p->out->completed(*_exception.get());
+        }
+        else
+        {
+            if(p->outAsync->completed(*_exception.get()))
+            {
+                p->outAsync->invokeCompletedAsync();
+            }
+        }
+    }
+    _requests.clear();
     notifyAll();
 }
 
@@ -350,7 +262,7 @@ void
 ConnectRequestHandler::addedProxy()
 {
     //
-    // The proxy was added to the router info, we're now ready to send the 
+    // The proxy was added to the router info, we're now ready to send the
     // queued requests.
     //
     flushRequests();
@@ -372,9 +284,19 @@ ConnectRequestHandler::initialized()
         {
             wait();
         }
-        
+
         if(_exception.get())
         {
+            if(_connection)
+            {
+                //
+                // Only throw if the connection didn't get established. If
+                // it died after being established, we allow the caller to
+                // retry the connection establishment by not throwing here
+                // (the connection will throw RetryException).
+                //
+                return true;
+            }
             _exception->ice_throw();
             return false; // Keep the compiler happy.
         }
@@ -391,151 +313,91 @@ ConnectRequestHandler::flushRequests()
     {
         Lock sync(*this);
         assert(_connection && !_initialized);
-        
-        while(_batchRequestInProgress)
-        {
-            wait();
-        }
-            
+
         //
         // We set the _flushing flag to true to prevent any additional queuing. Callers
         // might block for a little while as the queued requests are being sent but this
         // shouldn't be an issue as the request sends are non-blocking.
-        // 
+        //
         _flushing = true;
     }
 
-    vector<OutgoingAsyncMessageCallbackPtr> sentCallbacks;
-    try
+    IceUtil::UniquePtr<Ice::LocalException> exception;
+    while(!_requests.empty()) // _requests is immutable when _flushing = true
     {
-        while(!_requests.empty()) // _requests is immutable when _flushing = true
+        Request& req = _requests.front();
+        try
         {
-            Request& req = _requests.front();
             if(req.out)
             {
-                if(_connection->sendAsyncRequest(req.out, _compress, _response) & AsyncStatusInvokeSentCallback)
-                {
-                    sentCallbacks.push_back(req.out);
-                }
+                req.out->invokeRemote(_connection, _compress, _response);
             }
-            else if(req.batchOut)
+            else if(req.outAsync->invokeRemote(_connection, _compress, _response) & AsyncStatusInvokeSentCallback)
             {
-                if(_connection->flushAsyncBatchRequests(req.batchOut) & AsyncStatusInvokeSentCallback)
-                {
-                    sentCallbacks.push_back(req.batchOut);
-                }
+                req.outAsync->invokeSentAsync();
+            }
+        }
+        catch(const RetryException& ex)
+        {
+            exception.reset(ex.get()->ice_clone());
+
+            // Remove the request handler before retrying.
+            _reference->getInstance()->requestHandlerFactory()->removeRequestHandler(_reference, this);
+
+            if(req.out)
+            {
+                req.out->retryException(*ex.get());
             }
             else
             {
-                BasicStream os(req.os->instance(), Ice::currentProtocolEncoding);
-                _connection->prepareBatchRequest(&os);
-                try
-                {
-                    const Ice::Byte* bytes;
-                    req.os->i = req.os->b.begin();
-                    req.os->readBlob(bytes, req.os->b.size());
-                    os.writeBlob(bytes, req.os->b.size());
-                }
-                catch(const Ice::LocalException&)
-                {
-                    _connection->abortBatchRequest();
-                    throw;
-                }
-                _connection->finishBatchRequest(&os, _compress);
-                delete req.os;
+                req.outAsync->retryException(*ex.get());
             }
-            _requests.pop_front();
         }
-    }
-    catch(const LocalExceptionWrapper& ex)
-    {
-        Lock sync(*this);
-        assert(!_exception.get() && !_requests.empty());
-        _exception.reset(ex.get()->ice_clone());
-        const InstancePtr instance = _reference->getInstance();
-        instance->clientThreadPool()->execute(new FlushRequestsWithExceptionWrapper(instance, this, ex));
-    }
-    catch(const Ice::LocalException& ex)
-    {
-        Lock sync(*this);
-        assert(!_exception.get() && !_requests.empty());
-        _exception.reset(ex.ice_clone());
-        const InstancePtr instance = _reference->getInstance();
-        instance->clientThreadPool()->execute(new FlushRequestsWithException(instance, this, ex));
+        catch(const Ice::LocalException& ex)
+        {
+            exception.reset(ex.ice_clone());
+            if(req.out)
+            {
+                req.out->completed(ex);
+            }
+            else if(req.outAsync->completed(ex))
+            {
+                req.outAsync->invokeCompletedAsync();
+            }
+        }
+        _requests.pop_front();
     }
 
-    if(!sentCallbacks.empty())
-    {
-        const InstancePtr instance = _reference->getInstance();
-        instance->clientThreadPool()->execute(new FlushSentRequests(instance, sentCallbacks));
-    }
-        
     //
-    // We've finished sending the queued requests and the request handler now send
-    // the requests over the connection directly. It's time to substitute the 
-    // request handler of the proxy with the more efficient connection request 
-    // handler which does not have any synchronization. This also breaks the cyclic
-    // reference count with the proxy.
+    // If we aren't caching the connection, don't bother creating a
+    // connection request handler. Otherwise, update the proxies
+    // request handler to use the more efficient connection request
+    // handler.
     //
-    if(_updateRequestHandler && !_exception.get())
+    if(_reference->getCacheConnection() && !exception.get())
     {
-        _proxy->__setRequestHandler(_delegate, new ConnectionRequestHandler(_reference, _connection, _compress));
+        _requestHandler = new ConnectionRequestHandler(_reference, _connection, _compress);
+        for(set<Ice::ObjectPrx>::const_iterator p = _proxies.begin(); p != _proxies.end(); ++p)
+        {
+            (*p)->__updateRequestHandler(this, _requestHandler);
+        }
     }
 
     {
         Lock sync(*this);
         assert(!_initialized);
-        if(!_exception.get())
-        {
-            _initialized = true;
-            _flushing = false;
-        }
+        _exception.swap(exception);
+        _initialized = !_exception.get();
+        _flushing = false;
+
+        //
+        // Only remove once all the requests are flushed to
+        // guarantee serialization.
+        //
+        _reference->getInstance()->requestHandlerFactory()->removeRequestHandler(_reference, this);
+
+        _proxies.clear();
         _proxy = 0; // Break cyclic reference count.
-        _delegate = 0; // Break cyclic reference count.
         notifyAll();
     }
-}
-
-void
-ConnectRequestHandler::flushRequestsWithException(const Ice::LocalException& ex)
-{
-    for(deque<Request>::const_iterator p = _requests.begin(); p != _requests.end(); ++p)
-    {
-        if(p->out)
-        {            
-            p->out->__finished(ex, false);
-        }
-        else if(p->batchOut)
-        {
-            p->batchOut->__finished(ex, false);
-        }
-        else
-        {
-            assert(p->os);
-            delete p->os;
-        }
-    }
-    _requests.clear();
-}
-
-void
-ConnectRequestHandler::flushRequestsWithException(const LocalExceptionWrapper& ex)
-{
-    for(deque<Request>::const_iterator p = _requests.begin(); p != _requests.end(); ++p)
-    {
-        if(p->out)
-        {            
-            p->out->__finished(ex);
-        }
-        else if(p->batchOut)
-        {
-            p->batchOut->__finished(*ex.get(), false);
-        }
-        else
-        {
-            assert(p->os);
-            delete p->os;
-        }
-    }
-    _requests.clear();
 }

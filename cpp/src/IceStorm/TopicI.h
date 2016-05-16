@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,6 +14,7 @@
 #include <IceStorm/Election.h>
 #include <IceStorm/Instrumentation.h>
 #include <Ice/ObserverHelper.h>
+#include <Freeze/Freeze.h>
 #include <list>
 
 namespace IceStorm
@@ -26,9 +27,6 @@ typedef IceUtil::Handle<Instance> InstancePtr;
 class Subscriber;
 typedef IceUtil::Handle<Subscriber> SubscriberPtr;
 
-class ConnectionPool;
-typedef IceUtil::Handle<ConnectionPool> ConnectionPoolPtr;
-
 class TopicImpl : public IceUtil::Shared
 {
 public:
@@ -39,7 +37,6 @@ public:
     std::string getName() const;
     Ice::ObjectPrx getPublisher() const;
     Ice::ObjectPrx getNonReplicatedPublisher() const;
-    void subscribe(const QoS&, const Ice::ObjectPrx&);
     Ice::ObjectPrx subscribeAndGetPublisher(const QoS&, const Ice::ObjectPrx&);
     void unsubscribe(const Ice::ObjectPrx&);
     TopicLinkPrx getLinkProxy();
@@ -81,10 +78,10 @@ private:
     //
     const Ice::ObjectPrx _publisherReplicaProxy;
     const InstancePtr _instance;
+    const Freeze::ConnectionPtr _connection;
     const std::string _name; // The topic name
     const Ice::Identity _id; // The topic identity
     const std::string _envName;
-    const ConnectionPoolPtr _connectionPool; // The connection pool
 
     IceInternal::ObserverHelperT<IceStorm::Instrumentation::TopicObserver> _observer;
 

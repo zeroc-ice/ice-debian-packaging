@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -49,7 +49,6 @@ public:
 
     virtual PropertiesPtr getProperties() const;
     virtual LoggerPtr getLogger() const;
-    virtual StatsPtr getStats() const;
     virtual Ice::Instrumentation::CommunicatorObserverPtr getObserver() const;
 
     virtual RouterPrx getDefaultRouter() const;
@@ -62,25 +61,23 @@ public:
 
     virtual void flushBatchRequests();
 
-#ifdef ICE_CPP11
-    virtual ::Ice::AsyncResultPtr begin_flushBatchRequests(
-                            const ::IceInternal::Function<void (const ::Ice::Exception&)>& exception,
-                            const ::IceInternal::Function<void (bool)>& sent = ::IceInternal::Function<void (bool)>())
-    {
-        return __begin_flushBatchRequests(new Cpp11FnCallbackNC_Communicator_flushBatchRequests(exception, sent), 0);
-    }
-#endif
-
     virtual AsyncResultPtr begin_flushBatchRequests();
     virtual AsyncResultPtr begin_flushBatchRequests(const CallbackPtr&, const LocalObjectPtr& = 0);
     virtual AsyncResultPtr begin_flushBatchRequests(const Callback_Communicator_flushBatchRequestsPtr&,
                                                     const LocalObjectPtr& = 0);
+
+    virtual AsyncResultPtr begin_flushBatchRequests(
+        const IceInternal::Function<void (const Exception&)>&,
+        const IceInternal::Function<void (bool)>& = IceInternal::Function<void (bool)>());
+
     virtual void end_flushBatchRequests(const AsyncResultPtr&);
 
+    virtual ObjectPrx createAdmin(const ObjectAdapterPtr&, const Identity&);
     virtual ObjectPrx getAdmin() const;
     virtual void addAdminFacet(const ObjectPtr&, const std::string&);
     virtual ObjectPtr removeAdminFacet(const std::string&);
     virtual ObjectPtr findAdminFacet(const std::string&);
+    virtual FacetMap findAllAdminFacets();
 
 private:
 
@@ -97,6 +94,7 @@ private:
     friend ICE_API CommunicatorPtr initialize(StringSeq&, const InitializationData&, Int);
     friend ICE_API CommunicatorPtr initialize(const InitializationData&, Int);
     friend ICE_API ::IceInternal::InstancePtr IceInternal::getInstance(const ::Ice::CommunicatorPtr&);
+    friend ICE_API ::IceUtil::TimerPtr IceInternal::getInstanceTimer(const ::Ice::CommunicatorPtr&);
 
     AsyncResultPtr __begin_flushBatchRequests(const IceInternal::CallbackBasePtr&, const LocalObjectPtr&);
 

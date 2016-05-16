@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -30,7 +30,7 @@ ReplicaCache::ReplicaCache(const Ice::CommunicatorPtr& communicator, const IceSt
         t = topicManager->retrieve("ReplicaObserverTopic");
     }
 
-    const_cast<IceStorm::TopicPrx&>(_topic) = IceStorm::TopicPrx::uncheckedCast(t->ice_collocationOptimized(true));
+    const_cast<IceStorm::TopicPrx&>(_topic) = IceStorm::TopicPrx::uncheckedCast(t);
     const_cast<ReplicaObserverPrx&>(_observers) = ReplicaObserverPrx::uncheckedCast(_topic->getPublisher());
 }
 
@@ -126,6 +126,10 @@ ReplicaCache::remove(const string& name, bool shutdown)
         {
             // Expected if the replica is being shutdown.
         }
+        catch(const Ice::ObjectAdapterDeactivatedException&)
+        {
+            // Expected if the replica is being shutdown.
+        }
         catch(const Ice::LocalException& ex)
         {
             TraceLevelsPtr traceLevels = getTraceLevels();
@@ -193,7 +197,7 @@ ReplicaCache::unsubscribe(const ReplicaObserverPrx& observer)
     {
         _topic->unsubscribe(observer);
     }
-    catch(const Ice::ConnectFailedException&)
+    catch(const Ice::ObjectAdapterDeactivatedException&)
     {
         // The replica is being shutdown.
     }
@@ -279,3 +283,13 @@ ReplicaEntry::getProxy() const
     return _session->getInternalRegistry();
 }
 
+Ice::ObjectPrx
+ReplicaEntry::getAdminProxy() const
+{
+    Ice::ObjectPrx prx = getProxy();
+    assert(prx);
+    Ice::Identity adminId;
+    adminId.name = "RegistryAdmin-" + _name;
+    adminId.category = prx->ice_getIdentity().category;
+    return prx->ice_identity(adminId);
+}

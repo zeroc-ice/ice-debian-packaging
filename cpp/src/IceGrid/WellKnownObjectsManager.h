@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,6 +11,7 @@
 #define ICE_GRID_WELL_KNOWN_OBJECTS_MANAGER_H
 
 #include <IceGrid/Internal.h>
+#include <IceGrid/Locator.h>
 
 namespace IceGrid
 {
@@ -34,9 +35,14 @@ public:
 
     Ice::ObjectPrx getEndpoints(const std::string&);
     
+    LocatorPrx getLocator();
+    Ice::LocatorRegistryPrx getLocatorRegistry();
+    
 private:
 
     bool initialized() const;
+
+    Ice::ObjectPrx getWellKnownObjectReplicatedProxy(const Ice::Identity&, const std::string&);
 
     const DatabasePtr _database;
     bool _initialized;

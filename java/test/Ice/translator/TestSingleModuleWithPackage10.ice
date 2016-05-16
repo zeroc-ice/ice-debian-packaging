@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -48,22 +48,6 @@ class smwpTest10Class extends smwpBaseClass implements smwpBaseInterface
 {
     smwpStruct
     smwpTest10Op1(smwpEnum i1,
-                  smwpStruct i2,
-                  smwpStructSeq i3,
-                  smwpStringStructDict i4,
-                  smwpInterface i5,
-                  smwpClass i6,
-                  out smwpEnum o1,
-                  out smwpStruct o2,
-                  out smwpStructSeq o3,
-                  out smwpStringStructDict o4,
-                  out smwpInterface o5,
-                  out smwpClass o6)
-        throws smwpException;
-
-    ["ami"]
-    smwpStruct
-    smwpTest10Op2(smwpEnum i1,
                   smwpStruct i2,
                   smwpStructSeq i3,
                   smwpStringStructDict i4,

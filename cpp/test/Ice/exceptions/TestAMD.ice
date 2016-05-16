@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -71,7 +71,7 @@ module Mod
 };
 
 
-["ami", "amd"] interface Thrower
+["amd"] interface Thrower
 {
     void shutdown();
     bool supportsUndeclaredExceptions();
@@ -106,7 +106,7 @@ module Mod
     void throwH();
 };
 
-["ami", "amd"] interface WrongOperation
+["amd"] interface WrongOperation
 {
     void noSuchOperation();
 };

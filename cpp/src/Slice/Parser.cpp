@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,7 +10,6 @@
 #include <IceUtil/Functional.h>
 #include <IceUtil/InputUtil.h>
 #include <IceUtil/StringUtil.h>
-#include <IceUtil/Unicode.h>
 #include <Slice/Parser.h>
 #include <Slice/GrammarUtil.h>
 #include <Slice/Util.h>
@@ -545,6 +544,11 @@ Slice::Container::createModule(const string& name)
     matches.sort(); // Modules can occur many times...
     matches.unique(); // ... but we only want one instance of each.
 
+    if(thisScope() == "::")
+    {
+        _unit->addTopLevelModule(_unit->currentFile(), name);
+    }
+
     for(ContainedList::const_iterator p = matches.begin(); p != matches.end(); ++p)
     {
         bool differsOnlyInCase = matches.front()->name() != name;
@@ -589,6 +593,7 @@ ClassDefPtr
 Slice::Container::createClassDef(const string& name, int id, bool intf, const ClassList& bases, bool local)
 {
     checkIdentifier(name);
+
     ContainedList matches = _unit->findContents(thisScope() + name);
     for(ContainedList::const_iterator p = matches.begin(); p != matches.end(); ++p)
     {
@@ -654,7 +659,7 @@ Slice::Container::createClassDef(const string& name, int id, bool intf, const Cl
     }
 
     ClassDecl::checkBasesAreLegal(name, intf, local, bases, _unit);
- 
+
     ClassDefPtr def = new ClassDef(this, name, id, intf, bases, local);
     _contents.push_back(def);
 
@@ -669,16 +674,19 @@ Slice::Container::createClassDef(const string& name, int id, bool intf, const Cl
     // definition. This way the code generator can rely on always
     // having a class declaration available for lookup.
     //
-    ClassDeclPtr decl = createClassDecl(name, intf, local);
+    ClassDeclPtr decl = createClassDecl(name, intf, local, false);
     def->_declaration = decl;
 
     return def;
 }
 
 ClassDeclPtr
-Slice::Container::createClassDecl(const string& name, bool intf, bool local)
+Slice::Container::createClassDecl(const string& name, bool intf, bool local, bool checkName)
 {
-    checkIdentifier(name);
+    if (checkName)
+    {
+        checkIdentifier(name);
+    }
 
     ClassDefPtr def;
 
@@ -696,7 +704,7 @@ Slice::Container::createClassDecl(const string& name, bool intf, bool local)
             }
             return 0;
         }
-        
+
         ClassDeclPtr clDecl = ClassDeclPtr::dynamicCast(*p);
         if(clDecl)
         {
@@ -706,7 +714,7 @@ Slice::Container::createClassDecl(const string& name, bool intf, bool local)
             }
             return 0;
         }
-        
+
         bool differsOnlyInCase = matches.front()->name() != name;
         if(differsOnlyInCase)
         {
@@ -921,7 +929,7 @@ Slice::Container::createSequence(const string& name, const TypePtr& type, const 
         string msg = "non-local sequence `" + name + "' cannot have local element type";
         _unit->error(msg);
     }
-    
+
     SequencePtr p = new Sequence(this, name, type, metaData, local);
     _contents.push_back(p);
     return p;
@@ -944,7 +952,7 @@ Slice::Container::createDictionary(const string& name, const TypePtr& keyType, c
             return 0;
         }
     }
- 
+
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -971,7 +979,7 @@ Slice::Container::createDictionary(const string& name, const TypePtr& keyType, c
         }
         return 0;
     }
-    
+
     nameIsLegal(name, "dictionary"); // Don't return here -- we create the dictionary anyway.
 
     if(nt == Real)
@@ -1170,6 +1178,14 @@ Slice::Container::lookupType(const string& scoped, bool printError)
     return lookupTypeNoBuiltin(scoped, printError);
 }
 
+//
+// TODO: Hack to keep binary compatibility with Ice 3.6.0, fix properly in Ice 3.7
+//
+namespace
+{
+bool ignoreUndefined = false;
+}
+
 TypeList
 Slice::Container::lookupTypeNoBuiltin(const string& scoped, bool printError)
 {
@@ -1192,6 +1208,8 @@ Slice::Container::lookupTypeNoBuiltin(const string& scoped, bool printError)
     }
 
     TypeList results;
+    bool typeError = false;
+    vector<string> errors;
     if(sc.rfind('*') == sc.length() - 1)
     {
         //
@@ -1248,9 +1266,8 @@ Slice::Container::lookupTypeNoBuiltin(const string& scoped, bool printError)
                 string msg = (*p)->kindOf() + " name `" + scoped;
                 msg += "' is capitalized inconsistently with its previous name: `";
                 msg += matches.front()->scoped() + "'";
-                _unit->error(msg);
+                errors.push_back(msg);
             }
-
 
             ExceptionPtr ex = ExceptionPtr::dynamicCast(*p);
             if(ex)
@@ -1268,14 +1285,15 @@ Slice::Container::lookupTypeNoBuiltin(const string& scoped, bool printError)
             TypePtr type = TypePtr::dynamicCast(*p);
             if(!type)
             {
+                typeError = true;
                 if(printError)
                 {
                     string msg = "`";
                     msg += sc;
                     msg += "' is not a type";
-                    _unit->error(msg);
+                    errors.push_back(msg);
                 }
-                return TypeList();
+                break; // Possible that correct match is higher in scope
             }
             results.push_back(type);
         }
@@ -1284,9 +1302,18 @@ Slice::Container::lookupTypeNoBuiltin(const string& scoped, bool printError)
     if(results.empty())
     {
         ContainedPtr contained = ContainedPtr::dynamicCast(this);
-        if(!contained)
+        if(contained)
         {
-            if(printError)
+            if(typeError)
+            {
+                ignoreUndefined = true;
+            }
+            results = contained->container()->lookupTypeNoBuiltin(sc, printError);
+            ignoreUndefined = false;
+        }
+        else if(!typeError)
+        {
+            if(printError && !ignoreUndefined)
             {
                 string msg = "`";
                 msg += sc;
@@ -1295,12 +1322,19 @@ Slice::Container::lookupTypeNoBuiltin(const string& scoped, bool printError)
             }
             return TypeList();
         }
-        return contained->container()->lookupTypeNoBuiltin(sc, printError);
     }
-    else
+
+    //
+    // Do not emit errors if there was a type error but a match was found in a higher scope.
+    //
+    if(printError && !(typeError && !results.empty()))
     {
-        return results;
+        for(vector<string>::const_iterator p = errors.begin(); p != errors.end(); ++p)
+        {
+            _unit->error(*p);
+        }
     }
+    return results;
 }
 
 ContainedList
@@ -1643,6 +1677,8 @@ Slice::Container::hasNonLocalExceptions() const
     return false;
 }
 
+
+
 bool
 Slice::Container::hasClassDecls() const
 {
@@ -1739,6 +1775,28 @@ Slice::Container::hasClassDefs() const
 }
 
 bool
+Slice::Container::hasOnlyClassDecls() const
+{
+    for(ContainedList::const_iterator p = _contents.begin(); p != _contents.end(); ++p)
+    {
+        ModulePtr m = ModulePtr::dynamicCast(*p);
+        if(m)
+        {
+            if(!m->hasOnlyClassDecls())
+            {
+                return false;
+            }
+        }
+        else if(!ClassDeclPtr::dynamicCast(*p))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool
 Slice::Container::hasAbstractClassDefs() const
 {
     for(ContainedList::const_iterator p = _contents.begin(); p != _contents.end(); ++p)
@@ -1827,7 +1885,7 @@ Slice::Container::hasContentsWithMetaData(const string& meta) const
         if(container && container->hasContentsWithMetaData(meta))
         {
             return true;
-        }           
+        }
     }
 
     return false;
@@ -1842,14 +1900,14 @@ Slice::Container::hasAsyncOps() const
         if(cl && !cl->isLocal())
         {
             OperationList ops = cl->operations();
-            if(!ops.empty() && (cl->hasMetaData("ami") || cl->hasMetaData("amd")))
+            if(!ops.empty() && cl->hasMetaData("amd"))
             {
                 return true;
             }
             for(OperationList::const_iterator i = ops.begin(); i != ops.end(); ++i)
             {
                 OperationPtr op = *i;
-                if(op->hasMetaData("ami") || op->hasMetaData("amd"))
+                if(op->hasMetaData("amd"))
                 {
                     return true;
                 }
@@ -1909,7 +1967,7 @@ Slice::Container::mergeModules()
         {
             continue;
         }
-        
+
         DefinitionContextPtr dc1 = mod1->definitionContext();
         assert(dc1);
         StringList metaData1 = dc1->getMetaData();
@@ -1959,7 +2017,7 @@ Slice::Container::mergeModules()
             _unit->removeContent(*q);
             q = _contents.erase(q);
         }
-        
+
         mod1->mergeModules();
     }
 }
@@ -2033,7 +2091,7 @@ Slice::Container::checkIntroduced(const string& scoped, ContainedPtr namedThing)
     {
         return true;
     }
-    
+
     //
     // Split off first component.
     //
@@ -2047,12 +2105,9 @@ Slice::Container::checkIntroduced(const string& scoped, ContainedPtr namedThing)
     if(namedThing == 0)
     {
         ContainedList cl = lookupContained(firstComponent, false);
-        if(namedThing == 0)
+        if(cl.empty())
         {
-            if(cl.empty())
-            {
-                return true; // Ignore types whose creation failed previously.
-            }
+            return true; // Ignore types whose creation failed previously.
         }
         namedThing = cl.front();
     }
@@ -2109,6 +2164,24 @@ Slice::Container::checkIntroduced(const string& scoped, ContainedPtr namedThing)
         //
         if(it->second != namedThing)
         {
+            //
+            // Parameter are in its own scope.
+            //
+            if((ParamDeclPtr::dynamicCast(it->second) && !ParamDeclPtr::dynamicCast(namedThing)) ||
+               (!ParamDeclPtr::dynamicCast(it->second) && ParamDeclPtr::dynamicCast(namedThing)))
+            {
+                return true;
+            }
+
+            //
+            // Data members are in its own scope.
+            //
+            if((DataMemberPtr::dynamicCast(it->second) && !DataMemberPtr::dynamicCast(namedThing)) ||
+               (!DataMemberPtr::dynamicCast(it->second) && DataMemberPtr::dynamicCast(namedThing)))
+            {
+                return true;
+            }
+
             _unit->error("`" + firstComponent + "' has changed meaning");
             return false;
         }
@@ -2284,7 +2357,7 @@ Slice::Container::checkInterfaceAndLocal(const string& name, bool defined,
         _unit->error(msg);
         return false;
     }
-    
+
     if(intf && !intfOther)
     {
         string msg = "interface `";
@@ -2295,7 +2368,7 @@ Slice::Container::checkInterfaceAndLocal(const string& name, bool defined,
         _unit->error(msg);
         return false;
     }
-    
+
     if(!local && localOther)
     {
         string msg = "non-local `";
@@ -2306,7 +2379,7 @@ Slice::Container::checkInterfaceAndLocal(const string& name, bool defined,
         _unit->error(msg);
         return false;
     }
-    
+
     if(local && !localOther)
     {
         string msg = "local `";
@@ -2317,7 +2390,7 @@ Slice::Container::checkInterfaceAndLocal(const string& name, bool defined,
         _unit->error(msg);
         return false;
     }
-    
+
     return true;
 }
 
@@ -2937,7 +3010,7 @@ Slice::ClassDecl::addPartition(GraphPartitionList& gpl,
 // Convert the list of partitions of class definitions into a
 // list of lists, with each member list containing the operation
 // names defined by the interfaces in each partition.
-// 
+//
 Slice::ClassDecl::StringPartitionList
 Slice::ClassDecl::toStringPartitionList(const GraphPartitionList& gpl)
 {
@@ -3112,7 +3185,7 @@ Slice::ClassDef::createOperation(const string& name,
         msg += name + "' with local return type";
         _unit->error(msg);
     }
-    
+
     _hasOperations = true;
     OperationPtr op = new Operation(this, name, returnType, optional, tag, mode);
     _contents.push_back(op);
@@ -3136,7 +3209,7 @@ Slice::ClassDef::createDataMember(const string& name, const TypePtr& type, bool 
                 string msg = "Class data member `" + name + "' cannot be a value object.";
                 _unit->error(msg);
                 return 0;
-            } 
+            }
 
             ClassDeclPtr classDecl = ClassDeclPtr::dynamicCast(type);
             if(classDecl != 0 && !classDecl->isLocal())
@@ -3148,7 +3221,7 @@ Slice::ClassDef::createDataMember(const string& name, const TypePtr& type, bool 
         }
     }
 
-    assert(!isInterface()); 
+    assert(!isInterface());
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -3161,6 +3234,7 @@ Slice::ClassDef::createDataMember(const string& name, const TypePtr& type, bool 
                 return p;
             }
         }
+
         if(matches.front()->name() != name)
         {
             string msg = "data member `" + name + "' differs only in capitalization from ";
@@ -3176,26 +3250,7 @@ Slice::ClassDef::createDataMember(const string& name, const TypePtr& type, bool 
         }
     }
 
-    //
-    // Check whether enclosing class has the same name.
-    //
-    if(name == this->name())
-    {
-        string msg = "class name `";
-        msg += name;
-        msg += "' cannot be used as data member name";
-        _unit->error(msg);
-        return 0;
-    }
-
     string newName = IceUtilInternal::toLower(name);
-    string thisName = IceUtilInternal::toLower(this->name());
-    if(newName == thisName)
-    {
-        string msg = "data member `" + name + "' differs only in capitalization from enclosing class name `";
-        msg += this->name() + "'";
-        _unit->error(msg);
-    }
 
     //
     // Check whether any bases have defined something with the same name already.
@@ -3612,7 +3667,7 @@ Slice::ClassDef::ClassDef(const ContainerPtr& container, const string& name, int
         assert(p == _bases.begin() || (*p)->isInterface());
     }
 #endif
-    
+
     if(_compactId >= 0)
     {
         _unit->addTypeId(_compactId, scoped());
@@ -3732,27 +3787,7 @@ Slice::Exception::createDataMember(const string& name, const TypePtr& type, bool
         }
     }
 
-    //
-    // Check whether enclosing exception has the same name.
-    //
-    if(name == this->name())
-    {
-        string msg = "exception name `";
-        msg += name;
-        msg += "' cannot be used as exception member name";
-        _unit->error(msg);
-        return 0;
-    }
-
     string newName = IceUtilInternal::toLower(name);
-    string thisName = IceUtilInternal::toLower(this->name());
-    if(newName == thisName)
-    {
-        string msg = "exception member `" + name + "' differs only in capitalization ";
-        msg += "from enclosing exception name `" + this->name() + "'";
-        _unit->error(msg);
-    }
-
     //
     // Check whether any bases have defined a member with the same name already.
     //
@@ -4063,7 +4098,7 @@ Slice::Struct::createDataMember(const string& name, const TypePtr& type, bool op
     if(_unit->profile() == IceE)
     {
         if(!isLocal())
-        {           
+        {
             BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
             if((builtin && builtin->kind() == Builtin::KindObject))
             {
@@ -4080,7 +4115,7 @@ Slice::Struct::createDataMember(const string& name, const TypePtr& type, bool op
             }
         }
     }
- 
+
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -4105,27 +4140,6 @@ Slice::Struct::createDataMember(const string& name, const TypePtr& type, bool op
             _unit->error(msg);
             return 0;
         }
-    }
-
-    //
-    // Check whether enclosing struct has the same name.
-    //
-    if(name == this->name())
-    {
-        string msg = "struct name `";
-        msg += name;
-        msg += "' cannot be used as member name";
-        _unit->error(msg);
-        return 0;
-    }
-
-    string newName = IceUtilInternal::toLower(name);
-    string thisName = IceUtilInternal::toLower(this->name());
-    if(newName == thisName)
-    {
-        string msg = "struct member `" + name + "' differs only in capitalization from enclosing struct name `";
-        msg += this->name() + "'";
-        _unit->error(msg);
     }
 
     //
@@ -4596,7 +4610,7 @@ Slice::Dictionary::legalKeyType(const TypePtr& type, bool& containsSequence)
 }
 
 Slice::Dictionary::Dictionary(const ContainerPtr& container, const string& name, const TypePtr& keyType,
-                              const StringList& keyMetaData, const TypePtr& valueType, 
+                              const StringList& keyMetaData, const TypePtr& valueType,
                               const StringList& valueMetaData, bool local) :
     SyntaxTreeBase(container->unit()),
     Type(container->unit()),
@@ -4876,9 +4890,9 @@ Slice::Const::visit(ParserVisitor* visitor, bool)
 Slice::Const::Const(const ContainerPtr& container, const string& name, const TypePtr& type,
                     const StringList& typeMetaData, const SyntaxTreeBasePtr& valueType, const string& value,
                     const string& literal) :
-    SyntaxTreeBase(container->unit()), 
+    SyntaxTreeBase(container->unit()),
     Contained(container, name),
-    _type(type), 
+    _type(type),
     _typeMetaData(typeMetaData),
     _valueType(valueType),
     _value(value),
@@ -4981,26 +4995,8 @@ Slice::Operation::createParamDecl(const string& name, const TypePtr& type, bool 
         }
     }
 
-    //
-    // Check whether enclosing operation has the same name.
-    //
-    if(name == this->name())
-    {
-        string msg = "operation name `";
-        msg += name;
-        msg += "' cannot be used as parameter name";
-        _unit->error(msg);
-        return 0;
-    }
-
     string newName = IceUtilInternal::toLower(name);
     string thisName = IceUtilInternal::toLower(this->name());
-    if(newName == thisName)
-    {
-        string msg = "parameter `" + name + "' differs only in capitalization from operation name `";
-        msg += this->name() + "'";
-        _unit->error(msg);
-    }
 
     //
     // Check that in parameters don't follow out parameters.
@@ -5247,13 +5243,13 @@ Slice::Operation::attributes() const
         assert(classDef != 0);
         classDef->findMetaData("freeze:", freezeMD);
     }
-    
+
     if(freezeMD != "")
     {
         int result = 0;
 
         freezeMD = freezeMD.substr(strlen("freeze:"));
-                    
+
         int i = 0;
         while(i < 2)
         {
@@ -5275,12 +5271,12 @@ Slice::Operation::attributes() const
             {
                 freezeMD = (result == 0) ? ":supports" : ":required";
             }
-            
+
             //
             // Remove ":"
             //
             freezeMD = freezeMD.substr(1);
-            
+
             int i = 0;
             while(i < 4)
             {
@@ -5299,7 +5295,7 @@ Slice::Operation::attributes() const
                 }
                 i++;
             }
-            
+
             if(i == 4)
             {
                 emitWarning(definitionContext()->filename(), line(), "invalid freeze metadata for operation");
@@ -6104,12 +6100,12 @@ Slice::Unit::parse(const string& filename, FILE* file, bool debug, Slice::Featur
     pushDefinitionContext();
 
     //
-    // MCPP Fix: mcpp doesn't always output the first #line when mcpp_lib_main is 
-    // called repeatedly. We scan a fake #line here to ensure the top definition 
+    // MCPP Fix: mcpp doesn't always output the first #line when mcpp_lib_main is
+    // called repeatedly. We scan a fake #line here to ensure the top definition
     // context is correctly initialized.
     //
     scanPosition(string("#line 1 " + _topLevelFile).c_str());
-    
+
     slice_in = file;
     int status = slice_parse();
     if(_errors)
@@ -6169,6 +6165,35 @@ Slice::Unit::builtin(Builtin::Kind kind)
     BuiltinPtr builtin = new Builtin(this, kind);
     _builtins.insert(make_pair(kind, builtin));
     return builtin;
+}
+
+void
+Slice::Unit::addTopLevelModule(const string& file, const string& module)
+{
+    map<string, set<string> >::iterator i = _fileTopLevelModules.find(file);
+    if(i == _fileTopLevelModules.end())
+    {
+        set<string> modules;
+        modules.insert(module);
+        _fileTopLevelModules.insert(make_pair(file, modules));
+    }
+    else
+    {
+        i->second.insert(module);
+    }
+}
+set<string>
+Slice::Unit::getTopLevelModules(const string& file) const
+{
+    map<string, set<string> >::const_iterator i = _fileTopLevelModules.find(file);
+    if(i == _fileTopLevelModules.end())
+    {
+        return set<string>();
+    }
+    else
+    {
+        return i->second;
+    }
 }
 
 Slice::Unit::Unit(bool ignRedefs, bool all, bool allowIcePrefix, bool allowUnderscore,
@@ -6237,7 +6262,7 @@ Slice::CICompare::operator()(const string& s1, const string& s2) const
 }
 
 #if defined(__SUNPRO_CC)
-bool 
+bool
 Slice::cICompare(const std::string& s1, const std::string& s2)
 {
     CICompare c;
@@ -6257,7 +6282,7 @@ Slice::DerivedToBaseCompare::operator()(const ExceptionPtr& e1, const ExceptionP
 }
 
 #if defined(__SUNPRO_CC)
-bool 
+bool
 Slice::derivedToBaseCompare(const ExceptionPtr& e1, const ExceptionPtr& e2)
 {
     return e2->isBaseOf(e1);

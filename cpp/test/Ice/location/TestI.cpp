@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -121,7 +121,7 @@ TestI::migrateHello(const Ice::Current&)
     {
         _registry->addObject(_adapter2->add(_adapter1->remove(id), id));
     }
-    catch(Ice::NotRegisteredException&)
+    catch(const Ice::NotRegisteredException&)
     {
         _registry->addObject(_adapter1->add(_adapter2->remove(id), id));
     }

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -114,7 +114,7 @@ public:
 
     double operator/(const Time& rhs) const
     {
-        return (double)_usec / (double)rhs._usec;
+        return static_cast<double>(_usec) / static_cast<double>(rhs._usec);
     }
 
     Time& operator*=(int rhs)

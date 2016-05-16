@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,29 +8,29 @@
 // **********************************************************************
 
 #include <IceUtil/Options.h>
-#include <IceUtil/Unicode.h>
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/FileUtil.h>
-#include <IcePatch2/Util.h>
+#include <IcePatch2Lib/Util.h>
 #include <iterator>
 
 using namespace std;
 using namespace Ice;
 using namespace IcePatch2;
+using namespace IcePatch2Internal;
 
-struct FileInfoPathLess: public binary_function<const FileInfo&, const FileInfo&, bool>
+struct FileInfoPathLess: public binary_function<const LargeFileInfo&, const LargeFileInfo&, bool>
 {
     bool
-    operator()(const FileInfo& lhs, const FileInfo& rhs)
+    operator()(const LargeFileInfo& lhs, const LargeFileInfo& rhs)
     {
         return lhs.path < rhs.path;
     }
 };
 
-struct IFileInfoPathEqual: public binary_function<const FileInfo&, const FileInfo&, bool>
+struct IFileInfoPathEqual: public binary_function<const LargeFileInfo&, const LargeFileInfo&, bool>
 {
     bool
-    operator()(const FileInfo& lhs, const FileInfo& rhs)
+    operator()(const LargeFileInfo& lhs, const LargeFileInfo& rhs)
     {
         if(lhs.path.size() != rhs.path.size())
         {
@@ -49,10 +49,10 @@ struct IFileInfoPathEqual: public binary_function<const FileInfo&, const FileInf
     }
 };
 
-struct IFileInfoPathLess: public binary_function<const FileInfo&, const FileInfo&, bool>
+struct IFileInfoPathLess: public binary_function<const LargeFileInfo&, const LargeFileInfo&, bool>
 {
     bool
-    operator()(const FileInfo& lhs, const FileInfo& rhs)
+    operator()(const LargeFileInfo& lhs, const LargeFileInfo& rhs)
     {
         for(string::size_type i = 0; i < lhs.path.size() && i < rhs.path.size(); ++i)
         {
@@ -234,7 +234,7 @@ main(int argc, char* argv[])
             p->erase(0, absDataDirWithSlash.size());
         }
     
-        FileInfoSeq infoSeq;
+        LargeFileInfoSeq infoSeq;
             
         if(fileSeq.empty())
         {
@@ -250,7 +250,7 @@ main(int argc, char* argv[])
 
             for(StringSeq::iterator p = fileSeq.begin(); p != fileSeq.end(); ++p)
             {
-                FileInfoSeq partialInfoSeq;
+                LargeFileInfoSeq partialInfoSeq;
 
                 CalcCB calcCB;
                 if(!getFileInfoSeqSubDir(absDataDir, *p, compress, verbose ? &calcCB : 0, partialInfoSeq))
@@ -258,7 +258,7 @@ main(int argc, char* argv[])
                     return EXIT_FAILURE;
                 }
 
-                FileInfoSeq newInfoSeq;
+                LargeFileInfoSeq newInfoSeq;
                 newInfoSeq.reserve(infoSeq.size());
 
                 set_difference(infoSeq.begin(),
@@ -286,11 +286,11 @@ main(int argc, char* argv[])
 
         if(caseInsensitive)
         {
-            FileInfoSeq newInfoSeq = infoSeq;
+            LargeFileInfoSeq newInfoSeq = infoSeq;
             sort(newInfoSeq.begin(), newInfoSeq.end(), IFileInfoPathLess());
 
             string ex;
-            FileInfoSeq::iterator p = newInfoSeq.begin();
+            LargeFileInfoSeq::iterator p = newInfoSeq.begin();
             while((p = adjacent_find(p, newInfoSeq.end(), IFileInfoPathEqual())) != newInfoSeq.end())
             {
                 do

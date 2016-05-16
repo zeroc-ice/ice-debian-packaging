@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -44,7 +44,9 @@ allTests(const Ice::CommunicatorPtr& communicator)
     cout << "ok" << endl;
 
     cout << "testing facet registration exceptions... " << flush;
-    communicator->getProperties()->setProperty("FacetExceptionTestAdapter.Endpoints", "default");
+    string host = communicator->getProperties()->getPropertyAsIntWithDefault("Ice.IPv6", 0) == 0 ? 
+            "127.0.0.1" : "\"0:0:0:0:0:0:0:1\"";
+    communicator->getProperties()->setProperty("FacetExceptionTestAdapter.Endpoints", "default -h " + host);
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("FacetExceptionTestAdapter");
     Ice::ObjectPtr obj = new EmptyI;
     adapter->add(obj, communicator->stringToIdentity("d"));
@@ -54,7 +56,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         adapter->addFacet(obj, communicator->stringToIdentity("d"), "facetABCD");
         test(false);
     }
-    catch(Ice::AlreadyRegisteredException&)
+    catch(const Ice::AlreadyRegisteredException&)
     {
     }
     adapter->removeFacet(communicator->stringToIdentity("d"), "facetABCD");
@@ -63,7 +65,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         adapter->removeFacet(communicator->stringToIdentity("d"), "facetABCD");
         test(false);
     }
-    catch(Ice::NotRegisteredException&)
+    catch(const Ice::NotRegisteredException&)
     {
     }
     cout << "ok" << endl;
@@ -86,7 +88,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         adapter->removeAllFacets(communicator->stringToIdentity("id1"));
         test(false);
     }
-    catch(Ice::NotRegisteredException&)
+    catch(const Ice::NotRegisteredException&)
     {
     }
     fm = adapter->removeAllFacets(communicator->stringToIdentity("id2"));

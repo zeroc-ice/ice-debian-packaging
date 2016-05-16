@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -10,7 +10,7 @@
 
 import os, sys
 
-path = [ ".", "..", "../..", "../../..", "../../../.." ]
+path = [ ".", "..", "../..", "../../..", "../../../..", "../../../../.." ]
 head = os.path.dirname(sys.argv[0])
 if len(head) > 0:
     path = [os.path.join(head, p) for p in path]
@@ -20,10 +20,4 @@ if len(path) == 0:
 sys.path.append(os.path.join(path[0], "scripts"))
 import TestUtil
 
-client = os.path.join(os.getcwd(), "client")
-
-seedfile = os.path.join(os.getcwd(), "seed")
-
-TestUtil.simpleTest(client, '"%s"' % seedfile)
-
-os.remove(seedfile)
+TestUtil.simpleTest(os.path.join(os.getcwd(), "client"))

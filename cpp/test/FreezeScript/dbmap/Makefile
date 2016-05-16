@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -13,13 +13,13 @@ CLIENT		= makedb
 
 TARGETS		= $(CLIENT)
 
-OBJS		= TestOld.o \
-                  makedb.o \
-                  IntSMap.o
+SLICE_OBJS	= TestOld.o
 
-SRCS		= $(OBJS:.o=.cpp)
+OBJS		= $(SLICE_OBJS) \
+		  makedb.o \
+		  IntSMap.o
 
-SLICE_SRCS	= TestOld.ice
+all:: IntSMap.cpp
 
 include $(top_srcdir)/config/Make.rules
 
@@ -27,7 +27,7 @@ CPPFLAGS	:= -I. $(CPPFLAGS)
 
 $(CLIENT): $(OBJS)
 	rm -f $@
-	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(DB_RPATH_LINK) -lFreeze $(LIBS)
+	$(CXX) $(LDFLAGS) $(LDEXEFLAGS) -o $@ $(OBJS) $(DB_RPATH_LINK) -lFreeze $(LIBS)
 
 # The slice2freeze rules are structured like this to avoid issues with
 # parallel make.
@@ -39,5 +39,3 @@ IntSMap.cpp: TestOld.ice $(SLICE2FREEZE) $(SLICEPARSERLIB)
 clean::
 	-rm -f IntSMap.h IntSMap.cpp
 	-rm -rf db/* db_init db_check db_tmp
-
-include .depend

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -23,6 +23,14 @@ public:
     virtual Test::IntEnum opInt(Test::IntEnum, Test::IntEnum&, const Ice::Current&);
 
     virtual Test::SimpleEnum opSimple(Test::SimpleEnum, Test::SimpleEnum&, const Ice::Current&);
+
+    virtual Test::ByteEnumSeq opByteSeq(const Test::ByteEnumSeq&, Test::ByteEnumSeq&, const Ice::Current&);
+
+    virtual Test::ShortEnumSeq opShortSeq(const Test::ShortEnumSeq&, Test::ShortEnumSeq&, const ::Ice::Current&);
+
+    virtual Test::IntEnumSeq opIntSeq(const Test::IntEnumSeq&, Test::IntEnumSeq&, const ::Ice::Current&);
+
+    virtual Test::SimpleEnumSeq opSimpleSeq(const Test::SimpleEnumSeq&, Test::SimpleEnumSeq&, const ::Ice::Current&);
 
     virtual void shutdown(const Ice::Current&);
 };

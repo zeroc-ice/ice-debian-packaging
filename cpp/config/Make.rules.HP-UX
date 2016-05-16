@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -80,7 +80,7 @@ rpathlink               = -L$(1)
 BASELIBS		= -lIceUtil -lxnet -lpthread
 LIBS			= $(BZIP2_RPATH_LINK) -lIce $(BASELIBS)
 
-ICEUTIL_OS_LIBS         = -lpthread -lrt
+ICEUTIL_OS_LIBS         = -lpthread -lrt -lcrypto
 ICE_OS_LIBS             =
 
 lp64suffix              = /pa20_64

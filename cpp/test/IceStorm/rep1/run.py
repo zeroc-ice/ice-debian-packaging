@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -45,7 +45,7 @@ def runtest(opt, ref, subopt="", pubopt=""):
     subscriberProc = runsub(opt, ref, subopt)
     publisherProc = runpub(ref, pubopt)
     publisherProc.waitTestSuccess()
-    subscriberProc.waitTestSuccess(timeout=30)
+    subscriberProc.waitTestSuccess()
 
 def runsub2(replica = -1, expect = None):
     proc = TestUtil.startServer(subscriber2, icestorm.reference(replica) + ' --id foo', count=0, echo = False)

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,10 +10,11 @@
 #include <Ice/TcpConnector.h>
 #include <Ice/TcpTransceiver.h>
 #include <Ice/TcpEndpointI.h>
-#include <Ice/Instance.h>
-#include <Ice/TraceLevels.h>
+#include <Ice/ProtocolInstance.h>
 #include <Ice/LoggerUtil.h>
 #include <Ice/Network.h>
+#include <Ice/NetworkProxy.h>
+#include <Ice/StreamSocket.h>
 #include <Ice/Exception.h>
 
 using namespace std;
@@ -23,33 +24,13 @@ using namespace IceInternal;
 TransceiverPtr
 IceInternal::TcpConnector::connect()
 {
-    if(_traceLevels->network >= 2)
-    {
-        Trace out(_logger, _traceLevels->networkCat);
-        out << "trying to establish tcp connection to " << toString();
-    }
-
-    try
-    {
-        TransceiverPtr transceiver = new TcpTransceiver(_instance, createSocket(false, _addr), _proxy, _addr);
-        dynamic_cast<TcpTransceiver*>(transceiver.get())->connect();
-        return transceiver;
-    }
-    catch(const Ice::LocalException& ex)
-    {
-        if(_traceLevels->network >= 2)
-        {
-            Trace out(_logger, _traceLevels->networkCat);
-            out << "failed to establish tcp connection to " << toString() << "\n" << ex;
-        }
-        throw;
-    }
+    return new TcpTransceiver(_instance, new StreamSocket(_instance, _proxy, _addr, _sourceAddr));
 }
 
 Short
 IceInternal::TcpConnector::type() const
 {
-    return TCPEndpointType;
+    return _instance->type();
 }
 
 string
@@ -71,8 +52,13 @@ IceInternal::TcpConnector::operator==(const Connector& r) const
     {
         return false;
     }
-    
+
     if(_timeout != p->_timeout)
+    {
+        return false;
+    }
+
+    if(compareAddress(_sourceAddr, p->_sourceAddr) != 0)
     {
         return false;
     }
@@ -109,6 +95,16 @@ IceInternal::TcpConnector::operator<(const Connector& r) const
         return false;
     }
 
+    int rc = compareAddress(_sourceAddr, p->_sourceAddr);
+    if(rc < 0)
+    {
+        return true;
+    }
+    else if(rc > 0)
+    {
+        return false;
+    }
+
     if(_connectionId < p->_connectionId)
     {
         return true;
@@ -120,13 +116,13 @@ IceInternal::TcpConnector::operator<(const Connector& r) const
     return compareAddress(_addr, p->_addr) < 0;
 }
 
-IceInternal::TcpConnector::TcpConnector(const InstancePtr& instance, const Address& addr, const NetworkProxyPtr& proxy,
+IceInternal::TcpConnector::TcpConnector(const ProtocolInstancePtr& instance, const Address& addr,
+                                        const NetworkProxyPtr& proxy, const Address& sourceAddr,
                                         Ice::Int timeout, const string& connectionId) :
     _instance(instance),
-    _traceLevels(instance->traceLevels()),
-    _logger(instance->initializationData().logger),
     _addr(addr),
     _proxy(proxy),
+    _sourceAddr(sourceAddr),
     _timeout(timeout),
     _connectionId(connectionId)
 {

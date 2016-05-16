@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -22,7 +22,7 @@
 
 #if defined(__i386)     || defined(_M_IX86) || defined(__x86_64)  || \
     defined(_M_X64)     || defined(_M_IA64) || defined(__alpha__) || \
-    defined(__ARMEL__) || defined(_M_ARM_FP) || \
+    defined(__ARMEL__) || defined(_M_ARM_FP) || defined(__arm64) || \
     defined(__MIPSEL__) || (defined(__BYTE_ORDER) && (__BYTE_ORDER == __LITTLE_ENDIAN))
 #   define ICE_LITTLE_ENDIAN
 #elif defined(__sparc) || defined(__sparc__) || defined(__hppa)      || \
@@ -38,6 +38,7 @@
 //
 #if defined(__sun) && (defined(__sparcv9) || defined(__x86_64))    || \
       defined(__linux) && defined(__x86_64)                        || \
+      defined(__APPLE__) && defined(__x86_64)                      || \
       defined(__hppa) && defined(__LP64__)                         || \
       defined(_ARCH_COM) && defined(__64BIT__)                     || \
       defined(__alpha__)                                           || \
@@ -49,27 +50,18 @@
 
 //
 // Check for C++ 11 support
-// 
-// We cannot just check for C++11 mode as some features were not 
-// implemented in first versions of the compilers.
 //
-// The require compiler version should be equal or greater than
-// VC100, G++ 4.5, Clang Apple 4.2 or Clang 3.2 (Unsupported).
+// For GCC, we recognize --std=c++0x only for GCC version 4.5 and greater,
+// as C++11 support in prior releases was too limited.
 //
-#if (defined(__GNUC__) && (((__GNUC__* 100) + __GNUC_MINOR__) >= 405) && defined(__GXX_EXPERIMENTAL_CXX0X__)) || \
-    (defined(__clang__) && \
-      ((defined(__apple_build_version__) && (((__clang_major__ * 100) + __clang_minor__) >= 402)) || \
-       (!defined(__apple_build_version__) && (((__clang_major__ * 100) + __clang_minor__) >= 302))) && \
-      __cplusplus >= 201103) || \
+#if (__cplusplus >= 201103) || \
+    ((defined(__GNUC__) && defined(__GXX_EXPERIMENTAL_CXX0X__) && ((__GNUC__* 100) + __GNUC_MINOR__) >= 405)) || \
     (defined(_MSC_VER) && (_MSC_VER >= 1600))
 #   define ICE_CPP11
-#elif __cplusplus >= 201103 || defined(__GXX_EXPERIMENTAL_CXX0X__)
-#   error Unsupported C++11 compiler
 #endif
 
-#if defined(ICE_CPP11) && !defined(_MSC_VER)
 
-// Visual Studio does not support noexcept yet
+#if defined(ICE_CPP11) && (!defined(_MSC_VER) || (_MSC_VER >= 1900))
 #   define ICE_NOEXCEPT noexcept
 #   define ICE_NOEXCEPT_FALSE noexcept(false)
 #else
@@ -91,26 +83,30 @@
 #      define ICE_STATIC_LIBS
 #   endif
 
-//
-// Windows provides native condition variables on Vista and later,
-// and Visual Studio 2012 with the default Platform Toolset (vc100) no 
-// longer supports Windows XP or Windows Server 2003.
-//
-// You can "switch-on" this macro to use native condition variables with
-// other C++ compilers on Windows.
-//
-#   define ICE_HAS_WIN32_CONDVAR 
 #endif
 
 //
-// Compiler extensions to export and import symbols: see the documentation 
-// for Visual C++, Solaris Studio and HP aC++.
+// Support for thread-safe function local static initialization
+// (a.k.a. "magic statics")
 //
-#if (defined(_MSC_VER) && !defined(ICE_STATIC_LIBS)) || \
-    (defined(__HP_aCC) && defined(__HP_WINDLL))
+#if defined(__GNUC__) || defined(__clang__)
+#   define ICE_HAS_THREAD_SAFE_LOCAL_STATIC
+#endif
+
+//
+// Compiler extensions to export and import symbols: see the documentation
+// for Visual Studio, Solaris Studio and GCC.
+//
+#if defined(_WIN32)
 #   define ICE_DECLSPEC_EXPORT __declspec(dllexport)
 #   define ICE_DECLSPEC_IMPORT __declspec(dllimport)
+//
+//  ICE_HAS_DECLSPEC_IMPORT_EXPORT defined only for compilers with distinct
+//  declspec for IMPORT and EXPORT
 #   define ICE_HAS_DECLSPEC_IMPORT_EXPORT
+#elif defined(__GNUC__)
+#   define ICE_DECLSPEC_EXPORT __attribute__((visibility ("default")))
+#   define ICE_DECLSPEC_IMPORT __attribute__((visibility ("default")))
 #elif defined(__SUNPRO_CC)
 #   define ICE_DECLSPEC_EXPORT __global
 #   define ICE_DECLSPEC_IMPORT /**/
@@ -122,27 +118,45 @@
 //
 // Let's use these extensions with IceUtil:
 //
-#ifdef ICE_UTIL_API_EXPORTS
+#if defined(ICE_UTIL_API_EXPORTS)
 #   define ICE_UTIL_API ICE_DECLSPEC_EXPORT
+#elif defined(ICE_STATIC_LIBS)
+#   define ICE_UTIL_API /**/
 #else
 #   define ICE_UTIL_API ICE_DECLSPEC_IMPORT
 #endif
 
 
 #if defined(_MSC_VER)
-#   define ICE_DEPRECATED_API __declspec(deprecated)
+#   define ICE_DEPRECATED_API(msg) __declspec(deprecated(msg))
+#elif defined(__clang__)
+#   if __has_extension(attribute_deprecated_with_message)
+#       define ICE_DEPRECATED_API(msg) __attribute__((deprecated(msg)))
+#   else
+#       define ICE_DEPRECATED_API(msg) __attribute__((deprecated))
+#   endif
 #elif defined(__GNUC__)
-#   define ICE_DEPRECATED_API __attribute__((deprecated))
+#   if (__GNUC__ > 4 || (__GNUC__ == 4 &&  __GNUC_MINOR__ >= 5))
+// The message option was introduced in GCC 4.5
+#      define ICE_DEPRECATED_API(msg) __attribute__((deprecated(msg)))
+#   else
+#      define ICE_DEPRECATED_API(msg) __attribute__((deprecated))
+#   endif
 #else
-#   define ICE_DEPRECATED_API /**/
+#   define ICE_DEPRECATED_API(msg) /**/
 #endif
 
 #ifdef _WIN32
-#   if !defined(ICE_STATIC_LIBS) && defined(_MSC_VER) && (!defined(_DLL) || !defined(_MT))
-#       error "Only multi-threaded DLL libraries can be used with Ice!"
-#   endif
-
 #   include <windows.h>
+
+#   if defined(_WIN32_WINNT) && (_WIN32_WINNT >= 0x600)
+//
+// Windows provides native condition variables on Vista and later
+//
+#      ifndef ICE_HAS_WIN32_CONDVAR
+#          define ICE_HAS_WIN32_CONDVAR
+#      endif
+#   endif
 #endif
 
 //
@@ -157,12 +171,28 @@
 #   include <errno.h>
 #endif
 
-#ifdef _MSC_VER
+#ifdef __APPLE__
+#   include <TargetConditionals.h>
+#endif
+
+#if !defined(ICE_BUILDING_ICE_UTIL) && defined(ICE_UTIL_API_EXPORTS)
+#   define ICE_BUILDING_ICE_UTIL
+#endif
+
+#if defined(_MSC_VER)
+#   if !defined(ICE_STATIC_LIBS) && (!defined(_DLL) || !defined(_MT))
+#       error "Only multi-threaded DLL libraries can be used with Ice!"
+#   endif
 //
-// Move some warnings to level 4
+//  Automatically link with IceUtil[D].lib
 //
-#   pragma warning( 4 : 4250 ) // ... : inherits ... via dominance
-#   pragma warning( 4 : 4251 ) // class ... needs to have dll-interface to be used by clients of class ..
+#   if !defined(ICE_BUILDING_ICE_UTIL)
+#      if defined(_DEBUG) && !defined(ICE_OS_WINRT)
+#          pragma comment(lib, "IceUtilD.lib")
+#      else
+#          pragma comment(lib, "IceUtil.lib")
+#      endif
+#   endif
 #endif
 
 namespace IceUtil
@@ -176,7 +206,7 @@ class ICE_UTIL_API noncopyable
 protected:
 
     noncopyable() { }
-    ~noncopyable() { } // May not be virtual! Classes without virtual 
+    ~noncopyable() { } // May not be virtual! Classes without virtual
                        // operations also derive from noncopyable.
 
 private:
@@ -186,36 +216,30 @@ private:
 };
 
 //
-// Int64 typedef
+// Int64 typedef and ICE_INT64 macro for Int64 literal values
 //
-#ifdef _MSC_VER
+// Note that on Windows, long is always 32-bit
 //
-// With Visual C++, long is always 32-bit
-//
+#if defined(_WIN32) && defined(_MSC_VER)
 typedef __int64 Int64;
-#elif defined(ICE_64)
+#    define ICE_INT64(n) n##i64
+#    define ICE_INT64_FORMAT "%lld"
+#elif defined(ICE_64) && !defined(_WIN32)
 typedef long Int64;
+#    define ICE_INT64(n) n##L
+#    define ICE_INT64_FORMAT "%ld"
 #else
 typedef long long Int64;
+#    define ICE_INT64(n) n##LL
+#    define ICE_INT64_FORMAT "%lld"
 #endif
 
 }
 
 //
-// ICE_INT64: macro for Int64 literal values
-//
-#if defined(_MSC_VER)
-#   define ICE_INT64(n) n##i64
-#elif defined(ICE_64)
-#   define ICE_INT64(n) n##L
-#else
-#   define ICE_INT64(n) n##LL
-#endif
-
-//
 // The Ice version.
 //
-#define ICE_STRING_VERSION "3.5.1" // "A.B.C", with A=major, B=minor, C=patch
-#define ICE_INT_VERSION 30501      // AABBCC, with AA=major, BB=minor, CC=patch
+#define ICE_STRING_VERSION "3.6.2" // "A.B.C", with A=major, B=minor, C=patch
+#define ICE_INT_VERSION 30602      // AABBCC, with AA=major, BB=minor, CC=patch
 
 #endif

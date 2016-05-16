@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -9,29 +9,24 @@
 
 top_srcdir	= ../..
 
-LIBFILENAME     = $(call mklibfilename,Glacier2,$(VERSION))
-SONAME          = $(call mksoname,Glacier2,$(SOVERSION))  
+LIBFILENAME	= $(call mklibfilename,Glacier2,$(VERSION))
+SONAME		= $(call mksoname,Glacier2,$(SOVERSION))
 LIBNAME		= $(call mklibname,Glacier2)
 
-TARGETS         = $(call mklibtargets,$(libdir)/$(LIBFILENAME),$(libdir)/$(SONAME),$(libdir)/$(LIBNAME))
+TARGETS 	= $(call mklibtargets,$(libdir)/$(LIBFILENAME),$(libdir)/$(SONAME),$(libdir)$(cpp11libdirsuffix)/$(LIBNAME))
 
-OBJS		= PermissionsVerifier.o \
+SLICE_OBJS      = Metrics.o \
+		  PermissionsVerifierF.o \
+		  PermissionsVerifier.o \
 		  Router.o \
-		  SSLInfo.o \
+		  RouterF.o \
 		  Session.o \
-		  Application.o \
-		  Metrics.o \
-		  SessionHelper.o
+		  SSLInfo.o
 
-SRCS		= $(OBJS:.o=.cpp)
-
-SLICE_SRCS	= $(SDIR)/Metrics.ice \
-		  $(SDIR)/PermissionsVerifierF.ice \
-		  $(SDIR)/PermissionsVerifier.ice \
-		  $(SDIR)/Router.ice \
-		  $(SDIR)/RouterF.ice \
-		  $(SDIR)/Session.ice \
-		  $(SDIR)/SSLInfo.ice
+OBJS		= Application.o \
+		  NullPermissionsVerifier.o \
+		  SessionHelper.o \
+                  $(SLICE_OBJS)
 
 HDIR		= $(headerdir)/Glacier2
 SDIR		= $(slicedir)/Glacier2
@@ -43,6 +38,7 @@ SLICE2CPPFLAGS	:= --ice --include-dir Glacier2 --dll-export GLACIER2_API $(SLICE
 LINKWITH        := $(BZIP2_RPATH_LINK) -lIce -lIceUtil
 
 $(libdir)/$(LIBFILENAME): $(OBJS) $(HDIR)/PermissionsVerifierF.h $(HDIR)/RouterF.h
+	@mkdir -p $(dir $@)
 	rm -f $@
 	$(call mkshlib,$@,$(SONAME),$(OBJS),$(LINKWITH))
 
@@ -50,11 +46,10 @@ $(libdir)/$(SONAME): $(libdir)/$(LIBFILENAME)
 	rm -f $@
 	ln -s $(LIBFILENAME) $@
 
-$(libdir)/$(LIBNAME): $(libdir)/$(SONAME)
+$(libdir)$(cpp11libdirsuffix)/$(LIBNAME): $(libdir)/$(SONAME)
+	@mkdir -p $(libdir)$(cpp11libdirsuffix)
 	rm -f $@
-	ln -s $(SONAME) $@
+	ln -s $(cpp11sonamedir)$(SONAME) $@
 
 install:: all
 	$(call installlib,$(DESTDIR)$(install_libdir),$(libdir),$(LIBFILENAME),$(SONAME),$(LIBNAME))
-
-include .depend

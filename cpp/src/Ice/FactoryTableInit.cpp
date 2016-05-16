@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -19,7 +19,7 @@ namespace IceInternal
 // Single global instance of the factory table for non-local
 // exceptions and non-abstract classes.
 //
-ICE_DECLSPEC_EXPORT FactoryTable* factoryTable;
+ICE_API FactoryTable* factoryTable;
 
 }
 
@@ -79,3 +79,17 @@ IceInternal::FactoryTableInit::~FactoryTableInit()
         delete factoryTable;
     }
 }
+
+
+IceInternal::CompactIdInit::CompactIdInit(const char* typeId, int compactId) :
+    _compactId(compactId)
+{
+    assert(_compactId >= 0);
+    factoryTable->addTypeId(_compactId, typeId);
+}
+
+IceInternal::CompactIdInit::~CompactIdInit()
+{
+    factoryTable->removeTypeId(_compactId);  
+}
+

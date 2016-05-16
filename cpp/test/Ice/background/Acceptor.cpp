@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,6 +9,7 @@
 
 #include <Acceptor.h>
 #include <Transceiver.h>
+#include <EndpointI.h>
 
 using namespace std;
 
@@ -24,14 +25,15 @@ Acceptor::close()
     _acceptor->close();
 }
 
-void
+IceInternal::EndpointIPtr
 Acceptor::listen()
 {
-    _acceptor->listen();
+    _endpoint = _endpoint->endpoint(_acceptor->listen());
+    return _endpoint;
 }
 
 #ifdef ICE_USE_IOCP
-void 
+void
 Acceptor::startAccept()
 {
     _acceptor->startAccept();
@@ -51,12 +53,25 @@ Acceptor::accept()
 }
 
 string
+Acceptor::protocol() const
+{
+    return _acceptor->protocol();
+}
+
+string
 Acceptor::toString() const
 {
     return _acceptor->toString();
 }
 
-Acceptor::Acceptor(const IceInternal::AcceptorPtr& acceptor) : _acceptor(acceptor)
+string
+Acceptor::toDetailedString() const
 {
+    return _acceptor->toDetailedString();
 }
 
+Acceptor::Acceptor(const EndpointIPtr& endpoint, const IceInternal::AcceptorPtr& acceptor) :
+    _endpoint(endpoint),
+    _acceptor(acceptor)
+{
+}

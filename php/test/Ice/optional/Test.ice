@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -171,7 +171,24 @@ class F extends E
     optional(1) A af;
 };
 
-["ami"]
+class G1
+{
+    string a;
+};
+
+class G2
+{
+    long a;
+};
+
+class G
+{
+    optional(1) G1 gg1Opt;
+    G2 gg2;
+    optional(0) G2 gg2Opt;
+    G1 gg1;
+};
+
 class Initial
 {
     void shutdown();
@@ -252,6 +269,8 @@ class Initial
     void sendOptionalClass(bool req, optional(1) OneOptional o);
 
     void returnOptionalClass(bool req, out optional(1) OneOptional o);
+    
+    G opG(G g);
 
     bool supportsRequiredParams();
 

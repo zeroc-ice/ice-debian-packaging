@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,7 +9,8 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["cpp:include:IceStorm/Config.h"]]
 
 #include <Ice/Identity.ice>
 #include <Ice/SliceChecksumDict.ice>
@@ -24,6 +25,7 @@
  * easy as invoking a method on an interface.
  *
  **/
+["objc:prefix:ICESTORM"]
 module IceStorm
 {
 
@@ -69,7 +71,7 @@ sequence<LinkInfo> LinkInfoSeq;
  *
  * This dictionary represents quality of service parameters.
  *
- * @see Topic#subscribe
+ * @see Topic#subscribeAndGetPublisher
  *
  */
 dictionary<string, string> QoS;
@@ -114,6 +116,22 @@ exception NoSuchLink
  **/
 exception AlreadySubscribed
 {
+};
+
+/**
+ *
+ * This exception indicates that an attempt was made to subscribe
+ * a proxy that is null.
+ *
+ **/
+exception InvalidSubscriber
+{
+    /**
+     *
+     * The reason for the failure.
+     *
+     **/
+    string reason;
 };
 
 /**
@@ -178,27 +196,6 @@ interface Topic
      **/
     ["nonmutating", "cpp:const"] idempotent Object* getNonReplicatedPublisher();
 
-    /**
-     *
-     * Subscribe with the given <tt>qos</tt> to this topic. If the given
-     * <tt>subscriber</tt> proxy has already been registered, it will be
-     * replaced. Note that this can cause a loss of events to the
-     * subscribed object.
-     *
-     * <p class="Deprecated">This operation is deprecated as of version 3.2.
-     *
-     * @param theQoS The quality of service parameters for this
-     * subscription.
-     *
-     * @param subscriber The subscriber's proxy.
-     *
-     * @return The per-subscriber publisher object.
-     *
-     * @see #unsubscribe
-     *
-     **/
-    ["deprecate:subscribe is deprecated, use subscribeAndGetPublisher instead"]
-    void subscribe(QoS theQoS, Object* subscriber);
 
     /**
      *
@@ -215,6 +212,8 @@ interface Topic
      * @throws AlreadySubscribed Raised if the subscriber object is
      * already subscribed.
      *
+     * @throws NullSubscriber Raised if the subscriber object is null.
+     *
      * @throws BadQoS Raised if the requested quality of service
      * is unavailable or invalid.
      *
@@ -222,7 +221,7 @@ interface Topic
      *
      **/
     Object* subscribeAndGetPublisher(QoS theQoS, Object* subscriber)
-        throws AlreadySubscribed, BadQoS;
+        throws AlreadySubscribed, InvalidSubscriber, BadQoS;
 
     /**
      *
@@ -230,7 +229,7 @@ interface Topic
      *
      * @param subscriber The proxy of an existing subscriber.
      *
-     * @see #subscribe
+     * @see #subscribeAndGetPublisher
      *
      **/
     idempotent void unsubscribe(Object* subscriber);
@@ -269,13 +268,13 @@ interface Topic
      *
      **/
     ["nonmutating", "cpp:const"] idempotent LinkInfoSeq getLinkInfoSeq();
-    
+
     /**
-     * 
+     *
      * Retrieve the list of subscribers for this topic.
-     * 
+     *
      * @return The sequence of Ice identities for the subscriber objects.
-     * 
+     *
      **/
     ["nonmutating", "cpp:const"] Ice::IdentitySeq getSubscribers();
 
@@ -380,6 +379,27 @@ interface TopicManager
      *
      **/
     ["nonmutating", "cpp:const"] idempotent Ice::SliceChecksumDict getSliceChecksums();
+};
+
+/**
+ *
+ * This inferface is advertised by the IceStorm service through the
+ * Ice object with the identity `IceStorm/Finder'. This allows clients
+ * to retrieve the topic manager with just the endpoint information of
+ * the IceStorm service.
+ *
+ **/
+interface Finder
+{
+    /**
+     *
+     * Get the topic manager proxy. The proxy might point to several
+     * replicas.
+     *
+     * @return The topic manager proxy.
+     *
+     **/
+    TopicManager* getTopicManager();
 };
 
 };

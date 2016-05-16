@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -19,8 +19,8 @@ DEFINE_TEST("client")
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    Test::TestIntfPrx allTests(const Ice::CommunicatorPtr&, bool);
-    Test::TestIntfPrx test = allTests(communicator, false);
+    Test::TestIntfPrx allTests(const Ice::CommunicatorPtr&);
+    Test::TestIntfPrx test = allTests(communicator);
     test->shutdown();
 
     return EXIT_SUCCESS;
@@ -29,15 +29,18 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
 int
 main(int argc, char** argv)
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
     int status;
     Ice::CommunicatorPtr communicator;
 
     try
     {
-        Ice::InitializationData initData;
-        initData.stringConverter = new Test::StringConverterI();
-        initData.wstringConverter = new Test::WstringConverterI();
-        communicator = Ice::initialize(argc, argv, initData);
+        IceUtil::setProcessStringConverter(new Test::StringConverterI);
+        IceUtil::setProcessWstringConverter(new Test::WstringConverterI);
+
+        communicator = Ice::initialize(argc, argv);
         status = run(argc, argv, communicator);
     }
     catch(const Ice::Exception& ex)

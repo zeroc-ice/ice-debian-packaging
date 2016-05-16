@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -12,6 +12,7 @@
 
 #include <IceUtil/Time.h>
 #include <Ice/Plugin.h>
+#include <IceSSL/Config.h>
 #include <IceSSL/ConnectionInfo.h>
 
 #include <vector>
@@ -24,30 +25,74 @@
 #   include <sys/socket.h>
 #endif
 
+#if defined(ICE_USE_SECURE_TRANSPORT)
+#   include <CoreFoundation/CFError.h>
+#elif defined(ICE_USE_SCHANNEL)
+#   include <wincrypt.h>
+#endif
+
 #ifndef ICE_SSL_API
 #   ifdef ICE_SSL_API_EXPORTS
 #       define ICE_SSL_API ICE_DECLSPEC_EXPORT
+#   elif defined(ICE_STATIC_LIBS)
+#       define ICE_SSL_API /**/
 #   else
 #       define ICE_SSL_API ICE_DECLSPEC_IMPORT
 #   endif
 #endif
 
+#ifdef ICE_USE_OPENSSL
+
 //
-// SSL_CTX is the OpenSSL type that holds configuration settings for
-// all SSL connections.
+// Pointer to an opaque SSL session context object. ssl_ctx_st is the
+// OpenSSL type that holds configuration settings for all SSL
+// connections.
 //
 typedef struct ssl_ctx_st SSL_CTX;
 
 //
-// X509 is the OpenSSL type that represents a certificate.
+// Pointer to an opaque certificate object. X509_st is the OpenSSL
+// type that represents a certificate.
 //
-typedef struct x509_st X509;
-typedef struct X509_name_st X509NAME;
+typedef struct x509_st* X509CertificateRef;
 
 //
 // EVP_PKEY is the OpenSSL type that represents a public key.
 //
-typedef struct evp_pkey_st EVP_PKEY;
+typedef struct evp_pkey_st* KeyRef;
+
+//
+// Type that represents an X509 distinguished name
+//
+typedef struct X509_name_st X509NAME;
+
+#elif defined(ICE_USE_SECURE_TRANSPORT)
+
+//
+// Pointer to an opaque certificate object.
+//
+struct OpaqueSecCertificateRef;
+typedef struct OpaqueSecCertificateRef* X509CertificateRef;
+
+//
+// Pointer to an opaque key object.
+//
+struct OpaqueSecKeyRef;
+typedef struct OpaqueSecKeyRef* KeyRef;
+
+#elif defined(ICE_USE_SCHANNEL)
+
+//
+// Pointer to an opaque certificate object.
+//
+typedef CERT_SIGNED_CONTENT_INFO* X509CertificateRef;
+
+//
+// Pointer to an opaque key object.
+//
+typedef CERT_PUBLIC_KEY_INFO* KeyRef;
+
+#endif
 
 namespace IceSSL
 {
@@ -80,6 +125,9 @@ class ICE_SSL_API CertificateEncodingException : public IceUtil::Exception
 public:
 
     CertificateEncodingException(const char*, int, const std::string&);
+#ifdef ICE_USE_SECURE_TRANSPORT
+    CertificateEncodingException(const char*, int, CFErrorRef);
+#endif
     virtual ~CertificateEncodingException() throw();
     virtual std::string ice_name() const;
     virtual CertificateEncodingException* ice_clone() const;
@@ -127,14 +175,23 @@ public:
 
     ~PublicKey();
 
-    EVP_PKEY* key() const;
+    //
+    // Retrieve the native public key value wrapped by this object.
+    //
+    // The returned reference is only valid for the lifetime of this
+    // object. With SecureTransport you can increment the reference
+    // count of the returned object with CFRetain.
+    //
+    KeyRef key() const;
 
 private:
 
-    PublicKey(EVP_PKEY*);
+    PublicKey(const CertificatePtr&, KeyRef);
     friend class Certificate;
 
-    EVP_PKEY* _key;
+    CertificatePtr _cert;
+    KeyRef _key;
+
 };
 typedef IceUtil::Handle<PublicKey> PublicKeyPtr;
 
@@ -154,10 +211,12 @@ class ICE_SSL_API DistinguishedName
 {
 public:
 
+#ifdef ICE_USE_OPENSSL
     //
     // Create a DistinguishedName using an OpenSSL value.
     //
     DistinguishedName(X509NAME*);
+#endif
 
     //
     // Create a DistinguishedName from a string encoded using
@@ -204,7 +263,7 @@ private:
 };
 
 //
-// This convenience class is a wrapper around OpenSSL's X509 type.
+// This convenience class is a wrapper around a native certificate.
 // The interface is inspired by java.security.cert.X509Certificate.
 //
 class ICE_SSL_API Certificate : public IceUtil::Shared
@@ -212,10 +271,12 @@ class ICE_SSL_API Certificate : public IceUtil::Shared
 public:
 
     //
-    // Construct a certificate using a X509*. The Certificate assumes
-    // ownership of the X509* struct.
+    // Construct a certificate using a native certificate.
     //
-    Certificate(X509*);
+    // The Certificate class assumes ownership of the given native
+    // certificate.
+    //
+    Certificate(X509CertificateRef);
     ~Certificate();
 
     //
@@ -226,11 +287,16 @@ public:
     static CertificatePtr load(const std::string&);
 
     //
-    // Decode a certificate from a string that uses the PEM encoding format.
-    // Raises CertificateEncodingException if an error occurs.
+    // Decode a certificate from a string that uses the PEM encoding
+    // format.  Raises CertificateEncodingException if an error
+    // occurs.
     //
     static CertificatePtr decode(const std::string&);
 
+    //
+    // Those operators compare the certificates for equality using the
+    // native certificate comparison method.
+    //
     bool operator==(const Certificate&) const;
     bool operator!=(const Certificate&) const;
 
@@ -240,10 +306,23 @@ public:
     PublicKeyPtr getPublicKey() const;
 
     //
+    // Verify that this certificate was signed by the given certificate
+    // public key. Returns true if signed, false otherwise.
+    //
+    bool verify(const CertificatePtr&) const;
+
+#ifdef ICE_USE_OPENSSL
+    //
     // Verify that this certificate was signed by the given public
     // key. Returns true if signed, false otherwise.
     //
+    // This method was deprecated for consistency with some SSL
+    // engines that require a certificate and not just a public key to
+    // verify the certificate signature.
+    //
+    ICE_DEPRECATED_API("verify(const PublicKeyPtr&) is deprecated, use verify(const CertificatePtr&) instead")
     bool verify(const PublicKeyPtr&) const;
+#endif
 
     //
     // Return a string encoding of the certificate in PEM format.
@@ -342,23 +421,31 @@ public:
     std::string toString() const;
 
     //
-    // Retrieve the X509 value wrapped by this object. The reference count
-    // of the X509 value is not incremented, therefore it is only valid
-    // for the lifetime of this object unless the caller increments its
-    // reference count explicitly using X509_dup.
+    // Retrieve the native X509 certificate value wrapped by this
+    // object.
     //
-    X509* getCert() const;
+    // The returned reference is only valid for the lifetime of this
+    // object. With SecureTransport you can increment the reference
+    // count of the returned object with CFRetain. With OpenSSL, you
+    // can increment it with X509_dup. With SChannel, the returned
+    // reference is a pointer to a struct.
+    //
+    X509CertificateRef getCert() const;
 
 private:
 
-    X509* _cert;
+    X509CertificateRef _cert;
+
+#ifdef ICE_USE_SCHANNEL
+    CERT_INFO* _certInfo;
+#endif
 };
 
 //
 // NativeConnectionInfo is an extension of IceSSL::ConnectionInfo that
 // provides access to native certificates.
 //
-class NativeConnectionInfo : public ConnectionInfo
+class ICE_SSL_API NativeConnectionInfo : public ConnectionInfo
 {
 public:
 
@@ -372,10 +459,27 @@ public:
 typedef IceUtil::Handle<NativeConnectionInfo> NativeConnectionInfoPtr;
 
 //
+// WSSNativeConnectionInfo is an extension of IceSSL::WSSConnectionInfo
+// that provides access to native certificates.
+//
+class ICE_SSL_API WSSNativeConnectionInfo : public WSSConnectionInfo
+{
+public:
+
+    //
+    // The certificate chain. This may be empty if the peer did not
+    // supply a certificate. The peer's certificate (if any) is the
+    // first one in the chain.
+    //
+    std::vector<CertificatePtr> nativeCerts;
+};
+typedef IceUtil::Handle<WSSNativeConnectionInfo> WSSNativeConnectionInfoPtr;
+
+//
 // An application can customize the certificate verification process
 // by implementing the CertificateVerifier interface.
 //
-class CertificateVerifier : public IceUtil::Shared
+class ICE_SSL_API CertificateVerifier : public IceUtil::Shared
 {
 public:
 
@@ -402,7 +506,7 @@ typedef IceUtil::Handle<CertificateVerifier> CertificateVerifierPtr;
 // IceSSL.DelayInit=1), configure the PasswordPrompt, then manually
 // initialize the plug-in.
 //
-class PasswordPrompt : public IceUtil::Shared
+class ICE_SSL_API PasswordPrompt : public IceUtil::Shared
 {
 public:
 
@@ -415,29 +519,9 @@ public:
 };
 typedef IceUtil::Handle<PasswordPrompt> PasswordPromptPtr;
 
-class Plugin : public Ice::Plugin
+class ICE_SSL_API Plugin : public Ice::Plugin
 {
 public:
-
-    //
-    // Establish the OpenSSL context. This must be done before the
-    // plug-in is initialized, therefore the application must define
-    // the property Ice.InitPlugins=0, set the context, and finally
-    // invoke initializePlugins on the PluginManager.
-    //
-    // When the application supplies its own OpenSSL context, the
-    // plug-in ignores configuration properties related to certificates,
-    // keys, and passwords.
-    // 
-    // Note that the plugin assumes ownership of the given context.
-    //
-    virtual void setContext(SSL_CTX*) = 0;
-
-    //
-    // Obtain the SSL context. Use caution when modifying this value.
-    // Changes made to this value have no effect on existing connections.
-    //
-    virtual SSL_CTX* getContext() = 0;
 
     //
     // Establish the certificate verifier object. This should be done
@@ -450,6 +534,28 @@ public:
     // the plug-in is initialized.
     //
     virtual void setPasswordPrompt(const PasswordPromptPtr&) = 0;
+
+#ifdef ICE_USE_OPENSSL
+    //
+    // Establish the OpenSSL context. This must be done before the
+    // plug-in is initialized, therefore the application must define
+    // the property Ice.InitPlugins=0, set the context, and finally
+    // invoke initializePlugins on the PluginManager.
+    //
+    // When the application supplies its own OpenSSL context, the
+    // plug-in ignores configuration properties related to certificates,
+    // keys, and passwords.
+    //
+    // Note that the plugin assumes ownership of the given context.
+    //
+    virtual void setContext(SSL_CTX*) = 0;
+
+    //
+    // Obtain the SSL context. Use caution when modifying this value.
+    // Changes made to this value have no effect on existing connections.
+    //
+    virtual SSL_CTX* getContext() = 0;
+#endif
 };
 typedef IceUtil::Handle<Plugin> PluginPtr;
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -63,6 +63,7 @@ usage(const char* n)
         "Options:\n"
         "-h, --help           Show this message.\n"
         "-v, --version        Display the Ice version.\n"
+        "--validate               Validate command line options.\n"
         "-DNAME               Define NAME as 1.\n"
         "-DNAME=DEF           Define NAME as DEF.\n"
         "-UNAME               Remove any definition for NAME.\n"
@@ -79,8 +80,8 @@ usage(const char* n)
         "--index NUM          Generate subindex if it has at least NUM entries (0 for no index, default=1).\n"
         "--summary NUM        Print a warning if a summary sentence exceeds NUM characters.\n"
         "-d, --debug          Print debug messages.\n"
-        "--ice                Permit `Ice' prefix (for building Ice source code only).\n"
-        "--ice                Permit underscores in Slice identifiers.\n"
+        "--ice                Allow reserved Ice prefix in Slice identifiers.\n"
+        "--underscore         Allow underscores in Slice identifiers.\n"
         ;
 }
 
@@ -90,6 +91,7 @@ compile(int argc, char* argv[])
     IceUtilInternal::Options opts;
     opts.addOpt("h", "help");
     opts.addOpt("v", "version");
+    opts.addOpt("", "validate");
     opts.addOpt("D", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
     opts.addOpt("U", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
     opts.addOpt("I", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
@@ -108,15 +110,28 @@ compile(int argc, char* argv[])
     opts.addOpt("", "ice");
     opts.addOpt("", "underscore");
 
+    bool validate = false;
+    for(int i = 0; i < argc; ++i)
+    {
+        if(string(argv[i]) == "--validate")
+        {
+            validate = true;
+            break;
+        }
+    }
+
     vector<string> args;
     try
     {
-        args = opts.parse(argc, (const char**)argv);
+        args = opts.parse(argc, const_cast<const char**>(argv));
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
         getErrorStream() << argv[0] << ": error: " << e.reason << endl;
-        usage(argv[0]);
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
         return EXIT_FAILURE;
     }
 
@@ -173,7 +188,10 @@ compile(int argc, char* argv[])
         {
             getErrorStream() << argv[0] << ": error: the --index operation requires a positive integer argument"
                              << endl;
-            usage(argv[0]);
+            if(!validate)
+            {
+                usage(argv[0]);
+            }
             return EXIT_FAILURE;
         }
     }
@@ -194,7 +212,10 @@ compile(int argc, char* argv[])
         {
             getErrorStream() << argv[0] << ": error: the --summary operation requires a positive integer argument"
                              << endl;
-            usage(argv[0]);
+            if(!validate)
+            {
+                usage(argv[0]);
+            }
             return EXIT_FAILURE;
         }
     }
@@ -208,8 +229,16 @@ compile(int argc, char* argv[])
     if(args.empty())
     {
         getErrorStream() << argv[0] << ": error: no input file" << endl;
-        usage(argv[0]);
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
         return EXIT_FAILURE;
+    }
+
+    if(validate)
+    {
+        return EXIT_SUCCESS;
     }
 
     UnitPtr p = Unit::createUnit(true, false, ice, underscore);
@@ -222,7 +251,7 @@ compile(int argc, char* argv[])
     for(vector<string>::size_type idx = 0; idx < args.size(); ++idx)
     {
         PreprocessorPtr icecpp = Preprocessor::create(argv[0], args[idx], cppArgs);
-        FILE* cppHandle = icecpp->preprocess(true, "-DICE_COMPILER=ICE_SLICE2HTML");
+        FILE* cppHandle = icecpp->preprocess(true, "-D__SLICE2HTML__");
 
         if(cppHandle == 0)
         {

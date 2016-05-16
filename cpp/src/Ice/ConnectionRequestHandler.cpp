@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -18,19 +18,8 @@
 using namespace std;
 using namespace IceInternal;
 
-ConnectionRequestHandler::ConnectionRequestHandler(const ReferencePtr& reference, const Ice::ObjectPrx& proxy) :
-    RequestHandler(reference)
-{
-    _connection = _reference->getConnection(_compress);
-    RouterInfoPtr ri = reference->getRouterInfo();
-    if(ri)
-    {
-        ri->addProxy(proxy);
-    }
-}
-
-ConnectionRequestHandler::ConnectionRequestHandler(const ReferencePtr& reference, 
-                                                   const Ice::ConnectionIPtr& connection, 
+ConnectionRequestHandler::ConnectionRequestHandler(const ReferencePtr& reference,
+                                                   const Ice::ConnectionIPtr& connection,
                                                    bool compress) :
     RequestHandler(reference),
     _connection(connection),
@@ -38,57 +27,65 @@ ConnectionRequestHandler::ConnectionRequestHandler(const ReferencePtr& reference
 {
 }
 
-void
-ConnectionRequestHandler::prepareBatchRequest(BasicStream* out)
+RequestHandlerPtr
+ConnectionRequestHandler::update(const RequestHandlerPtr& previousHandler, const RequestHandlerPtr& newHandler)
 {
-    _connection->prepareBatchRequest(out);
-}
-
-void
-ConnectionRequestHandler::finishBatchRequest(BasicStream* out)
-{
-    _connection->finishBatchRequest(out, _compress);
-}
-
-void
-ConnectionRequestHandler::abortBatchRequest()
-{
-    _connection->abortBatchRequest();
-}
-
-Ice::ConnectionI*
-ConnectionRequestHandler::sendRequest(Outgoing* out)
-{
-    if(!_connection->sendRequest(out, _compress, _response) || _response)
+    assert(previousHandler);
+    try
     {
-        return _connection.get(); // The request hasn't been sent or we're expecting a response.
+        if(previousHandler.get() == this)
+        {
+            return newHandler;
+        }
+        else if(previousHandler->getConnection() == _connection)
+        {
+            //
+            // If both request handlers point to the same connection, we also
+            // update the request handler. See bug ICE-5489 for reasons why
+            // this can be useful.
+            //
+            return newHandler;
+        }
     }
-    else
+    catch(const Ice::Exception&)
     {
-        return 0; // The request has been sent.
+        // Ignore.
     }
-}
-
-AsyncStatus
-ConnectionRequestHandler::sendAsyncRequest(const OutgoingAsyncPtr& out)
-{
-    return _connection->sendAsyncRequest(out, _compress, _response);
+    return this;
 }
 
 bool
-ConnectionRequestHandler::flushBatchRequests(BatchOutgoing* out)
+ConnectionRequestHandler::sendRequest(ProxyOutgoingBase* out)
 {
-    return _connection->flushBatchRequests(out);
+    return out->invokeRemote(_connection, _compress, _response) && !_response; // Finished if sent and no response
 }
 
 AsyncStatus
-ConnectionRequestHandler::flushAsyncBatchRequests(const BatchOutgoingAsyncPtr& out)
+ConnectionRequestHandler::sendAsyncRequest(const ProxyOutgoingAsyncBasePtr& out)
 {
-    return _connection->flushAsyncBatchRequests(out);
+    return out->invokeRemote(_connection, _compress, _response);
+}
+
+void
+ConnectionRequestHandler::requestCanceled(OutgoingBase* out, const Ice::LocalException& ex)
+{
+    _connection->requestCanceled(out, ex);
+}
+
+void
+ConnectionRequestHandler::asyncRequestCanceled(const OutgoingAsyncBasePtr& outAsync, const Ice::LocalException& ex)
+{
+    _connection->asyncRequestCanceled(outAsync, ex);
 }
 
 Ice::ConnectionIPtr
-ConnectionRequestHandler::getConnection(bool /*wait*/)
+ConnectionRequestHandler::getConnection()
+{
+    return _connection;
+}
+
+Ice::ConnectionIPtr
+ConnectionRequestHandler::waitForConnection()
 {
     return _connection;
 }

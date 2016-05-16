@@ -2,7 +2,7 @@
 <!--
  **********************************************************************
 
- Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+ Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 
  This copy of Ice is licensed to you under the terms described in the
  ICE_LICENSE file included in this distribution.
@@ -34,7 +34,7 @@ must have a name attribute. Property elements may also have a property
 class attribute. The property class attribute allows you to define a
 list of properties that are repeatedly defined for different property
 categories. Here's how it works:
- 
+
  - Define a property class with the list of property suffixes common to
    that class.
 
@@ -42,13 +42,13 @@ categories. Here's how it works:
 
 The generated code will take each property that has a class attribute
 and expand it by creating new properties for each suffix in the
-specified class. The new property names are constructed as follows: 
+specified class. The new property names are constructed as follows:
 
-generated property name = 
-    relevant section name + 
-    property name containing the class attribute + 
-    the suffix in the class. 
-    
+generated property name =
+    relevant section name +
+    property name containing the class attribute +
+    the suffix in the class.
+
 Let's illustrate by comparing a case using classes vs. without
 classes:
 
@@ -103,7 +103,7 @@ described above `in addition to' the property containing the property
 class.
 
 Property elements may also include the deprecated and deprecatedBy
-attributes. A property that has a deprecated attribute with the value 
+attributes. A property that has a deprecated attribute with the value
 "true" will be marked internally as deprecated and Ice may issue warnings
 if a deprecated property is used. The deprecatedBy attribute allows the
 Ice run time to transparently replace the deprecated property name with a
@@ -247,9 +247,17 @@ generated from the section label.
         <suffix name="ConnectionCached" />
         <suffix name="PreferSecure" />
         <suffix name="LocatorCacheTimeout" />
+        <suffix name="InvocationTimeout" />
         <suffix name="Locator" />
         <suffix name="Router" />
         <suffix name="CollocationOptimized" />
+        <suffix name="Context.[any]" />
+    </class>
+
+    <class name="acm" prefix-only="false">
+        <suffix name="Timeout" />
+        <suffix name="Heartbeat" />
+        <suffix name="Close" />
     </class>
 
     <class name="threadpool" prefix-only="true">
@@ -263,7 +271,7 @@ generated from the section label.
     </class>
 
     <class name="objectadapter" prefix-only="true">
-        <suffix name="ACM" />
+        <suffix name="ACM" class="acm"/>
         <suffix name="AdapterId" />
         <suffix name="Endpoints" />
         <suffix name="Locator" class="proxy"/>
@@ -272,6 +280,7 @@ generated from the section label.
         <suffix name="Router" class="proxy"/>
         <suffix name="ProxyOptions" />
         <suffix name="ThreadPool" class="threadpool" />
+        <suffix name="MessageSizeMax" />
     </class>
 
     <class name="deprecatedthreadpool" prefix-only="true">
@@ -300,18 +309,27 @@ generated from the section label.
     </class>
 
     <section name="Ice">
-        <property name="ACM.Client" />
-        <property name="ACM.Server" />
+        <property name="ACM.Client" deprecated="true"/>
+        <property name="ACM.Server" deprecated="true"/>
+        <property name="ACM" class="acm"/>
+        <property name="ACM.Client" class="acm"/>
+        <property name="ACM.Server" class="acm"/>
         <property name="Admin" class="objectadapter" />
         <property name="Admin.DelayCreation" />
+        <property name="Admin.Enabled" />
         <property name="Admin.Facets" />
         <property name="Admin.InstanceName" />
+        <property name="Admin.Logger.KeepLogs" />
+        <property name="Admin.Logger.KeepTraces" />
+        <property name="Admin.Logger.Properties" />
         <property name="Admin.ServerId" />
         <property name="BackgroundLocatorCacheUpdates"/>
-        <property name="BatchAutoFlush" />
+        <property name="BatchAutoFlush" deprecated="true"/>
+        <property name="BatchAutoFlushSize" />
         <property name="ChangeUser" />
         <property name="ClientAccessPolicyProtocol" />
         <property name="Compression.Level" />
+        <property name="CollectObjects"/>
         <property name="Config" />
         <property name="ConsoleListener" />
         <property name="Default.CollocationOptimized" />
@@ -320,21 +338,25 @@ generated from the section label.
         <property name="Default.Host" />
         <property name="Default.Locator" class="proxy" />
         <property name="Default.LocatorCacheTimeout" />
+        <property name="Default.InvocationTimeout" />
         <property name="Default.Package" />
         <property name="Default.PreferSecure" />
         <property name="Default.Protocol" />
         <property name="Default.Router" class="proxy" />
         <property name="Default.SlicedFormat" />
-        <property name="IPv4" />
-        <property name="IPv6" />
+        <property name="Default.SourceAddress" />
+        <property name="Default.Timeout" />
         <property name="EventLog.Source" />
         <property name="FactoryAssemblies" />
-        <property name="GC.Interval" />
+        <property name="HTTPProxyHost" />
+        <property name="HTTPProxyPort" />
         <property name="ImplicitContext" />
         <property name="InitPlugins" />
+        <property name="IPv4" />
+        <property name="IPv6" />
         <property name="LogFile" />
+        <property name="LogStdErr.Convert"/>
         <property name="MessageSizeMax" />
-        <property name="MonitorConnections" />
         <property name="Nohup" />
         <property name="NullHandleAbort" />
         <property name="Override.CloseTimeout" />
@@ -361,7 +383,7 @@ generated from the section label.
         <property name="ThreadPool.Server" class="threadpool" />
         <property name="ThreadPriority"/>
         <property name="Trace.Admin.Properties" />
-        <property name="Trace.GC" />
+        <property name="Trace.Admin.Logger" />
         <property name="Trace.Locator" />
         <property name="Trace.Network" />
         <property name="Trace.Protocol" />
@@ -383,19 +405,48 @@ generated from the section label.
         <property name="Warn.UnknownProperties" />
         <property name="Warn.UnusedProperties" />
         <property name="CacheMessageBuffers" />
+        <property name="ThreadInterruptSafe" />
+        <property name="Voip" />
     </section>
 
     <section name="IceMX">
         <property name="Metrics.[any]" class="mx" />
     </section>
 
+    <section name="IceDiscovery">
+        <property name="Multicast" class="objectadapter" />
+        <property name="Reply" class="objectadapter" />
+        <property name="Locator" class="objectadapter" />
+        <property name="Lookup"/>
+        <property name="Timeout"/>
+        <property name="RetryCount"/>
+        <property name="LatencyMultiplier"/>
+        <property name="Address"/>
+        <property name="Port"/>
+        <property name="Interface"/>
+        <property name="DomainId"/>
+    </section>
+
+    <section name="IceGridDiscovery">
+        <property name="Reply" class="objectadapter" />
+        <property name="Locator" class="objectadapter" />
+        <property name="Lookup"/>
+        <property name="Timeout"/>
+        <property name="RetryCount"/>
+        <property name="RetryDelay"/>
+        <property name="Address"/>
+        <property name="Port"/>
+        <property name="Interface"/>
+        <property name="InstanceName"/>
+    </section>
+
     <section name="IceBox">
         <property name="InheritProperties" />
-        <property name="InstanceName" />
+        <property name="InstanceName" deprecated="true" />
         <property name="LoadOrder" />
         <property name="PrintServicesReady" />
         <property name="Service.[any]" />
-        <property name="ServiceManager" class="objectadapter" />
+        <property name="ServiceManager" class="deprecatedobjectadapter" />
         <property name="Trace.ServiceObserver" />
         <property name="UseSharedCommunicator.[any]" />
     </section>
@@ -410,6 +461,13 @@ generated from the section label.
         <property name="Username" />
         <property name="Password" />
         <property name="Replica" />
+        <property name="Host" />
+        <property name="Port" />
+        <property name="InstanceName" />
+        <property name="Discovery.Address" />
+        <property name="Discovery.Interface" />
+        <property name="Discovery.Lookup" />
+        <property name="Discovery.Reply" class="objectadapter" />
         <property name="Trace.Observers" />
         <property name="Trace.SaveToRegistry" />
     </section>
@@ -446,6 +504,11 @@ generated from the section label.
         <property name="Registry.CryptPasswords" />
         <property name="Registry.Data" />
         <property name="Registry.DefaultTemplates" />
+        <property name="Registry.Discovery" class="objectadapter" />
+        <property name="Registry.Discovery.Enabled" />
+        <property name="Registry.Discovery.Address" />
+        <property name="Registry.Discovery.Port" />
+        <property name="Registry.Discovery.Interface" />
         <property name="Registry.DynamicRegistration" />
         <property name="Registry.Internal" class="objectadapter" />
         <property name="Registry.NodeSessionTimeout" />
@@ -480,16 +543,13 @@ generated from the section label.
         <property name="SQL.UserName" />
         <property name="SQL.Password" />
 </section>
-    
+
     <section name="IcePatch2">
         <property class="objectadapter" />
-        <property name="ChunkSize" deprecated="true" deprecatedBy="IcePatch2Client.ChunkSize"/>
         <property name="Directory" />
         <property name="InstanceName" />
-        <property name="Remove" deprecated="true" deprecatedBy="IcePatch2Client.Remove"/>
-        <property name="Thorough" deprecated="true" deprecatedBy="IcePatch2Client.Thorough"/>
     </section>
-    
+
     <section name="IcePatch2Client">
         <property name="ChunkSize" />
         <property name="Directory" />
@@ -500,8 +560,11 @@ generated from the section label.
 
     <section name="IceSSL">
         <property name="Alias" />
-        <property name="CertAuthDir" />
-        <property name="CertAuthFile" />
+        <property name="CAs"/>
+        <property name="CertAuthDir" deprecatedBy="IceSSL.CAs"/>
+        <property name="CertAuthFile" deprecatedBy="IceSSL.CAs"/>
+        <property name="CertStore" />
+        <property name="CertStoreLocation" />
         <property name="CertFile" />
         <property name="CertVerifier" />
         <property name="CheckCertName" />
@@ -509,20 +572,26 @@ generated from the section label.
         <property name="Ciphers" />
         <property name="DefaultDir" />
         <property name="DH.[any]" />
+        <property name="DHParams" />
         <property name="EntropyDaemon" />
-        <property name="FindCert.[any]" />
-        <property name="ImportCert.[any]" />
+        <property name="FindCert" />
+        <property name="FindCert.[any]" deprecatedBy="IceSSL.FindCert"/>
+        <property name="ImportCert.[any]" deprecated="true"/>
         <property name="InitOpenSSL" />
-        <property name="KeyFile" />
-        <property name="KeySet"/>
+        <property name="KeyFile" deprecated="true"/>
+        <property name="KeySet" deprecatedBy="IceSSL.CertStoreLocation" />
+        <property name="Keychain"/>
+        <property name="KeychainPassword"/>
         <property name="Keystore" />
         <property name="KeystorePassword" />
         <property name="KeystoreType" />
         <property name="Password" />
         <property name="PasswordCallback" />
         <property name="PasswordRetryMax" />
-        <property name="PersistKeySet"/>
+        <property name="PersistKeySet" deprecated="true"/>
         <property name="Protocols" />
+        <property name="ProtocolVersionMax" />
+        <property name="ProtocolVersionMin" />
         <property name="Random" />
         <property name="Trace.Security" />
         <property name="TrustOnly" />
@@ -532,16 +601,18 @@ generated from the section label.
         <property name="Truststore" />
         <property name="TruststorePassword" />
         <property name="TruststoreType" />
+        <property name="UsePlatformCAs" />
         <property name="VerifyDepthMax" />
         <property name="VerifyPeer" />
     </section>
 
     <section name="IceStormAdmin">
         <property name="TopicManager.[any]" />
+        <property name="Host" />
+        <property name="Port" />
     </section>
 
     <section name="Glacier2">
-        <property name="AddSSLContext" deprecated="true"/>
         <property name="AddConnectionContext"/>
         <property name="Client" class="objectadapter"/>
         <property name="Client.AlwaysBatch" />
@@ -551,6 +622,7 @@ generated from the section label.
         <property name="Client.Trace.Override" />
         <property name="Client.Trace.Reject" />
         <property name="Client.Trace.Request" />
+        <property name="CryptPasswords" />
         <property name="Filter.Address.Reject" />
         <property name="Filter.Address.Accept" />
         <property name="Filter.ProxySizeMax" />
@@ -558,7 +630,6 @@ generated from the section label.
         <property name="Filter.Category.AcceptUser" />
         <property name="Filter.AdapterId.Accept" />
         <property name="Filter.Identity.Accept" />
-        <property name="CryptPasswords" />
         <property name="InstanceName" />
         <property name="PermissionsVerifier" class="proxy" />
         <property name="ReturnClientProxy" />
@@ -576,6 +647,11 @@ generated from the section label.
         <property name="SessionTimeout" />
         <property name="Trace.RoutingTable" />
         <property name="Trace.Session" />
+    </section>
+
+    <section name="Glacier2CryptPermissionsVerifier">
+        <property name="[any].PermissionsVerifier" />
+        <property name="[any].AdminPermissionsVerifier" />
     </section>
 
     <section name="Freeze">

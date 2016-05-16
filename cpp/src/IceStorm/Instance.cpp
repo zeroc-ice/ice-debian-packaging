@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,7 +9,6 @@
 
 #include <IceStorm/Instance.h>
 #include <IceStorm/TraceLevels.h>
-#include <IceStorm/DB.h>
 #include <IceStorm/Observers.h>
 #include <IceStorm/NodeI.h>
 #include <IceStorm/InstrumentationI.h>
@@ -23,11 +22,26 @@ using namespace std;
 using namespace IceStorm;
 using namespace IceStormElection;
 
+void
+TopicReaper::add(const string& name)
+{
+    Lock sync(*this);
+    _topics.push_back(name);
+}
+
+vector<string>
+TopicReaper::consumeReapedTopics()
+{
+    Lock sync(*this);
+    vector<string> reaped;
+    reaped.swap(_topics);
+    return reaped;
+}
+
 Instance::Instance(
     const string& instanceName,
     const string& name,
     const Ice::CommunicatorPtr& communicator,
-    const ConnectionPoolPtr& connectionPool,
     const Ice::ObjectAdapterPtr& publishAdapter,
     const Ice::ObjectAdapterPtr& topicAdapter,
     const Ice::ObjectAdapterPtr& nodeAdapter,
@@ -46,7 +60,7 @@ Instance::Instance(
                                                    name + ".Flush.Timeout", 1000))), // default one second.
     // default one minute.
     _sendTimeout(communicator->getProperties()->getPropertyAsIntWithDefault(name + ".Send.Timeout", 60 * 1000)),
-    _connectionPool(connectionPool)
+    _topicReaper(new TopicReaper())
 {
     try
     {
@@ -69,16 +83,16 @@ Instance::Instance(
         _observers = new Observers(this);
         _batchFlusher = new IceUtil::Timer();
         _timer = new IceUtil::Timer();
-        
+
         //
         // If an Ice metrics observer is setup on the communicator, also
         // enable metrics for IceStorm.
         //
-        IceInternal::CommunicatorObserverIPtr o = 
+        IceInternal::CommunicatorObserverIPtr o =
             IceInternal::CommunicatorObserverIPtr::dynamicCast(communicator->getObserver());
         if(o)
         {
-            _observer = new TopicManagerObserverI(o->getMetricsAdmin());
+            _observer = new TopicManagerObserverI(o->getFacet());
         }
     }
     catch(...)
@@ -193,16 +207,16 @@ Instance::publisherReplicaProxy() const
     return _publisherReplicaProxy;
 }
 
-ConnectionPoolPtr
-Instance::connectionPool() const
-{
-    return _connectionPool;
-}
-
 IceStorm::Instrumentation::TopicManagerObserverPtr
 Instance::observer() const
 {
     return _observer;
+}
+
+IceStorm::TopicReaperPtr
+Instance::topicReaper() const
+{
+    return _topicReaper;
 }
 
 IceUtil::Time

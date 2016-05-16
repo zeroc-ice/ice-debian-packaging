@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -13,8 +13,9 @@
 #include <Ice/BuiltinSequences.ice>
 #include <Ice/EndpointF.ice>
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
 
+["objc:prefix:ICE"]
 module Ice
 {
 
@@ -27,10 +28,31 @@ const short TCPEndpointType = 1;
 
 /**
  *
+ * Uniquely identifies SSL endpoints.
+ *
+ **/
+const short SSLEndpointType = 2;
+
+/**
+ *
  * Uniquely identifies UDP endpoints.
  *
  **/
 const short UDPEndpointType = 3;
+
+/**
+ *
+ * Uniquely identifies TCP-based WebSocket endpoints.
+ *
+ **/
+const short WSEndpointType = 4;
+
+/**
+ *
+ * Uniquely identifies SSL-based WebSocket endpoints.
+ *
+ **/
+const short WSSEndpointType = 5;
 
 /**
  *
@@ -113,18 +135,25 @@ local interface Endpoint
 local class IPEndpointInfo extends EndpointInfo
 {
     /**
-     * 
+     *
      * The host or address configured with the endpoint.
      *
      **/
     string host;
 
     /**
-     * 
+     *
      * The port number.
-     * 
+     *
      **/
     int port;
+
+    /**
+     *
+     * The source IP address.
+     *
+     */
+    string sourceAddress;
 };
 
 /**
@@ -148,11 +177,11 @@ local class TCPEndpointInfo extends IPEndpointInfo
 local class UDPEndpointInfo extends IPEndpointInfo
 {
     /**
-     * 
+     *
      * The multicast interface.
      *
      **/
-     string mcastInterface;
+    string mcastInterface;
 
     /**
      *
@@ -160,6 +189,21 @@ local class UDPEndpointInfo extends IPEndpointInfo
      *
      **/
      int mcastTtl;
+};
+
+/**
+ *
+ * Provides access to a WebSocket endpoint information.
+ *
+ **/
+local class WSEndpointInfo extends TCPEndpointInfo
+{
+    /**
+     *
+     * The URI configured with the endpoint.
+     *
+     **/
+    string resource;
 };
 
 /**
@@ -175,7 +219,7 @@ local class OpaqueEndpointInfo extends EndpointInfo
      *
      * The encoding version of the opaque endpoint (to decode or
      * encode the rawBytes).
-     * 
+     *
      **/
     Ice::EncodingVersion rawEncoding;
 

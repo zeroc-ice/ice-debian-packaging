@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -21,6 +21,7 @@
 #include <IceGrid/FileParserI.h>
 #include <IceGrid/Registry.h>
 #include <IceGrid/Locator.h>
+#include <IceGrid/IceLocatorDiscovery.h>
 #include <Glacier2/Router.h>
 #include <fstream>
 
@@ -35,6 +36,7 @@
 
 using namespace std;
 using namespace Ice;
+using namespace IceLocatorDiscovery;
 using namespace IceGrid;
 
 class Client;
@@ -62,6 +64,74 @@ public:
 };
 
 Init init;
+
+class LookupReplyI : public LookupReply, private IceUtil::Monitor<IceUtil::Mutex>
+{
+public:
+
+    virtual void
+    foundLocator(const Ice::LocatorPrx& locator, const Ice::Current&)
+    {
+        Lock sync(*this);
+        for(vector<Ice::LocatorPrx>::iterator p = _locators.begin(); p != _locators.end(); ++p)
+        {
+            if((*p)->ice_getIdentity() == locator->ice_getIdentity())
+            {
+                Ice::EndpointSeq newEndpoints = (*p)->ice_getEndpoints();
+                Ice::EndpointSeq endpts = locator->ice_getEndpoints();
+                for(Ice::EndpointSeq::const_iterator r = endpts.begin(); r != endpts.end(); ++r)
+                {
+                    //
+                    // Only add unknown endpoints
+                    //
+                    bool found = false;
+                    for(Ice::EndpointSeq::const_iterator q = newEndpoints.begin(); q != newEndpoints.end(); ++q)
+                    {
+                        if(*r == *q)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if(!found)
+                    {
+                        newEndpoints.push_back(*r);
+                    }
+                }
+                *p = (*p)->ice_endpoints(newEndpoints);
+                return;
+            }
+        }
+        _locators.push_back(locator);
+        notify();
+    }
+
+    vector<Ice::LocatorPrx>
+    getLocators()
+    {
+        Lock sync(*this);
+        return _locators;
+    }
+
+    bool
+    waitForLocator()
+    {
+        Lock sync(*this);
+        while(_locators.empty())
+        {
+            if(!timedWait(IceUtil::Time::milliSeconds(300)))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+private:
+
+    vector<Ice::LocatorPrx> _locators;
+};
+typedef IceUtil::Handle<LookupReplyI> LookupReplyIPtr;
 
 }
 
@@ -118,18 +188,18 @@ typedef IceUtil::Handle<SessionKeepAliveThread> SessionKeepAliveThreadPtr;
 class ReuseConnectionRouter : public Router
 {
 public:
-    
+
     ReuseConnectionRouter(const ObjectPrx& proxy) : _clientProxy(proxy)
     {
     }
 
-    virtual ObjectPrx 
+    virtual ObjectPrx
     getClientProxy(const Current&) const
     {
         return _clientProxy;
     }
 
-    virtual ObjectPrx 
+    virtual ObjectPrx
     getServerProxy(const Current&) const
     {
         return 0;
@@ -140,12 +210,12 @@ public:
     {
     }
 
-    virtual ObjectProxySeq 
+    virtual ObjectProxySeq
     addProxies(const ObjectProxySeq&, const Current&)
     {
         return ObjectProxySeq();
     }
-    
+
 private:
 
     const ObjectPrx _clientProxy;
@@ -204,13 +274,16 @@ void
 Client::usage()
 {
     cerr << "Usage: " << appName() << " [options]\n";
-    cerr <<     
+    cerr <<
         "Options:\n"
         "-h, --help           Show this message.\n"
         "-v, --version        Display the Ice version.\n"
         "-e COMMANDS          Execute COMMANDS.\n"
         "-d, --debug          Print debug messages.\n"
         "-s, --server         Start icegridadmin as a server (to parse XML files).\n"
+        "-i, --instanceName   Connect to the registry with the given instance name.\n"
+        "-H, --host           Connect to the registry at the given host.\n"
+        "-P, --port           Connect to the registry running on the given port.\n"
         "-u, --username       Login with the given username.\n"
         "-p, --password       Login with the given password.\n"
         "-S, --ssl            Authenticate through SSL.\n"
@@ -229,12 +302,7 @@ Client::main(StringSeq& args)
         _appName = args[0];
         InitializationData id;
         id.properties = createProperties(args);
-        //
-        // We don't want to load DB plug-ins with icegridadmin, as this will
-        // cause FileLock issues when run with the same configuration file
-        // used by the service.
-        //
-        id.properties->setProperty("Ice.Plugin.DB", "");
+        id.properties->setProperty("Ice.Warn.Endpoints", "0");
         _communicator = initialize(id);
 
         {
@@ -301,7 +369,7 @@ Client::main(StringSeq& args)
     }
 
     return status;
-        
+
 }
 
 void
@@ -338,6 +406,9 @@ Client::run(StringSeq& originalArgs)
     opts.addOpt("h", "help");
     opts.addOpt("v", "version");
     opts.addOpt("e", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
+    opts.addOpt("i", "instanceName", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::NoRepeat);
+    opts.addOpt("H", "host", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::NoRepeat);
+    opts.addOpt("P", "port", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::NoRepeat);
     opts.addOpt("u", "username", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::NoRepeat);
     opts.addOpt("p", "password", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::NoRepeat);
     opts.addOpt("S", "ssl");
@@ -376,7 +447,7 @@ Client::run(StringSeq& originalArgs)
 
     if(opts.isSet("server"))
     {
-        ObjectAdapterPtr adapter = 
+        ObjectAdapterPtr adapter =
             communicator()->createObjectAdapterWithEndpoints("FileParser", "tcp -h localhost");
         adapter->activate();
         ObjectPrx proxy = adapter->add(new FileParserI, communicator()->stringToIdentity("FileParser"));
@@ -413,6 +484,29 @@ Client::run(StringSeq& originalArgs)
         password = opts.optArg("password");
     }
 
+    string host = communicator()->getProperties()->getProperty("IceGridAdmin.Host");
+    if(!opts.optArg("host").empty())
+    {
+        host = opts.optArg("host");
+    }
+
+    string instanceName = communicator()->getProperties()->getProperty("IceGridAdmin.InstanceName");
+    if(!opts.optArg("instanceName").empty())
+    {
+        instanceName = opts.optArg("instanceName");
+    }
+
+    int port = communicator()->getProperties()->getPropertyAsInt("IceGridAdmin.Port");
+    if(!opts.optArg("port").empty())
+    {
+        istringstream is(opts.optArg("port"));
+        if(!(is >> port))
+        {
+            cerr << _appName << ": given port number is not a numeric value" << endl;
+            return EXIT_FAILURE;
+        }
+    }
+
     PropertiesPtr properties = communicator()->getProperties();
     string replica = properties->getProperty("IceGridAdmin.Replica");
     if(!opts.optArg("replica").empty())
@@ -426,7 +520,144 @@ Client::run(StringSeq& originalArgs)
     int status = EXIT_SUCCESS;
     try
     {
-        int timeout;
+        int sessionTimeout;
+        int acmTimeout = 0;
+        if(!communicator()->getDefaultLocator() && !communicator()->getDefaultRouter())
+        {
+            if(!host.empty())
+            {
+                const int timeout = 3000; // 3s connection timeout.
+                ostringstream os;
+                os << "Ice/LocatorFinder" << (ssl ? " -s" : "");
+                os << ":tcp -h \"" << host << "\" -p " << (port == 0 ? 4061 : port) << " -t " << timeout;
+                os << ":ssl -h \"" << host << "\" -p " << (port == 0 ? 4062 : port) << " -t " << timeout;
+                LocatorFinderPrx finder = LocatorFinderPrx::uncheckedCast(communicator()->stringToProxy(os.str()));
+                try
+                {
+                    communicator()->setDefaultLocator(finder->getLocator());
+                }
+                catch(const Ice::LocalException&)
+                {
+                    // Ignore.
+                }
+                if(!instanceName.empty() &&
+                   communicator()->getDefaultLocator()->ice_getIdentity().category != instanceName)
+                {
+                    cerr << _appName << ": registry running on `" << host << "' uses a different instance name:\n";
+                    cerr << communicator()->getDefaultLocator()->ice_getIdentity().category << endl;
+                    return EXIT_FAILURE;
+                }
+            }
+            else
+            {
+                bool ipv4 = properties->getPropertyAsIntWithDefault("Ice.IPv4", 1) > 0;
+                string address;
+                bool preferIPv6 = properties->getPropertyAsInt("Ice.PreferIPv6Address") > 0;
+                if(ipv4 && !preferIPv6)
+                {
+                    address = properties->getPropertyWithDefault("IceGridAdmin.Discovery.Address", "239.255.0.1");
+                }
+                else
+                {
+                    address = properties->getPropertyWithDefault("IceGridAdmin.Discovery.Address", "ff15::1");
+                }
+
+                string interface = properties->getProperty("IceGridAdmin.Discovery.Interface");
+
+                string lookupEndpoints = properties->getProperty("IceGridAdmin.Discovery.Lookup");
+                if(lookupEndpoints.empty())
+                {
+                    ostringstream os;
+                    os << "udp -h \"" << address << "\" -p " << (port == 0 ? 4061 : port);
+                    if(!interface.empty())
+                    {
+                        os << " --interface \"" << interface << "\"";
+                    }
+                    lookupEndpoints = os.str();
+                }
+
+                ObjectPrx prx = communicator()->stringToProxy("IceLocatorDiscovery/Lookup -d:" + lookupEndpoints);
+                LookupPrx lookupPrx = LookupPrx::uncheckedCast(prx->ice_collocationOptimized(false));
+
+                if(properties->getProperty("IceGridAdmin.Discovery.Reply.Endpoints").empty())
+                {
+                    ostringstream os;
+                    os << "udp";
+                    if(!interface.empty())
+                    {
+                        os << " -h \"" << interface << "\"";
+                    }
+                    properties->setProperty("IceGridAdmin.Discovery.Reply.Endpoints", os.str());
+                }
+
+                Ice::ObjectAdapterPtr adapter = communicator()->createObjectAdapter("IceGridAdmin.Discovery.Reply");
+                adapter->activate();
+                LookupReplyIPtr reply = new LookupReplyI();
+                LookupReplyPrx replyPrx = LookupReplyPrx::uncheckedCast(adapter->addWithUUID(reply)->ice_datagram());
+                int retryCount = 3; // Send several findLocator queries.
+                try
+                {
+                    while(--retryCount >= 0)
+                    {
+                        lookupPrx->findLocator(instanceName, replyPrx);
+                        if(instanceName.empty())
+                        {
+                            IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(300));
+                        }
+                        else if(reply->waitForLocator())
+                        {
+                            break;
+                        }
+                    }
+                }
+                catch(const Ice::LocalException& ex)
+                {
+                    cerr << _appName << ": registry discovery failed:\n" << ex << endl;
+                    return EXIT_FAILURE;
+                }
+                adapter->destroy();
+
+                vector<Ice::LocatorPrx> locators = reply->getLocators();
+                if(locators.size() > 1)
+                {
+                    cout << "found " << locators.size() << " Ice locators:" << endl;
+                    unsigned int num = 0;
+                    for(vector<Ice::LocatorPrx>::const_iterator p = locators.begin(); p != locators.end(); ++p)
+                    {
+                        cout << ++num << ": proxy = `" << *p << "'" <<endl;
+                    }
+
+                    num = 0;
+                    while(num == 0 && cin.good())
+                    {
+                        cout << "please enter the locator number to use: " << flush;
+                        string line;
+                        getline(cin, line);
+                        if(!cin.good() || line.empty())
+                        {
+                            return EXIT_FAILURE;
+                        }
+                        line = IceUtilInternal::trim(line);
+
+                        istringstream is(line);
+                        is >> num;
+                        if(num > locators.size())
+                        {
+                            num = 0;
+                        }
+                    }
+
+                    assert(num <= locators.size());
+                    communicator()->setDefaultLocator(locators[num - 1]);
+                }
+                else if(locators.size() == 1)
+                {
+                    cout << "using discovered locator:\nproxy = `" << locators[0] << "'" << endl;
+                    communicator()->setDefaultLocator(locators[0]);
+                }
+            }
+        }
+
         if(communicator()->getDefaultRouter())
         {
             try
@@ -442,7 +673,7 @@ Client::run(StringSeq& originalArgs)
             catch(const LocalException& ex)
             {
                 cerr << _appName << ": could not contact the default router:" << endl << ex << endl;
-                return EXIT_FAILURE;                
+                return EXIT_FAILURE;
             }
 
             if(ssl)
@@ -468,7 +699,7 @@ Client::run(StringSeq& originalArgs)
                     }
                     id = IceUtilInternal::trim(id);
                 }
-                
+
                 if(password.empty())
                 {
                     password = getPassword("password: ");
@@ -479,13 +710,10 @@ Client::run(StringSeq& originalArgs)
                     }
 #endif
                 }
-                     
+
                 session = AdminSessionPrx::uncheckedCast(router->createSession(id, password));
-                // Zero the password string.
-                for(string::iterator p = password.begin(); p != password.end(); ++p)
-                {
-                    *p = '\0';
-                }
+                fill(password.begin(), password.end(), '\0'); // Zero the password string.
+
                 if(!session)
                 {
                     cerr << _appName
@@ -494,7 +722,14 @@ Client::run(StringSeq& originalArgs)
                     return EXIT_FAILURE;
                 }
             }
-            timeout = static_cast<int>(router->getSessionTimeout());
+            sessionTimeout = static_cast<int>(router->getSessionTimeout());
+            try
+            {
+                acmTimeout = router->getACMTimeout();
+            }
+            catch(const Ice::OperationNotExistException&)
+            {
+            }
         }
         else if(communicator()->getDefaultLocator())
         {
@@ -511,7 +746,7 @@ Client::run(StringSeq& originalArgs)
 
             //
             // First try to contact the locator. If we can't talk to the locator,
-            // no need to go further. Otherwise, we get the proxy of local registry 
+            // no need to go further. Otherwise, we get the proxy of local registry
             // proxy.
             //
             IceGrid::LocatorPrx locator;
@@ -529,9 +764,9 @@ Client::run(StringSeq& originalArgs)
             catch(const LocalException& ex)
             {
                 cerr << _appName << ": could not contact the default locator:" << endl << ex << endl;
-                return EXIT_FAILURE;                    
+                return EXIT_FAILURE;
             }
-            
+
             IceGrid::RegistryPrx registry;
             if(localRegistry->ice_getIdentity() == registryId)
             {
@@ -554,7 +789,7 @@ Client::run(StringSeq& originalArgs)
                 catch(const ObjectNotFoundException&)
                 {
                     cerr << _appName << ": no active registry replica named `" << replica << "'" << endl;
-                    return EXIT_FAILURE;            
+                    return EXIT_FAILURE;
                 }
                 catch(const LocalException& ex)
                 {
@@ -562,12 +797,12 @@ Client::run(StringSeq& originalArgs)
                     {
                         cerr << _appName << ": could not contact the registry replica named `" << replica << "':\n";
                         cerr << ex << endl;
-                        return EXIT_FAILURE;            
+                        return EXIT_FAILURE;
                     }
                     else
                     {
                         //
-                        // If we can't contact the master, use to the local registry.
+                        // If we can't contact the master, use the local registry.
                         //
                         registry = localRegistry;
                         string name = registry->ice_getIdentity().name;
@@ -589,9 +824,7 @@ Client::run(StringSeq& originalArgs)
             //
             if(registry->ice_getIdentity() == localRegistry->ice_getIdentity())
             {
-                properties->setProperty("CollocInternal.AdapterId", IceUtil::generateUUID());
-                ObjectAdapterPtr colloc = communicator()->createObjectAdapter("CollocInternal");
-                colloc->setLocator(0);
+                ObjectAdapterPtr colloc = communicator()->createObjectAdapter(""); // colloc-only adapter
                 ObjectPrx router = colloc->addWithUUID(new ReuseConnectionRouter(locator));
                 communicator()->setDefaultRouter(RouterPrx::uncheckedCast(router));
                 registry = registry->ice_router(communicator()->getDefaultRouter());
@@ -616,7 +849,7 @@ Client::run(StringSeq& originalArgs)
                     }
                     id = IceUtilInternal::trim(id);
                 }
-                
+
                 if(password.empty())
                 {
                     password = getPassword("password: ");
@@ -627,27 +860,34 @@ Client::run(StringSeq& originalArgs)
                     }
 #endif
                 }
-                    
+
                 session = registry->createAdminSession(id, password);
-                // Zero the password string.
-                for(string::iterator p = password.begin(); p != password.end(); ++p)
-                {
-                    *p = '\0';
-                }
+                fill(password.begin(), password.end(), '\0'); // Zero the password string.
             }
 
-            timeout = registry->getSessionTimeout();
+            sessionTimeout = registry->getSessionTimeout();
+            try
+            {
+                acmTimeout = registry->getACMTimeout();
+            }
+            catch(const Ice::OperationNotExistException&)
+            {
+            }
         }
         else // No default locator or router set.
         {
             cerr << _appName << ": could not contact the registry:" << endl;
             cerr << "no default locator or router configured" << endl;
-            return EXIT_FAILURE;            
+            return EXIT_FAILURE;
         }
 
-        if(timeout > 0)
+        if(acmTimeout > 0)
         {
-            keepAlive = new SessionKeepAliveThread(session, timeout / 2);
+            session->ice_getConnection()->setACM(acmTimeout, IceUtil::None, Ice::HeartbeatAlways);
+        }
+        else if(sessionTimeout > 0)
+        {
+            keepAlive = new SessionKeepAliveThread(session, sessionTimeout / 2);
             keepAlive->start();
         }
 
@@ -661,7 +901,7 @@ Client::run(StringSeq& originalArgs)
         //
         localChecksums.erase("::IceGrid::FileParser");
         localChecksums.erase("::IceGrid::ParseException");
-                         
+
         for(SliceChecksumDict::const_iterator q = localChecksums.begin(); q != localChecksums.end(); ++q)
         {
             SliceChecksumDict::const_iterator r = serverChecksums.find(q->first);
@@ -678,7 +918,7 @@ Client::run(StringSeq& originalArgs)
         {
             Lock sync(*this);
             _parser = Parser::createParser(communicator(), session, admin, commands.empty());
-        }    
+        }
 
         if(!commands.empty()) // Commands were given
         {
@@ -691,7 +931,7 @@ Client::run(StringSeq& originalArgs)
         else // No commands, let's use standard input
         {
             _parser->showBanner();
-            
+
             int parseStatus = _parser->parse(stdin, debug);
             if(parseStatus == EXIT_FAILURE)
             {

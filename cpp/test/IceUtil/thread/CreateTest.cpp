@@ -1,16 +1,13 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <IceUtil/IceUtil.h>
-
-#include <stdio.h>
 
 #include <CreateTest.h>
 #include <TestCommon.h>
@@ -23,7 +20,7 @@ static const string createTestName("thread create");
 class CreateTestThread : public Thread
 {
 public:
-    
+
     CreateTestThread() :
         threadran(false)
     {
@@ -53,12 +50,5 @@ CreateTest::run()
         ThreadControl control = t->start();
         control.join();
         test(t->threadran);
-        if((i % 256) == 0)
-        {
-            char buf[5];
-            sprintf(buf, "%04d", i);
-            cout << buf << "" << flush;
-        }
     }
-    cout << "    " << flush;
 }

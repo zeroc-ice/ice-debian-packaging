@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -155,7 +155,7 @@ public:
     Ice::Int replySize;
 };
 
-class RemoteObserverI : public Ice::Instrumentation::RemoteObserver, public ObserverI
+class ChildInvocationObserverI : virtual public Ice::Instrumentation::ChildInvocationObserver, public ObserverI
 {
 public:
 
@@ -177,6 +177,14 @@ public:
     Ice::Int replySize;
 };
 
+class RemoteObserverI : public Ice::Instrumentation::RemoteObserver, public ChildInvocationObserverI
+{
+};
+
+class CollocatedObserverI : public Ice::Instrumentation::CollocatedObserver, public ChildInvocationObserverI
+{
+};
+
 class InvocationObserverI : public Ice::Instrumentation::InvocationObserver, public ObserverI
 {
 public:
@@ -187,6 +195,10 @@ public:
         ObserverI::reset();
         retriedCount = 0;
         userExceptionCount = 0;
+        if(collocatedObserver)
+        {
+            collocatedObserver->reset();
+        }
         if(remoteObserver)
         {
             remoteObserver->reset();
@@ -219,10 +231,23 @@ public:
         return remoteObserver;
     }
 
+    virtual Ice::Instrumentation::CollocatedObserverPtr 
+    getCollocatedObserver(const Ice::ObjectAdapterPtr&, Ice::Int, Ice::Int)
+    {
+        IceUtil::Mutex::Lock sync(*this);
+        if(!collocatedObserver)
+        {
+            collocatedObserver = new CollocatedObserverI();
+            collocatedObserver->reset();
+        }
+        return collocatedObserver;
+    }
+
     Ice::Int userExceptionCount;
     Ice::Int retriedCount;
 
     IceUtil::Handle<RemoteObserverI> remoteObserver;
+    IceUtil::Handle<CollocatedObserverI> collocatedObserver;
 };
 
 class CommunicatorObserverI : public Ice::Instrumentation::CommunicatorObserver, public IceUtil::Mutex

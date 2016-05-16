@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -246,7 +246,7 @@ interface Server extends FileReader
      * @throws DeploymentException Raised if the server can't be updated.
      *
      **/
-    ["ami"] bool checkUpdate(InternalServerDescriptor svr, bool noRestart)
+    bool checkUpdate(InternalServerDescriptor svr, bool noRestart)
         throws DeploymentException;
 
     /**
@@ -391,6 +391,14 @@ interface Node extends FileReader, ReplicaObserver
      *
      **/
     ["amd"] idempotent void destroyServer(string name, string uuid, int revision, string replicaName)
+        throws DeploymentException;
+
+    /**
+     *
+     * Destroy the server if it's not active.
+     *
+     **/
+    ["amd"] idempotent void destroyServerWithoutRestart(string name, string uuid, int revision, string replicaName)
         throws DeploymentException;
 
     /**

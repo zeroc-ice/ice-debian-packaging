@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -15,7 +15,7 @@
 #include <Ice/Locator.h>
 #include <Ice/Service.h>
 #include <IceGrid/Activator.h>
-#include <IceGrid/NodeServerAdminRouter.h>
+#include <IceGrid/NodeAdminRouter.h>
 #include <IceGrid/RegistryI.h>
 #include <IceGrid/FileUserAccountMapperI.h>
 #include <IceGrid/NodeI.h>
@@ -23,7 +23,7 @@
 #include <IceGrid/TraceLevels.h>
 #include <IceGrid/DescriptorParser.h>
 #include <IceGrid/Util.h>
-#include <IcePatch2/Util.h>
+#include <IcePatch2Lib/Util.h>
 
 #ifdef _WIN32
 #   include <direct.h>
@@ -87,7 +87,7 @@ class CollocatedRegistry : public RegistryI
 {
 public:
 
-    CollocatedRegistry(const CommunicatorPtr&, const ActivatorPtr&, bool, bool, const std::string&);
+    CollocatedRegistry(const CommunicatorPtr&, const ActivatorPtr&, bool, bool, const std::string&, const std::string&);
     virtual void shutdown();
 
 private:
@@ -95,32 +95,6 @@ private:
     ActivatorPtr _activator;
 };
 
-
-class DefaultServantLocator : public Ice::ServantLocator
-{
-public:
-
-    DefaultServantLocator(const ObjectPtr& servant) :
-        _servant(servant)
-    {
-    }
-
-    virtual ObjectPtr locate(const Current&, LocalObjectPtr&)
-    {
-        return _servant;
-    }
-
-    virtual void finished(const Current&, const ObjectPtr&, const LocalObjectPtr&)
-    {
-    }
-
-    virtual void deactivate(const string&)
-    {
-    }
-
-private:
-    ObjectPtr _servant;
-};
 
 #ifdef _WIN32
 void
@@ -152,8 +126,9 @@ CollocatedRegistry::CollocatedRegistry(const CommunicatorPtr& com,
                                        const ActivatorPtr& activator, 
                                        bool nowarn,
                                        bool readonly,
-                                       const string& initFromReplica) :
-    RegistryI(com, new TraceLevels(com, "IceGrid.Registry"), nowarn, readonly, initFromReplica), 
+                                       const string& initFromReplica,
+                                       const string& nodeName) :
+    RegistryI(com, new TraceLevels(com, "IceGrid.Registry"), nowarn, readonly, initFromReplica, nodeName),
     _activator(activator)
 {
 }
@@ -291,6 +266,13 @@ NodeService::startImpl(int argc, char* argv[], int& status)
 
     PropertiesPtr properties = communicator()->getProperties();
 
+    string name = properties->getProperty("IceGrid.Node.Name");
+    if(name.empty())
+    {
+        error("property `IceGrid.Node.Name' is not set");
+        return false;
+    }
+
     //
     // Disable server idle time. Otherwise, the adapter would be
     // shutdown prematurely and the deactivation would fail.
@@ -325,12 +307,14 @@ NodeService::startImpl(int argc, char* argv[], int& status)
     //
     if(properties->getPropertyAsInt("IceGrid.Node.CollocateRegistry") > 0)
     {
-        _registry = new CollocatedRegistry(communicator(), _activator, nowarn, readonly, initFromReplica);
+        _registry = new CollocatedRegistry(communicator(), _activator, nowarn, readonly, initFromReplica, name);
         if(!_registry->start())
         {
             return false;
         }
 
+        communicator()->setDefaultLocator(_registry->getLocator());
+        
         //
         // Set the default locator property to point to the collocated
         // locator (this property is passed by the activator to each
@@ -339,16 +323,10 @@ NodeService::startImpl(int argc, char* argv[], int& status)
         //
         if(properties->getProperty("Ice.Default.Locator").empty())
         {
-            Identity locatorId;
-            locatorId.category = properties->getPropertyWithDefault("IceGrid.InstanceName", "IceGrid");
-            locatorId.name = "Locator";
-            string endpoints = properties->getProperty("IceGrid.Registry.Client.Endpoints");
-            string locPrx = "\"" + communicator()->identityToString(locatorId) + "\" :" + endpoints;
-            communicator()->setDefaultLocator(Ice::LocatorPrx::uncheckedCast(communicator()->stringToProxy(locPrx)));
-            properties->setProperty("Ice.Default.Locator", locPrx);
+            properties->setProperty("Ice.Default.Locator", communicator()->getDefaultLocator()->ice_toString());
         }
     }
-    else if(properties->getProperty("Ice.Default.Locator").empty())
+    else if(!communicator()->getDefaultLocator())
     {
         error("property `Ice.Default.Locator' is not set");
         return false;
@@ -385,9 +363,9 @@ NodeService::startImpl(int argc, char* argv[], int& status)
             dataPath += "/"; 
         }
 
-        IcePatch2::createDirectory(dataPath + "servers");
-        IcePatch2::createDirectory(dataPath + "tmp");
-        IcePatch2::createDirectory(dataPath + "distrib");
+        IcePatch2Internal::createDirectory(dataPath + "servers");
+        IcePatch2Internal::createDirectory(dataPath + "tmp");
+        IcePatch2Internal::createDirectory(dataPath + "distrib");
 
 #ifdef _WIN32
         //
@@ -419,13 +397,6 @@ NodeService::startImpl(int argc, char* argv[], int& status)
     if(properties->getProperty("IceGrid.Node.Endpoints").empty())
     {
         error("property `IceGrid.Node.Endpoints' is not set");
-        return false;
-    }
-
-    string name = properties->getProperty("IceGrid.Node.Name");
-    if(name.empty())
-    {
-        error("property `IceGrid.Node.Name' is not set");
         return false;
     }
 
@@ -467,7 +438,6 @@ NodeService::startImpl(int argc, char* argv[], int& status)
             try
             {
                 Ice::ObjectPrx object = _adapter->addWithUUID(new FileUserAccountMapperI(userAccountFileProperty));
-                object = object->ice_collocationOptimized(true);
                 mapper = UserAccountMapperPrx::uncheckedCast(object);
             }
             catch(const std::string& msg)
@@ -486,9 +456,21 @@ NodeService::startImpl(int argc, char* argv[], int& status)
     //
     // The IceGrid instance name.
     //
-    const string instanceName = communicator()->getDefaultLocator()->ice_getIdentity().category;
+    string instanceName = properties->getProperty("IceGrid.InstanceName");
+    if(instanceName.empty())
+    {
+        instanceName = properties->getProperty("IceGridDiscovery.InstanceName");
+    }
+    if(instanceName.empty())
+    {
+        instanceName = communicator()->getDefaultLocator()->ice_getIdentity().category;
+    }
+    if(instanceName.empty())
+    {
+        instanceName = "IceGrid";
+    }
 
-    _sessions.reset(new NodeSessionManager(communicator()));
+    _sessions.reset(new NodeSessionManager(communicator(), instanceName));
 
     //
     // Create the server factory. The server factory creates persistent objects
@@ -497,12 +479,11 @@ NodeService::startImpl(int argc, char* argv[], int& status)
     //
     Identity id = communicator()->stringToIdentity(instanceName + "/Node-" + name);
     NodePrx nodeProxy = NodePrx::uncheckedCast(_adapter->createProxy(id));
-    _node = new NodeI(_adapter, *_sessions, _activator, _timer, traceLevels, nodeProxy, name, mapper);
+    _node = new NodeI(_adapter, *_sessions, _activator, _timer, traceLevels, nodeProxy, name, mapper, instanceName);
     _adapter->add(_node, nodeProxy->ice_getIdentity());
 
-    _adapter->addServantLocator(new DefaultServantLocator(new NodeServerAdminRouter(_node)), 
-                                _node->getServerAdminCategory());
-
+    _adapter->addDefaultServant(new NodeServerAdminRouter(_node), _node->getServerAdminCategory());
+    
     //
     // Start the platform info thread if needed.
     //
@@ -517,7 +498,7 @@ NodeService::startImpl(int argc, char* argv[], int& status)
         {
             communicator()->getDefaultLocator()->ice_timeout(1000)->ice_ping();
         }
-        catch(const Ice::LocalException& ex)
+        catch(const Ice::Exception& ex)
         {
             Warning out(communicator()->getLogger());
             out << "couldn't reach the IceGrid registry (this is expected ";
@@ -532,26 +513,18 @@ NodeService::startImpl(int argc, char* argv[], int& status)
     _sessions->create(_node);
 
     //
-    // In some tests, we deploy icegridnodes using IceGrid:
+    // Create Admin unless there is a collocated registry with its own Admin
     //
-    if(properties->getProperty("Ice.Admin.Endpoints") != "")
+    if(!_registry && properties->getPropertyAsInt("Ice.Admin.Enabled") > 0)
     {
-        //
-        // Replace Process facet and create Admin object
-        //
-        try
-        {
-            ProcessPtr origProcess = ProcessPtr::dynamicCast(communicator()->removeAdminFacet("Process"));
-            communicator()->addAdminFacet(new ProcessI(_activator, origProcess), "Process");
-            communicator()->getAdmin();
-        }
-        catch(const Ice::NotRegisteredException&)
-        {
-            //
-            // Some plug-in removed the Process facet, so we don't replace it.
-            // (unlikely error though)
-            // 
-        }
+        // Replace Admin facet
+        ProcessPtr origProcess = ProcessPtr::dynamicCast(communicator()->removeAdminFacet("Process"));
+        communicator()->addAdminFacet(new ProcessI(_activator, origProcess), "Process");
+       
+        Identity adminId;
+        adminId.name = "NodeAdmin-" + name;
+        adminId.category = instanceName;
+        communicator()->createAdmin(_adapter, adminId);
     }
 
     //
@@ -797,28 +770,27 @@ NodeService::initializeCommunicator(int& argc, char* argv[],
     initData.properties = createProperties(argc, argv, initData.properties);
 
     //
-    // Make sure that IceGridNode doesn't use collocation optimization
+    // Never create Admin object in Ice.Admin adapter
     //
-    initData.properties->setProperty("Ice.Default.CollocationOptimized", "0");
+    initData.properties->setProperty("Ice.Admin.Endpoints", "");
 
     //
-    // Delay creation of Admin object:
+    // Enable Admin unless explicitely disabled (or enabled) in configuration
     //
-    initData.properties->setProperty("Ice.Admin.DelayCreation", "1");
-
-    //
-    // Default backend database plugin is Freeze if none is specified.
-    //
-    if(initData.properties->getPropertyAsInt("IceGrid.Node.CollocateRegistry") > 0 &&
-       initData.properties->getProperty("Ice.Plugin.DB").empty())
+    if(initData.properties->getProperty("Ice.Admin.Enabled").empty())
     {
-        initData.properties->setProperty("Ice.Plugin.DB", "IceGridFreezeDB:createFreezeDB");
+        initData.properties->setProperty("Ice.Admin.Enabled", "1");
     }
 
     //
     // Setup the client thread pool size.
     //
     setupThreadPool(initData.properties, "Ice.ThreadPool.Client", 1, 100);
+
+    //
+    // Close idle connections
+    //
+    initData.properties->setProperty("Ice.ACM.Close", "3");
 
     return Service::initializeCommunicator(argc, argv, initData);
 }

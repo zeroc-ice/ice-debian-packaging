@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -40,10 +40,10 @@ run(int argc, char* argv[], const Ice::CommunicatorPtr& communicator)
     string endpoint;
     if(properties->getProperty("Ice.IPv6") == "1")
     {
-#if defined(__APPLE__)
-        endpoint = "udp -h \"ff02::1:1\" -p 12020 --interface \"lo0\"";
+#ifndef __APPLE__
+        endpoint = "udp -h \"ff15::1:1\" -p 12020";
 #else
-        endpoint = "udp -h \"ff01::1:1\" -p 12020";
+        endpoint = "udp -h \"ff15::1:1\" -p 12020 --interface \"::1\"";
 #endif
     }
     else
@@ -64,6 +64,10 @@ run(int argc, char* argv[], const Ice::CommunicatorPtr& communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     int status;
     Ice::CommunicatorPtr communicator;
 

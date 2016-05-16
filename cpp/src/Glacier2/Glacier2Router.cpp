@@ -1,13 +1,12 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <IceUtil/UUID.h>
 #include <IceUtil/Options.h>
 #include <IceUtil/FileUtil.h>
@@ -16,13 +15,13 @@
 #include <Glacier2/RouterI.h>
 #include <Glacier2/Session.h>
 #include <Glacier2/SessionRouterI.h>
-#include <Glacier2/CryptPermissionsVerifierI.h>
+#include <Glacier2/NullPermissionsVerifier.h>
 
 using namespace std;
 using namespace Ice;
 using namespace Glacier2;
 
-namespace Glacier2
+namespace
 {
 
 class RouterService : public Service
@@ -45,35 +44,34 @@ private:
     SessionRouterIPtr _sessionRouter;
 };
 
-class NullPermissionsVerifierI : public Glacier2::PermissionsVerifier
+
+class FinderI : public Ice::RouterFinder
 {
 public:
-
-    bool checkPermissions(const string&, const string&, string&, const Current&) const
+    
+    FinderI(const Glacier2::RouterPrx& router) : _router(router)
     {
-        return true;
     }
-};
-
-class NullSSLPermissionsVerifierI : public Glacier2::SSLPermissionsVerifier
-{
-public:
-
-    virtual bool
-    authorize(const Glacier2::SSLInfo&, std::string&, const Ice::Current&) const
+    
+    virtual Ice::RouterPrx
+    getRouter(const Ice::Current&)
     {
-        return true;
+        return _router;
     }
+
+private:
+
+    const Glacier2::RouterPrx _router;
 };
 
 };
 
-Glacier2::RouterService::RouterService()
+RouterService::RouterService()
 {
 }
 
 bool
-Glacier2::RouterService::start(int argc, char* argv[], int& status)
+RouterService::start(int argc, char* argv[], int& status)
 {
     bool nowarn;
 
@@ -85,7 +83,7 @@ Glacier2::RouterService::start(int argc, char* argv[], int& status)
     vector<string> args;
     try
     {
-        args = opts.parse(argc, (const char**)argv);
+        args = opts.parse(argc, const_cast<const char**>(argv));
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
@@ -126,16 +124,18 @@ Glacier2::RouterService::start(int argc, char* argv[], int& status)
         error("property `" + clientEndpointsProperty + "' is not set");
         return false;
     }
-    const string clientACMProperty = "Glacier2.Client.ACM";
-    if(properties->getProperty(clientACMProperty).empty())
+
+    if(properties->getPropertyAsInt("Glacier2.SessionTimeout") > 0 &&
+       properties->getProperty("Glacier2.Client.ACM.Timeout").empty())
     {
-        //
-        // Set the client object adapter ACM timeout to the session timeout * 2. If no
-        // session timeout is set, ACM is disabled for the client object adapter.
-        //
         ostringstream os;
-        os << properties->getPropertyAsInt("Glacier2.SessionTimeout") * 2;
-        properties->setProperty(clientACMProperty, os.str());
+        os << properties->getPropertyAsInt("Glacier2.SessionTimeout");
+        properties->setProperty("Glacier2.Client.ACM.Timeout", os.str());
+    }
+
+    if(properties->getProperty("Glacier2.Client.ACM.Close").empty())
+    {
+        properties->setProperty("Glacier2.Client.ACM.Close", "4"); // Forcefull close on invocation and idle.
     }
 
     ObjectAdapterPtr clientAdapter = communicator()->createObjectAdapter("Glacier2.Client");
@@ -151,132 +151,58 @@ Glacier2::RouterService::start(int argc, char* argv[], int& status)
         serverAdapter = communicator()->createObjectAdapter("Glacier2.Server");
     }
 
-    string instanceName = properties->getPropertyWithDefault("Glacier2.InstanceName", "Glacier2");
-
-    //
-    // We need a separate object adapter for any collocated
-    // permissions verifiers. We can't use the client adapter.
-    //
-    properties->setProperty("Glacier2Internal.Verifiers.AdapterId", IceUtil::generateUUID());
-    ObjectAdapterPtr verifierAdapter = communicator()->createObjectAdapter("Glacier2Internal.Verifiers");
-    verifierAdapter->setLocator(0);
-
-    //
-    // Check for a permissions verifier or a password file.
-    //
-    string verifierProperty = "Glacier2.PermissionsVerifier";
-    string verifierPropertyValue = properties->getProperty(verifierProperty);
-    string passwordsProperty = properties->getProperty("Glacier2.CryptPasswords");
+    string instanceName = communicator()->getProperties()->getPropertyWithDefault("Glacier2.InstanceName", "Glacier2");
+    
+    vector<string> verifierProperties;
+    verifierProperties.push_back("Glacier2.PermissionsVerifier");
+    verifierProperties.push_back("Glacier2.SSLPermissionsVerifier");
+                           
+    Glacier2Internal::setupNullPermissionsVerifier(communicator(), instanceName, verifierProperties);
+                                                   
+    string verifierProperty = verifierProperties[0];
     PermissionsVerifierPrx verifier;
-    if(!verifierPropertyValue.empty())
+    ObjectPrx obj;
+    try
     {
-        Identity nullPermVerifId;
-        nullPermVerifId.category = instanceName;
-        nullPermVerifId.name = "NullPermissionsVerifier";
+        //
+        // We use propertyToProxy instead of stringToProxy because the property 
+        // can provide proxy attributes
+        //
+        obj = communicator()->propertyToProxy(verifierProperty);
+    }
+    catch(const std::exception& ex)
+    {
+        ServiceError err(this);
+        err << "permissions verifier `" << communicator()->getProperties()->getProperty(verifierProperty) 
+            << "' is invalid:\n" << ex;
+        return false;
+    }
 
-        ObjectPrx obj;
+    if(obj)
+    {
         try
         {
-            try
+            verifier = PermissionsVerifierPrx::checkedCast(obj);
+            if(!verifier)
             {
-                obj = communicator()->propertyToProxy(verifierProperty);
-            }
-            catch(const Ice::ProxyParseException&)
-            {
-                //
-                // Check if the property is just the identity of the null permissions verifier
-                // (the identity might contain spaces which would prevent it to be parsed as a
-                // proxy).
-                //
-                if(communicator()->stringToIdentity(verifierPropertyValue) == nullPermVerifId)
-                {
-                    obj = communicator()->stringToProxy("\"" + verifierPropertyValue + "\"");
-                }
-            }
-
-            if(!obj)
-            {
-                error("permissions verifier `" + verifierPropertyValue + "' is invalid");
+                ServiceError err(this);
+                err << "permissions verifier `" << communicator()->getProperties()->getProperty(verifierProperty) 
+                    << "' is invalid";
                 return false;
             }
         }
-        catch(const std::exception& ex)
+        catch(const Ice::Exception& ex)
         {
-            ServiceError err(this);
-            err << "permissions verifier `" << verifierPropertyValue + "' is invalid:\n" << ex;
-            return false;
-        }
-
-        if(obj->ice_getIdentity() == nullPermVerifId)
-        {
-            verifier = PermissionsVerifierPrx::uncheckedCast(
-                verifierAdapter->add(new NullPermissionsVerifierI(), nullPermVerifId)->ice_collocationOptimized(true));
-        }
-        else
-        {
-            try
+            if(!nowarn)
             {
-                verifier = PermissionsVerifierPrx::checkedCast(obj);
-                if(!verifier)
-                {
-                    error("permissions verifier `" + verifierPropertyValue + "' is invalid");
-                    return false;
-                }
+                ServiceWarning warn(this);
+                warn << "unable to contact permissions verifier `" 
+                     << communicator()->getProperties()->getProperty(verifierProperty) << "'\n" << ex;
             }
-            catch(const Ice::Exception& ex)
-            {
-                if(!nowarn)
-                {
-                    ServiceWarning warn(this);
-                    warn << "unable to contact permissions verifier `" << verifierPropertyValue << "'\n" << ex;
-                }
-                verifier = PermissionsVerifierPrx::uncheckedCast(obj);
-            }
+            verifier = PermissionsVerifierPrx::uncheckedCast(obj);
         }
     }
-    else if(!passwordsProperty.empty())
-    {
-        //
-        // No nativeToUTF8 conversion necessary here, since no string
-        // converter is installed by Glacier2 the string is UTF-8.
-        //
-        IceUtilInternal::ifstream passwordFile(passwordsProperty);
-
-        if(!passwordFile)
-        {
-            string err = strerror(errno);
-            error("cannot open `" + passwordsProperty + "' for reading: " + err);
-            return false;
-        }
-
-        map<string, string> passwords;
-
-        while(true)
-        {
-            string userId;
-            passwordFile >> userId;
-            if(!passwordFile)
-            {
-                break;
-            }
-
-            string password;
-            passwordFile >> password;
-            if(!passwordFile)
-            {
-                break;
-            }
-
-            assert(!userId.empty());
-            assert(!password.empty());
-            passwords.insert(make_pair(userId, password));
-        }
-
-        PermissionsVerifierPtr verifierImpl = new CryptPermissionsVerifierI(passwords);
-
-        verifier = PermissionsVerifierPrx::uncheckedCast(verifierAdapter->addWithUUID(verifierImpl));
-    }
-
+    
     //
     // Get the session manager if specified.
     //
@@ -285,7 +211,6 @@ Glacier2::RouterService::start(int argc, char* argv[], int& status)
     SessionManagerPrx sessionManager;
     if(!sessionManagerPropertyValue.empty())
     {
-        ObjectPrx obj;
         try
         {
             obj = communicator()->propertyToProxy(sessionManagerProperty);
@@ -293,8 +218,7 @@ Glacier2::RouterService::start(int argc, char* argv[], int& status)
         catch(const std::exception& ex)
         {
             ServiceError err(this);
-            err << "session manager `" << sessionManagerPropertyValue 
-                << "' is invalid\n:" << ex;
+            err << "session manager `" << sessionManagerPropertyValue << "' is invalid\n:" << ex;
             return false;
         }
         try
@@ -311,8 +235,7 @@ Glacier2::RouterService::start(int argc, char* argv[], int& status)
             if(!nowarn)
             {
                 ServiceWarning warn(this);
-                warn << "unable to contact session manager `" << sessionManagerPropertyValue << "'\n"
-                     << ex;
+                warn << "unable to contact session manager `" << sessionManagerPropertyValue << "'\n" << ex;
             }
             sessionManager = SessionManagerPrx::uncheckedCast(obj);
         }
@@ -324,77 +247,44 @@ Glacier2::RouterService::start(int argc, char* argv[], int& status)
     //
     // Check for an SSL permissions verifier.
     //
-    string sslVerifierProperty = "Glacier2.SSLPermissionsVerifier";
-    string sslVerifierPropertyValue = properties->getProperty(sslVerifierProperty);
+    string sslVerifierProperty = verifierProperties[1];
     SSLPermissionsVerifierPrx sslVerifier;
-    if(!sslVerifierPropertyValue.empty())
+  
+    try
+    {  
+        obj = communicator()->propertyToProxy(sslVerifierProperty);
+    }
+    catch(const std::exception& ex)
     {
-        Identity nullSSLPermVerifId;
-        nullSSLPermVerifId.category = instanceName;
-        nullSSLPermVerifId.name = "NullSSLPermissionsVerifier";
+        ServiceError err(this);
+        err << "ssl permissions verifier `" << communicator()->getProperties()->getProperty(sslVerifierProperty) 
+            << "' is invalid:\n" << ex;
+        return false;
+    }
 
-        ObjectPrx obj;
+    if(obj)
+    {
         try
         {
-            try
+            sslVerifier = SSLPermissionsVerifierPrx::checkedCast(obj);
+            if(!sslVerifier)
             {
-                obj = communicator()->propertyToProxy(sslVerifierProperty);
-            }
-            catch(const Ice::ProxyParseException&)
-            {
-                //
-                // Check if the property is just the identity of the null permissions verifier
-                // (the identity might contain spaces which would prevent it to be parsed as a
-                // proxy).
-                //
-                if(communicator()->stringToIdentity(sslVerifierPropertyValue) == nullSSLPermVerifId)
-                {
-                    obj = communicator()->stringToProxy("\"" + sslVerifierPropertyValue + "\"");
-                }
-            }
-
-            if(!obj)
-            {
-                error("ssl permissions verifier `" + verifierPropertyValue + "' is invalid");
-                return false;
+                ServiceError err(this);
+                err << "ssl permissions verifier `"
+                    << communicator()->getProperties()->getProperty(sslVerifierProperty) 
+                    << "' is invalid";
             }
         }
-        catch(const std::exception& ex)
+        catch(const Ice::Exception& ex)
         {
-            ServiceError err(this);
-            err << "ssl permissions verifier `" << sslVerifierPropertyValue << "' is invalid:\n"
-                << ex;
-            return false;
-        }
-
-        if(obj->ice_getIdentity() == nullSSLPermVerifId)
-        {
-
-            sslVerifier = SSLPermissionsVerifierPrx::uncheckedCast(
-                verifierAdapter->add(new NullSSLPermissionsVerifierI(), nullSSLPermVerifId)->
-                        ice_collocationOptimized(true));
-        }
-        else
-        {
-            try
+            if(!nowarn)
             {
-                sslVerifier = SSLPermissionsVerifierPrx::checkedCast(obj);
-                if(!sslVerifier)
-                {
-                    error("ssl permissions verifier `" + sslVerifierPropertyValue + "' is invalid");
-                    return false;
-                }
+                ServiceWarning warn(this);
+                warn << "unable to contact ssl permissions verifier `" 
+                     <<  communicator()->getProperties()->getProperty(sslVerifierProperty) << "'\n"
+                     << ex;
             }
-            catch(const Ice::Exception& ex)
-            {
-                if(!nowarn)
-                {
-                    ServiceWarning warn(this);
-                    warn << "unable to contact ssl permissions verifier `" << sslVerifierPropertyValue << "'\n"
-                         << ex;
-                }
-                sslVerifier = SSLPermissionsVerifierPrx::uncheckedCast(obj);
-            }
+            sslVerifier = SSLPermissionsVerifierPrx::uncheckedCast(obj);
         }
     }
 
@@ -406,7 +296,6 @@ Glacier2::RouterService::start(int argc, char* argv[], int& status)
     SSLSessionManagerPrx sslSessionManager;
     if(!sslSessionManagerPropertyValue.empty())
     {
-        ObjectPrx obj;
         try
         {
             obj = communicator()->propertyToProxy(sslSessionManagerProperty);
@@ -467,6 +356,24 @@ Glacier2::RouterService::start(int argc, char* argv[], int& status)
     //
     _sessionRouter = new SessionRouterI(_instance, verifier, sessionManager, sslVerifier, sslSessionManager);
 
+    //
+    // Th session router is used directly as servant for the main
+    // Glacier2 router Ice object.
+    //
+    Identity routerId;
+    routerId.category = _instance->properties()->getPropertyWithDefault("Glacier2.InstanceName", "Glacier2");
+    routerId.name = "router";
+    Glacier2::RouterPrx routerPrx = Glacier2::RouterPrx::uncheckedCast(clientAdapter->add(_sessionRouter, routerId));
+
+    //
+    // Add the Ice router finder object to allow retrieving the router
+    // proxy with just the endpoint information of the router.
+    //
+    Identity finderId;
+    finderId.category = "Ice";
+    finderId.name = "RouterFinder";
+    clientAdapter->add(new FinderI(routerPrx), finderId);
+
     if(_instance->getObserver())
     {
         _instance->getObserver()->setObserverUpdater(_sessionRouter);
@@ -498,7 +405,7 @@ Glacier2::RouterService::start(int argc, char* argv[], int& status)
 }
 
 bool
-Glacier2::RouterService::stop()
+RouterService::stop()
 {
     if(_sessionRouter)
     {
@@ -519,17 +426,36 @@ Glacier2::RouterService::stop()
 }
 
 CommunicatorPtr
-Glacier2::RouterService::initializeCommunicator(int& argc, char* argv[], 
-                                                const InitializationData& initializationData)
+RouterService::initializeCommunicator(int& argc, char* argv[], 
+                                      const InitializationData& initializationData)
 {
     InitializationData initData = initializationData;
     initData.properties = createProperties(argc, argv, initializationData.properties);
- 
+
     //
     // Make sure that Glacier2 doesn't use a router.
     //
     initData.properties->setProperty("Ice.Default.Router", "");
     
+    //
+    // If Glacier2.PermissionsVerifier is not set and Glacier2.CryptPasswords is set, 
+    // load the Glacier2CryptPermissionsVerifier plug-in
+    //
+    string verifier = "Glacier2.PermissionsVerifier";
+    if(initData.properties->getProperty(verifier).empty())
+    {
+        string cryptPasswords = initData.properties->getProperty("Glacier2.CryptPasswords");
+            
+        if(!cryptPasswords.empty())
+        {
+            initData.properties->setProperty("Ice.Plugin.Glacier2CryptPermissionsVerifier",
+                                             "Glacier2CryptPermissionsVerifier:createCryptPermissionsVerifier");
+            
+            initData.properties->setProperty("Glacier2CryptPermissionsVerifier.Glacier2.PermissionsVerifier",
+                                             cryptPasswords);
+        }
+    }
+
     //
     // Active connection management is permitted with Glacier2. For
     // the client object adapter, the ACM timeout is set to the
@@ -546,12 +472,12 @@ Glacier2::RouterService::initializeCommunicator(int& argc, char* argv[],
     // for incoming connections from clients must be disabled in
     // the clients.
     //
-
+   
     return Service::initializeCommunicator(argc, argv, initData);
 }
 
 void
-Glacier2::RouterService::usage(const string& appName)
+RouterService::usage(const string& appName)
 {
     string options =
         "Options:\n"
@@ -583,6 +509,6 @@ main(int argc, char* argv[])
 
 #endif
 {
-    Glacier2::RouterService svc;
+    RouterService svc;
     return svc.main(argc, argv);
 }

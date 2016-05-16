@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -147,77 +147,6 @@ private:
         std::list<int> _useWstringHist;
     };
 
-    class DelegateVisitor : private ::IceUtil::noncopyable, public ParserVisitor
-    {
-    public:
-
-        DelegateVisitor(::IceUtilInternal::Output&, ::IceUtilInternal::Output&, const std::string&);
-
-        virtual bool visitUnitStart(const UnitPtr&);
-        virtual void visitUnitEnd(const UnitPtr&);
-        virtual bool visitModuleStart(const ModulePtr&);
-        virtual void visitModuleEnd(const ModulePtr&);
-        virtual bool visitClassDefStart(const ClassDefPtr&);
-        virtual void visitClassDefEnd(const ClassDefPtr&);
-        virtual void visitOperation(const OperationPtr&);
-
-    private:
-
-        ::IceUtilInternal::Output& H;
-
-        std::string _dllExport;
-        int _useWstring;
-        std::list<int> _useWstringHist;
-    };
-
-    class DelegateMVisitor : private ::IceUtil::noncopyable, public ParserVisitor
-    {
-    public:
-
-        DelegateMVisitor(::IceUtilInternal::Output&, ::IceUtilInternal::Output&, const std::string&);
-
-        virtual bool visitUnitStart(const UnitPtr&);
-        virtual void visitUnitEnd(const UnitPtr&);
-        virtual bool visitModuleStart(const ModulePtr&);
-        virtual void visitModuleEnd(const ModulePtr&);
-        virtual bool visitClassDefStart(const ClassDefPtr&);
-        virtual void visitClassDefEnd(const ClassDefPtr&);
-        virtual void visitOperation(const OperationPtr&);
-
-    private:
-
-        ::IceUtilInternal::Output& H;
-        ::IceUtilInternal::Output& C;
-
-        std::string _dllExport;
-        int _useWstring;
-        std::list<int> _useWstringHist;
-    };
-
-    class DelegateDVisitor : private ::IceUtil::noncopyable, public ParserVisitor
-    {
-    public:
-
-        DelegateDVisitor(::IceUtilInternal::Output&, ::IceUtilInternal::Output&, const std::string&);
-
-        virtual bool visitUnitStart(const UnitPtr&);
-        virtual void visitUnitEnd(const UnitPtr&);
-        virtual bool visitModuleStart(const ModulePtr&);
-        virtual void visitModuleEnd(const ModulePtr&);
-        virtual bool visitClassDefStart(const ClassDefPtr&);
-        virtual void visitClassDefEnd(const ClassDefPtr&);
-        virtual void visitOperation(const OperationPtr&);
-
-    private:
-
-        ::IceUtilInternal::Output& H;
-        ::IceUtilInternal::Output& C;
-
-        std::string _dllExport;
-        int _useWstring;
-        std::list<int> _useWstringHist;
-    };
-
     class ObjectDeclVisitor : private ::IceUtil::noncopyable, public ParserVisitor
     {
     public:
@@ -255,7 +184,7 @@ private:
 
         void emitDataMember(const DataMemberPtr&);
         void emitGCFunctions(const ClassDefPtr&);
-        void emitGCInsertCode(const TypePtr&, const std::string&, const std::string&, int);
+        void emitGCVisitCode(const TypePtr&, const std::string&, const std::string&, int);
         void emitGCClearCode(const TypePtr&, const std::string&, const std::string&, int);
         bool emitVirtualBaseInitializers(const ClassDefPtr&, bool virtualInheritance, bool direct);
         void emitOneShotConstructor(const ClassDefPtr&);

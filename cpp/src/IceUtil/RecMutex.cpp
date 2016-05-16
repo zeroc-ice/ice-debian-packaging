@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,6 +9,12 @@
 
 #include <IceUtil/RecMutex.h>
 #include <IceUtil/Exception.h>
+
+//
+// AbstractMutex isn't used anywhere in IceUtil, we include it here
+// to give the compiler a chance to export the class symbols.
+//
+#include <IceUtil/AbstractMutex.h>
 
 using namespace std;
 

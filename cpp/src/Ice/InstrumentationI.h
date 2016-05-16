@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -184,6 +184,14 @@ public:
     virtual void reply(Ice::Int);
 };
 
+class CollocatedObserverI : public ObserverWithDelegateT<IceMX::CollocatedMetrics, 
+                                                         Ice::Instrumentation::CollocatedObserver>
+{
+public:
+
+    virtual void reply(Ice::Int);
+};
+
 class InvocationObserverI : public ObserverWithDelegateT<IceMX::InvocationMetrics, 
                                                          Ice::Instrumentation::InvocationObserver>
 {
@@ -193,8 +201,11 @@ public:
 
     virtual void userException();
 
-    virtual Ice::Instrumentation::RemoteObserverPtr getRemoteObserver(const Ice::ConnectionInfoPtr&, 
-                                                                      const Ice::EndpointPtr&, Ice::Int, Ice::Int);
+    virtual Ice::Instrumentation::RemoteObserverPtr 
+    getRemoteObserver(const Ice::ConnectionInfoPtr&, const Ice::EndpointPtr&, Ice::Int, Ice::Int);
+
+    virtual Ice::Instrumentation::CollocatedObserverPtr
+    getCollocatedObserver(const Ice::ObjectAdapterPtr&, Ice::Int, Ice::Int);
 };
 
 typedef ObserverWithDelegateT<IceMX::Metrics, Ice::Instrumentation::Observer> ObserverI;
@@ -203,9 +214,7 @@ class ICE_API CommunicatorObserverI : public Ice::Instrumentation::CommunicatorO
 {
 public:
 
-    CommunicatorObserverI(const IceInternal::MetricsAdminIPtr&,
-                          const Ice::Instrumentation::CommunicatorObserverPtr& = 
-                          Ice::Instrumentation::CommunicatorObserverPtr());
+    CommunicatorObserverI(const Ice::InitializationData&);
 
     virtual void setObserverUpdater(const Ice::Instrumentation::ObserverUpdaterPtr&);
  
@@ -230,14 +239,13 @@ public:
 
     virtual Ice::Instrumentation::DispatchObserverPtr getDispatchObserver(const Ice::Current&, Ice::Int);
 
-    const IceInternal::MetricsAdminIPtr& getMetricsAdmin() const;
+    const IceInternal::MetricsAdminIPtr& getFacet() const;
 
     void destroy();
 
 private:
 
     IceInternal::MetricsAdminIPtr _metrics;
-    Ice::LoggerPtr _logger;
     const Ice::Instrumentation::CommunicatorObserverPtr _delegate;
 
     ObserverFactoryWithDelegateT<ConnectionObserverI> _connections;

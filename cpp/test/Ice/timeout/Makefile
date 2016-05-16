@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -14,18 +14,19 @@ SERVER		= $(call mktestname,server)
 
 TARGETS		= $(CLIENT) $(SERVER)
 
-COBJS		= Test.o \
+SLICE_OBJS	= Test.o
+
+COBJS		= $(SLICE_OBJS) \
+		  TestI.o \
 		  Client.o \
 		  AllTests.o
 
-SOBJS		= Test.o \
+SOBJS		= $(SLICE_OBJS) \
 		  TestI.o \
 		  Server.o
 
-SRCS		= $(COBJS:.o=.cpp) \
-		  $(SOBJS:.o=.cpp)
-
-SLICE_SRCS	= Test.ice
+OBJS		= $(COBJS) \
+		  $(SOBJS)
 
 include $(top_srcdir)/config/Make.rules
 
@@ -38,5 +39,3 @@ $(CLIENT): $(COBJS)
 $(SERVER): $(SOBJS)
 	rm -f $@
 	$(call mktest,$@,$(SOBJS),$(LIBS))
-
-include .depend

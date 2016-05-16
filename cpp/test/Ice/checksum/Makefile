@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -13,14 +13,14 @@ CLIENT		= $(call mktestname,client)
 
 TARGETS		= $(CLIENT)
 
-COBJS		= Test.o \
-		  Types.o \
+
+SLICE_OBJS	= Test.o Types.o
+
+COBJS		= $(SLICE_OBJS) \
 		  Client.o \
 		  AllTests.o
 
-SRCS		= $(COBJS:.o=.cpp)
-
-SLICE_SRCS	= Test.ice Types.ice
+OBJS		= $(COBJS)
 
 include $(top_srcdir)/config/Make.rules
 
@@ -49,6 +49,3 @@ $(EVERYTHING_EXCEPT_ALL)::
 	    echo "making $@ in $$subdir"; \
 	    ( cd $$subdir && $(MAKE) $@ ) || exit 1; \
 	done
-
-
-include .depend

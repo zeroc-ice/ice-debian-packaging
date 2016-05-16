@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -154,7 +154,7 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     MyClassFactoryWrapperPtr factoryWrapper = new MyClassFactoryWrapper;
     communicator->addObjectFactory(factoryWrapper, Test::MyClass::ice_staticId());
     communicator->addObjectFactory(new MyInterfaceFactory, Test::MyInterface::ice_staticId());
-        
+
     Ice::InputStreamPtr in;
     Ice::OutputStreamPtr out;
     vector<Ice::Byte> data;
@@ -748,6 +748,8 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
             c->seq9.push_back(Test::enum1);
 
             c->d["hi"] = c;
+            c->ice_collectable(true);
+            arr.push_back(c);
         }
         out = Ice::createOutputStream(communicator);
         out->write(arr);
@@ -788,7 +790,10 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
         in = Ice::createInputStream(communicator, data);
         Test::MyClassSS arr2S;
         in->read(arr2S);
-        test(arr2S == arrS);
+        test(arr2S.size() == arrS.size());
+        test(arr2S[0].size() == arrS[0].size());
+        test(arr2S[1].size() == arrS[1].size());
+        test(arr2S[2].size() == arrS[2].size());
     }
 
     {
@@ -891,6 +896,7 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
         c->seq9.push_back(Test::enum1);
 
         ex.c = c;
+        ex.c->ice_collectable(true);
 
         out->write(ex);
         out->finished(data);
@@ -1118,6 +1124,10 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     int status;
     Ice::CommunicatorPtr communicator;
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -18,8 +18,8 @@ using namespace std;
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator, const Ice::InitializationData&)
 {
-    Test::MyClassPrx allTests(const Ice::CommunicatorPtr&, bool);
-    Test::MyClassPrx myClass = allTests(communicator, false);
+    Test::MyClassPrx allTests(const Ice::CommunicatorPtr&);
+    Test::MyClassPrx myClass = allTests(communicator);
 
 #ifndef ICE_OS_WINRT
     cout << "testing server shutdown... " << flush;
@@ -46,6 +46,10 @@ run(int, char**, const Ice::CommunicatorPtr& communicator, const Ice::Initializa
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     int status;
     Ice::CommunicatorPtr communicator;
 
@@ -60,12 +64,7 @@ main(int argc, char* argv[])
         initData.properties->setProperty("Ice.ThreadPool.Client.Size", "2");
         initData.properties->setProperty("Ice.ThreadPool.Client.SizeWarn", "0");
 
-        //
-        // We must set MessageSizeMax to an explicit values, because
-        // we run tests to check whether Ice.MemoryLimitException is
-        // raised as expected.
-        //
-        initData.properties->setProperty("Ice.MessageSizeMax", "100");
+        initData.properties->setProperty("Ice.BatchAutoFlushSize", "100");
 
         communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator, initData);

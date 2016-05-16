@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -23,86 +23,30 @@ string Glacier2::Application::_category;
 namespace
 {
 
-class SessionPingThreadI : virtual public IceUtil::Thread
+class ConnectionCallbackI : public Ice::ConnectionCallback
 {
-    
 public:
-    
-    SessionPingThreadI(Glacier2::Application* app, const Glacier2::RouterPrx& router, IceUtil::Int64 period) :
-        _app(app),
-        _router(router),
-        _period(period),
-        _done(false)
+
+    ConnectionCallbackI(Glacier2::Application* app) : _app(app)
     {
-        assert(_period);
     }
 
-    void
-    exception(const Ice::Exception&)
+    virtual void
+    heartbeat(const Ice::ConnectionPtr&)
     {
-        //
-        // Here the session has been destroyed. The thread terminates,
-        // and we notify the application that the session has been
-        // destroyed.
-        //
-        done();
+    }
+
+    virtual void 
+    closed(const Ice::ConnectionPtr&)
+    {
         _app->sessionDestroyed();
     }
-
-    void
-    run()
-    {
-        IceUtil::Monitor<IceUtil::Mutex>::Lock lock(_monitor);
-
-        Glacier2::Callback_Router_refreshSessionPtr callback = 
-            Glacier2::newCallback_Router_refreshSession(this, &SessionPingThreadI::exception);
-        while(true)
-        {
-            try
-            {
-                _router->begin_refreshSession(callback);
-            }
-            catch(const Ice::CommunicatorDestroyedException&)
-            {
-                //
-                // AMI requests can raise CommunicatorDestroyedException directly.
-                //
-                break;
-            }
-
-            if(!_done)
-            {
-                _monitor.timedWait(IceUtil::Time::milliSeconds(_period));
-            }
-
-            if(_done)
-            {
-                break;
-            }
-        }
-    }
-
-    void
-    done()
-    {
-        IceUtil::Monitor<IceUtil::Mutex>::Lock lock(_monitor);
-        if(!_done)
-        {
-            _done = true;
-            _monitor.notify();
-        }
-    }
-
-private:
     
-    Glacier2::Application* _app;
-    Glacier2::RouterPrx _router;
-    IceUtil::Int64 _period;
-    bool _done;
-    IceUtil::Monitor<IceUtil::Mutex> _monitor;
-};
-typedef IceUtil::Handle<SessionPingThreadI> SessionPingThreadIPtr;
+private:
 
+    Glacier2::Application* _app;
+};
+    
 }
 
 string
@@ -171,7 +115,6 @@ int
 Glacier2::Application::doMain(int argc, char* argv[], const Ice::InitializationData& initData)
 {
     // Set the default properties for all Glacier2 applications.
-    initData.properties->setProperty("Ice.ACM.Client", "0");
     initData.properties->setProperty("Ice.RetryIntervals", "-1");
 
     bool restart;
@@ -207,7 +150,6 @@ Glacier2::Application::doMain(Ice::StringSeq& args, const Ice::InitializationDat
     bool restart = false;
     status = 0;
 
-    SessionPingThreadIPtr ping;
     try
     {
         IceInternal::Application::_communicator = Ice::initialize(args, initData);
@@ -244,12 +186,27 @@ Glacier2::Application::doMain(Ice::StringSeq& args, const Ice::InitializationDat
 
             if(_createdSession)
             {
-                IceUtil::Int64 timeout = _router->getSessionTimeout();
-                if(timeout > 0)
-                {
-                    ping = new SessionPingThreadI(this, _router, (timeout * 1000) / 2);
-                    ping->start();
+                Ice::Int acmTimeout = 0;
+                try
+                { 
+                    acmTimeout = _router->getACMTimeout();
                 }
+                catch(const Ice::OperationNotExistException&)
+                {
+                }
+                if(acmTimeout <= 0)
+                {
+                    acmTimeout = static_cast<Ice::Int>(_router->getSessionTimeout());
+                }
+
+                if(acmTimeout > 0)
+                {
+                    Ice::ConnectionPtr connection = _router->ice_getCachedConnection();
+                    assert(connection);
+                    connection->setACM(acmTimeout, IceUtil::None, Ice::HeartbeatAlways);
+                    connection->setCallback(new ConnectionCallbackI(this));
+                }
+
                 _category = _router->getCategoryForClient();
                 IceUtilInternal::ArgVector a(args);
                 status = runWithSession(a.argc, a.argv);
@@ -355,17 +312,6 @@ Glacier2::Application::doMain(Ice::StringSeq& args, const Ice::InitializationDat
             //
         }
         IceInternal::Application::_application = 0;
-    }
-
-    if(ping)
-    {
-        ping->done();
-        while(true)
-        {
-            ping->getThreadControl().join();
-            break;
-        }
-        ping = 0;
     }
 
     if(_createdSession && _router)

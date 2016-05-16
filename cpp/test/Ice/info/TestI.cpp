@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -63,7 +63,7 @@ TestI::getConnectionInfoAsContext(const Ice::Current& c)
     ctx["adapterName"] = info->adapterName;
     ctx["incoming"] = info->incoming ? "true" : "false";
     ostringstream os;
-    
+
     Ice::IPConnectionInfoPtr ipinfo = Ice::IPConnectionInfoPtr::dynamicCast(info);
     test(ipinfo);
     ctx["localAddress"] = ipinfo->localAddress;
@@ -75,7 +75,23 @@ TestI::getConnectionInfoAsContext(const Ice::Current& c)
     os << ipinfo->remotePort;
     ctx["remotePort"] = os.str();
 
+    Ice::WSConnectionInfoPtr wsinfo = Ice::WSConnectionInfoPtr::dynamicCast(info);
+    if(wsinfo)
+    {
+        for(Ice::HeaderDict::const_iterator p = wsinfo->headers.begin(); p != wsinfo->headers.end(); ++p)
+        {
+            ctx["ws." + p->first] = p->second;
+        }
+    }
+
+    IceSSL::WSSConnectionInfoPtr wssinfo = IceSSL::WSSConnectionInfoPtr::dynamicCast(info);
+    if(wssinfo)
+    {
+        for(Ice::HeaderDict::const_iterator p = wssinfo->headers.begin(); p != wssinfo->headers.end(); ++p)
+        {
+            ctx["ws." + p->first] = p->second;
+        }
+    }
+
     return ctx;
 }
-
-

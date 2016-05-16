@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -19,20 +19,20 @@ int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
     communicator->getProperties()->setProperty("TestAdapter.Endpoints", "default -p 12010");
-    communicator->getProperties()->setProperty("ControllerAdapter.Endpoints", "tcp -p 12011");
+    communicator->getProperties()->setProperty("ControllerAdapter.Endpoints", "default -p 12011");
     communicator->getProperties()->setProperty("ControllerAdapter.ThreadPool.Size", "1");
 
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
     Ice::ObjectAdapterPtr adapter2 = communicator->createObjectAdapter("ControllerAdapter");
 
     TestIntfControllerIPtr testController = new TestIntfControllerI(adapter);
-    
+
     adapter->add(new TestIntfI(), communicator->stringToIdentity("test"));
     adapter->activate();
-    
+
     adapter2->add(testController, communicator->stringToIdentity("testController"));
     adapter2->activate();
-    
+
     TEST_READY
 
     communicator->waitForShutdown();
@@ -42,6 +42,9 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
     int status;
     Ice::CommunicatorPtr communicator;
 
@@ -54,6 +57,12 @@ main(int argc, char* argv[])
         // This test kills connections, so we don't want warnings.
         //
         initData.properties->setProperty("Ice.Warn.Connections", "0");
+
+        //
+        // Limit the recv buffer size, this test relies on the socket
+        // send() blocking after sending a given amount of data.
+        //
+        initData.properties->setProperty("Ice.TCP.RcvSize", "50000");
 
         communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator);

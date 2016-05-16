@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,8 +9,9 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc"]]
 
+["objc:prefix:ICE"]
 module Ice
 {
 
@@ -63,6 +64,15 @@ local interface Logger
      **/
     void error(string message);
     
+    /**
+     *
+     * Returns this logger's prefix.
+     *
+     * @return The prefix.
+     *
+     **/
+    string getPrefix();
+
     /**
      *
      * Returns a clone of the logger with a new prefix.
