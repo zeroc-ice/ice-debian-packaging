@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -109,13 +109,14 @@ struct GenerateRandomString
     operator()()
     {
         string s;
-        s.resize(20);
-        char buf[20];
-        IceUtilInternal::generateRandom(buf, static_cast<int>(sizeof(buf)));
+        s.resize(21);
+        char buf[21];
+        IceUtilInternal::generateRandom(buf, sizeof(buf));
         for(unsigned int i = 0; i < sizeof(buf); ++i)
         {
-            s[i] = 33 + buf[i] % (127-33); // We use ASCII 33-126 (from ! to ~, w/o space).
+            s[i] = 33 + static_cast<unsigned char>(buf[i]) % (127 - 33); // We use ASCII 33-126 (from ! to ~, w/o space).
         }
+        // cerr << s << endl;
         return s;
     }
 };

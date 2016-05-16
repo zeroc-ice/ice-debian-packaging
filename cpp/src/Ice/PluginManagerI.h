@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -18,19 +18,16 @@
 #include <IceUtil/Mutex.h>
 #include <map>
 
-namespace IceInternal
-{
-
-ICE_API void loadPlugin(const ::Ice::CommunicatorPtr&, const std::string&, const std::string&, Ice::StringSeq&);
-
-}
-
 namespace Ice
 {
+
+typedef Ice::Plugin* (*PLUGIN_FACTORY)(const ::Ice::CommunicatorPtr&, const std::string&, const ::Ice::StringSeq&);
 
 class PluginManagerI : public PluginManager, public IceUtil::Mutex
 {
 public:
+
+    static void registerPluginFactory(const std::string&, PLUGIN_FACTORY, bool);
 
     virtual void initializePlugins();
     virtual StringSeq getPlugins();
@@ -42,8 +39,6 @@ private:
 
     PluginManagerI(const CommunicatorPtr&, const IceInternal::DynamicLibraryListPtr&);
     friend class IceInternal::Instance;
-    friend void IceInternal::loadPlugin(const Ice::CommunicatorPtr&, const std::string&, const std::string&,
-                                        Ice::StringSeq&);
 
     void loadPlugins(int&, char*[]);
     void loadPlugin(const std::string&, const std::string&, StringSeq&);

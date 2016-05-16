@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -15,45 +15,41 @@ CONTROL		= control
 
 TARGETS		= $(PUBLISHER) $(SUBSCRIBER) $(CONTROL)
 
-OBJS		= Single.o \
+SLICE_OBJS	= Single.o \
 		  Controller.o
 
-POBJS		= Publisher.o
+POBJS		= $(SLICE_OBJS) \
+		  Publisher.o
 
-SOBJS		= Subscriber.o
+SOBJS		= $(SLICE_OBJS) \
+		  Subscriber.o
 
 COBJS		= Control.o \
 		  Controller.o
 
-SRCS		= $(OBJS:.o=.cpp) \
-		  $(COBJS:.o=.cpp) \
-		  $(POBJS:.o=.cpp) \
-		  $(SOBJS:.o=.cpp)
-
-SLICE_SRCS	= Single.ice \
-		  Controller.ice
+OBJS		= $(COBJS) \
+		  $(POBJS) \
+		  $(SOBJS)
 
 include $(top_srcdir)/config/Make.rules
 
 CPPFLAGS	:= -I. -I../../include $(CPPFLAGS)
 LIBS		:= -lIceStorm $(LIBS)
 
-$(PUBLISHER): $(OBJS) $(POBJS)
+$(PUBLISHER): $(POBJS)
 	rm -f $@
-	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(POBJS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(LDEXEFLAGS) -o $@ $(POBJS) $(LIBS)
 
-$(SUBSCRIBER): $(OBJS) $(SOBJS)
+$(SUBSCRIBER): $(SOBJS)
 	rm -f $@
-	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(SOBJS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(LDEXEFLAGS) -o $@ $(SOBJS) $(LIBS)
 
 $(CONTROL): $(COBJS)
 	rm -f $@
-	$(CXX) $(LDFLAGS) -o $@ $(COBJS) $(LIBS)
+	$(CXX) $(LDFLAGS) $(LDEXEFLAGS) -o $@ $(COBJS) $(LIBS)
 
 clean::
 	-rm -f build.txt
 	-rm -rf 0.db/*
 	-rm -rf 1.db/*
 	-rm -rf 2.db/*
-
-include .depend

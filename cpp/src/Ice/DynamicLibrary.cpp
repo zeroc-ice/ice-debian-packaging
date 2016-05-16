@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,7 +9,7 @@
 
 #include <Ice/DynamicLibrary.h>
 #include <IceUtil/StringUtil.h>
-#include <IceUtil/Unicode.h>
+#include <IceUtil/StringConverter.h>
 
 #ifndef _WIN32
 #   include <dlfcn.h>
@@ -22,9 +22,8 @@ using namespace std;
 IceUtil::Shared* IceInternal::upCast(DynamicLibrary* p) { return p; }
 IceUtil::Shared* IceInternal::upCast(DynamicLibraryList* p) { return p; }
 
-IceInternal::DynamicLibrary::DynamicLibrary(const Ice::StringConverterPtr& stringConverter) : 
-    _hnd(0),
-    _stringConverter(stringConverter)
+IceInternal::DynamicLibrary::DynamicLibrary() : 
+    _hnd(0)
 {
 }
 
@@ -90,6 +89,9 @@ IceInternal::DynamicLibrary::loadEntryPoint(const string& entryPoint, bool useIc
     if(comma == string::npos)
     {
         libName = libSpec;
+#  if defined(ICE_CPP11) && defined(__GLIBCXX__)
+        libName += "++11";
+#  endif
         if(useIceVersion)
         {
             int majorVersion = (ICE_INT_VERSION / 10000);
@@ -117,6 +119,9 @@ IceInternal::DynamicLibrary::loadEntryPoint(const string& entryPoint, bool useIc
             return 0;
         }
         libName = libSpec.substr(0, comma);
+#  if defined(ICE_CPP11) && defined(__GLIBCXX__)
+        libName += "++11";
+#  endif
         version = libSpec.substr(comma + 1);
     }
 
@@ -198,10 +203,14 @@ IceInternal::DynamicLibrary::loadEntryPoint(const string& entryPoint, bool useIc
 bool
 IceInternal::DynamicLibrary::load(const string& lib)
 {
+    //
+    // Don't need to use a wide string converter as the wide string is passed
+    // to Windows API.
+    //
 #ifdef ICE_OS_WINRT
-    _hnd = LoadPackagedLibrary(IceUtil::stringToWstring(nativeToUTF8(_stringConverter, lib)).c_str(), 0);
+    _hnd = LoadPackagedLibrary(IceUtil::stringToWstring(lib, IceUtil::getProcessStringConverter()).c_str(), 0);
 #elif defined(_WIN32)
-    _hnd = LoadLibraryW(IceUtil::stringToWstring(nativeToUTF8(_stringConverter, lib)).c_str());
+    _hnd = LoadLibraryW(IceUtil::stringToWstring(lib, IceUtil::getProcessStringConverter()).c_str());
 #else
 
     int flags = RTLD_NOW | RTLD_GLOBAL;

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -13,14 +13,12 @@
 #include <IceUtil/CtrlCHandler.h>
 #include <IceUtil/Cond.h>
 #include <IceUtil/ArgVector.h>
-#include <Ice/GC.h>
 #include <IceUtil/UniquePtr.h>
 
 using namespace std;
 using namespace Ice;
 using namespace IceUtil;
 using namespace IceUtilInternal;
-
 
 //
 // static initializations.
@@ -75,7 +73,7 @@ CtrlCHandlerCallback _previousCallback = 0;
 
 //
 // Variables that are immutable during run() and until communicator->destroy() has returned;
-// before and after run(), and once communicator->destroy() has returned, we assume that 
+// before and after run(), and once communicator->destroy() has returned, we assume that
 // only the main thread and CtrlCHandler threads are running.
 //
 CtrlCHandler* _ctrlCHandler = 0;
@@ -111,7 +109,7 @@ holdInterruptCallback(int signal)
         {
             IceInternal::Application::_condVar->wait(lock);
         }
-        
+
         if(IceInternal::Application::_destroyed)
         {
             //
@@ -122,7 +120,7 @@ holdInterruptCallback(int signal)
         assert(_ctrlCHandler != 0);
         callback = _ctrlCHandler->getCallback();
     }
-    
+
     if(callback != 0)
     {
         callback(signal);
@@ -151,7 +149,7 @@ destroyOnInterruptCallback(int signal)
         IceInternal::Application::_interrupted = true;
         IceInternal::Application::_destroyed = true;
     }
-        
+
     try
     {
         assert(IceInternal::Application::_communicator != 0);
@@ -316,7 +314,7 @@ Ice::Application::main(int argc, char* argv[], const char* configFile)
 
     if(argc > 0 && argv[0] && LoggerIPtr::dynamicCast(getProcessLogger()))
     {
-        setProcessLogger(new LoggerI(argv[0], ""));
+        setProcessLogger(new LoggerI(argv[0], "", true, IceUtil::getProcessStringConverter()));
     }
 
     InitializationData initData;
@@ -358,7 +356,7 @@ Ice::Application::main(int argc, wchar_t* argv[], const Ice::InitializationData&
     // On Windows the given wchar_t* strings are UTF16 and therefore
     // needs to be converted to native narow string encoding.
     //
-    return main(argsToStringSeq(argc, argv, initData.stringConverter), initData);
+    return main(argsToStringSeq(argc, argv), initData);
 }
 
 #endif
@@ -368,7 +366,10 @@ Ice::Application::main(int argc, char* argv[], const InitializationData& initial
 {
     if(argc > 0 && argv[0] && LoggerIPtr::dynamicCast(getProcessLogger()))
     {
-        setProcessLogger(new LoggerI(argv[0], ""));
+        const bool convert = initializationData.properties ?
+                initializationData.properties->getPropertyAsIntWithDefault("Ice.LogStdErr.Convert", 1) > 0 &&
+                initializationData.properties->getProperty("Ice.StdErr").empty() : true;
+        setProcessLogger(new LoggerI(argv[0], "", convert, IceUtil::getProcessStringConverter()));
     }
 
     if(IceInternal::Application::_communicator != 0)
@@ -378,14 +379,14 @@ Ice::Application::main(int argc, char* argv[], const InitializationData& initial
         return EXIT_FAILURE;
     }
     int status;
-    
+
     //
     // We parse the properties here to extract Ice.ProgramName.
     //
     InitializationData initData = initializationData;
     try
     {
-        initData.properties = createProperties(argc, argv, initData.properties, initData.stringConverter);
+        initData.properties = createProperties(argc, argv, initData.properties);
     }
     catch(const std::exception& ex)
     {
@@ -399,9 +400,9 @@ Ice::Application::main(int argc, char* argv[], const InitializationData& initial
         out << "unknown exception";
         return EXIT_FAILURE;
     }
-    IceInternal::Application::_appName = initData.properties->getPropertyWithDefault("Ice.ProgramName", 
+    IceInternal::Application::_appName = initData.properties->getPropertyWithDefault("Ice.ProgramName",
                                                                                  IceInternal::Application::_appName);
-    
+
     //
     // Used by destroyOnInterruptCallback and shutdownOnInterruptCallback.
     //
@@ -419,12 +420,12 @@ Ice::Application::main(int argc, char* argv[], const InitializationData& initial
             //
             CtrlCHandler ctrCHandler;
             _ctrlCHandler = &ctrCHandler;
-            
+
             status = doMain(argc, argv, initData);
 
             //
             // Set _ctrlCHandler to 0 only once communicator->destroy() has completed.
-            // 
+            //
             _ctrlCHandler = 0;
         }
         catch(const CtrlCHandlerException&)
@@ -438,18 +439,18 @@ Ice::Application::main(int argc, char* argv[], const InitializationData& initial
     {
         status = doMain(argc, argv, initData);
     }
-   
+
     return status;
 }
 
-int 
+int
 Ice::Application::main(int argc, char* const argv[], const char* configFile)
 {
     ArgVector av(argc, argv);
     return main(av.argc, av.argv, configFile);
 }
 
-int 
+int
 Ice::Application::main(int argc, char* const argv[], const Ice::InitializationData& initData)
 {
     ArgVector av(argc, argv);
@@ -529,7 +530,7 @@ Ice::Application::shutdownOnInterrupt()
     else
     {
         Warning out(getProcessLogger());
-        out << "interrupt method called on Application configured to not handle interrupts."; 
+        out << "interrupt method called on Application configured to not handle interrupts.";
     }
 }
 
@@ -619,7 +620,7 @@ Ice::Application::releaseInterrupt()
                 // setting _released to true and signalling _condVar
                 // do no harm.
                 //
-            
+
                 _released = true;
                 _ctrlCHandler->setCallback(_previousCallback);
                 IceInternal::Application::_condVar->signal();
@@ -656,12 +657,17 @@ Ice::Application::doMain(int argc, char* argv[], const InitializationData& initD
         //
         if(initData.properties->getProperty("Ice.ProgramName") != "" && LoggerIPtr::dynamicCast(getProcessLogger()))
         {
-            setProcessLogger(new LoggerI(initData.properties->getProperty("Ice.ProgramName"), ""));
+            const bool convert =
+                initData.properties->getPropertyAsIntWithDefault("Ice.LogStdErr.Convert", 1) > 0 &&
+                initData.properties->getProperty("Ice.StdErr").empty();
+
+            setProcessLogger(new LoggerI(initData.properties->getProperty("Ice.ProgramName"), "", convert,
+                                         IceUtil::getProcessStringConverter()));
         }
 
         IceInternal::Application::_communicator = initialize(argc, argv, initData);
         IceInternal::Application::_destroyed = false;
-    
+
         //
         // The default is to destroy when a signal is received.
         //

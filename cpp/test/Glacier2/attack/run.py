@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -25,6 +25,11 @@ router = TestUtil.getGlacier2Router()
 
 if TestUtil.appverifier:
     TestUtil.setAppVerifierSettings([router])
+
+#
+# Generate the crypt passwords file
+#
+TestUtil.hashPasswords(os.path.join(os.getcwd(), "passwords"), {"userid": "abc123"})
 
 args = ' --Glacier2.RoutingTable.MaxSize=10' + \
        ' --Glacier2.Client.Endpoints="default -p 12347"' + \

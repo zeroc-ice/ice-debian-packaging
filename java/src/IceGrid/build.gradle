@@ -1,0 +1,27 @@
+// **********************************************************************
+//
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+//
+// This copy of Ice is licensed to you under the terms described in the
+// ICE_LICENSE file included in this distribution.
+//
+// **********************************************************************
+
+sourceCompatibility = iceSourceCompatibility
+targetCompatibility = iceTargetCompatibility
+
+slice {
+    java {
+        set1 {
+            args = "--ice --tie --checksum IceGrid.SliceChecksums"
+            files = fileTree(dir: "$sliceDir/IceGrid", includes:['*.ice'], excludes:["*F.ice"])
+        }
+    }
+}
+
+dependencies {
+    compile project(':ice')
+    compile project(':glacier2')
+}
+
+apply from: "$rootProject.projectDir/gradle/library.gradle"

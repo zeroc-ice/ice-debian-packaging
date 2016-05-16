@@ -1,13 +1,12 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/Random.h>
 #include <IceUtil/IceUtil.h>
 #include <Ice/Application.h>
 #include <Glacier2/Router.h>
@@ -31,6 +30,10 @@ public:
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     //
     // We must disable connection warnings, because we attempt to ping
     // the router before session establishment, as well as after
@@ -71,7 +74,7 @@ CallbackClient::run(int, char**)
     Identity callbackReceiverIdent;
     callbackReceiverIdent.name = "callbackReceiver";
     callbackReceiverIdent.category = category;
-    CallbackReceiverPrx twowayR = 
+    CallbackReceiverPrx twowayR =
         CallbackReceiverPrx::uncheckedCast(adapter->add(callbackReceiver, callbackReceiverIdent));
     CallbackReceiverPrx onewayR = twowayR->ice_oneway();
 
@@ -154,7 +157,7 @@ CallbackClient::run(int, char**)
         IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(1000));
         callbackReceiverImpl->activate();
         test(callbackReceiverImpl->callbackWithPayloadOK(4) == 0);
-        
+
         int remainingCallbacks = callbackReceiverImpl->callbackOK(1, 0);
         //
         // Occasionally, Glacier2 flushes in the middle of our 5
@@ -169,7 +172,7 @@ CallbackClient::run(int, char**)
         {
             test(callbackReceiverImpl->callbackOK(remainingCallbacks, 0) == 0);
         }
-        
+
         ctx["_fwd"] = "O";
 
         oneway->initiateCallbackWithPayload(twowayR);

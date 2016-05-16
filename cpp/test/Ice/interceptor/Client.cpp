@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -27,16 +27,67 @@ DEFINE_TEST("client")
 
 using namespace std;
 
-class Client : public Ice::Application
+#ifdef __APPLE__
+namespace
+{
+
+class App
+{
+public:
+
+    virtual ~App()
+    {
+        if(_communicator)
+        {
+            try
+            {
+                _communicator->destroy();
+            }
+            catch(const Ice::Exception& ex)
+            {
+                cout << ex << endl;
+            }
+        }
+    }
+
+    Ice::CommunicatorPtr communicator()
+    {
+        return _communicator;
+    }
+
+    virtual int _main(int argc, char** argv)
+    {
+        Ice::InitializationData initData;
+        initData.properties = Ice::createProperties(argc, argv);
+        initData.properties->setProperty("Ice.Warn.Dispatch", "0");
+        _communicator = Ice::initialize(initData);
+        return run(argc, argv);
+    }
+    virtual int run(int argc, char** argv) = 0;
+
+private:
+
+    Ice::CommunicatorPtr _communicator;
+};
+
+}
+#else
+namespace
+{
+typedef Ice::Application App;
+}
+#endif
+
+class Client : public App
 {
 public:
 
     virtual int run(int, char*[]);
-    
+
 private:
 
     int run(const Test::MyObjectPrx&, const InterceptorIPtr&);
-    int runAmd(const Test::MyObjectPrx&, const AMDInterceptorIPtr&); 
+    int runAmd(const Test::MyObjectPrx&, const AMDInterceptorIPtr&);
 };
 
 #ifndef _WIN32
@@ -49,6 +100,10 @@ extern "C" void testAction(int)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
 #ifndef _WIN32
 //
 // Set SIGPIPE action
@@ -61,7 +116,11 @@ main(int argc, char* argv[])
 #endif
 
     Client app;
+#if __APPLE__
+    int result = app._main(argc, argv);
+#else
     int result = app.main(argc, argv);
+#endif
 
 #ifndef _WIN32
 //
@@ -89,36 +148,47 @@ Client::run(int, char*[])
 #endif
 
     //
-    // Create OA and servants  
-    //  
+    // Create OA and servants
+    //
     Ice::ObjectAdapterPtr oa = communicator()->createObjectAdapterWithEndpoints("MyOA", "tcp -h localhost");
-    
+
     Ice::ObjectPtr servant = new MyObjectI;
     InterceptorIPtr interceptor = new InterceptorI(servant);
-    
+    AMDInterceptorIPtr amdInterceptor = new AMDInterceptorI(servant);
+
     Test::MyObjectPrx prx = Test::MyObjectPrx::uncheckedCast(oa->addWithUUID(interceptor));
-    
-    oa->activate();
-       
+    Test::MyObjectPrx prxForAMD = Test::MyObjectPrx::uncheckedCast(oa->addWithUUID(amdInterceptor));
+
     cout << "Collocation optimization on" << endl;
     int rs = run(prx, interceptor);
-    if(rs == 0)
+    if(rs != 0)
     {
-        cout << "Collocation optimization off" << endl;
-        interceptor->clear();
-        prx = Test::MyObjectPrx::uncheckedCast(prx->ice_collocationOptimized(false));
-        rs = run(prx, interceptor);
-        
-        if(rs == 0)
-        {
-            cout << "Now with AMD" << endl;
-            AMDInterceptorIPtr amdInterceptor = new AMDInterceptorI(servant);
-            prx = Test::MyObjectPrx::uncheckedCast(oa->addWithUUID(amdInterceptor));
-            prx = Test::MyObjectPrx::uncheckedCast(prx->ice_collocationOptimized(false));
-            
-            rs = runAmd(prx, amdInterceptor);
-        }
+        return rs;
     }
+
+    cout << "Now with AMD" << endl;
+    rs = runAmd(prxForAMD, amdInterceptor);
+    if(rs != 0)
+    {
+        return rs;
+    }
+
+    oa->activate(); // Only necessary for non-collocation optimized tests
+
+    cout << "Collocation optimization off" << endl;
+    interceptor->clear();
+    prx = Test::MyObjectPrx::uncheckedCast(prx->ice_collocationOptimized(false));
+    rs = run(prx, interceptor);
+    if(rs != 0)
+    {
+        return rs;
+    }
+
+    cout << "Now with AMD" << endl;
+    amdInterceptor->clear();
+    prxForAMD = Test::MyObjectPrx::uncheckedCast(prxForAMD->ice_collocationOptimized(false));
+    rs = runAmd(prxForAMD, amdInterceptor);
+
     return rs;
 }
 
@@ -160,7 +230,7 @@ Client::run(const Test::MyObjectPrx& prx, const InterceptorIPtr& interceptor)
     test(interceptor->getLastStatus() == Ice::DispatchUserException);
     cout << "ok" << endl;
     cout << "testing ONE... " << flush;
-    
+
     interceptor->clear();
     try
     {
@@ -180,8 +250,13 @@ Client::run(const Test::MyObjectPrx& prx, const InterceptorIPtr& interceptor)
         prx->badSystemAdd(33, 12);
         test(false);
     }
-    catch(const Ice::UnknownLocalException&)
+    catch(const Ice::UnknownException&)
     {
+        test(!prx->ice_isCollocationOptimized());
+    }
+    catch(const MySystemException&)
+    {
+        test(prx->ice_isCollocationOptimized());
     }
     catch(...)
     {
@@ -189,14 +264,13 @@ Client::run(const Test::MyObjectPrx& prx, const InterceptorIPtr& interceptor)
     }
     test(interceptor->getLastOperation() == "badSystemAdd");
     cout << "ok" << endl;
-    if(!prx->ice_isCollocationOptimized())
-    {
-        cout << "testing simple AMD... " << flush;
-        test(prx->amdAdd(33, 12) == 45);
-        test(interceptor->getLastOperation() == "amdAdd");
-        test(interceptor->getLastStatus() == Ice::DispatchAsync);
-        cout << "ok" << endl;
-    }
+
+    cout << "testing simple AMD... " << flush;
+    test(prx->amdAdd(33, 12) == 45);
+    test(interceptor->getLastOperation() == "amdAdd");
+    test(interceptor->getLastStatus() == Ice::DispatchAsync);
+    cout << "ok" << endl;
+
     return 0;
 }
 
@@ -253,14 +327,18 @@ Client::runAmd(const Test::MyObjectPrx& prx, const AMDInterceptorIPtr& intercept
         prx->amdBadSystemAdd(33, 12);
         test(false);
     }
-    catch(const Ice::UnknownLocalException&)
+    catch(const Ice::UnknownException&)
     {
         test(!prx->ice_isCollocationOptimized());
+    }
+    catch(const MySystemException&)
+    {
+        test(prx->ice_isCollocationOptimized());
     }
     test(interceptor->getLastOperation() == "amdBadSystemAdd");
     test(interceptor->getLastStatus() == Ice::DispatchAsync);
     test(interceptor->getActualStatus() == Ice::DispatchAsync);
-    test(dynamic_cast<Ice::InitializationException*>(interceptor->getException()) != 0);
+    test(dynamic_cast<MySystemException*>(interceptor->getException()) != 0);
     cout << "ok" << endl;
     return 0;
 }

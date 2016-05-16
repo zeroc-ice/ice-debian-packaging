@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,7 +8,6 @@
 // **********************************************************************
 
 #include <Ice/PropertiesI.h>
-#include <IceUtil/DisableWarnings.h>
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/FileUtil.h>
 #include <Ice/Initialize.h>
@@ -17,7 +16,6 @@
 #include <Ice/Logger.h>
 #include <Ice/LoggerUtil.h>
 #include <Ice/Communicator.h>
-#include <Ice/StringConverter.h>
 
 using namespace std;
 using namespace Ice;
@@ -67,7 +65,7 @@ Int
 Ice::PropertiesI::getPropertyAsIntWithDefault(const string& key, Int value)
 {
     IceUtil::Mutex::Lock sync(*this);
-    
+
     map<string, PropertyValue>::iterator p = _properties.find(key);
     if(p != _properties.end())
     {
@@ -95,7 +93,7 @@ Ice::StringSeq
 Ice::PropertiesI::getPropertyAsListWithDefault(const string& key, const StringSeq& value)
 {
     IceUtil::Mutex::Lock sync(*this);
-    
+
     map<string, PropertyValue>::iterator p = _properties.find(key);
     if(p != _properties.end())
     {
@@ -161,7 +159,7 @@ Ice::PropertiesI::setProperty(const string& key, const string& value)
         for(int i = 0 ; IceInternal::PropertyNames::validProps[i].properties != 0; ++i)
         {
             string pattern(IceInternal::PropertyNames::validProps[i].properties[0].pattern);
-            
+
             dotPos = pattern.find('.');
 
             //
@@ -170,7 +168,7 @@ Ice::PropertiesI::setProperty(const string& key, const string& value)
             // dot is an error.
             //
             assert(dotPos != string::npos);
-            
+
             bool mismatchCase = false;
             string otherKey;
             string propPrefix = pattern.substr(0, dotPos);
@@ -194,8 +192,8 @@ Ice::PropertiesI::setProperty(const string& key, const string& value)
                         currentKey = prop.deprecatedBy;
                     }
                 }
-                
-                if(!found && IceUtilInternal::match(IceUtilInternal::toUpper(currentKey), 
+
+                if(!found && IceUtilInternal::match(IceUtilInternal::toUpper(currentKey),
                                                     IceUtilInternal::toUpper(prop.pattern)))
                 {
                     found = true;
@@ -259,19 +257,19 @@ Ice::PropertiesI::parseCommandLineOptions(const string& prefix, const StringSeq&
         pfx += '.';
     }
     pfx = "--" + pfx;
-    
+
     StringSeq result;
     for(StringSeq::size_type i = 0; i < options.size(); i++)
     {
         string opt = options[i];
-       
+
         if(opt.find(pfx) == 0)
         {
             if(opt.find('=') == string::npos)
             {
                 opt += "=1";
             }
-            
+
             parseLine(opt.substr(2), 0);
         }
         else
@@ -304,7 +302,7 @@ Ice::PropertiesI::load(const std::string& file)
     if(file.find("HKLM\\") == 0)
     {
         HKEY iceKey;
-        const wstring keyName = IceUtil::stringToWstring(Ice::nativeToUTF8(_converter, file).substr(5)).c_str();
+        const wstring keyName = IceUtil::stringToWstring(file, _converter).substr(5).c_str();
         LONG err;
         if((err = RegOpenKeyExW(HKEY_LOCAL_MACHINE, keyName.c_str(), 0, KEY_QUERY_VALUE, &iceKey)) != ERROR_SUCCESS)
         {
@@ -318,7 +316,7 @@ Ice::PropertiesI::load(const std::string& file)
         DWORD numValues;
         try
         {
-            err = RegQueryInfoKey(iceKey, NULL, NULL, NULL, NULL, NULL, NULL, &numValues, &maxNameSize, &maxDataSize, 
+            err = RegQueryInfoKey(iceKey, NULL, NULL, NULL, NULL, NULL, NULL, &numValues, &maxNameSize, &maxDataSize,
                                   NULL, NULL);
             if(err != ERROR_SUCCESS)
             {
@@ -351,8 +349,8 @@ Ice::PropertiesI::load(const std::string& file)
                     getProcessLogger()->warning(os.str());
                     continue;
                 }
-                string name = IceUtil::wstringToString(wstring(reinterpret_cast<wchar_t*>(&nameBuf[0]), nameBufSize));
-                name = Ice::UTF8ToNative(_converter, name);
+                string name = IceUtil::wstringToString(
+                    wstring(reinterpret_cast<wchar_t*>(&nameBuf[0]), nameBufSize), _converter);
                 if(keyType != REG_SZ && keyType != REG_EXPAND_SZ)
                 {
                     ostringstream os;
@@ -365,7 +363,7 @@ Ice::PropertiesI::load(const std::string& file)
                 wstring valueW = wstring(reinterpret_cast<wchar_t*>(&dataBuf[0]), (dataBufSize / sizeof(wchar_t)) - 1);
                 if(keyType == REG_SZ)
                 {
-                    value = IceUtil::wstringToString(valueW);
+                    value = IceUtil::wstringToString(valueW, _converter);
                 }
                 else // keyType == REG_EXPAND_SZ
                 {
@@ -385,9 +383,8 @@ Ice::PropertiesI::load(const std::string& file)
                             continue;
                         }
                     }
-                    value = IceUtil::wstringToString(wstring(&expandedValue[0], sz -1));
+                    value = IceUtil::wstringToString(wstring(&expandedValue[0], sz -1), _converter);
                 }
-                value = Ice::UTF8ToNative(_converter, value);
                 setProperty(name, value);
             }
         }
@@ -401,7 +398,7 @@ Ice::PropertiesI::load(const std::string& file)
     else
 #endif
     {
-        IceUtilInternal::ifstream in(Ice::nativeToUTF8(_converter, file));
+        IceUtilInternal::ifstream in(file);
         if(!in)
         {
             FileException ex(__FILE__, __LINE__);
@@ -419,10 +416,10 @@ Ice::PropertiesI::load(const std::string& file)
             //
             if(firstLine)
             {
-                const unsigned char UTF8_BOM[3] = {0xEF, 0xBB, 0xBF}; 
+                const unsigned char UTF8_BOM[3] = {0xEF, 0xBB, 0xBF};
                 if(line.size() >= 3 &&
                    static_cast<const unsigned char>(line[0]) == UTF8_BOM[0] &&
-                   static_cast<const unsigned char>(line[1]) == UTF8_BOM[1] && 
+                   static_cast<const unsigned char>(line[1]) == UTF8_BOM[1] &&
                    static_cast<const unsigned char>(line[2]) == UTF8_BOM[2])
                 {
                     line = line.substr(3);
@@ -462,12 +459,12 @@ Ice::PropertiesI::PropertiesI(const PropertiesI* p) :
 {
 }
 
-Ice::PropertiesI::PropertiesI(const StringConverterPtr& converter) :
+Ice::PropertiesI::PropertiesI(const IceUtil::StringConverterPtr& converter) :
     _converter(converter)
 {
 }
 
-Ice::PropertiesI::PropertiesI(StringSeq& args, const PropertiesPtr& defaults, const StringConverterPtr& converter) :
+Ice::PropertiesI::PropertiesI(StringSeq& args, const PropertiesPtr& defaults, const IceUtil::StringConverterPtr& converter) :
     _converter(converter)
 {
     if(defaults != 0)
@@ -539,11 +536,11 @@ Ice::PropertiesI::PropertiesI(StringSeq& args, const PropertiesPtr& defaults, co
 }
 
 void
-Ice::PropertiesI::parseLine(const string& line, const StringConverterPtr& converter)
+Ice::PropertiesI::parseLine(const string& line, const IceUtil::StringConverterPtr& converter)
 {
     string key;
     string value;
-    
+
     enum ParseState { Key , Value };
     ParseState state = Key;
 
@@ -570,7 +567,7 @@ Ice::PropertiesI::parseLine(const string& line, const StringConverterPtr& conver
                       case '=':
                         key += whitespace;
                         whitespace.clear();
-                        key += c; 
+                        key += c;
                         break;
 
                       case ' ':
@@ -613,7 +610,7 @@ Ice::PropertiesI::parseLine(const string& line, const StringConverterPtr& conver
               case '#':
                   finished = true;
                   break;
-              
+
               default:
                   key += whitespace;
                   whitespace.clear();
@@ -639,7 +636,7 @@ Ice::PropertiesI::parseLine(const string& line, const StringConverterPtr& conver
                         value += value.length() == 0 ? escapedspace : whitespace;
                         whitespace.clear();
                         escapedspace.clear();
-                        value += c; 
+                        value += c;
                         break;
 
                       case ' ':
@@ -659,7 +656,7 @@ Ice::PropertiesI::parseLine(const string& line, const StringConverterPtr& conver
                 else
                 {
                     value += value.length() == 0 ? escapedspace : whitespace;
-                      value += c;
+                    value += c;
                 }
                 break;
 
@@ -674,10 +671,9 @@ Ice::PropertiesI::parseLine(const string& line, const StringConverterPtr& conver
                   break;
 
               case '#':
-                  value += escapedspace;
                   finished = true;
                   break;
-              
+
               default:
                   value += value.length() == 0 ? escapedspace : whitespace;
                   whitespace.clear();
@@ -705,8 +701,8 @@ Ice::PropertiesI::parseLine(const string& line, const StringConverterPtr& conver
         return;
     }
 
-    key = Ice::UTF8ToNative(converter, key);
-    value = Ice::UTF8ToNative(converter, value);
+    key = IceUtil::UTF8ToNative(key, converter);
+    value = IceUtil::UTF8ToNative(value, converter);
 
     setProperty(key, value);
 }
@@ -718,6 +714,7 @@ Ice::PropertiesI::loadConfig()
 #ifndef ICE_OS_WINRT
     //
     // WinRT cannot access environment variables
+    //
     if(value.empty() || value == "1")
     {
 #   ifdef _WIN32
@@ -730,7 +727,7 @@ Ice::PropertiesI::loadConfig()
         }
         if(ret > 0)
         {
-            value = Ice::UTF8ToNative(_converter, IceUtil::wstringToString(wstring(&v[0], ret)));
+            value = IceUtil::wstringToString(wstring(&v[0], ret), _converter);
         }
         else
         {
@@ -754,8 +751,8 @@ Ice::PropertiesI::loadConfig()
         {
             load(IceUtilInternal::trim(*i));
         }
-    }
 
-    PropertyValue pv(value, true);
-    _properties["Ice.Config"] = pv;
+        PropertyValue pv(value, true);
+        _properties["Ice.Config"] = pv;
+    }
 }

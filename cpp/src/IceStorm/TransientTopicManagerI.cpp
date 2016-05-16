@@ -1,13 +1,12 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <IceStorm/TransientTopicManagerI.h>
 #include <IceStorm/TransientTopicI.h>
 #include <IceStorm/TraceLevels.h>
@@ -56,7 +55,7 @@ TransientTopicManagerImpl::create(const string& name, const Ice::Current&)
     Ice::Identity id = nameToIdentity(_instance, name);
 
     //
-    // Called by constructor or with 'this' mutex locked. 
+    // Called by constructor or with 'this' mutex locked.
     //
     TraceLevelsPtr traceLevels = _instance->traceLevels();
     if(traceLevels->topicMgr > 0)
@@ -143,10 +142,11 @@ TransientTopicManagerImpl::reap()
     //
     // Lock sync(*this);
     //
-    map<string, TransientTopicImplPtr>::iterator i = _topics.begin();
-    while(i != _topics.end())
+    vector<string> reaped = _instance->topicReaper()->consumeReapedTopics();
+    for(vector<string>::const_iterator p = reaped.begin(); p != reaped.end(); ++p)
     {
-        if(i->second->destroyed())
+        map<string, TransientTopicImplPtr>::iterator i = _topics.find(*p);
+        if(i != _topics.end() && i->second->destroyed())
         {
             Ice::Identity id = i->second->id();
             TraceLevelsPtr traceLevels = _instance->traceLevels();
@@ -165,11 +165,7 @@ TransientTopicManagerImpl::reap()
                 // Ignore
             }
 
-            _topics.erase(i++);
-        }
-        else
-        {
-            ++i;
+            _topics.erase(i);
         }
     }
 }

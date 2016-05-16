@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -13,7 +13,17 @@
 #include <Ice/Plugin.h>
 #include <Configuration.h>
 
-class PluginI : public Ice::Plugin
+#ifndef TEST_API
+#   ifdef TEST_API_EXPORTS
+#       define TEST_API ICE_DECLSPEC_EXPORT
+#   elif defined(ICE_STATIC_LIBS)
+#       define TEST_API /**/
+#   else
+#       define TEST_API ICE_DECLSPEC_IMPORT
+#   endif
+#endif
+
+class TEST_API PluginI : public Ice::Plugin
 {
 public:
     

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -12,6 +12,7 @@
 
 #include <Callback.h>
 
+using namespace std;
 using namespace Test;
 
 namespace
@@ -28,7 +29,7 @@ class CallbackI : public Callback
 {
 
 public:
-    
+
     virtual void
     initiateCallback(const CallbackReceiverPrx& proxy, const Ice::Current& current)
     {
@@ -53,11 +54,14 @@ public:
 int
 SessionHelperServer::run(int, char**)
 {
+    communicator()->getProperties()->setProperty("DeactivatedAdapter.Endpoints", "default -p 12011");
+    communicator()->createObjectAdapter("DeactivatedAdapter");
+
     communicator()->getProperties()->setProperty("CallbackAdapter.Endpoints", "default -p 12010");
     Ice::ObjectAdapterPtr adapter = communicator()->createObjectAdapter("CallbackAdapter");
     adapter->add(new CallbackI(), communicator()->stringToIdentity("callback"));
     adapter->activate();
-    communicator()->waitForShutdown();        
+    communicator()->waitForShutdown();
 
     return EXIT_SUCCESS;
 }
@@ -65,6 +69,10 @@ SessionHelperServer::run(int, char**)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     SessionHelperServer app;
     return app.main(argc, argv);
 }

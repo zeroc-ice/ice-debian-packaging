@@ -1,13 +1,12 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <IceUtil/Options.h>
 #include <Ice/Application.h>
 #include <Ice/SliceChecksums.h>
@@ -41,12 +40,7 @@ main(int argc, char* argv[])
     Ice::InitializationData id;
     Ice::StringSeq args = Ice::argsToStringSeq(argc, argv);
     id.properties = Ice::createProperties(args);
-    //
-    // We don't want to load DB plug-ins with icestormadmin, as this will
-    // cause FileLock issues when run with the same configuration file
-    // used by the service.
-    //
-    id.properties->setProperty("Ice.Plugin.DB", "");
+    id.properties->setProperty("Ice.Warn.Endpoints", "0");
     int rc = app.main(argc, argv, id);
     return rc;
 }
@@ -55,7 +49,7 @@ void
 Client::usage()
 {
     cerr << "Usage: " << appName() << " [options]\n";
-    cerr <<     
+    cerr <<
         "Options:\n"
         "-h, --help           Show this message.\n"
         "-v, --version        Display the Ice version.\n"
@@ -79,7 +73,7 @@ Client::run(int argc, char* argv[])
     vector<string> args;
     try
     {
-        args = opts.parse(argc, (const char**)argv);
+        args = opts.parse(argc, const_cast<const char**>(argv));
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
@@ -152,6 +146,27 @@ Client::run(int argc, char* argv[])
         else if(!managers.empty())
         {
             defaultManager = managers.begin()->second;
+        }
+    }
+
+    if(!defaultManager)
+    {
+        string host = properties->getProperty("IceStormAdmin.Host");
+        string port = properties->getProperty("IceStormAdmin.Port");
+
+        const int timeout = 3000; // 3s connection timeout.
+        ostringstream os;
+        os << "IceStorm/Finder";
+        os << ":tcp" << (host.empty() ? "" : (" -h \"" + host + "\"")) << " -p " << port << " -t " << timeout;
+        os << ":ssl" << (host.empty() ? "" : (" -h \"" + host + "\"")) << " -p " << port << " -t " << timeout;
+        IceStorm::FinderPrx finder = IceStorm::FinderPrx::uncheckedCast(communicator()->stringToProxy(os.str()));
+        try
+        {
+            defaultManager = finder->getTopicManager();
+        }
+        catch(const Ice::LocalException&)
+        {
+            // Ignore.
         }
     }
 

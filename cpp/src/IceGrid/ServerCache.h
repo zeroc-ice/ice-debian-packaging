@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -37,7 +37,7 @@ class CheckUpdateResult : public IceUtil::Shared
 {
 public:
 
-    CheckUpdateResult(const std::string&, const std::string&, bool, const Ice::AsyncResultPtr&);
+    CheckUpdateResult(const std::string&, const std::string&, bool, bool, const Ice::AsyncResultPtr&);
 
     bool getResult();
 
@@ -55,7 +55,7 @@ typedef IceUtil::Handle<CheckUpdateResult> CheckUpdateResultPtr;
 class ServerEntry : public Allocatable
 {
 public:
-    
+
     ServerEntry(ServerCache&, const std::string&);
 
     void sync();
@@ -75,7 +75,7 @@ public:
 
     void update(const ServerInfo&, bool);
 
-    void destroy();
+    void destroy(bool);
 
     ServerInfo getInfo(bool = false) const;
     std::string getId() const;
@@ -91,7 +91,7 @@ public:
     bool canRemove();
     CheckUpdateResultPtr checkUpdate(const ServerInfo&, bool);
     bool isDestroyed();
-    
+
     void loadCallback(const ServerPrx&, const AdapterPrxDict&, int, int);
     void destroyCallback();
     void exception(const Ice::Exception&);
@@ -102,7 +102,7 @@ public:
     virtual void releasedNoSync(const SessionIPtr&);
 
 private:
-    
+
     void syncImpl();
     void waitImpl(int);
     void synchronized();
@@ -140,21 +140,25 @@ public:
 
     ServerCache(const Ice::CommunicatorPtr&, const std::string&, NodeCache&, AdapterCache&, ObjectCache&, AllocatableObjectCache&);
 
-    ServerEntryPtr add(const ServerInfo&, bool);
+    ServerEntryPtr add(const ServerInfo&);
     ServerEntryPtr get(const std::string&) const;
     bool has(const std::string&) const;
-    ServerEntryPtr remove(const std::string&, bool = true);
+    ServerEntryPtr remove(const std::string&, bool);
+
+    void preUpdate(const ServerInfo&, bool);
+    ServerEntryPtr postUpdate(const ServerInfo&, bool);
 
     void clear(const std::string&);
-    
+
     NodeCache& getNodeCache() const { return _nodeCache; }
     Ice::CommunicatorPtr getCommunicator() const { return _communicator; }
     const std::string& getInstanceName() const { return _instanceName; }
 
 private:
-    
-    void addCommunicator(const CommunicatorDescriptorPtr&, const ServerEntryPtr&, const std::string&);
-    void removeCommunicator(const CommunicatorDescriptorPtr&, const ServerEntryPtr&);
+
+    void addCommunicator(const CommunicatorDescriptorPtr&, const CommunicatorDescriptorPtr&, const ServerEntryPtr&,
+                         const std::string&);
+    void removeCommunicator(const CommunicatorDescriptorPtr&, const CommunicatorDescriptorPtr&, const ServerEntryPtr&);
 
     friend struct AddCommunicator;
     friend struct RemoveCommunicator;

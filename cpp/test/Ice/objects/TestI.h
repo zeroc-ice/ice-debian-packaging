@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -108,12 +108,21 @@ public:
     virtual Test::IPtr getI(const Ice::Current&);
     virtual Test::IPtr getJ(const Ice::Current&);
     virtual Test::IPtr getH(const Ice::Current&);
+    
+    virtual Test::D1Ptr getD1(const Test::D1Ptr&, const Ice::Current&);
+    virtual void throwEDerived(const Ice::Current&);
 
     virtual void setI(const Test::IPtr&, const Ice::Current&);
 
     virtual Test::BaseSeq opBaseSeq(const Test::BaseSeq&, Test::BaseSeq&, const Ice::Current&);
 
     virtual Test::CompactPtr getCompact(const Ice::Current&);
+    
+    virtual Test::Inner::APtr getInnerA(const Ice::Current&);
+    virtual Test::Inner::Sub::APtr getInnerSubA(const Ice::Current&);
+    
+    virtual void throwInnerEx(const Ice::Current&);
+    virtual void throwInnerSubEx(const Ice::Current&);
     
 private:
 
@@ -133,5 +142,13 @@ public:
     virtual bool ice_invoke(const std::vector<Ice::Byte>&, std::vector<Ice::Byte>&, const Ice::Current&);
 };
 typedef IceUtil::Handle<UnexpectedObjectExceptionTestI> UnexpectedObjectExceptionTestIPtr;
+
+class TestIntfI : public Test::TestIntf
+{
+public:
+
+    virtual Test::BasePtr opDerived(const Ice::Current&);
+    virtual void throwDerived(const Ice::Current&);
+};
 
 #endif

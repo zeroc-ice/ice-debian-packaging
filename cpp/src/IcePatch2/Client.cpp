@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,7 +10,7 @@
 #include <IceUtil/Options.h>
 #include <IceUtil/StringUtil.h>
 #include <Ice/Application.h>
-#include <IcePatch2/Util.h>
+#include <IcePatch2Lib/Util.h>
 #include <IcePatch2/ClientUtil.h>
 
 #ifdef _WIN32
@@ -23,6 +23,7 @@
 using namespace std;
 using namespace Ice;
 using namespace IcePatch2;
+using namespace IcePatch2Internal;
 
 class TextPatcherFeedback : public PatcherFeedback
 {
@@ -175,6 +176,10 @@ private:
             pressed = true;
             _getch();
         }
+        if(pressed)
+        {
+            pressed = confirmAbort();
+        }
         return pressed;
     }
 
@@ -191,7 +196,7 @@ private:
             term.c_cc[VTIME] = 0;
             term.c_cc[VMIN] = 1;
             tcsetattr(0, TCSANOW, &term);
-            
+
             int flags = _savedFlags;
             flags |= O_NONBLOCK;
             fcntl(0, F_SETFL, flags);
@@ -205,6 +210,10 @@ private:
         {
             pressed = true;
         }
+        if(pressed)
+        {
+            pressed = confirmAbort();
+        }
         return pressed;
     }
 
@@ -213,6 +222,32 @@ private:
     bool _block;
 
 #endif
+
+    bool
+    confirmAbort()
+    {
+#ifndef _WIN32
+        if(!_block)
+        {
+            tcsetattr(0, TCSANOW, &_savedTerm);
+            fcntl(0, F_SETFL, _savedFlags);
+            _block = true;
+        }
+#endif
+        string answer;
+        do
+        {
+            cout << "\nConfirm abort? (Y/N)" << endl;
+            cin >> answer;
+            answer = IceUtilInternal::toLower(answer);
+            if(answer == "n")
+            {
+                return false;
+            }
+        }
+        while(answer != "y");
+        return true;
+    }
 
     string _lastProgress;
     bool _pressAnyKeyMessage;
@@ -238,11 +273,11 @@ Client::run(int argc, char* argv[])
     opts.addOpt("h", "help");
     opts.addOpt("v", "version");
     opts.addOpt("t", "thorough");
-    
+
     vector<string> args;
     try
     {
-        args = opts.parse(argc, (const char**)argv);
+        args = opts.parse(argc, const_cast<const char**>(argv));
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
@@ -282,7 +317,7 @@ Client::run(int argc, char* argv[])
     try
     {
         PatcherFeedbackPtr feedback = new TextPatcherFeedback;
-        PatcherPtr patcher = new Patcher(communicator(), feedback);
+        PatcherPtr patcher = PatcherFactory::create(communicator(), feedback);
 
         aborted = !patcher->prepare();
 

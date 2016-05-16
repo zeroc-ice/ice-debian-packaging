@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -12,7 +12,6 @@
 
 #include <IceUtil/Mutex.h>
 #include <IceUtil/Shared.h>
-#include <Ice/GCShared.h>
 #include <Ice/ObjectF.h>
 #include <Ice/ProxyF.h>
 #include <Ice/IncomingAsyncF.h>
@@ -26,6 +25,7 @@ namespace IceInternal
 class Incoming;
 class BasicStream;
 class Direct;
+class GCVisitor;
 
 }
 
@@ -55,7 +55,6 @@ class ICE_API Request
 public:
 
     virtual ~Request() {}
-    virtual bool isCollocated() = 0;
     virtual const Current& getCurrent() = 0;
 };
 
@@ -65,8 +64,6 @@ public:
 
     virtual bool operator==(const Object&) const;
     virtual bool operator<(const Object&) const;
-
-    virtual ICE_DEPRECATED_API Int ice_getHash() const;
 
     virtual bool ice_isA(const std::string&, const Current& = Current()) const;
     DispatchStatus ___ice_isA(IceInternal::Incoming&, const Current&);
@@ -93,24 +90,15 @@ public:
 
     virtual DispatchStatus ice_dispatch(Ice::Request&, const DispatchInterceptorAsyncCallbackPtr& = 0);
     virtual DispatchStatus __dispatch(IceInternal::Incoming&, const Current&);
-    virtual DispatchStatus __collocDispatch(IceInternal::Direct&);
 
     virtual void __write(IceInternal::BasicStream*) const;
     virtual void __read(IceInternal::BasicStream*);
 
     virtual void __write(const OutputStreamPtr&) const;
     virtual void __read(const InputStreamPtr&);
-   
-    //
-    // Virtual methods to support garbage collection of Slice class instances. These
-    // methods are overriden by Slice classes which can have cycles.
-    //
-    virtual void __addObject(IceInternal::GCCountMap&) {}
-    virtual bool __usesGC() { return false; }
-    void __decRefUnsafe()
-    {
-        --_ref;
-    }
+
+    virtual bool __gcVisit(IceInternal::GCVisitor&) { return false; };
+    virtual void ice_collectable(bool) { };
 
 protected:
 

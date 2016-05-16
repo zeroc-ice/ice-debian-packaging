@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -29,6 +29,9 @@ protected:
 
     enum ParamDir { InParam, OutParam };
 
+    
+    ParamDeclList getOutParams(const OperationPtr&);
+    
     //
     // Compose the parameter lists for an operation.
     //
@@ -37,6 +40,16 @@ protected:
     std::vector<std::string> getInOutParams(const OperationPtr&, const std::string&, ParamDir, bool, bool);
     std::vector<std::string> getParamsAsync(const OperationPtr&, const std::string&, bool, bool);
     std::vector<std::string> getParamsAsyncCB(const OperationPtr&, const std::string&, bool, bool);
+    
+    std::string getAsyncCallbackInterface(const OperationPtr&, const std::string&);
+    std::string getAsyncCallbackBaseClass(const OperationPtr&, bool);
+    std::string getLambdaResponseCB(const OperationPtr&, const std::string&);
+    std::vector<std::string> getParamsAsyncLambda(const OperationPtr&, const std::string&, 
+                                                  bool context = false, bool sentCB = false, 
+                                                  bool optionalMapping = false,
+                                                  bool inParams = true);
+    std::vector<std::string> getArgsAsyncLambda(const OperationPtr&, const std::string&, 
+                                                bool context = false, bool sentCB = false);
 
     //
     // Compose the argument lists for an operation.
@@ -53,12 +66,6 @@ protected:
     // Generate a throws clause containing only non-local exceptions.
     //
     void writeThrowsClause(const std::string&, const ExceptionList&);
-
-    //
-    // Generate a throws clause for delegate operations containing only
-    // non-local exceptions.
-    //
-    void writeDelegateThrowsClause(const std::string&, const ExceptionList&);
 
     //
     // Generate code to compute a hash code for a type.
@@ -79,7 +86,7 @@ protected:
     //
     // Generate a patcher class.
     //
-    void writePatcher(::IceUtilInternal::Output&, const std::string&, const DataMemberList&, bool);
+    void writePatcher(::IceUtilInternal::Output&, const std::string&, const DataMemberList&, const DataMemberList&, bool);
 
     //
     // Generate dispatch and marshalling methods for a class or interface.
@@ -103,12 +110,14 @@ protected:
     static StringList splitComment(const ContainedPtr&);
     static void writeDocComment(::IceUtilInternal::Output&, const ContainedPtr&,
                                 const std::string&, const std::string& = "");
+    static void writeDocComment(::IceUtilInternal::Output&, const std::string&, const std::string&);
     static void writeDocCommentOp(::IceUtilInternal::Output&, const OperationPtr&);
 
     static void writeDocCommentAsync(::IceUtilInternal::Output&, const OperationPtr&,
                                      ParamDir, const std::string& = "");
     static void writeDocCommentAMI(::IceUtilInternal::Output&, const OperationPtr&, ParamDir, const std::string& = "",
-                                   const std::string& = "", const std::string& = "");
+                                   const std::string& = "", const std::string& = "", const std::string& = "",
+                                   const std::string& = "");
     static void writeDocCommentParam(::IceUtilInternal::Output&, const OperationPtr&, ParamDir, bool = true);
 };
 
@@ -247,41 +256,6 @@ private:
         virtual void visitOperation(const OperationPtr&);
     };
 
-    class DelegateVisitor : public JavaVisitor
-    {
-    public:
-
-        DelegateVisitor(const std::string&);
-
-        virtual bool visitClassDefStart(const ClassDefPtr&);
-    };
-
-    class DelegateMVisitor : public JavaVisitor
-    {
-    public:
-
-        DelegateMVisitor(const std::string&);
-
-        virtual bool visitClassDefStart(const ClassDefPtr&);
-
-    private:
-
-        void writeOperation(const ClassDefPtr&, const std::string&, const OperationPtr&, bool);
-    };
-
-    class DelegateDVisitor : public JavaVisitor
-    {
-    public:
-
-        DelegateDVisitor(const std::string&);
-
-        virtual bool visitClassDefStart(const ClassDefPtr&);
-
-    private:
-
-        void writeOperation(const ClassDefPtr&, const std::string&, const OperationPtr&, bool);
-    };
-
     class DispatcherVisitor : public JavaVisitor
     {
     public:
@@ -346,10 +320,6 @@ private:
         AsyncVisitor(const std::string&);
 
         virtual void visitOperation(const OperationPtr&);
-
-    private:
-
-        static std::string initValue(const TypePtr&);
     };
 };
 

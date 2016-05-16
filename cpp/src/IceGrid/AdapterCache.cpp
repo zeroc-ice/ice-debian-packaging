@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -202,8 +202,12 @@ AdapterCache::addServerAdapter(const AdapterDescriptor& desc, const ServerEntryP
         ReplicaGroupEntryPtr repEntry = ReplicaGroupEntryPtr::dynamicCast(getImpl(desc.replicaGroupId));
         if(!repEntry)
         {
-            Ice::Error out(_communicator->getLogger());
-            out << "can't add adapter `" << desc.id << "' to unknown replica group `" << desc.replicaGroupId << "'";
+            //
+            // Add an un-assigned replica group, the replica group will in theory be added
+            // shortly after when its application is loaded.
+            //
+            repEntry = new ReplicaGroupEntry(*this, desc.replicaGroupId, "", new RandomLoadBalancingPolicy("0"), "");
+            addImpl(desc.replicaGroupId, repEntry);
         }
         repEntry->addReplica(desc.id, entry);
     }
@@ -213,14 +217,25 @@ void
 AdapterCache::addReplicaGroup(const ReplicaGroupDescriptor& desc, const string& app)
 {
     Lock sync(*this);
-    if(getImpl(desc.id))
+    ReplicaGroupEntryPtr repEntry = ReplicaGroupEntryPtr::dynamicCast(getImpl(desc.id));
+    if(repEntry)
     {
-        Ice::Error out(_communicator->getLogger());
-        out << "can't add duplicate replica group `" << desc.id << "'";
+        //
+        // If the replica group isn't assigned to an application,
+        // assign it. Otherwise, it's a duplicate so we log an error.
+        //
+        if(repEntry->getApplication().empty())
+        {
+            repEntry->update(app, desc.loadBalancing, desc.filter);
+        }
+        else
+        {
+            Ice::Error out(_communicator->getLogger());
+            out << "can't add duplicate replica group `" << desc.id << "'";
+        }
         return;
     }
-
-    addImpl(desc.id, new ReplicaGroupEntry(*this, desc.id, app, desc.loadBalancing));
+    addImpl(desc.id, new ReplicaGroupEntry(*this, desc.id, app, desc.loadBalancing, desc.filter));
 }
 
 AdapterEntryPtr
@@ -258,7 +273,16 @@ AdapterCache::removeServerAdapter(const string& id)
             Ice::Error out(_communicator->getLogger());
             out << "can't remove adapter `" << id << "' from unknown replica group `" << replicaGroupId << "'";
         }
-        repEntry->removeReplica(id);
+        else
+        {
+            //
+            // If the replica group is empty and it's not assigned, remove it.
+            //
+            if(repEntry->removeReplica(id))
+            {
+                removeImpl(replicaGroupId);
+            }
+        }
     }
 }
 
@@ -351,15 +375,12 @@ ServerAdapterEntry::addSyncCallback(const SynchronizationCallbackPtr& callback, 
 
 void
 ServerAdapterEntry::getLocatorAdapterInfo(LocatorAdapterInfoSeq& adapters, int& nReplicas, bool& replicaGroup, 
-                                          bool& roundRobin, const set<string>&)
+                                          bool& roundRobin, string& filter, const set<string>&)
 {
     nReplicas = 1;
     replicaGroup = false;
     roundRobin = false;
-    LocatorAdapterInfo info;
-    info.id = _id;
-    info.proxy = _server->getAdapter(info.activationTimeout, info.deactivationTimeout, _id, true);
-    adapters.push_back(info);
+    getLocatorAdapterInfo(adapters);
 }
 
 float
@@ -426,21 +447,50 @@ ServerAdapterEntry::getProxy(const string& replicaGroupId, bool upToDate) const
     }
 }
 
+void
+ServerAdapterEntry::getLocatorAdapterInfo(LocatorAdapterInfoSeq& adapters) const
+{
+    LocatorAdapterInfo info;
+    info.id = _id;
+    info.proxy = _server->getAdapter(info.activationTimeout, info.deactivationTimeout, _id, true);
+    adapters.push_back(info);
+}
+
 int
 ServerAdapterEntry::getPriority() const
 {
     return _priority;
 }
 
+string
+ServerAdapterEntry::getServerId() const
+{
+    return _server->getId();
+}
+
+string
+ServerAdapterEntry::getNodeName() const
+{
+    try
+    {
+        return _server->getInfo().node;
+    }
+    catch(const ServerNotExistException&)
+    {
+        return "";
+    }
+}
+
 ReplicaGroupEntry::ReplicaGroupEntry(AdapterCache& cache,
                                      const string& id,
                                      const string& application,
-                                     const LoadBalancingPolicyPtr& policy) : 
+                                     const LoadBalancingPolicyPtr& policy, 
+                                     const string& filter) : 
     AdapterEntry(cache, id, application),
     _lastReplica(0),
     _requestInProgress(false)
 {
-    update(policy);
+    update(application, policy, filter);
 }
 
 bool
@@ -502,7 +552,7 @@ ReplicaGroupEntry::addReplica(const string& /*replicaId*/, const ServerAdapterEn
     _replicas.push_back(adapter);
 }
 
-void
+bool
 ReplicaGroupEntry::removeReplica(const string& replicaId)
 {
     Lock sync(*this);
@@ -516,15 +566,20 @@ ReplicaGroupEntry::removeReplica(const string& replicaId)
             break;
         }
     }
+
+    // Replica group can be removed if not assigned to an application and there's no more replicas
+    return _replicas.empty() && _application.empty();
 }
 
 void
-ReplicaGroupEntry::update(const LoadBalancingPolicyPtr& policy)
+ReplicaGroupEntry::update(const string& application, const LoadBalancingPolicyPtr& policy, const string& filter)
 {
     Lock sync(*this);
     assert(policy);
 
+    _application = application;
     _loadBalancing = policy;
+    _filter = filter;
 
     istringstream is(_loadBalancing->nReplicas);
     int nReplicas = 0;
@@ -554,7 +609,7 @@ ReplicaGroupEntry::update(const LoadBalancingPolicyPtr& policy)
 
 void
 ReplicaGroupEntry::getLocatorAdapterInfo(LocatorAdapterInfoSeq& adapters, int& nReplicas, bool& replicaGroup,
-                                         bool& roundRobin, const set<string>& excludes)
+                                         bool& roundRobin, string& filter, const set<string>& excludes)
 {
     vector<ServerAdapterEntryPtr> replicas;
     bool adaptive = false;
@@ -563,6 +618,7 @@ ReplicaGroupEntry::getLocatorAdapterInfo(LocatorAdapterInfoSeq& adapters, int& n
         Lock sync(*this);
         replicaGroup = true;
         roundRobin = false;
+        filter = _filter;
         nReplicas = _loadBalancingNReplicas > 0 ? _loadBalancingNReplicas : static_cast<int>(_replicas.size());
 
         if(_replicas.empty())
@@ -640,10 +696,7 @@ ReplicaGroupEntry::getLocatorAdapterInfo(LocatorAdapterInfoSeq& adapters, int& n
             {
                 try
                 {
-                    int dummy;
-                    bool dummy2;
-                    bool dummy3;
-                    (*p)->getLocatorAdapterInfo(adapters, dummy, dummy2, dummy3, emptyExcludes);
+                    (*p)->getLocatorAdapterInfo(adapters);
                     firstUnreachable = false;
                 }
                 catch(const SynchronizationException&)

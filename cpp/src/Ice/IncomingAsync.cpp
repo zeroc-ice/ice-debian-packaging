@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -54,7 +54,7 @@ Init init;
 IceInternal::IncomingAsync::IncomingAsync(Incoming& in) :
     IncomingBase(in),
     _instanceCopy(_os.instance()),
-    _connectionCopy(_connection),
+    _responseHandlerCopy(_responseHandler),
     _retriable(in.isRetriable()),
     _active(true)
 {
@@ -119,7 +119,7 @@ IceInternal::IncomingAsync::ice_exception(const ::std::exception& ex)
         _active = false;
     }
 
-    if(_connection)
+    if(_responseHandler)
     {
         __exception(ex);
     }
@@ -170,7 +170,7 @@ IceInternal::IncomingAsync::ice_exception()
         _active = false;
     }
 
-    if(_connection)
+    if(_responseHandler)
     {
         __exception();
     }
@@ -191,29 +191,29 @@ IceInternal::IncomingAsync::__response()
 {
     try
     {
-        if(_locator && !__servantLocatorFinished())
+        if(_locator && !__servantLocatorFinished(true))
         {
             return;
         }
 
-        assert(_connection);
+        assert(_responseHandler);
 
         if(_response)
         {
             _observer.reply(static_cast<Int>(_os.b.size() - headerSize - 4));
-            _connection->sendResponse(&_os, _compress);
+            _responseHandler->sendResponse(_current.requestId, &_os, _compress, true);
         }
         else
         {
-            _connection->sendNoResponse();
+            _responseHandler->sendNoResponse();
         }
 
         _observer.detach();
-        _connection = 0;
+        _responseHandler = 0;
     }
     catch(const LocalException& ex)
     {
-        _connection->invokeException(ex, 1); // Fatal invocation exception
+        _responseHandler->invokeException(_current.requestId, ex, 1, true); // Fatal invocation exception
     }
 }
 
@@ -222,16 +222,16 @@ IceInternal::IncomingAsync::__exception(const std::exception& exc)
 {
     try
     {
-        if(_locator && !__servantLocatorFinished())
+        if(_locator && !__servantLocatorFinished(true))
         {
             return;
         }
 
-        __handleException(exc);
+        __handleException(exc, true);
     }
     catch(const LocalException& ex)
     {
-        _connection->invokeException(ex, 1);  // Fatal invocation exception
+        _responseHandler->invokeException(_current.requestId, ex, 1, true);  // Fatal invocation exception
     }
 }
 
@@ -240,16 +240,16 @@ IceInternal::IncomingAsync::__exception()
 {
     try
     {
-        if(_locator && !__servantLocatorFinished())
+        if(_locator && !__servantLocatorFinished(true))
         {
             return;
         }
 
-        __handleException();
+        __handleException(true);
     }
     catch(const LocalException& ex)
     {
-        _connection->invokeException(ex, 1);  // Fatal invocation exception
+        _responseHandler->invokeException(_current.requestId, ex, 1, true);  // Fatal invocation exception
     }
 }
 

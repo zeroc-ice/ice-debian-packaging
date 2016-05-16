@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -15,13 +15,14 @@
 
 #include <IceUtil/IceUtil.h>
 
-#include <Ice/StringConverter.h>
+#include <IceUtil/StringConverter.h>
 
 #include <typeinfo>
 
 using namespace std;
 using namespace Freeze;
 using namespace Ice;
+using namespace IceUtil;
 
 //
 // Static members
@@ -84,7 +85,7 @@ Freeze::DeactivateController::deactivate()
     {
         return false;
     }
-    
+
     if(_deactivating)
     {
         //
@@ -139,9 +140,9 @@ Freeze::DeactivateController::deactivationComplete()
 // EvictorIBase
 //
 
-Freeze::EvictorIBase::EvictorIBase(const ObjectAdapterPtr& adapter, 
-                                   const string& envName, 
-                                   DbEnv* dbEnv, 
+Freeze::EvictorIBase::EvictorIBase(const ObjectAdapterPtr& adapter,
+                                   const string& envName,
+                                   DbEnv* dbEnv,
                                    const string& filename,
                                    const FacetTypeMap& facetTypes,
                                    const ServantInitializerPtr& initializer,
@@ -163,7 +164,7 @@ Freeze::EvictorIBase::EvictorIBase(const ObjectAdapterPtr& adapter,
 
     _trace = _communicator->getProperties()->getPropertyAsInt("Freeze.Trace.Evictor");
     _txTrace = _communicator->getProperties()->getPropertyAsInt("Freeze.Trace.Transaction");
-    _deadlockWarning = (_communicator->getProperties()->getPropertyAsInt("Freeze.Warn.Deadlocks") != 0);
+    _deadlockWarning = (_communicator->getProperties()->getPropertyAsInt("Freeze.Warn.Deadlocks") > 0);
 }
 
 
@@ -232,10 +233,10 @@ Freeze::EvictorIBase::locate(const Current& current, LocalObjectPtr& cookie)
             if(_trace >= 3)
             {
                 Trace out(_communicator->getLogger(), "Freeze.Evictor");
-                out << "ice_ping found \"" << _communicator->identityToString(current.id)  
+                out << "ice_ping found \"" << _communicator->identityToString(current.id)
                     << "\" with facet \"" << current.facet + "\"";
             }
-            
+
             cookie = 0;
             return _pingObject;
         }
@@ -244,7 +245,7 @@ Freeze::EvictorIBase::locate(const Current& current, LocalObjectPtr& cookie)
             if(_trace >= 3)
             {
                 Trace out(_communicator->getLogger(), "Freeze.Evictor");
-                out << "ice_ping raises FacetNotExistException for \"" << _communicator->identityToString(current.id)  
+                out << "ice_ping raises FacetNotExistException for \"" << _communicator->identityToString(current.id)
                     << "\" with facet \"" << current.facet + "\"";
             }
             throw FacetNotExistException(__FILE__, __LINE__);
@@ -254,15 +255,15 @@ Freeze::EvictorIBase::locate(const Current& current, LocalObjectPtr& cookie)
             if(_trace >= 3)
             {
                 Trace out(_communicator->getLogger(), "Freeze.Evictor");
-                out << "ice_ping will raise ObjectNotExistException for \"" 
+                out << "ice_ping will raise ObjectNotExistException for \""
                     << _communicator->identityToString(current.id)  << "\" with facet \"" << current.facet + "\"";
             }
             return 0;
         }
     }
-    
+
     ObjectPtr result = locateImpl(current, cookie);
-    
+
     if(result == 0)
     {
         if(hasAnotherFacet(current.id, current.facet))
@@ -274,9 +275,7 @@ Freeze::EvictorIBase::locate(const Current& current, LocalObjectPtr& cookie)
 }
 
 
-
-
-void 
+void
 Freeze::EvictorIBase::initialize(const Identity& ident, const string& facet, const ObjectPtr& servant)
 {
     if(_initializer != 0)
@@ -285,7 +284,7 @@ Freeze::EvictorIBase::initialize(const Identity& ident, const string& facet, con
     }
 }
 
-void 
+void
 Freeze::EvictorIBase::updateStats(Statistics& stats, IceUtil::Int64 time)
 {
     IceUtil::Int64 diff = time - (stats.creationTime + stats.lastSaveTime);
@@ -312,22 +311,26 @@ vector<string>
 Freeze::EvictorIBase::allDbs() const
 {
     vector<string> result;
-    
+
     try
     {
         Db db(_dbEnv->getEnv(), 0);
 
-        db.open(0, Ice::nativeToUTF8(_communicator, _filename).c_str(), 0, DB_UNKNOWN, DB_RDONLY, 0);
+        //
+        // Berkeley DB expects file paths to be UTF8 encoded.
+        //
+        db.open(0, nativeToUTF8(_filename, IceUtil::getProcessStringConverter()).c_str(), 0, DB_UNKNOWN,
+                DB_RDONLY, 0);
 
         Dbc* dbc = 0;
         db.cursor(0, &dbc, 0);
-        
+
         Dbt dbKey;
         dbKey.set_flags(DB_DBT_MALLOC);
-        
+
         Dbt dbValue;
         dbValue.set_flags(DB_DBT_USERMEM | DB_DBT_PARTIAL);
-        
+
         bool more = true;
         while(more)
         {
@@ -335,7 +338,7 @@ Freeze::EvictorIBase::allDbs() const
             if(more)
             {
                 string dbName(static_cast<char*>(dbKey.get_data()), dbKey.get_size());
-                
+
                 if(dbName.find(indexPrefix) != 0)
                 {
                     result.push_back(dbName);
@@ -343,7 +346,7 @@ Freeze::EvictorIBase::allDbs() const
                 free(dbKey.get_data());
             }
         }
-        
+
         dbc->close();
         db.close(0);
     }
@@ -356,7 +359,7 @@ Freeze::EvictorIBase::allDbs() const
             throw ex;
         }
     }
-    
+
     return result;
 }
 

@@ -1,13 +1,13 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
+#define ICE_STORM_SERVICE_API_EXPORTS
 
 #include <Ice/PluginManagerI.h> // For loadPlugin
 
@@ -15,9 +15,7 @@
 #include <IceStorm/TopicManagerI.h>
 #include <IceStorm/TransientTopicManagerI.h>
 #include <IceStorm/Instance.h>
-#include <IceStorm/DB.h>
 
-#define ICE_STORM_API ICE_DECLSPEC_EXPORT
 #include <IceStorm/Service.h>
 
 #include <IceStorm/Observers.h>
@@ -36,7 +34,7 @@ using namespace IceStorm;
 using namespace IceStormInternal;
 using namespace IceStormElection;
 
-namespace IceStormInternal
+namespace
 {
 
 class ServiceI : public IceStormInternal::Service
@@ -50,14 +48,14 @@ public:
                        const CommunicatorPtr&,
                        const StringSeq&);
 
-    virtual void start(const CommunicatorPtr&, 
-                       const ObjectAdapterPtr&, 
+    virtual void start(const CommunicatorPtr&,
                        const ObjectAdapterPtr&,
-                       const string&, 
+                       const ObjectAdapterPtr&,
+                       const string&,
                        const Ice::Identity&,
                        const string&);
 
-    virtual TopicManagerPrx getTopicManager() const;    
+    virtual TopicManagerPrx getTopicManager() const;
 
     virtual void stop();
 
@@ -71,12 +69,31 @@ private:
     InstancePtr _instance;
 };
 
+class FinderI : public IceStorm::Finder
+{
+public:
+
+    FinderI(const TopicManagerPrx& topicManager) : _topicManager(topicManager)
+    {
+    }
+
+    virtual TopicManagerPrx
+    getTopicManager(const Ice::Current&)
+    {
+        return _topicManager;
+    }
+
+private:
+
+    const TopicManagerPrx _topicManager;
+};
+
 }
 
 extern "C"
 {
 
-ICE_DECLSPEC_EXPORT ::IceBox::Service*
+ICE_STORM_SERVICE_API ::IceBox::Service*
 createIceStorm(CommunicatorPtr communicator)
 {
     return new ServiceI;
@@ -139,9 +156,9 @@ ServiceI::start(
     topicManagerId.category = instanceName;
     topicManagerId.name = "TopicManager";
 
-    if(properties->getPropertyAsIntWithDefault(name+ ".Transient", 0))
+    if(properties->getPropertyAsIntWithDefault(name+ ".Transient", 0) > 0)
     {
-        _instance = new Instance(instanceName, name, communicator, 0, publishAdapter, topicAdapter, 0);
+        _instance = new Instance(instanceName, name, communicator, publishAdapter, topicAdapter, 0);
         try
         {
             TransientTopicManagerImplPtr manager = new TransientTopicManagerImpl(_instance);
@@ -164,47 +181,9 @@ ServiceI::start(
         return;
     }
 
-    //
-    // Create the database cache.
-    //
-    DatabasePluginPtr plugin;
-    try
-    {
-        plugin = DatabasePluginPtr::dynamicCast(communicator->getPluginManager()->getPlugin("DB"));
-    }
-    catch(const NotRegisteredException&)
-    {
-        try
-        {
-            Ice::StringSeq cmdArgs;
-            IceInternal::loadPlugin(communicator, "DB", "IceStormFreezeDB:createFreezeDB", cmdArgs);
-            plugin = DatabasePluginPtr::dynamicCast(communicator->getPluginManager()->getPlugin("DB"));
-        }
-        catch(const Ice::LocalException& ex)
-        {
-            LoggerOutputBase s;
-            s << "failed to load default Freeze database plugin:\n" << ex;
-
-            IceBox::FailureException e(__FILE__, __LINE__);
-            e.reason = s.str();
-            throw e;
-        }
-    }
-
-    if(!plugin)
-    {
-        ostringstream s;
-        s << "no database plugin configured with `Ice.Plugin.DB' or plugin is not an IceStorm database plugin";
-        
-        IceBox::FailureException e(__FILE__, __LINE__);
-        e.reason = s.str();
-        throw e;
-    }
-    ConnectionPoolPtr connectionPool = plugin->getConnectionPool(name);
-
     if(id == -1) // No replication.
     {
-        _instance = new Instance(instanceName, name, communicator, connectionPool, publishAdapter, topicAdapter);
+        _instance = new Instance(instanceName, name, communicator, publishAdapter, topicAdapter);
 
         try
         {
@@ -235,7 +214,7 @@ ServiceI::start(
         // We support two possible deployments. The first is a manual
         // deployment, the second is IceGrid.
         //
-        // Here we check for the manual deployment 
+        // Here we check for the manual deployment
         const string prefix = name + ".Nodes.";
         Ice::PropertyDict props = properties->getPropertiesForPrefix(prefix);
         if(!props.empty())
@@ -350,12 +329,17 @@ ServiceI::start(
                 properties->setProperty(name + ".Node.ThreadPool.Size", os.str());
                 properties->setProperty(name + ".Node.ThreadPool.SizeWarn", "0");
             }
+            if(properties->getProperty(name + ".Node.MessageSizeMax").empty())
+            {
+                properties->setProperty(name + ".Node.MessageSizeMax", "0"); // No limit on data exchanged internally
+            }
+
             Ice::ObjectAdapterPtr nodeAdapter = communicator->createObjectAdapter(name + ".Node");
 
-            _instance = new Instance(instanceName, name, communicator, connectionPool, publishAdapter, topicAdapter, 
+            _instance = new Instance(instanceName, name, communicator, publishAdapter, topicAdapter,
                                      nodeAdapter, nodes[id]);
             _instance->observers()->setMajority(static_cast<unsigned int>(nodes.size())/2);
-            
+
             // Trace replication information.
             TraceLevelsPtr traceLevels = _instance->traceLevels();
             if(traceLevels->election > 0)
@@ -381,7 +365,7 @@ ServiceI::start(
                 // indirect proxies.
                 _managerProxy = TopicManagerPrx::uncheckedCast(topicAdapter->createIndirectProxy(topicManagerId));
             }
-            
+
             _manager = new TopicManagerImpl(_instance);
             topicAdapter->add(_manager->getServant(), topicManagerId);
 
@@ -411,18 +395,21 @@ ServiceI::start(
             throw e;
         }
     }
-        
+
+    topicAdapter->add(new FinderI(TopicManagerPrx::uncheckedCast(topicAdapter->createProxy(topicManagerId))),
+                      communicator->stringToIdentity("IceStorm/Finder"));
+
     topicAdapter->activate();
     publishAdapter->activate();
 }
 
 void
 ServiceI::start(const CommunicatorPtr& communicator,
-                          const ObjectAdapterPtr& topicAdapter,
-                          const ObjectAdapterPtr& publishAdapter,
-                          const string& name,
-                          const Ice::Identity& id,
-                          const string& /*dbEnv*/)
+                const ObjectAdapterPtr& topicAdapter,
+                const ObjectAdapterPtr& publishAdapter,
+                const string& name,
+                const Ice::Identity& id,
+                const string& /*dbEnv*/)
 {
     //
     // For IceGrid we don't validate the properties as all sorts of
@@ -433,7 +420,7 @@ ServiceI::start(const CommunicatorPtr& communicator,
     // This is for IceGrid only and as such we use a transient
     // implementation of IceStorm.
     string instanceName = communicator->getProperties()->getPropertyWithDefault(name + ".InstanceName", "IceStorm");
-    _instance = new Instance(instanceName, name, communicator, 0, publishAdapter, topicAdapter);
+    _instance = new Instance(instanceName, name, communicator, publishAdapter, topicAdapter);
 
     try
     {
@@ -502,7 +489,6 @@ ServiceI::validateProperties(const string& name, const PropertiesPtr& properties
         "Publish.Endpoints",
         "Publish.Locator",
         "Publish.PublishedEndpoints",
-        "Publish.RegisterProcess",
         "Publish.ReplicaGroupId",
         "Publish.Router",
         "Publish.ThreadPool.Size",
@@ -513,7 +499,6 @@ ServiceI::validateProperties(const string& name, const PropertiesPtr& properties
         "Node.Endpoints",
         "Node.Locator",
         "Node.PublishedEndpoints",
-        "Node.RegisterProcess",
         "Node.ReplicaGroupId",
         "Node.Router",
         "Node.ThreadPool.Size",
@@ -532,7 +517,6 @@ ServiceI::validateProperties(const string& name, const PropertiesPtr& properties
         "TopicManager.Proxy.Router",
         "TopicManager.Proxy.CollocationOptimization",
         "TopicManager.PublishedEndpoints",
-        "TopicManager.RegisterProcess",
         "TopicManager.ReplicaGroupId",
         "TopicManager.Router",
         "TopicManager.ThreadPool.Size",

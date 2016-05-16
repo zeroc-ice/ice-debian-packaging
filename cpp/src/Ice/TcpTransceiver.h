@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,12 +10,11 @@
 #ifndef ICE_TCP_TRANSCEIVER_H
 #define ICE_TCP_TRANSCEIVER_H
 
-#include <Ice/InstanceF.h>
-#include <Ice/TraceLevelsF.h>
-#include <Ice/LoggerF.h>
-#include <Ice/StatsF.h>
+#include <Ice/ProtocolInstanceF.h>
 #include <Ice/Transceiver.h>
 #include <Ice/Network.h>
+#include <Ice/StreamSocket.h>
+#include <Ice/WSTransceiver.h>
 
 namespace IceInternal
 {
@@ -23,65 +22,43 @@ namespace IceInternal
 class TcpConnector;
 class TcpAcceptor;
 
-class TcpTransceiver : public Transceiver, public NativeInfo
+class TcpTransceiver : public Transceiver, public WSTransceiverDelegate
 {
-    enum State
-    {
-        StateNeedConnect,
-        StateConnectPending,
-        StateProxyConnectRequest,
-        StateProxyConnectRequestPending,
-        StateConnected
-    };
-
 public:
 
     virtual NativeInfoPtr getNativeInfo();
-#ifdef ICE_USE_IOCP
-    virtual AsyncInfo* getAsyncInfo(SocketOperation);
-#endif
-    
-    virtual SocketOperation initialize(Buffer&, Buffer&);
+
+    virtual SocketOperation initialize(Buffer&, Buffer&, bool&);
+    virtual SocketOperation closing(bool, const Ice::LocalException&);
     virtual void close();
-    virtual bool write(Buffer&);
-    virtual bool read(Buffer&);
+    virtual SocketOperation write(Buffer&);
+    virtual SocketOperation read(Buffer&, bool&);
 #ifdef ICE_USE_IOCP
     virtual bool startWrite(Buffer&);
     virtual void finishWrite(Buffer&);
     virtual void startRead(Buffer&);
-    virtual void finishRead(Buffer&);
+    virtual void finishRead(Buffer&, bool&);
 #endif
-    virtual std::string type() const;
+    virtual std::string protocol() const;
     virtual std::string toString() const;
+    virtual std::string toDetailedString() const;
     virtual Ice::ConnectionInfoPtr getInfo() const;
-    virtual void checkSendSize(const Buffer&, size_t);
+    virtual Ice::ConnectionInfoPtr getWSInfo(const Ice::HeaderDict&) const;
+    virtual void checkSendSize(const Buffer&);
+    virtual void setBufferSize(int rcvSize, int sndSize);
 
 private:
 
-    TcpTransceiver(const InstancePtr&, SOCKET, const NetworkProxyPtr&, const Address&);
-    TcpTransceiver(const InstancePtr&, SOCKET);
+    TcpTransceiver(const ProtocolInstancePtr&, const StreamSocketPtr&);
     virtual ~TcpTransceiver();
 
-    void connect();
+    void fillConnectionInfo(const Ice::TCPConnectionInfoPtr&) const;
 
     friend class TcpConnector;
     friend class TcpAcceptor;
 
-    const NetworkProxyPtr _proxy;
-    const Address _addr;
-    const TraceLevelsPtr _traceLevels;
-    const Ice::LoggerPtr _logger;
-    const Ice::StatsPtr _stats;
-    
-    State _state;
-    std::string _desc;
-
-#ifdef ICE_USE_IOCP
-    AsyncInfo _read;
-    AsyncInfo _write;
-    int _maxSendPacketSize;
-    int _maxReceivePacketSize;
-#endif
+    const ProtocolInstancePtr _instance;
+    const StreamSocketPtr _stream;
 };
 
 }

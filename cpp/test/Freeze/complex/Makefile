@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -13,6 +13,8 @@ CLIENT		= client
 
 TARGETS		= $(CLIENT)
 
+SLICE_OBJS	= Complex.o
+
 OBJS		= ComplexDict.o \
 		  Complex.o \
 		  Grammar.o \
@@ -20,9 +22,7 @@ OBJS		= ComplexDict.o \
 		  Parser.o \
 		  Client.o
 
-SRCS		= $(OBJS:.o=.cpp)
-
-SLICE_SRCS	= Complex.ice
+all:: ComplexDict.cpp
 
 include $(top_srcdir)/config/Make.rules
 
@@ -30,7 +30,7 @@ CPPFLAGS	:= -I. -I../../include $(CPPFLAGS)
 
 $(CLIENT): $(OBJS)
 	rm -f $@
-	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(DB_RPATH_LINK) -lFreeze $(LIBS)
+	$(CXX) $(LDFLAGS) $(LDEXEFLAGS) -o $@ $(OBJS) $(DB_RPATH_LINK) -lFreeze $(LIBS)
 
 # The slice2freeze rules are structured like this to avoid issues with
 # parallel make.
@@ -42,5 +42,3 @@ ComplexDict.cpp: Complex.ice $(SLICE2FREEZE) $(SLICEPARSERLIB)
 clean::
 	-rm -f ComplexDict.h ComplexDict.cpp
 	-rm -rf db/*
-
-include .depend

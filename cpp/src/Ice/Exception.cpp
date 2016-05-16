@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -16,7 +16,7 @@
 #include <Ice/Stream.h>
 #include <IceUtil/StringUtil.h>
 #ifdef ICE_OS_WINRT
-#    include <IceUtil/Unicode.h>
+#    include <IceUtil/StringConverter.h>
 #endif
 #include <iomanip>
 
@@ -44,8 +44,13 @@ socketErrorToString(int error)
     }
     else
     {
+        //
+        // Don't need to use a wide string converter as the wide string come
+        // from Windows API.
+        //
         return IceUtil::wstringToString(
-            static_cast<Windows::Networking::Sockets::SocketErrorStatus>(error).ToString()->Data());
+            static_cast<Windows::Networking::Sockets::SocketErrorStatus>(error).ToString()->Data(),
+            IceUtil::getProcessStringConverter());
     }
 #else
     return IceUtilInternal::errorToString(error);
@@ -97,7 +102,7 @@ throwMarshalException(const char* file, int line, const string& reason)
 }
 }
 
-void 
+void
 Ice::UserException::__write(::IceInternal::BasicStream* os) const
 {
     os->startWriteException(0);
@@ -105,7 +110,7 @@ Ice::UserException::__write(::IceInternal::BasicStream* os) const
     os->endWriteException();
 }
 
-void 
+void
 Ice::UserException::__read(::IceInternal::BasicStream* is)
 {
     is->startReadException();
@@ -113,7 +118,7 @@ Ice::UserException::__read(::IceInternal::BasicStream* is)
     is->endReadException(false);
 }
 
-void 
+void
 Ice::UserException::__write(const Ice::OutputStreamPtr& os) const
 {
     os->startException(0);
@@ -121,7 +126,7 @@ Ice::UserException::__write(const Ice::OutputStreamPtr& os) const
     os->endException();
 }
 
-void 
+void
 Ice::UserException::__read(const Ice::InputStreamPtr& is)
 {
     is->startException();
@@ -129,13 +134,13 @@ Ice::UserException::__read(const Ice::InputStreamPtr& is)
     is->endException(false);
 }
 
-void 
+void
 Ice::UserException::__writeImpl(const Ice::OutputStreamPtr&) const
 {
     throw MarshalException(__FILE__, __LINE__, "user exception was not generated with stream support");
 }
 
-void 
+void
 Ice::UserException::__readImpl(const Ice::InputStreamPtr&)
 {
     throw MarshalException(__FILE__, __LINE__, "user exception was not generated with stream support");
@@ -318,6 +323,14 @@ Ice::IllegalIdentityException::ice_print(ostream& out) const
     out << "'";
 }
 
+void
+Ice::IllegalServantException::ice_print(ostream& out) const
+{
+    Exception::ice_print(out);
+    out << ":\nillegal servant: `" << reason << "'";
+}
+
+
 static void
 printFailedRequestData(ostream& out, const RequestFailedException& ex)
 {
@@ -446,6 +459,14 @@ Ice::DNSException::ice_print(ostream& out) const
 }
 
 void
+Ice::OperationInterruptedException::ice_print(ostream& out) const
+{
+    Exception::ice_print(out);
+    out << ":\noperation interrupted";
+}
+
+
+void
 Ice::TimeoutException::ice_print(ostream& out) const
 {
     Exception::ice_print(out);
@@ -471,6 +492,20 @@ Ice::ConnectionTimeoutException::ice_print(ostream& out) const
 {
     Exception::ice_print(out);
     out << ":\nconnection has timed out";
+}
+
+void
+Ice::InvocationTimeoutException::ice_print(ostream& out) const
+{
+    Exception::ice_print(out);
+    out << ":\ninvocation has timed out";
+}
+
+void
+Ice::InvocationCanceledException::ice_print(ostream& out) const
+{
+    Exception::ice_print(out);
+    out << ":\ninvocation canceled";
 }
 
 void
@@ -522,7 +557,7 @@ void
 Ice::UnsupportedEncodingException::ice_print(ostream& out) const
 {
     Exception::ice_print(out);
-    out << ":\nprotocol error: unsupported encoding version: " << bad;
+    out << ":\nencoding error: unsupported encoding version: " << bad;
     out << "\n(can only support encodings compatible with version " << supported << ")";
     if(!reason.empty())
     {
@@ -671,19 +706,19 @@ Ice::NoObjectFactoryException::ice_print(ostream& out) const
     {
         out << ":\n" << reason;
     }
-}       
+}
 
 void
 Ice::UnexpectedObjectException::ice_print(ostream& out) const
 {
     Exception::ice_print(out);
-    out << ":\nunexpected class instance of type `" << type << 
+    out << ":\nunexpected class instance of type `" << type <<
         "'; expected instance of type `" << expectedType << "'";
     if(!reason.empty())
     {
         out << ":\n" << reason;
     }
-}       
+}
 
 void
 Ice::MemoryLimitException::ice_print(ostream& out) const
@@ -795,3 +830,12 @@ Ice::ResponseSentException::ice_print(ostream& out) const
     Exception::ice_print(out);
     out << ":\nresponse sent exception";
 }
+
+#ifdef ICE_USE_CFSTREAM
+void
+Ice::CFNetworkException::ice_print(ostream& out) const
+{
+    Exception::ice_print(out);
+    out << ":\nnetwork exception: domain: " << domain << " error: " << error;
+}
+#endif

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -28,24 +28,28 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     adapter->activate();
     TEST_READY
     communicator->waitForShutdown();
-    
+
     return EXIT_SUCCESS;
 }
 
 int
 main(int argc, char** argv)
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
     int status;
     Ice::CommunicatorPtr communicator;
 
     try
     {
+        IceUtil::setProcessStringConverter(new Test::StringConverterI());
+        IceUtil::setProcessWstringConverter(new Test::WstringConverterI());
+
         Ice::InitializationData initData;
         initData.properties = Ice::createProperties(argc, argv);
-        
+
         initData.properties->setProperty("TestAdapter.Endpoints", "default -p 12010");
-        initData.stringConverter = new Test::StringConverterI();
-        initData.wstringConverter = new Test::WstringConverterI();
         communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator);
     }

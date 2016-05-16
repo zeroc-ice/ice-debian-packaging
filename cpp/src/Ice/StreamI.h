@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -65,11 +65,12 @@ public:
 
     virtual void readPendingObjects();
 
+    virtual size_type pos();
     virtual void rewind();
 
     virtual void skip(Int);
     virtual void skipSize();
-    
+
     virtual void read(bool&);
     virtual void read(Byte&);
     virtual void read(Short&);
@@ -78,6 +79,8 @@ public:
     virtual void read(Float&);
     virtual void read(Double&);
     virtual void read(std::string&, bool = true);
+    virtual void read(const char*&, size_t&);
+    virtual void read(const char*&, size_t&, std::string&);
     virtual void read(std::vector<std::string>&, bool);
     virtual void read(std::wstring&);
     virtual void read(std::vector<bool>&);
@@ -101,7 +104,7 @@ public:
 private:
 
     void initialize(IceInternal::Instance*, const std::pair<const Byte*, const Byte*>&, const EncodingVersion&, bool);
-    
+
     const CommunicatorPtr _communicator;
     IceInternal::BasicStream* _is;
     std::vector< ReadObjectCallbackPtr > _callbacks;
@@ -125,7 +128,7 @@ public:
     virtual void writeObject(const ObjectPtr&);
     virtual void writeException(const UserException&);
     virtual void writeProxy(const ObjectPrx&);
-        
+
     virtual void writeSize(Int);
 
     virtual void write(bool);
@@ -136,6 +139,7 @@ public:
     virtual void write(Float);
     virtual void write(Double);
     virtual void write(const std::string&, bool = true);
+    virtual void write(const char*, size_t, bool = true);
     virtual void write(const std::vector<std::string>&, bool);
     virtual void write(const char*, bool = true);
     virtual void write(const std::wstring&);
@@ -179,8 +183,8 @@ public:
     virtual size_type pos();
     virtual void rewrite(Int, size_type);
 
-    virtual void startSize();
-    virtual void endSize();
+    virtual size_type startSize();
+    virtual void endSize(size_type pos);
 
 private:
 

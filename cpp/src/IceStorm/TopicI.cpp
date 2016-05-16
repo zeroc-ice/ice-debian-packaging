@@ -1,20 +1,20 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <IceStorm/TopicI.h>
 #include <IceStorm/Instance.h>
 #include <IceStorm/Subscriber.h>
 #include <IceStorm/TraceLevels.h>
 #include <IceStorm/NodeI.h>
 #include <IceStorm/Observers.h>
-#include <IceStorm/DB.h>
+#include <IceStorm/SubscriberMap.h>
+#include <IceStorm/LLUMap.h>
 #include <IceStorm/Util.h>
 #include <Ice/LoggerUtil.h>
 #include <algorithm>
@@ -22,11 +22,14 @@
 using namespace std;
 using namespace IceStorm;
 using namespace IceStormElection;
+using namespace IceStormInternal;
 
-using namespace IceDB;
+using namespace Freeze;
 
 namespace
 {
+
+const string subscriberDbName = "subscribers";
 
 void
 halt(const Ice::CommunicatorPtr& com, const DatabaseException& ex)
@@ -52,11 +55,6 @@ public:
     {
     }
 
-    ~PublisherI()
-    {
-        //cout << "~PublisherI" << endl;
-    }
-
     virtual bool
     ice_invoke(const pair<const Ice::Byte*, const Ice::Byte*>& inParams,
                Ice::ByteSeq&,
@@ -71,7 +69,7 @@ public:
         //event->data.swap(Ice::ByteSeq(inParams.first, inParams.second));
         Ice::ByteSeq data(inParams.first, inParams.second);
         event->data.swap(data);
-        
+
         EventDataSeq v;
         v.push_back(event);
         _topic->publish(false, v);
@@ -80,7 +78,7 @@ public:
     }
 
 private:
-    
+
     const TopicImplPtr _topic;
     const InstancePtr _instance;
 };
@@ -96,11 +94,6 @@ public:
     TopicLinkI(const TopicImplPtr& impl, const InstancePtr& instance) :
         _impl(impl), _instance(instance)
     {
-    }
-
-    ~TopicLinkI()
-    {
-        //cout << "~TopicLinkI" << endl;
     }
 
     virtual void
@@ -125,11 +118,6 @@ public:
     {
     }
 
-    ~TopicI()
-    {
-        //cout << "~TopicI" << endl;
-    }
-
     virtual string getName(const Ice::Current&) const
     {
         // Use cached reads.
@@ -149,38 +137,6 @@ public:
         // Use cached reads.
         CachedReadHelper unlock(_instance->node(), __FILE__, __LINE__);
         return _impl->getNonReplicatedPublisher();
-    }
-
-    virtual void subscribe(const QoS& qos, const Ice::ObjectPrx& obj, const Ice::Current& current)
-    {
-        while(true)
-        {
-            Ice::Long generation = -1;
-            TopicPrx master = getMasterFor(current, generation, __FILE__, __LINE__);
-            if(master)
-            {
-                try
-                {
-                    master->subscribe(qos, obj);
-                }
-                catch(const Ice::ConnectFailedException&)
-                {
-                    _instance->node()->recovery(generation);
-                    continue;
-                }
-                catch(const Ice::TimeoutException&)
-                {
-                    _instance->node()->recovery(generation);
-                    continue;
-                }
-            }
-            else
-            {
-                FinishUpdateHelper unlock(_instance->node());
-                _impl->subscribe(qos, obj);
-            }
-            break;
-        }
     }
 
     virtual Ice::ObjectPrx subscribeAndGetPublisher(const QoS& qos, const Ice::ObjectPrx& obj,
@@ -335,7 +291,7 @@ public:
         CachedReadHelper unlock(_instance->node(), __FILE__, __LINE__);
         return _impl->getLinkInfoSeq();
     }
-    
+
     virtual Ice::IdentitySeq getSubscribers(const Ice::Current&) const
     {
         return _impl->getSubscribers();
@@ -403,15 +359,15 @@ TopicImpl::TopicImpl(
     const Ice::Identity& id,
     const SubscriberRecordSeq& subscribers) :
     _instance(instance),
+    _connection(Freeze::createConnection(instance->communicator(), instance->serviceName())),
     _name(name),
     _id(id),
-    _connectionPool(instance->connectionPool()),
     _destroyed(false)
 {
     try
     {
         __setNoDelete(true);
-        
+
         // TODO: If we want to improve the performance of the
         // non-replicated case we could allocate a null-topic impl here.
         _servant = new TopicI(this, instance);
@@ -446,7 +402,7 @@ TopicImpl::TopicImpl(
         _publisherPrx = _instance->publishAdapter()->add(new PublisherI(this, instance), pubid);
         _linkPrx = TopicLinkPrx::uncheckedCast(
             _instance->publishAdapter()->add(new TopicLinkI(this, instance), linkid));
-        
+
         //
         // Re-establish subscribers.
         //
@@ -555,175 +511,19 @@ trace(Ice::Trace& out, const InstancePtr& instance, const vector<SubscriberPtr>&
 }
 }
 
-void
-TopicImpl::subscribe(const QoS& origQoS, const Ice::ObjectPrx& obj)
-{
-    Ice::Identity id = obj->ice_getIdentity();
-    TraceLevelsPtr traceLevels = _instance->traceLevels();
-    QoS qos = origQoS;
-    if(traceLevels->topic > 0)
-    {
-        Ice::Trace out(traceLevels->logger, traceLevels->topicCat);
-        out << _name << ": subscribe: " << _instance->communicator()->identityToString(id);
-
-        if(traceLevels->topic > 1)
-        {
-            out << " endpoints: " << IceStormInternal::describeEndpoints(obj)
-                << " QoS: ";
-            for(QoS::const_iterator p = qos.begin(); p != qos.end() ; ++p)
-            {
-                if(p != qos.begin())
-                {
-                    out << ',';
-                }
-                out << '[' << p->first << "," << p->second << ']';
-            }
-            out << " subscriptions: ";
-            trace(out, _instance, _subscribers);
-        }
-    }
-
-    string reliability = "oneway";
-    {
-        QoS::iterator p = qos.find("reliability");
-        if(p != qos.end())
-        {
-            reliability = p->second;
-            qos.erase(p);
-        }
-    }
-
-    Ice::ObjectPrx newObj = obj;
-    if(reliability == "batch")
-    {
-        if(newObj->ice_isDatagram())
-        {
-            newObj = newObj->ice_batchDatagram();
-        }
-        else
-        {
-            newObj = newObj->ice_batchOneway();
-        }
-    }
-    else if(reliability == "twoway")
-    {
-        newObj = newObj->ice_twoway();
-    }
-    else if(reliability == "twoway ordered")
-    {
-        qos["reliability"] = "ordered";
-        newObj = newObj->ice_twoway();
-    }
-    else // reliability == "oneway"
-    {
-        if(reliability != "oneway" && traceLevels->subscriber > 0)
-        {
-            Ice::Trace out(traceLevels->logger, traceLevels->subscriberCat);
-            out << reliability <<" mode not understood.";
-        }
-        if(!newObj->ice_isDatagram())
-        {
-            newObj = newObj->ice_oneway();
-        }
-    }
-
-    IceUtil::Mutex::Lock sync(_subscribersMutex);
-    SubscriberRecord record;
-    record.id = id;
-    record.obj = newObj;
-    record.theQoS = qos;
-    record.topicName = _name;
-    record.link = false;
-    record.cost = 0;
-
-    LogUpdate llu;
-
-    vector<SubscriberPtr>::iterator p = find(_subscribers.begin(), _subscribers.end(), record.id);
-    if(p != _subscribers.end())
-    {
-        // If we already have this subscriber remove it from our
-        // subscriber list and remove it from the database.
-        (*p)->destroy();
-        _subscribers.erase(p);
-
-        for(;;)
-        {
-            try
-            {
-                DatabaseConnectionPtr connection = _connectionPool->newConnection();
-                TransactionHolder txn(connection);
-
-                SubscriberRecordKey key;
-                key.topic = _id;
-                key.id =  record.id;
-
-                SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-                subscribersWrapper->erase(key);
-
-                LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-                llu = lluWrapper->get();
-                llu.iteration++;
-                lluWrapper->put(llu);
-
-                txn.commit();
-                break;
-            }
-            catch(const DeadlockException&)
-            {
-                continue;
-            }
-            catch(const DatabaseException& ex)
-            {
-                halt(_instance->communicator(), ex);
-            }   
-        }
-        Ice::IdentitySeq ids;
-        ids.push_back(id);
-        _instance->observers()->removeSubscriber(llu, _name, ids);
-    }
-
-    SubscriberPtr subscriber = Subscriber::create(_instance, record);
-    for(;;)
-    {
-        try
-        {
-            DatabaseConnectionPtr connection = _connectionPool->newConnection();
-            TransactionHolder txn(connection);
-
-            SubscriberRecordKey key;
-            key.topic = _id;
-            key.id = subscriber->id();
-
-            SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-            subscribersWrapper->put(key, record);
-
-            // Update the LLU.
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            llu = lluWrapper->get();
-            llu.iteration++;
-            lluWrapper->put(llu);
-
-            txn.commit();
-            break;
-        }
-        catch(const DeadlockException&)
-        {
-            continue;
-        }
-        catch(const DatabaseException& ex)
-        {
-            halt(_instance->communicator(), ex);
-        }       
-    }
-
-    _subscribers.push_back(subscriber);
-
-    _instance->observers()->addSubscriber(llu, _name, record);
-}
-
 Ice::ObjectPrx
 TopicImpl::subscribeAndGetPublisher(const QoS& qos, const Ice::ObjectPrx& obj)
 {
+    if(!obj)
+    {
+        TraceLevelsPtr traceLevels = _instance->traceLevels();
+        if(traceLevels->topic > 0)
+        {
+            Ice::Trace out(traceLevels->logger, traceLevels->topicCat);
+            out << _name << ": subscribeAndGetPublisher: null proxy";
+        }
+        throw InvalidSubscriber("subscriber is a null proxy");
+    }
     Ice::Identity id = obj->ice_getIdentity();
 
     TraceLevelsPtr traceLevels = _instance->traceLevels();
@@ -772,20 +572,18 @@ TopicImpl::subscribeAndGetPublisher(const QoS& qos, const Ice::ObjectPrx& obj)
     {
         try
         {
-            DatabaseConnectionPtr connection = _connectionPool->newConnection();
-            TransactionHolder txn(connection);
+            TransactionHolder txn(_connection);
 
             SubscriberRecordKey key;
             key.topic = _id;
             key.id = subscriber->id();
 
-            SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-            subscribersWrapper->put(key, record);
+            SubscriberMap subscriberMap(_connection, subscriberDbName);
+            subscriberMap.put(SubscriberMap::value_type(key, record));
 
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            llu = lluWrapper->get();
+            llu = getLLU(_connection);
             llu.iteration++;
-            lluWrapper->put(llu);
+            putLLU(_connection, llu);
 
             txn.commit();
             break;
@@ -797,7 +595,7 @@ TopicImpl::subscribeAndGetPublisher(const QoS& qos, const Ice::ObjectPrx& obj)
         catch(const DatabaseException& ex)
         {
             halt(_instance->communicator(), ex);
-        }       
+        }
     }
 
     _subscribers.push_back(subscriber);
@@ -816,9 +614,9 @@ TopicImpl::unsubscribe(const Ice::ObjectPrx& subscriber)
         if(traceLevels->topic > 0)
         {
             Ice::Trace out(traceLevels->logger, traceLevels->topicCat);
-            out << "unsubscribe with null subscriber.";
+            out << _name << ": unsubscribe: null proxy";
         }
-        return;
+        throw InvalidSubscriber("subscriber is a null proxy");
     }
 
     Ice::Identity id = subscriber->ice_getIdentity();
@@ -827,7 +625,7 @@ TopicImpl::unsubscribe(const Ice::ObjectPrx& subscriber)
     {
         Ice::Trace out(traceLevels->logger, traceLevels->topicCat);
         out << _name << ": unsubscribe: " << _instance->communicator()->identityToString(id);
-        
+
         if(traceLevels->topic > 1)
         {
             out << " endpoints: " << IceStormInternal::describeEndpoints(subscriber);
@@ -896,20 +694,18 @@ TopicImpl::link(const TopicPrx& topic, Ice::Int cost)
     {
         try
         {
-            DatabaseConnectionPtr connection = _connectionPool->newConnection();
-            TransactionHolder txn(connection);
+            TransactionHolder txn(_connection);
 
             SubscriberRecordKey key;
             key.topic = _id;
             key.id = id;
 
-            SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-            subscribersWrapper->put(key, record);
+            SubscriberMap subscriberMap(_connection, subscriberDbName);
+            subscriberMap.put(SubscriberMap::value_type(key, record));
 
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            llu = lluWrapper->get();
+            llu = getLLU(_connection);
             llu.iteration++;
-            lluWrapper->put(llu);
+            putLLU(_connection, llu);
 
             txn.commit();
             break;
@@ -921,7 +717,7 @@ TopicImpl::link(const TopicPrx& topic, Ice::Int cost)
         catch(const DatabaseException& ex)
         {
             halt(_instance->communicator(), ex);
-        }       
+        }
     }
 
     _subscribers.push_back(subscriber);
@@ -939,7 +735,7 @@ TopicImpl::unlink(const TopicPrx& topic)
     }
 
     Ice::Identity id = topic->ice_getIdentity();
-    
+
     vector<SubscriberPtr>::const_iterator p = find(_subscribers.begin(), _subscribers.end(), id);
     if(p == _subscribers.end())
     {
@@ -1031,7 +827,7 @@ Ice::IdentitySeq
 TopicImpl::getSubscribers() const
 {
     IceUtil::Mutex::Lock sync(_subscribersMutex);
-    
+
     Ice::IdentitySeq subscribers;
     for(vector<SubscriberPtr>::const_iterator p = _subscribers.begin(); p != _subscribers.end(); ++p)
     {
@@ -1260,7 +1056,7 @@ TopicImpl::publish(bool forwarded, const EventDataSeq& events)
         generation = unlock.generation();
     }
 
-    
+
     // Tell the master to reap this set of subscribers. This is an
     // AMI invocation so it shouldn't block the caller (in the
     // typical case) we do it outside of the mutex lock for
@@ -1284,7 +1080,7 @@ TopicImpl::observerAddSubscriber(const LogUpdate& llu, const SubscriberRecord& r
     {
         Ice::Trace out(traceLevels->logger, traceLevels->topicCat);
         out << _name << ": add replica observer: " << _instance->communicator()->identityToString(record.id);
-            
+
         if(traceLevels->topic > 1)
         {
             out << " endpoints: " << IceStormInternal::describeEndpoints(record.obj)
@@ -1320,19 +1116,17 @@ TopicImpl::observerAddSubscriber(const LogUpdate& llu, const SubscriberRecord& r
     {
         try
         {
-            DatabaseConnectionPtr connection = _connectionPool->newConnection();
-            TransactionHolder txn(connection);
+            TransactionHolder txn(_connection);
 
             SubscriberRecordKey key;
             key.topic = _id;
             key.id = subscriber->id();
 
-            SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-            subscribersWrapper->put(key, record);
+            SubscriberMap subscriberMap(_connection, subscriberDbName);
+            subscriberMap.put(SubscriberMap::value_type(key, record));
 
             // Update the LLU.
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            lluWrapper->put(llu);
+            putLLU(_connection, llu);
 
             txn.commit();
             break;
@@ -1344,7 +1138,7 @@ TopicImpl::observerAddSubscriber(const LogUpdate& llu, const SubscriberRecord& r
         catch(const DatabaseException& ex)
         {
             halt(_instance->communicator(), ex);
-        }       
+        }
     }
 
     _subscribers.push_back(subscriber);
@@ -1383,14 +1177,13 @@ TopicImpl::observerRemoveSubscriber(const LogUpdate& llu, const Ice::IdentitySeq
             _subscribers.erase(p);
         }
     }
-    
+
     // Next remove from the database.
     for(;;)
     {
         try
         {
-            DatabaseConnectionPtr connection = _connectionPool->newConnection();
-            TransactionHolder txn(connection);
+            TransactionHolder txn(_connection);
 
             for(Ice::IdentitySeq::const_iterator id = ids.begin(); id != ids.end(); ++id)
             {
@@ -1398,13 +1191,10 @@ TopicImpl::observerRemoveSubscriber(const LogUpdate& llu, const Ice::IdentitySeq
                 key.topic = _id;
                 key.id = *id;
 
-                SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-                subscribersWrapper->erase(key);
+                SubscriberMap subscriberMap(_connection, subscriberDbName);
+                subscriberMap.erase(key);
             }
-
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            lluWrapper->put(llu);
-
+            putLLU(_connection, llu);
             txn.commit();
             break;
         }
@@ -1415,7 +1205,7 @@ TopicImpl::observerRemoveSubscriber(const LogUpdate& llu, const Ice::IdentitySeq
         catch(const DatabaseException& ex)
         {
             halt(_instance->communicator(), ex);
-        }       
+        }
     }
 }
 
@@ -1471,6 +1261,7 @@ TopicImpl::destroyInternal(const LogUpdate& origLLU, bool master)
 {
     _instance->publishAdapter()->remove(_linkPrx->ice_getIdentity());
     _instance->publishAdapter()->remove(_publisherPrx->ice_getIdentity());
+    _instance->topicReaper()->add(_name);
 
     // Destroy each of the subscribers.
     for(vector<SubscriberPtr>::const_iterator p = _subscribers.begin(); p != _subscribers.end(); ++p)
@@ -1485,25 +1276,30 @@ TopicImpl::destroyInternal(const LogUpdate& origLLU, bool master)
     {
         try
         {
-            DatabaseConnectionPtr connection = _connectionPool->newConnection();
-            TransactionHolder txn(connection);
+            TransactionHolder txn(_connection);
 
             // Erase all subscriber records and the topic record.
-            SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-            subscribersWrapper->eraseTopic(_id);
+            SubscriberMap subscriberMap(_connection, subscriberDbName);
+
+            IceStorm::SubscriberRecordKey key;
+            key.topic = _id;
+            SubscriberMap::iterator p = subscriberMap.find(key);
+            while(p != subscriberMap.end() && p->first.topic == key.topic)
+            {
+                subscriberMap.erase(p++);
+            }
 
             // Update the LLU.
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
             if(master)
             {
-                llu = lluWrapper->get();
+                llu = getLLU(_connection);
                 llu.iteration++;
             }
             else
             {
                 llu = origLLU;
             }
-            lluWrapper->put(llu);
+            putLLU(_connection, llu);
 
             txn.commit();
             break;
@@ -1515,7 +1311,7 @@ TopicImpl::destroyInternal(const LogUpdate& origLLU, bool master)
         catch(const DatabaseException& ex)
         {
             halt(_instance->communicator(), ex);
-        }       
+        }
     }
 
     _instance->topicAdapter()->remove(_id);
@@ -1560,23 +1356,21 @@ TopicImpl::removeSubscribers(const Ice::IdentitySeq& ids)
     {
         try
         {
-            DatabaseConnectionPtr connection = _connectionPool->newConnection();
-            TransactionHolder txn(connection);
+            TransactionHolder txn(_connection);
 
             for(Ice::IdentitySeq::const_iterator id = ids.begin(); id != ids.end(); ++id)
             {
                 SubscriberRecordKey key;
                 key.topic = _id;
                 key.id = *id;
-                
-                SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-                subscribersWrapper->erase(key);
+
+                SubscriberMap subscriberMap(_connection, subscriberDbName);
+                subscriberMap.erase(key);
             }
 
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            llu = lluWrapper->get();
+            llu = getLLU(_connection);
             llu.iteration++;
-            lluWrapper->put(llu);
+            putLLU(_connection, llu);
 
             txn.commit();
             break;
@@ -1588,7 +1382,7 @@ TopicImpl::removeSubscribers(const Ice::IdentitySeq& ids)
         catch(const DatabaseException& ex)
         {
             halt(_instance->communicator(), ex);
-        }       
+        }
     }
 
     _instance->observers()->removeSubscriber(llu, _name, ids);

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,93 +8,288 @@
 // **********************************************************************
 
 #include <Ice/Outgoing.h>
-#include <Ice/Object.h>
-#include <Ice/RequestHandler.h>
 #include <Ice/ConnectionI.h>
+#include <Ice/CollocatedRequestHandler.h>
 #include <Ice/Reference.h>
-#include <Ice/Endpoint.h>
-#include <Ice/LocalException.h>
-#include <Ice/Protocol.h>
 #include <Ice/Instance.h>
+#include <Ice/LocalException.h>
 #include <Ice/ReplyStatus.h>
-#include <Ice/ProxyFactory.h>
+#include <Ice/ImplicitContextI.h>
 
 using namespace std;
+using namespace IceUtil;
 using namespace Ice;
 using namespace Ice::Instrumentation;
 using namespace IceInternal;
 
-IceInternal::LocalExceptionWrapper::LocalExceptionWrapper(const LocalException& ex, bool r) :
-    _retry(r)
+OutgoingBase::OutgoingBase(Instance* instance) : _os(instance, Ice::currentProtocolEncoding), _sent(false)
 {
-    _ex.reset(ex.ice_clone());
 }
 
-IceInternal::LocalExceptionWrapper::LocalExceptionWrapper(const LocalExceptionWrapper& ex) :
-    _retry(ex._retry)
+ProxyOutgoingBase::ProxyOutgoingBase(IceProxy::Ice::Object* proxy, OperationMode mode) :
+    OutgoingBase(proxy->__reference()->getInstance().get()),
+    _proxy(proxy),
+    _mode(mode),
+    _state(StateUnsent)
 {
-    _ex.reset(ex.get()->ice_clone());
+    int invocationTimeout = _proxy->__reference()->getInvocationTimeout();
+    if(invocationTimeout > 0)
+    {
+        _invocationTimeoutDeadline = Time::now(Time::Monotonic) + Time::milliSeconds(invocationTimeout);
+    }
+}
+
+ProxyOutgoingBase::~ProxyOutgoingBase()
+{
 }
 
 void
-IceInternal::LocalExceptionWrapper::throwWrapper(const std::exception& ex)
+ProxyOutgoingBase::sent()
 {
-
-    const UserException* ue = dynamic_cast<const UserException*>(&ex);
-    if(ue)
+    Monitor<Mutex>::Lock sync(_monitor);
+    if(_proxy->__reference()->getMode() != Reference::ModeTwoway)
     {
-        stringstream s;
-        s << *ue;
-        throw LocalExceptionWrapper(UnknownUserException(__FILE__, __LINE__, s.str()), false);
+        _childObserver.detach();
+        _state = StateOK;
     }
+    _sent = true;
+    _monitor.notify();
 
-    const LocalException* le = dynamic_cast<const LocalException*>(&ex);
-    if(le)
-    {
-        if(dynamic_cast<const UnknownException*>(le) ||
-           dynamic_cast<const ObjectNotExistException*>(le) ||
-           dynamic_cast<const OperationNotExistException*>(le) ||
-           dynamic_cast<const FacetNotExistException*>(le))
-        {
-            throw LocalExceptionWrapper(*le, false);
-        }
-        stringstream s;
-        s << *le;
-#ifdef __GNUC__
-        s << "\n" << le->ice_stackTrace();
-#endif
-        throw LocalExceptionWrapper(UnknownLocalException(__FILE__, __LINE__, s.str()), false);
-    }
-    string msg = "std::exception: ";
-    throw LocalExceptionWrapper(UnknownException(__FILE__, __LINE__, msg + ex.what()), false);
+    //
+    // NOTE: At this point the stack allocated ProxyOutgoingBase object can be destroyed
+    // since the notify() on the monitor will release the thread waiting on the
+    // synchronous Ice call.
+    //
 }
 
-const LocalException*
-IceInternal::LocalExceptionWrapper::get() const
+void
+ProxyOutgoingBase::completed(const Ice::Exception& ex)
 {
-    assert(_ex.get());
-    return _ex.get();
+    Monitor<Mutex>::Lock sync(_monitor);
+    //assert(_state <= StateInProgress);
+    if(_state > StateInProgress)
+    {
+        //
+        // Response was already received but message
+        // didn't get removed first from the connection
+        // send message queue so it's possible we can be
+        // notified of failures. In this case, ignore the
+        // failure and assume the outgoing has been sent.
+        //
+        assert(_state != StateFailed);
+        _sent = true;
+        _monitor.notify();
+        return;
+    }
+
+    _childObserver.failed(ex.ice_name());
+    _childObserver.detach();
+
+    _state = StateFailed;
+    _exception.reset(ex.ice_clone());
+    _monitor.notify();
+}
+
+void
+ProxyOutgoingBase::completed(BasicStream& is)
+{
+    assert(false); // Must be overriden
+}
+
+void
+ProxyOutgoingBase::retryException(const Ice::Exception&)
+{
+    Monitor<Mutex>::Lock sync(_monitor);
+    assert(_state <= StateInProgress);
+    _state = StateRetry;
+    _monitor.notify();
 }
 
 bool
-IceInternal::LocalExceptionWrapper::retry() const
+ProxyOutgoingBase::invokeImpl()
 {
-    return _retry;
+    assert(_state == StateUnsent);
+
+    const int invocationTimeout = _proxy->__reference()->getInvocationTimeout();
+    int cnt = 0;
+    while(true)
+    {
+        try
+        {
+            if(invocationTimeout > 0 && _invocationTimeoutDeadline <= Time::now(Time::Monotonic))
+            {
+                throw Ice::InvocationTimeoutException(__FILE__, __LINE__);
+            }
+
+            _state = StateInProgress;
+            _exception.reset(0);
+            _sent = false;
+
+            _handler = _proxy->__getRequestHandler();
+
+            if(_handler->sendRequest(this)) // Request sent and no response expected, we're done.
+            {
+                return true;
+            }
+
+            if(invocationTimeout == -2) // Use the connection timeout
+            {
+                try
+                {
+                    _invocationTimeoutDeadline = Time(); // Reset any previously set value
+
+                    int timeout = _handler->waitForConnection()->timeout();
+                    if(timeout > 0)
+                    {
+                        _invocationTimeoutDeadline = Time::now(Time::Monotonic) + Time::milliSeconds(timeout);
+                    }
+                }
+                catch(const Ice::LocalException&)
+                {
+                }
+            }
+
+            bool timedOut = false;
+            {
+                Monitor<Mutex>::Lock sync(_monitor);
+                //
+                // If the handler says it's not finished, we wait until we're done.
+                //
+                if(_invocationTimeoutDeadline != Time())
+                {
+                    Time now = Time::now(Time::Monotonic);
+                    timedOut = now >= _invocationTimeoutDeadline;
+                    while((_state == StateInProgress || !_sent) && _state != StateFailed && _state != StateRetry)
+                    {
+                        if(timedOut)
+                        {
+                            break;
+                        }
+                        _monitor.timedWait(_invocationTimeoutDeadline - now);
+
+                        if((_state == StateInProgress || !_sent) && _state != StateFailed)
+                        {
+                            now = Time::now(Time::Monotonic);
+                            timedOut = now >= _invocationTimeoutDeadline;
+                        }
+                    }
+                }
+                else
+                {
+                    while((_state == StateInProgress || !_sent) && _state != StateFailed && _state != StateRetry)
+                    {
+                        _monitor.wait();
+                    }
+                }
+            }
+
+            if(timedOut)
+            {
+                if(invocationTimeout == -2)
+                {
+                    _handler->requestCanceled(this, ConnectionTimeoutException(__FILE__, __LINE__));
+                }
+                else
+                {
+                    _handler->requestCanceled(this, InvocationTimeoutException(__FILE__, __LINE__));
+                }
+
+                //
+                // Wait for the exception to propagate. It's possible the request handler ignores
+                // the timeout if there was a failure shortly before requestCanceled got called.
+                // In this case, the exception should be set on the ProxyOutgoingBase.
+                //
+                Monitor<Mutex>::Lock sync(_monitor);
+                while(_state == StateInProgress)
+                {
+                    _monitor.wait();
+                }
+            }
+
+            if(_exception.get())
+            {
+                _exception->ice_throw();
+            }
+            else if(_state == StateRetry)
+            {
+                _proxy->__updateRequestHandler(_handler, 0); // Clear request handler and retry.
+                continue;
+            }
+            else
+            {
+                assert(_state != StateInProgress);
+                return _state == StateOK;
+            }
+        }
+        catch(const RetryException&)
+        {
+            _proxy->__updateRequestHandler(_handler, 0); // Clear request handler and retry.
+        }
+        catch(const Ice::Exception& ex)
+        {
+            try
+            {
+                Time interval;
+                interval = Time::milliSeconds(_proxy->__handleException(ex, _handler, _mode, _sent, cnt));
+                if(interval > Time())
+                {
+                    if(invocationTimeout > 0)
+                    {
+                        IceUtil::Time now = Time::now(Time::Monotonic);
+                        IceUtil::Time retryDeadline = now + interval;
+
+                        //
+                        // Wait until either the retry and invocation timeout deadline is reached.
+                        // Note that we're using a loop here because sleep() precision isn't as
+                        // good as the motonic clock and it can return few hundred micro-seconds
+                        // earlier which breaks the check for the invocation timeout.
+                        //
+                        while(retryDeadline > now && _invocationTimeoutDeadline > now)
+                        {
+                            if(retryDeadline < _invocationTimeoutDeadline)
+                            {
+                                ThreadControl::sleep(retryDeadline - now);
+                            }
+                            else if(_invocationTimeoutDeadline > now)
+                            {
+                                ThreadControl::sleep(_invocationTimeoutDeadline - now);
+                            }
+                            now = Time::now(Time::Monotonic);
+                        }
+                        if(now >= _invocationTimeoutDeadline)
+                        {
+                            throw Ice::InvocationTimeoutException(__FILE__, __LINE__);
+                        }
+                    }
+                    else
+                    {
+                        ThreadControl::sleep(interval);
+                    }
+                }
+                _observer.retried();
+            }
+            catch(const Ice::Exception& ex)
+            {
+                _observer.failed(ex.ice_name());
+                throw;
+            }
+        }
+    }
+
+    assert(false);
+    return false;
 }
 
-IceInternal::Outgoing::Outgoing(RequestHandler* handler, const string& operation, OperationMode mode, 
-                                const Context* context, InvocationObserver& observer) :
-    _handler(handler),
-    _observer(observer),
-    _state(StateUnsent),
-    _encoding(getCompatibleEncoding(handler->getReference()->getEncoding())),
-    _is(handler->getReference()->getInstance().get(), Ice::currentProtocolEncoding),
-    _os(handler->getReference()->getInstance().get(), Ice::currentProtocolEncoding),
-    _sent(false)
-{ 
-    checkSupportedProtocol(getCompatibleProtocol(handler->getReference()->getProtocol()));
+Outgoing::Outgoing(IceProxy::Ice::Object* proxy, const string& operation, OperationMode mode, const Context* context) :
+    ProxyOutgoingBase(proxy, mode),
+    _encoding(getCompatibleEncoding(proxy->__reference()->getEncoding())),
+    _is(proxy->__reference()->getInstance().get(), Ice::currentProtocolEncoding),
+    _operation(operation)
+{
+    checkSupportedProtocol(getCompatibleProtocol(proxy->__reference()->getProtocol()));
+    _observer.attach(proxy, operation, context);
 
-    switch(_handler->getReference()->getMode())
+    switch(_proxy->__reference()->getMode())
     {
         case Reference::ModeTwoway:
         case Reference::ModeOneway:
@@ -107,31 +302,31 @@ IceInternal::Outgoing::Outgoing(RequestHandler* handler, const string& operation
         case Reference::ModeBatchOneway:
         case Reference::ModeBatchDatagram:
         {
-            _handler->prepareBatchRequest(&_os);
+            _proxy->__getBatchRequestQueue()->prepareBatchRequest(&_os);
             break;
         }
     }
 
     try
     {
-        _os.write(_handler->getReference()->getIdentity());
+        _os.write(_proxy->__reference()->getIdentity());
 
         //
         // For compatibility with the old FacetPath.
         //
-        if(_handler->getReference()->getFacet().empty())
+        if(_proxy->__reference()->getFacet().empty())
         {
             _os.write(static_cast<string*>(0), static_cast<string*>(0));
         }
         else
         {
-            string facet = _handler->getReference()->getFacet();
+            string facet = _proxy->__reference()->getFacet();
             _os.write(&facet, &facet + 1);
         }
 
         _os.write(operation, false);
 
-        _os.write(static_cast<Byte>(mode));
+        _os.write(static_cast<Ice::Byte>(mode));
 
         if(context != 0)
         {
@@ -145,8 +340,8 @@ IceInternal::Outgoing::Outgoing(RequestHandler* handler, const string& operation
             //
             // Implicit context
             //
-            const ImplicitContextIPtr& implicitContext = _handler->getReference()->getInstance()->getImplicitContext();
-            const Context& prxContext = _handler->getReference()->getContext()->getValue();
+            const ImplicitContextIPtr& implicitContext = _proxy->__reference()->getInstance()->getImplicitContext();
+            const Context& prxContext = _proxy->__reference()->getContext()->getValue();
             if(implicitContext == 0)
             {
                 _os.write(prxContext);
@@ -168,228 +363,68 @@ Outgoing::~Outgoing()
 }
 
 bool
-IceInternal::Outgoing::invoke()
+Outgoing::invokeRemote(const Ice::ConnectionIPtr& connection, bool compress, bool response)
 {
-    assert(_state == StateUnsent);
-
-    switch(_handler->getReference()->getMode())
-    {
-        case Reference::ModeTwoway:
-        {
-            _state = StateInProgress;
-
-            Ice::ConnectionI* connection = _handler->sendRequest(this);
-            assert(connection);
-
-            bool timedOut = false;
-    
-            {
-                IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-
-                //
-                // If the request is being sent in the background we first wait for the
-                // sent notification.
-                //
-                while(_state != StateFailed && !_sent)
-                {
-                    _monitor.wait();
-                }
-
-                //
-                // Wait until the request has completed, or until the request times out.
-                //
-    
-                Int timeout = connection->timeout();
-                while(_state == StateInProgress && !timedOut)
-                {
-                    if(timeout >= 0)
-                    {   
-                        _monitor.timedWait(IceUtil::Time::milliSeconds(timeout));
-                        
-                        if(_state == StateInProgress)
-                        {
-                            timedOut = true;
-                        }
-                    }
-                    else
-                    {
-                        _monitor.wait();
-                    }
-                }
-            }
-
-            if(timedOut)
-            {
-                //
-                // Must be called outside the synchronization of this
-                // object.
-                //
-                connection->exception(TimeoutException(__FILE__, __LINE__));
-
-                //
-                // We must wait until the exception set above has
-                // propagated to this Outgoing object.
-                //
-                {
-                    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-                    while(_state == StateInProgress)
-                    {
-                        _monitor.wait();
-                    }
-                }
-            }
-
-            if(_exception.get())
-            {
-                //
-                // A CloseConnectionException indicates graceful
-                // server shutdown, and is therefore always repeatable
-                // without violating "at-most-once". That's because by
-                // sending a close connection message, the server
-                // guarantees that all outstanding requests can safely
-                // be repeated.
-                //
-                // An ObjectNotExistException can always be retried as
-                // well without violating "at-most-once" (see the
-                // implementation of the checkRetryAfterException
-                // method of the ProxyFactory class for the reasons
-                // why it can be useful).
-                //
-                if(!_sent ||
-                   dynamic_cast<CloseConnectionException*>(_exception.get()) ||
-                   dynamic_cast<ObjectNotExistException*>(_exception.get()))
-                {
-                    _exception->ice_throw();
-                }
-                
-                //
-                // Throw the exception wrapped in a LocalExceptionWrapper, 
-                // to indicate that the request cannot be resent without 
-                // potentially violating the "at-most-once" principle.
-                //
-                throw LocalExceptionWrapper(*_exception.get(), false);
-            }
-            
-            if(_state == StateUserException)
-            {
-                return false;
-            }
-            else
-            {
-                assert(_state == StateOK);
-                return true;
-            }
-        }
-
-        case Reference::ModeOneway:
-        case Reference::ModeDatagram:
-        {
-            _state = StateInProgress;
-            if(_handler->sendRequest(this))
-            {
-                //
-                // If the handler returns the connection, we must wait for the sent callback.
-                //
-                IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-                while(_state != StateFailed && !_sent)
-                {
-                    _monitor.wait();
-                }
-
-                if(_exception.get())
-                {
-                    _exception->ice_throw();
-                }
-            }
-            return true;
-        }
-
-        case Reference::ModeBatchOneway:
-        case Reference::ModeBatchDatagram:
-        {
-            //
-            // For batch oneways and datagrams, the same rules as for
-            // regular oneways and datagrams (see comment above)
-            // apply.
-            //
-            _state = StateInProgress;
-            _handler->finishBatchRequest(&_os);
-            return true;
-        }
-    }
-
-    assert(false);
-    return false;
+    return connection->sendRequest(this, compress, response, 0);
 }
 
 void
-IceInternal::Outgoing::abort(const LocalException& ex)
+Outgoing::invokeCollocated(CollocatedRequestHandler* handler)
+{
+    handler->invokeRequest(this, 0);
+}
+
+bool
+Outgoing::invoke()
+{
+    const Reference::Mode mode = _proxy->__reference()->getMode();
+    if(mode == Reference::ModeBatchOneway || mode == Reference::ModeBatchDatagram)
+    {
+        _state = StateInProgress;
+        _proxy->__getBatchRequestQueue()->finishBatchRequest(&_os, _proxy, _operation);
+        return true;
+    }
+    return invokeImpl();
+}
+
+void
+Outgoing::abort(const LocalException& ex)
 {
     assert(_state == StateUnsent);
-    
+
     //
     // If we didn't finish a batch oneway or datagram request, we must
     // notify the connection about that we give up ownership of the
     // batch stream.
     //
-    if(_handler->getReference()->getMode() == Reference::ModeBatchOneway || 
-       _handler->getReference()->getMode() == Reference::ModeBatchDatagram)
+    const Reference::Mode mode = _proxy->__reference()->getMode();
+    if(mode == Reference::ModeBatchOneway || mode == Reference::ModeBatchDatagram)
     {
-        _handler->abortBatchRequest();
+        _proxy->__getBatchRequestQueue()->abortBatchRequest(&_os);
     }
-    
+
     ex.ice_throw();
 }
 
 void
-IceInternal::Outgoing::sent(bool notify)
+Outgoing::completed(BasicStream& is)
 {
-    if(_handler->getReference()->getMode() != Reference::ModeTwoway)
-    {
-        _remoteObserver.detach();
-    }
+    Monitor<Mutex>::Lock sync(_monitor);
 
-    if(notify)
-    {
-        IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-        _sent = true;
-        _monitor.notify();
-    }
-    else
-    {
-        //
-        // No synchronization is necessary if called from sendRequest() because the connection
-        // send mutex is locked and no other threads can call on Outgoing until it's released.
-        //
-        _sent = true;
-    }
-
-    //
-    // NOTE: At this point the stack allocated Outgoing object can be destroyed 
-    // since the notify() on the monitor will release the thread waiting on the
-    // synchronous Ice call.
-    //
-}
-
-void
-IceInternal::Outgoing::finished(BasicStream& is)
-{
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-
-    assert(_handler->getReference()->getMode() == Reference::ModeTwoway); // Can only be called for twoways.
+    assert(_proxy->__reference()->getMode() == Reference::ModeTwoway); // Can only be called for twoways.
 
     assert(_state <= StateInProgress);
-    if(_remoteObserver)
+    if(_childObserver)
     {
-        _remoteObserver->reply(static_cast<Int>(is.b.size() - headerSize - 4));
+        _childObserver->reply(static_cast<Int>(is.b.size() - headerSize - 4));
     }
-    _remoteObserver.detach();
+    _childObserver.detach();
 
     _is.swap(is);
 
-    Byte replyStatus;
+    Ice::Byte replyStatus;
     _is.read(replyStatus);
-    
+
     switch(replyStatus)
     {
         case replyOK:
@@ -397,14 +432,14 @@ IceInternal::Outgoing::finished(BasicStream& is)
             _state = StateOK; // The state must be set last, in case there is an exception.
             break;
         }
-        
+
         case replyUserException:
         {
             _observer.userException();
             _state = StateUserException; // The state must be set last, in case there is an exception.
             break;
         }
-        
+
         case replyObjectNotExist:
         case replyFacetNotExist:
         case replyOperationNotExist:
@@ -434,7 +469,7 @@ IceInternal::Outgoing::finished(BasicStream& is)
 
             string operation;
             _is.read(operation, false);
-            
+
             RequestFailedException* ex;
             switch(replyStatus)
             {
@@ -443,19 +478,19 @@ IceInternal::Outgoing::finished(BasicStream& is)
                     ex = new ObjectNotExistException(__FILE__, __LINE__);
                     break;
                 }
-                
+
                 case replyFacetNotExist:
                 {
                     ex = new FacetNotExistException(__FILE__, __LINE__);
                     break;
                 }
-                
+
                 case replyOperationNotExist:
                 {
                     ex = new OperationNotExistException(__FILE__, __LINE__);
                     break;
                 }
-                
+
                 default:
                 {
                     ex = 0; // To keep the compiler from complaining.
@@ -463,7 +498,7 @@ IceInternal::Outgoing::finished(BasicStream& is)
                     break;
                 }
             }
-            
+
             ex->id = ident;
             ex->facet = facet;
             ex->operation = operation;
@@ -472,7 +507,7 @@ IceInternal::Outgoing::finished(BasicStream& is)
             _state = StateLocalException; // The state must be set last, in case there is an exception.
             break;
         }
-        
+
         case replyUnknownException:
         case replyUnknownLocalException:
         case replyUnknownUserException:
@@ -484,7 +519,7 @@ IceInternal::Outgoing::finished(BasicStream& is)
             //
             string unknown;
             _is.read(unknown, false);
-            
+
             UnknownException* ex;
             switch(replyStatus)
             {
@@ -493,19 +528,19 @@ IceInternal::Outgoing::finished(BasicStream& is)
                     ex = new UnknownException(__FILE__, __LINE__);
                     break;
                 }
-                
+
                 case replyUnknownLocalException:
                 {
                     ex = new UnknownLocalException(__FILE__, __LINE__);
                     break;
                 }
-                
+
                 case replyUnknownUserException:
                 {
                     ex = new UnknownUserException(__FILE__, __LINE__);
                     break;
                 }
-                
+
                 default:
                 {
                     ex = 0; // To keep the compiler from complaining.
@@ -513,14 +548,14 @@ IceInternal::Outgoing::finished(BasicStream& is)
                     break;
                 }
             }
-            
+
             ex->unknown = unknown;
             _exception.reset(ex);
 
             _state = StateLocalException; // The state must be set last, in case there is an exception.
             break;
         }
-        
+
         default:
         {
             _exception.reset(new UnknownReplyStatusException(__FILE__, __LINE__));
@@ -533,21 +568,7 @@ IceInternal::Outgoing::finished(BasicStream& is)
 }
 
 void
-IceInternal::Outgoing::finished(const LocalException& ex, bool sent)
-{
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-    assert(_state <= StateInProgress);
-    _remoteObserver.failed(ex.ice_name());
-    _remoteObserver.detach();
-
-    _state = StateFailed;
-    _exception.reset(ex.ice_clone());
-    _sent = sent;
-    _monitor.notify();
-}
-
-void
-IceInternal::Outgoing::throwUserException()
+Outgoing::throwUserException()
 {
     try
     {
@@ -561,72 +582,110 @@ IceInternal::Outgoing::throwUserException()
     }
 }
 
-IceInternal::BatchOutgoing::BatchOutgoing(RequestHandler* handler, InvocationObserver& observer) :
-    _handler(handler),
-    _connection(0),
-    _sent(false),
-    _os(handler->getReference()->getInstance().get(), Ice::currentProtocolEncoding),
-    _observer(observer)
+ProxyFlushBatch::ProxyFlushBatch(IceProxy::Ice::Object* proxy, const string& operation) :
+    ProxyOutgoingBase(proxy, Ice::Normal)
 {
-    checkSupportedProtocol(handler->getReference()->getProtocol());
+    checkSupportedProtocol(getCompatibleProtocol(proxy->__reference()->getProtocol()));
+    _observer.attach(proxy, operation, 0);
+
+    _batchRequestNum = proxy->__getBatchRequestQueue()->swap(&_os);
 }
 
-IceInternal::BatchOutgoing::BatchOutgoing(ConnectionI* connection, Instance* instance, InvocationObserver& observer) :
-    _handler(0),
-    _connection(connection),
-    _sent(false), 
-    _os(instance, Ice::currentProtocolEncoding),
-    _observer(observer)
+bool
+ProxyFlushBatch::invokeRemote(const Ice::ConnectionIPtr& connection, bool compress, bool response)
 {
+    return connection->sendRequest(this, compress, response, _batchRequestNum);
 }
 
 void
-IceInternal::BatchOutgoing::invoke()
+ProxyFlushBatch::invokeCollocated(CollocatedRequestHandler* handler)
 {
-    assert(_handler || _connection);
-    if((_handler && !_handler->flushBatchRequests(this)) || (_connection && !_connection->flushBatchRequests(this)))
-    {
-        IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-        while(!_exception.get() && !_sent)
-        {
-            _monitor.wait();
-        }
-        if(_exception.get())
-        {
-            _exception->ice_throw();
-        }
-    }
+    handler->invokeRequest(this, _batchRequestNum);
 }
 
 void
-IceInternal::BatchOutgoing::sent(bool notify)
+ProxyFlushBatch::invoke()
 {
-    _remoteObserver.detach();
-
-    if(notify)
+    if(_batchRequestNum == 0)
     {
-        IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-        _sent = true;
-        _monitor.notify();
+        sent();
     }
     else
     {
-        _sent = true;
+        invokeImpl();
     }
+}
+
+ConnectionFlushBatch::ConnectionFlushBatch(ConnectionI* connection, Instance* instance, const string& operation) :
+    OutgoingBase(instance), _connection(connection)
+{
+    _observer.attach(instance, operation);
+}
+
+void
+ConnectionFlushBatch::invoke()
+{
+    int batchRequestNum = _connection->getBatchRequestQueue()->swap(&_os);
+
+    try
+    {
+        if(batchRequestNum == 0)
+        {
+            sent();
+        }
+        else if(!_connection->sendRequest(this, false, false, batchRequestNum))
+        {
+            Monitor<Mutex>::Lock sync(_monitor);
+            while(!_exception.get() && !_sent)
+            {
+                _monitor.wait();
+            }
+            if(_exception.get())
+            {
+                _exception->ice_throw();
+            }
+        }
+    }
+    catch(const RetryException& ex)
+    {
+        ex.get()->ice_throw();
+    }
+}
+
+void
+ConnectionFlushBatch::sent()
+{
+    Monitor<Mutex>::Lock sync(_monitor);
+    _childObserver.detach();
+
+    _sent = true;
+    _monitor.notify();
 
     //
-    // NOTE: At this point the stack allocated BatchOutgoing object
-    // can be destroyed since the notify() on the monitor will release
-    // the thread waiting on the synchronous Ice call.
+    // NOTE: At this point the stack allocated ConnectionFlushBatch
+    // object can be destroyed since the notify() on the monitor will
+    // release the thread waiting on the synchronous Ice call.
     //
 }
 
 void
-IceInternal::BatchOutgoing::finished(const Ice::LocalException& ex, bool)
+ConnectionFlushBatch::completed(const Ice::Exception& ex)
 {
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(_monitor);
-    _remoteObserver.failed(ex.ice_name());
-    _remoteObserver.detach();
+    Monitor<Mutex>::Lock sync(_monitor);
+    _childObserver.failed(ex.ice_name());
+    _childObserver.detach();
     _exception.reset(ex.ice_clone());
     _monitor.notify();
+}
+
+void
+ConnectionFlushBatch::completed(BasicStream& is)
+{
+    assert(false);
+}
+
+void
+ConnectionFlushBatch::retryException(const Ice::Exception& ex)
+{
+    completed(ex);
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -54,6 +54,12 @@ def startRouter(buffered):
 
 name = os.path.join("Glacier2", "router")
 
+#
+# Generate the crypt passwords file
+#
+TestUtil.hashPasswords(os.path.join(os.getcwd(), "passwords"),
+                        {"userid": "abc123", "userid-0": "abc123", "userid-1": "abc123",
+                         "userid-2": "abc123", "userid-3": "abc123","userid-4": "abc123"})
 #
 # We first run the test with unbuffered mode.
 #

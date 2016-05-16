@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -22,7 +22,7 @@ run(int, char**, const Ice::CommunicatorPtr& communicator,
     communicator->getProperties()->setProperty("TestAdapter.Endpoints", "default -p 12010");
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
     adapter->add(new MyDerivedClassI, communicator->stringToIdentity("test"));
-    adapter->activate();
+    //adapter->activate(); // Don't activate OA to ensure collocation is used.
 
     Test::MyClassPrx allTests(const Ice::CommunicatorPtr&);
     allTests(communicator);
@@ -33,6 +33,10 @@ run(int, char**, const Ice::CommunicatorPtr& communicator,
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     int status;
     Ice::CommunicatorPtr communicator;
 

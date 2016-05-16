@@ -1,71 +1,20 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <Ice/Ice.h>
 #include <IceUtil/IceUtil.h>
-#include <IceGrid/Admin.h>
-#include <IceGrid/Registry.h>
-#include <IceGrid/Locator.h>
+#include <Ice/Ice.h>
+#include <IceGrid/IceGrid.h>
 #include <TestCommon.h>
 #include <Test.h>
 
 using namespace std;
 using namespace Test;
-
-class SessionKeepAliveThread : public IceUtil::Thread, public IceUtil::Monitor<IceUtil::Mutex>
-{
-public:
-
-    SessionKeepAliveThread(const IceGrid::AdminSessionPrx& session, long timeout) :
-        _session(session),
-        _timeout(IceUtil::Time::seconds(timeout)),
-        _destroy(false)
-    {
-    }
-
-    virtual void
-    run()
-    {
-        Lock sync(*this);
-        while(!_destroy)
-        {
-            timedWait(_timeout);
-            if(_destroy)
-            {
-                break;
-            }
-            try
-            {
-                _session->keepAlive();
-            }
-            catch(const Ice::Exception&)
-            {
-                break;
-            }
-        }
-    }
-
-    void
-    destroy()
-    {
-        Lock sync(*this);
-        _destroy = true;
-        notify();
-    }
-
-private:
-
-    IceGrid::AdminSessionPrx _session;
-    const IceUtil::Time _timeout;
-    bool _destroy;
-};
-typedef IceUtil::Handle<SessionKeepAliveThread> SessionKeepAliveThreadPtr;
 
 void
 allTests(const Ice::CommunicatorPtr& communicator)
@@ -88,6 +37,103 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     cout << "pinging server... " << flush;
     obj->ice_ping();
+    cout << "ok" << endl;
+
+    cout << "testing locator finder... " << flush;
+    Ice::Identity finderId;
+    finderId.category = "Ice";
+    finderId.name = "LocatorFinder";
+    Ice::LocatorFinderPrx finder = Ice::LocatorFinderPrx::checkedCast(
+        communicator->getDefaultLocator()->ice_identity(finderId));
+    test(finder->getLocator());
+    cout << "ok" << endl;
+
+    cout << "testing discovery... " << flush;
+    {
+        // Add test well-known object
+        IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
+            communicator->stringToProxy(communicator->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
+        test(registry);
+
+        IceGrid::AdminSessionPrx session = registry->createAdminSession("foo", "bar");
+        session->getAdmin()->addObjectWithType(base, "::Test");
+        session->destroy();
+
+        //
+        // Ensure the IceGrid discovery locator can discover the
+        // registries and make sure locator requests are forwarded.
+        //
+        Ice::InitializationData initData;
+        initData.properties = communicator->getProperties()->clone();
+        initData.properties->setProperty("Ice.Default.Locator", "");
+        initData.properties->setProperty("Ice.Plugin.IceLocatorDiscovery", "IceLocatorDiscovery:createIceLocatorDiscovery");
+#ifdef __APPLE__
+        if(initData.properties->getPropertyAsInt("Ice.PreferIPv6Address") > 0)
+        {
+            initData.properties->setProperty("IceLocatorDiscovery.Interface", "::1");
+        }
+#endif
+        initData.properties->setProperty("AdapterForDiscoveryTest.AdapterId", "discoveryAdapter");
+        initData.properties->setProperty("AdapterForDiscoveryTest.Endpoints", "default");
+
+        Ice::CommunicatorPtr com = Ice::initialize(initData);
+        test(com->getDefaultLocator());
+        com->stringToProxy("test @ TestAdapter")->ice_ping();
+        com->stringToProxy("test")->ice_ping();
+
+        test(com->getDefaultLocator()->getRegistry());
+        test(IceGrid::LocatorPrx::checkedCast(com->getDefaultLocator()));
+        test(IceGrid::LocatorPrx::uncheckedCast(com->getDefaultLocator())->getLocalRegistry());
+        test(IceGrid::LocatorPrx::uncheckedCast(com->getDefaultLocator())->getLocalQuery());
+
+        Ice::ObjectAdapterPtr adapter = com->createObjectAdapter("AdapterForDiscoveryTest");
+        adapter->activate();
+        adapter->deactivate();
+
+        com->destroy();
+
+        //
+        // Now, ensure that the IceGrid discovery locator correctly
+        // handles failure to find a locator. Also test
+        // Ice::registerIceLocatorDiscovery()
+        //
+        Ice::registerIceLocatorDiscovery();
+        initData.properties->setProperty("Ice.Plugin.IceLocatorDiscovery", "");
+        initData.properties->setProperty("IceLocatorDiscovery.InstanceName", "unknown");
+        initData.properties->setProperty("IceLocatorDiscovery.RetryCount", "1");
+        initData.properties->setProperty("IceLocatorDiscovery.Timeout", "100");
+        com = Ice::initialize(initData);
+        test(com->getDefaultLocator());
+        try
+        {
+            com->stringToProxy("test @ TestAdapter")->ice_ping();
+        }
+        catch(const Ice::NoEndpointException&)
+        {
+        }
+        try
+        {
+            com->stringToProxy("test")->ice_ping();
+        }
+        catch(const Ice::NoEndpointException&)
+        {
+        }
+        test(!com->getDefaultLocator()->getRegistry());
+        test(!IceGrid::LocatorPrx::checkedCast(com->getDefaultLocator()));
+        try
+        {
+            test(IceGrid::LocatorPrx::uncheckedCast(com->getDefaultLocator())->getLocalQuery());
+        }
+        catch(const Ice::OperationNotExistException&)
+        {
+        }
+
+        adapter = com->createObjectAdapter("AdapterForDiscoveryTest");
+        adapter->activate();
+        adapter->deactivate();
+
+        com->destroy();
+    }
     cout << "ok" << endl;
 
     cout << "shutting down server... " << flush;
@@ -173,12 +219,12 @@ allTestsWithDeploy(const Ice::CommunicatorPtr& communicator)
     cout << "ok" << endl;
 
     IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
-        communicator->stringToProxy("IceGrid/Registry"));
+        communicator->stringToProxy(communicator->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
     test(registry);
+
     IceGrid::AdminSessionPrx session = registry->createAdminSession("foo", "bar");
 
-    SessionKeepAliveThreadPtr keepAlive = new SessionKeepAliveThread(session, registry->getSessionTimeout()/2);
-    keepAlive->start();
+    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::HeartbeatAlways);
 
     IceGrid::AdminPrx admin = session->getAdmin();
     test(admin);
@@ -203,7 +249,7 @@ allTestsWithDeploy(const Ice::CommunicatorPtr& communicator)
     catch(const Ice::NoEndpointException&)
     {
     }
-    
+
     admin->enableServer("server", true);
 
     try
@@ -225,10 +271,6 @@ allTestsWithDeploy(const Ice::CommunicatorPtr& communicator)
     cout << "ok" << endl;
 
     admin->stopServer("server");
-
-    keepAlive->destroy();
-    keepAlive->getThreadControl().join();
-    keepAlive = 0;
 
     session->destroy();
 }

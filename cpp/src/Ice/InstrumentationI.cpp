@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -274,13 +274,21 @@ public:
     ConnectionInfoPtr
     getConnectionInfo() const
     {
-        return _current.con->getInfo();
+        if(_current.con)
+        {
+            return _current.con->getInfo();
+        }
+        return 0;
     }
 
     EndpointPtr
     getEndpoint() const
     {
-        return _current.con->getEndpoint();
+        if(_current.con)
+        {
+            return _current.con->getEndpoint();
+        }
+        return 0;
     }
 
     const ConnectionPtr&
@@ -292,7 +300,7 @@ public:
     const EndpointInfoPtr&
     getEndpointInfo() const
     {
-        if(!_endpointInfo)
+        if(_current.con && !_endpointInfo)
         {
             _endpointInfo = _current.con->getEndpoint()->getInfo();
         }
@@ -575,6 +583,65 @@ private:
 
 RemoteInvocationHelper::Attributes RemoteInvocationHelper::attributes;
 
+class CollocatedInvocationHelper : public MetricsHelperT<CollocatedMetrics>
+{
+public:
+
+    class Attributes : public AttributeResolverT<CollocatedInvocationHelper>
+    {
+    public:
+        
+        Attributes()
+        {
+            add("parent", &CollocatedInvocationHelper::getParent);
+            add("id", &CollocatedInvocationHelper::getId);
+            add("requestId", &CollocatedInvocationHelper::_requestId);
+        }
+    };
+    static Attributes attributes;
+    
+    CollocatedInvocationHelper(const Ice::ObjectAdapterPtr& adapter, int requestId, int size) : 
+        _requestId(requestId), _size(size), _id(adapter->getName())
+    {
+    }
+
+    virtual string operator()(const string& attribute) const
+    {
+        return attributes(this, attribute);
+    }
+
+    virtual void initMetrics(const CollocatedMetricsPtr& v) const
+    {
+        v->size += _size;
+    }
+
+    const string&
+    getId() const
+    {
+        return _id;
+    }
+    
+    string 
+    getParent() const
+    {
+        return "Communicator";
+    }
+
+protected:
+    //
+    // COMPILERFIX: Clang 4.2 reports unused-private-field for the _requestId
+    // field that is only used in the nested Attributes class.
+    //
+    const int _requestId;
+
+private:
+
+    const int _size;
+    mutable string _id;
+};
+
+CollocatedInvocationHelper::Attributes CollocatedInvocationHelper::attributes;
+
 class ThreadHelper : public MetricsHelperT<ThreadMetrics>
 {
 public:
@@ -752,6 +819,16 @@ RemoteObserverI::reply(Int size)
 }
 
 void
+CollocatedObserverI::reply(Int size)
+{
+    forEach(add(&CollocatedMetrics::replySize, size));
+    if(_delegate)
+    {
+        _delegate->reply(size);
+    }
+}
+
+void
 InvocationObserverI::retried()
 {
     forEach(inc(&InvocationMetrics::retry));
@@ -794,19 +871,38 @@ InvocationObserverI::getRemoteObserver(const ConnectionInfoPtr& connection,
     return 0;
 }
 
-CommunicatorObserverI::CommunicatorObserverI(const IceInternal::MetricsAdminIPtr& metrics,
-                                             const Ice::Instrumentation::CommunicatorObserverPtr& delegate) : 
-    _metrics(metrics),
-    _logger(metrics->getLogger()),
-    _delegate(delegate),
-    _connections(metrics, "Connection"),
-    _dispatch(metrics, "Dispatch"),
-    _invocations(metrics, "Invocation"),
-    _threads(metrics, "Thread"),
-    _connects(metrics, "ConnectionEstablishment"),
-    _endpointLookups(metrics, "EndpointLookup")
+CollocatedObserverPtr
+InvocationObserverI::getCollocatedObserver(const Ice::ObjectAdapterPtr& adapter, int requestId, int size)
+{
+    try
+    {
+        CollocatedObserverPtr delegate;
+        if(_delegate)
+        {
+            delegate = _delegate->getCollocatedObserver(adapter, requestId, size);
+        }
+        return getObserverWithDelegate<CollocatedObserverI>("Collocated",
+                                                            CollocatedInvocationHelper(adapter, requestId, size),
+                                                            delegate);
+    }
+    catch(const exception&)
+    {
+    }
+    return 0;
+}
+
+CommunicatorObserverI::CommunicatorObserverI(const InitializationData& initData) : 
+    _metrics(new MetricsAdminI(initData.properties, initData.logger)),
+    _delegate(initData.observer),
+    _connections(_metrics, "Connection"),
+    _dispatch(_metrics, "Dispatch"),
+    _invocations(_metrics, "Invocation"),
+    _threads(_metrics, "Thread"),
+    _connects(_metrics, "ConnectionEstablishment"),
+    _endpointLookups(_metrics, "EndpointLookup")
 {
     _invocations.registerSubMap<RemoteMetrics>("Remote", &InvocationMetrics::remotes);
+    _invocations.registerSubMap<CollocatedMetrics>("Collocated", &InvocationMetrics::collocated);
 }
 
 void
@@ -836,7 +932,7 @@ CommunicatorObserverI::getConnectionEstablishmentObserver(const EndpointPtr& end
         }
         catch(const exception& ex)
         {
-            Error error(_logger);
+            Error error(_metrics->getLogger());
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
@@ -859,7 +955,7 @@ CommunicatorObserverI::getEndpointLookupObserver(const EndpointPtr& endpt)
         }
         catch(const exception& ex)
         {
-            Error error(_logger);
+            Error error(_metrics->getLogger());
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
@@ -886,7 +982,7 @@ CommunicatorObserverI::getConnectionObserver(const ConnectionInfoPtr& con,
         }
         catch(const exception& ex)
         {
-            Error error(_logger);
+            Error error(_metrics->getLogger());
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
@@ -913,7 +1009,7 @@ CommunicatorObserverI::getThreadObserver(const string& parent,
         }
         catch(const exception& ex)
         {
-            Error error(_logger);
+            Error error(_metrics->getLogger());
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
@@ -936,7 +1032,7 @@ CommunicatorObserverI::getInvocationObserver(const ObjectPrx& proxy, const strin
         }
         catch(const exception& ex)
         {
-            Error error(_logger);
+            Error error(_metrics->getLogger());
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
@@ -959,7 +1055,7 @@ CommunicatorObserverI::getDispatchObserver(const Current& current, int size)
         }
         catch(const exception& ex)
         {
-            Error error(_logger);
+            Error error(_metrics->getLogger());
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
@@ -967,7 +1063,7 @@ CommunicatorObserverI::getDispatchObserver(const Current& current, int size)
 }
 
 const IceInternal::MetricsAdminIPtr& 
-CommunicatorObserverI::getMetricsAdmin() const
+CommunicatorObserverI::getFacet() const
 {
     assert(_metrics);
     return _metrics;
@@ -976,11 +1072,12 @@ CommunicatorObserverI::getMetricsAdmin() const
 void
 CommunicatorObserverI::destroy()
 {
-    _metrics = 0;
     _connections.destroy();
     _dispatch.destroy();
     _invocations.destroy();
     _threads.destroy();
     _connects.destroy();
     _endpointLookups.destroy();
+
+    _metrics->destroy();
 }

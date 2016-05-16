@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -11,33 +11,42 @@ top_srcdir	= ../../..
 
 CLIENT		= $(call mktestname,client)
 SERVER		= $(call mktestname,server)
+SERVERAMD	= $(call mktestname,serveramd)
 
-TARGETS		= $(CLIENT) $(SERVER)
+TARGETS		= $(CLIENT) $(SERVER) $(SERVERAMD)
 
-OBJS		= Test.o \
-                  TestI.o
+SLICE_OBJS	= Test.o \
+		  TestAMD.o
 
-COBJS		= Client.o \
+COBJS		= Test.o \
+		  TestI.o \
+		  Client.o \
 		  AllTests.o
 
-SOBJS		= Server.o
+SOBJS		= Test.o \
+		  TestI.o \
+		  Server.o
 
-SRCS		= $(OBJS:.o=.cpp) \
-		  $(COBJS:.o=.cpp) \
-		  $(SOBJS:.o=.cpp) \
+SAMDOBJS	= TestAMD.o \
+		  TestAMDI.o \
+		  ServerAMD.o
 
-SLICE_SRCS	= Test.ice
+OBJS		= $(COBJS) \
+		  $(SOBJS) \
+		  $(SAMDOBJS)
 
 include $(top_srcdir)/config/Make.rules
 
 CPPFLAGS	:= -I. -I../../include $(CPPFLAGS)
 
-$(CLIENT): $(OBJS) $(COBJS)
+$(CLIENT): $(COBJS)
 	rm -f $@
-	$(call mktest,$@,$(OBJS),$(COBJS) $(LIBS))
+	$(call mktest,$@,$(COBJS) $(LIBS))
 
-$(SERVER): $(OBJS) $(SOBJS)
+$(SERVER): $(SOBJS)
 	rm -f $@
-	$(call mktest,$@,$(OBJS),$(SOBJS) $(LIBS))
+	$(call mktest,$@,$(SOBJS) $(LIBS))
 
-include .depend
+$(SERVERAMD): $(SAMDOBJS)
+	rm -f $@
+	$(call mktest,$@,$(SAMDOBJS) $(LIBS))

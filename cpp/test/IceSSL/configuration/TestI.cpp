@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -29,8 +29,9 @@ ServerI::noCert(const Ice::Current& c)
         IceSSL::NativeConnectionInfoPtr info = IceSSL::NativeConnectionInfoPtr::dynamicCast(c.con->getInfo());
         test(info->nativeCerts.size() == 0);
     }
-    catch(const Ice::LocalException&)
+    catch(const Ice::LocalException& ex)
     {
+        cerr << ex << endl;
         test(false);
     }
 }
@@ -41,6 +42,7 @@ ServerI::checkCert(const string& subjectDN, const string& issuerDN, const Ice::C
     try
     {
         IceSSL::NativeConnectionInfoPtr info = IceSSL::NativeConnectionInfoPtr::dynamicCast(c.con->getInfo());
+        test(info->verified);
         test(info->nativeCerts.size() == 2 &&
              info->nativeCerts[0]->getSubjectDN() == IceSSL::DistinguishedName(subjectDN) &&
              info->nativeCerts[0]->getIssuerDN() == IceSSL::DistinguishedName(issuerDN));
@@ -68,6 +70,7 @@ ServerI::checkCipher(const string& cipher, const Ice::Current& c)
 void
 ServerI::destroy()
 {
+    string defaultDir = _communicator->getProperties()->getProperty("IceSSL.DefaultDir");
     _communicator->destroy();
 }
 

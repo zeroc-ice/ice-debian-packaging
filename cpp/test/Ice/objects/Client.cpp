@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,6 +10,8 @@
 #include <Ice/Ice.h>
 #include <TestCommon.h>
 #include <TestI.h>
+#include <Derived.h>
+#include <DerivedEx.h>
 
 DEFINE_TEST("client")
 
@@ -78,8 +80,8 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     communicator->addObjectFactory(factory, "::Test::J");
     communicator->addObjectFactory(factory, "::Test::H");
 
-    InitialPrx allTests(const Ice::CommunicatorPtr&, bool);
-    InitialPrx initial = allTests(communicator, false);
+    InitialPrx allTests(const Ice::CommunicatorPtr&);
+    InitialPrx initial = allTests(communicator);
     initial->shutdown();
     return EXIT_SUCCESS;
 }
@@ -87,6 +89,10 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     int status;
     Ice::CommunicatorPtr communicator;
 

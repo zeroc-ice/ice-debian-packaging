@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -69,7 +69,7 @@ public:
     };
     typedef IceUtil::Handle<Thread> ThreadPtr;
 
-    ReplicaSessionManager(const Ice::CommunicatorPtr&);
+    ReplicaSessionManager(const Ice::CommunicatorPtr&, const std::string&);
     void create(const std::string&, const InternalReplicaInfoPtr&, const DatabasePtr&, 
                 const WellKnownObjectsManagerPtr&, const InternalRegistryPrx&);
     void create(const InternalRegistryPrx&);
@@ -77,7 +77,7 @@ public:
     void destroy();
 
     void registerAllWellKnownObjects();
-    ReplicaSessionPrx getSession() const { return _thread->getSession(); }
+    ReplicaSessionPrx getSession() const { return _thread ? _thread->getSession() : ReplicaSessionPrx(); }
 
     IceGrid::InternalRegistryPrx findInternalRegistryForReplica(const Ice::Identity&);
     

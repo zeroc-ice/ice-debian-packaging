@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -21,6 +21,11 @@ class Base
 {
     S theS;
     string str;
+};
+
+exception BaseEx
+{
+    string reason;
 };
 
 class AbstractBase extends Base
@@ -57,7 +62,7 @@ class D
 {
     A theA;
     B theB;
-    C theC;    
+    C theC;
 
     bool preMarshalInvoked;
     bool postUnmarshalInvoked();
@@ -105,6 +110,65 @@ class CompactExt(CompactExtId) extends Compact
 {
 };
 
+module Inner
+{
+
+class A
+{
+    ::Test::A theA;
+};
+
+exception Ex
+{
+    string reason;
+};
+
+module Sub
+{
+
+class A
+{
+    ::Test::Inner::A theA;
+};
+
+exception Ex
+{
+    string reason;
+};
+
+};
+
+};
+
+class A1
+{
+    string name;
+};
+
+class B1
+{
+    A1 a1;
+    A1 a2;
+};
+
+class D1 extends B1
+{
+    A1 a3;
+    A1 a4;
+};
+
+exception EBase
+{
+    A1 a1;
+    A1 a2;
+};
+
+exception EDerived extends EBase
+{
+    A1 a3;
+    A1 a4;
+};
+
 class Initial
 {
     void shutdown();
@@ -120,12 +184,27 @@ class Initial
     I getI();
     I getJ();
     I getH();
+    
+    D1 getD1(D1 d1);
+    void throwEDerived() throws EDerived;
 
     void setI(I theI);
 
     BaseSeq opBaseSeq(BaseSeq inSeq, out BaseSeq outSeq);
 
     Compact getCompact();
+
+    Inner::A getInnerA();
+    Inner::Sub::A getInnerSubA();
+
+    void throwInnerEx() throws Inner::Ex;
+    void throwInnerSubEx() throws Inner::Sub::Ex;
+};
+
+interface TestIntf
+{
+    Base opDerived();
+    void throwDerived() throws BaseEx;
 };
 
 class Empty

@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -14,6 +14,8 @@ SERVER		= $(call mktestname,server)
 SERVERAMD	= $(call mktestname,serveramd)
 
 TARGETS		= $(CLIENT) $(SERVER) $(SERVERAMD)
+
+SLICE_OBJS	= Test.o TestAMD.o ClientPrivate.o ServerPrivate.o ServerPrivateAMD.o Forward.o
 
 COBJS		= Test.o \
 		  ClientPrivate.o \
@@ -33,11 +35,9 @@ SAMDOBJS	= TestAMD.o \
 		  ServerAMD.o \
 		  Forward.o
 
-SRCS		= $(COBJS:.o=.cpp) \
-		  $(SOBJS:.o=.cpp) \
-		  $(SAMDOBJS:.o=.cpp)
-
-SLICE_SRCS	= Test.ice TestAMD.ice ClientPrivate.ice ServerPrivate.ice ServerPrivateAMD.ice Forward.ice
+OBJS		= $(COBJS) \
+		  $(SOBJS) \
+		  $(SAMDOBJS)
 
 #
 # the long allTests function crashes when built with Sun CC 5.9 on x86 with -O,
@@ -62,5 +62,3 @@ $(SERVER): $(SOBJS)
 $(SERVERAMD): $(SAMDOBJS)
 	rm -f $@
 	$(call mktest,$@,$(SAMDOBJS),$(LIBS))
-
-include .depend

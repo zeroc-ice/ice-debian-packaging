@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -13,6 +13,7 @@
 #include <IceUtil/Config.h>
 
 #include <exception>
+#include <vector>
 
 namespace IceUtil
 {
@@ -33,14 +34,14 @@ public:
 
     const char* ice_file() const;
     int ice_line() const;
-    const std::string& ice_stackTrace() const;
+    std::string ice_stackTrace() const;
     
 private:
     
     const char* _file;
     int _line;
     static const char* _name;
-    const std::string _stackTrace;
+    const std::vector<void*> _stackFrames;
     mutable ::std::string _str; // Initialized lazily in what().
 };
 
@@ -78,8 +79,31 @@ public:
 private:
 
     static const char* _name;
-    std::string _reason;
+    const std::string _reason;
 };
+
+//
+// IllegalConversionException is raised to report a string conversion error 
+//
+class ICE_UTIL_API IllegalConversionException : public Exception
+{
+public:
+    
+    IllegalConversionException(const char*, int);
+    IllegalConversionException(const char*, int, const std::string&);
+    virtual ~IllegalConversionException() throw();
+    virtual std::string ice_name() const;
+    virtual void ice_print(std::ostream&) const;
+    virtual IllegalConversionException* ice_clone() const;
+    virtual void ice_throw() const;
+
+    std::string reason() const;
+private:
+
+    static const char* _name;   
+    const std::string _reason;
+};
+
 
 class ICE_UTIL_API SyscallException : public Exception
 {
@@ -134,6 +158,27 @@ private:
 
     static const char* _name;
 };
+
+#ifndef _WIN32
+class ICE_UTIL_API IconvInitializationException : public Exception
+{
+public:
+
+    IconvInitializationException(const char*, int, const std::string&);
+    virtual ~IconvInitializationException() throw();
+    virtual std::string ice_name() const;
+    virtual void ice_print(std::ostream&) const;
+    virtual IconvInitializationException* ice_clone() const;
+    virtual void ice_throw() const;
+
+    std::string reason() const;
+
+private:
+
+    static const char* _name;
+    std::string _reason;
+};
+#endif
 
 }
 

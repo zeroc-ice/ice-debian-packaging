@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,34 +11,7 @@
 #define ICE_UTIL_SHARED_H
 
 #include <IceUtil/Config.h>
-
-#if defined(ICE_USE_MUTEX_SHARED)
-
-#   include <IceUtil/Mutex.h>
-
-// Using the gcc builtins requires gcc 4.1 or better. For Linux, i386
-// doesn't work. Apple is supported for all architectures. Sun only
-// supports sparc (32 and 64 bit).
-
-#elif ((defined(__GNUC__) && (((__GNUC__* 100) + __GNUC_MINOR__) >= 401)) || __clang__)  &&                         \
-        ((defined(__sun) && (defined(__sparc) || defined(__sparcv9))) || \
-         defined(__APPLE__) || \
-        (defined(__linux) && \
-                (defined(__i486) || defined(__i586) || \
-                 defined(__i686) || defined(__x86_64))))
-
-#   define ICE_HAS_GCC_BUILTINS
-
-#elif (defined(__APPLE__) || defined(__linux) || defined(__FreeBSD__)) && (defined(__i386) || defined(__x86_64)) && !defined(__ICC)
-
-#   define ICE_HAS_ATOMIC_FUNCTIONS
-
-#elif defined(_WIN32)
-// Nothing to include
-#else
-// Use a simple mutex
-#   include <IceUtil/Mutex.h>
-#endif
+#include <IceUtil/Atomic.h>
 
 //
 // Base classes for reference counted types. The IceUtil::Handle
@@ -87,7 +60,6 @@ public:
         {
             if(!_noDelete)
             {
-                _noDelete = true;
                 delete this;
             }
         }
@@ -113,6 +85,12 @@ class ICE_UTIL_API Shared
 {
 public:
 
+    //
+    // Flag constant used by the Shared class. Derived classes
+    // such as GCObject define more flag constants.
+    //
+    static const unsigned char NoDelete;
+
     Shared();
     Shared(const Shared&);
 
@@ -130,17 +108,25 @@ public:
     virtual int __getRef() const;
     virtual void __setNoDelete(bool);
 
+    void __setFlag(unsigned char flag)
+    {
+        _flags |= flag;
+    }
+
+    void __clearFlag(unsigned char flag)
+    {
+        _flags &= ~flag;
+    }
+
+    bool __hasFlag(unsigned char flag)
+    {
+        return (_flags & flag) > 0;
+    }
+    
 protected:
 
-#if defined(_WIN32)
-    LONG _ref;
-#elif defined(ICE_HAS_ATOMIC_FUNCTIONS) || defined(ICE_HAS_GCC_BUILTINS)
-    volatile int _ref;
-#else
-    int _ref;
-    Mutex _mutex;
-#endif
-    bool _noDelete;
+    IceUtilInternal::Atomic _ref;
+    unsigned char _flags;
 };
 
 }

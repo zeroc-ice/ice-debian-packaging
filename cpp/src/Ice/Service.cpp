@@ -1,13 +1,12 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <IceUtil/CtrlCHandler.h>
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/Thread.h>
@@ -15,10 +14,10 @@
 #include <IceUtil/Mutex.h>
 #include <IceUtil/ArgVector.h>
 #include <IceUtil/FileUtil.h>
+#include <IceUtil/StringConverter.h>
 #include <Ice/Service.h>
 #include <Ice/LoggerI.h>
 #include <Ice/Initialize.h>
-#include <Ice/StringConverter.h>
 #include <Ice/Communicator.h>
 #include <Ice/LocalException.h>
 #include <Ice/Properties.h>
@@ -156,14 +155,14 @@ typedef IceUtil::Handle<SMEventLogger> SMEventLoggerPtr;
 class SMEventLoggerIWrapper : public Ice::Logger
 {
 public:
-    
+
     SMEventLoggerIWrapper(const SMEventLoggerPtr& logger, const string& prefix) :
         _logger(logger),
         _prefix(prefix)
     {
         assert(_logger);
     }
-    
+
     virtual void
     print(const string& message)
     {
@@ -187,28 +186,37 @@ public:
     {
         _logger->error(_prefix, message);
     }
-    
+
+    virtual string
+    getPrefix()
+    {
+        return _prefix;
+    }
+
     virtual Ice::LoggerPtr
     cloneWithPrefix(const string& prefix)
     {
         return new SMEventLoggerIWrapper(_logger, prefix);
     }
-    
+
 private:
-    
+
     SMEventLoggerPtr _logger;
-    string _prefix;
+    const string _prefix;
 };
 
-class SMEventLoggerI : public Ice::Logger, public SMEventLogger
+class SMEventLoggerI : public SMEventLogger
 {
 public:
 
-    SMEventLoggerI(const string& source, const StringConverterPtr& stringConverter) :
+    SMEventLoggerI(const string& source, const IceUtil::StringConverterPtr& stringConverter) :
         _stringConverter(stringConverter)
     {
-        _source = RegisterEventSourceW(0, IceUtil::stringToWstring(
-                                                    nativeToUTF8(_stringConverter, mangleSource(source))).c_str());
+        //
+        // Don't need to use a wide string converter as the wide string is passed
+        // to Windows API.
+        //
+        _source = RegisterEventSourceW(0, IceUtil::stringToWstring(mangleSource(source), _stringConverter).c_str());
         if(_source == 0)
         {
             SyscallException ex(__FILE__, __LINE__);
@@ -224,12 +232,16 @@ public:
     }
 
     static void
-    addKeys(const string& source, const StringConverterPtr& stringConverter)
+    addKeys(const string& source, const IceUtil::StringConverterPtr& stringConverter)
     {
         HKEY hKey;
         DWORD d;
+        //
+        // Don't need to use a wide string converter as the wide string is passed
+        // to Windows API.
+        //
         LONG err = RegCreateKeyExW(HKEY_LOCAL_MACHINE,
-                                   IceUtil::stringToWstring(nativeToUTF8(stringConverter, createKey(source))).c_str(),
+                                   IceUtil::stringToWstring(createKey(source), stringConverter).c_str(),
                                    0, const_cast<wchar_t*>(L"REG_SZ"), REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, 0, &hKey, &d);
 
         if(err != ERROR_SUCCESS)
@@ -259,7 +271,7 @@ public:
         //
         err = RegSetValueExW(hKey, L"EventMessageFile", 0, REG_EXPAND_SZ, reinterpret_cast<unsigned char*>(path),
                              static_cast<DWORD>((wcslen(path) * sizeof(wchar_t)) + 1));
-        
+
         if(err == ERROR_SUCCESS)
         {
             //
@@ -267,7 +279,7 @@ public:
             // types.
             //
             DWORD typesSupported = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_INFORMATION_TYPE;
-            err = RegSetValueExW(hKey, L"TypesSupported", 0, REG_DWORD, 
+            err = RegSetValueExW(hKey, L"TypesSupported", 0, REG_DWORD,
                                  reinterpret_cast<unsigned char*>(&typesSupported), sizeof(typesSupported));
         }
         if(err != ERROR_SUCCESS)
@@ -282,10 +294,14 @@ public:
     }
 
     static void
-    removeKeys(const string& source, const StringConverterPtr& stringConverter)
+    removeKeys(const string& source, const IceUtil::StringConverterPtr& stringConverter)
     {
-        LONG err = RegDeleteKeyW(HKEY_LOCAL_MACHINE, 
-                        IceUtil::stringToWstring(nativeToUTF8(stringConverter, createKey(source))).c_str());
+        //
+        // Don't need to use a wide string converter as the wide string is passed
+        // to Windows API.
+        //
+        LONG err = RegDeleteKeyW(HKEY_LOCAL_MACHINE,
+			IceUtil::stringToWstring(createKey(source), stringConverter).c_str());
         if(err != ERROR_SUCCESS)
         {
             SyscallException ex(__FILE__, __LINE__);
@@ -306,11 +322,15 @@ public:
         s.append(message);
         print(s);
     }
-    
-    virtual void
+
+    void
     print(const string& message)
     {
-        wstring msg = IceUtil::stringToWstring(nativeToUTF8(_stringConverter, message));
+        //
+        // Don't need to use a wide string converter as the wide string is passed
+        // to Windows API.
+        //
+        wstring msg = IceUtil::stringToWstring(message, _stringConverter);
         const wchar_t* messages[1];
         messages[0] = msg.c_str();
         //
@@ -332,8 +352,8 @@ public:
         s.append(message);
         trace(prefix, s);
     }
-    
-    virtual void
+
+    void
     trace(const string& category, const string& message)
     {
         string s;
@@ -344,7 +364,11 @@ public:
         }
         s.append(message);
 
-        wstring msg = IceUtil::stringToWstring(nativeToUTF8(_stringConverter, s));
+        //
+        // Don't need to use a wide string converter as the wide string is passed
+        // to Windows API.
+        //
+        wstring msg = IceUtil::stringToWstring(s, _stringConverter);
         const wchar_t* messages[1];
         messages[0] = msg.c_str();
         //
@@ -366,11 +390,15 @@ public:
         s.append(message);
         warning(s);
     }
-    
-    virtual void
+
+    void
     warning(const string& message)
     {
-        wstring msg = IceUtil::stringToWstring(nativeToUTF8(_stringConverter, message));
+        //
+        // Don't need to use a wide string converter as the wide string is passed
+        // to Windows API.
+        //
+        wstring msg = IceUtil::stringToWstring(message, _stringConverter);
         const wchar_t* messages[1];
         messages[0] = msg.c_str();
         //
@@ -393,10 +421,14 @@ public:
         error(s);
     }
 
-    virtual void
+    void
     error(const string& message)
     {
-        wstring msg = IceUtil::stringToWstring(nativeToUTF8(_stringConverter, message));
+        //
+        // Don't need to use a wide string converter as the wide string is passed
+        // to Windows API.
+        //
+        wstring msg = IceUtil::stringToWstring(message, _stringConverter);
         const wchar_t* messages[1];
         messages[0] = msg.c_str();
         //
@@ -404,12 +436,6 @@ public:
         // anything we can do about it.
         //
         ReportEventW(_source, EVENTLOG_ERROR_TYPE, 0, EVENT_LOGGER_MSG, 0, 1, 0, messages, 0);
-    }
-    
-    virtual Ice::LoggerPtr
-    cloneWithPrefix(const string& prefix)
-    {
-        return new SMEventLoggerIWrapper(this, prefix);
     }
 
     static void
@@ -445,7 +471,7 @@ private:
         return "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\" + mangleSource(name);
     }
 
-    StringConverterPtr _stringConverter;
+    IceUtil::StringConverterPtr _stringConverter;
     HANDLE _source;
     static HMODULE _module;
 };
@@ -462,7 +488,6 @@ Ice::Service::Service()
     _nohup = true;
     _service = false;
     _instance = this;
-
 #ifndef _WIN32
     _changeDirectory = true;
     _closeFiles = true;
@@ -525,7 +550,7 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
     InitializationData initData = initializationData;
     try
     {
-        initData.properties = createProperties(argc, argv, initData.properties, initData.stringConverter);
+        initData.properties = createProperties(argc, argv, initData.properties);
     }
     catch(const Ice::Exception& ex)
     {
@@ -542,6 +567,7 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
     string name;
     string eventLogSource;
     int idx = 1;
+    const IceUtil::StringConverterPtr stringConverter = IceUtil::getProcessStringConverter();
     while(idx < argc)
     {
         if(strcmp(argv[idx], "--service") == 0)
@@ -562,7 +588,7 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
             if(LoggerIPtr::dynamicCast(_logger))
             {
                 string eventLogSource = initData.properties->getPropertyWithDefault("Ice.EventLog.Source", name);
-                _logger = new SMEventLoggerIWrapper(new SMEventLoggerI(eventLogSource, initData.stringConverter), "");
+                _logger = new SMEventLoggerIWrapper(new SMEventLoggerI(eventLogSource, stringConverter), "");
                 setProcessLogger(_logger);
             }
 
@@ -679,7 +705,7 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
 #endif
 
     //
-    // If no logger has been set yet, we set it to the process logger. If the 
+    // If no logger has been set yet, we set it to the process logger. If the
     // process logger is the default logger, we change it to a logger which is
     // using the program name for the prefix.
     //
@@ -688,7 +714,12 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
         _logger = getProcessLogger();
         if(LoggerIPtr::dynamicCast(_logger))
         {
-            _logger = new LoggerI(initData.properties->getProperty("Ice.ProgramName"), "");
+            const bool convert =
+                initData.properties->getPropertyAsIntWithDefault("Ice.LogStdErr.Convert", 1) > 0 &&
+                initData.properties->getProperty("Ice.StdErr").empty();
+
+            _logger = new LoggerI(initData.properties->getProperty("Ice.ProgramName"), "", convert,
+                                  IceUtil::getProcessStringConverter());
             setProcessLogger(_logger);
         }
     }
@@ -696,7 +727,7 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
     return run(argc, argv, initData);
 }
 
-int 
+int
 Ice::Service::main(int argc, char* const argv[], const InitializationData& initializationData)
 {
     IceUtilInternal::ArgVector av(argc, argv);
@@ -713,10 +744,10 @@ Ice::Service::main(int& argc, wchar_t* argv[], const InitializationData& initial
     //
     // MinGW doesn't see the main overload if we don't create the temp args object here.
     //
-    Ice::StringSeq args = Ice::argsToStringSeq(argc, argv, initializationData.stringConverter);
+    Ice::StringSeq args = Ice::argsToStringSeq(argc, argv);
     return main(args, initializationData);
 #   else
-    return main(Ice::argsToStringSeq(argc, argv, initializationData.stringConverter), initializationData);
+    return main(Ice::argsToStringSeq(argc, argv), initializationData);
 #   endif
 }
 
@@ -756,24 +787,14 @@ Ice::Service::name() const
 bool
 Ice::Service::checkSystem() const
 {
-#ifdef _WIN32
-    //
-    // Check Windows version.
-    //
-    OSVERSIONINFO ver;
-    ver.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-    GetVersionEx(&ver);
-    return (ver.dwPlatformId == VER_PLATFORM_WIN32_NT);
-#else
     return true;
-#endif
 }
 
 #ifdef _WIN32
 int
 Ice::Service::run(int& argc, wchar_t* argv[], const InitializationData& initData)
 {
-    StringSeq args = Ice::argsToStringSeq(argc, argv, initData.stringConverter);
+    StringSeq args = Ice::argsToStringSeq(argc, argv);
     IceUtilInternal::ArgVector av(args);
     return run(av.argc, av.argv, initData);
 }
@@ -1078,9 +1099,15 @@ Ice::Service::runService(int argc, char* argv[], const InitializationData& initD
 
     _initData = initData;
 
+    //
+    // Don't need to use a wide string converter as the wide string is passed
+    // to Windows API.
+    //
     SERVICE_TABLE_ENTRYW ste[] =
     {
-        { const_cast<wchar_t*>(IceUtil::stringToWstring(nativeToUTF8(_initData.stringConverter, _name)).c_str()), Ice_Service_ServiceMain },
+        { const_cast<wchar_t*>(
+		    IceUtil::stringToWstring(_name, IceUtil::getProcessStringConverter()).c_str()),
+            Ice_Service_ServiceMain },
         { 0, 0 },
     };
 
@@ -1260,8 +1287,14 @@ Ice::Service::serviceMain(int argc, wchar_t* argv[])
     //
     // Merge the executable's arguments with the service's arguments.
     //
+    const IceUtil::StringConverterPtr converter(IceUtil::getProcessStringConverter());
+
+    //
+    // Don't need to pass a wide string converter in the bellow argv conversions
+    // as argv come from Windows API.
+    //
     char** args = new char*[_serviceArgs.size() + argc];
-    args[0] =  const_cast<char*>(UTF8ToNative(_initData.stringConverter, IceUtil::wstringToString(argv[0])).c_str());
+	args[0] = const_cast<char*>(IceUtil::wstringToString(argv[0], converter).c_str());
     int i = 1;
     for(vector<string>::iterator p = _serviceArgs.begin(); p != _serviceArgs.end(); ++p)
     {
@@ -1269,7 +1302,7 @@ Ice::Service::serviceMain(int argc, wchar_t* argv[])
     }
     for(int j = 1; j < argc; ++j)
     {
-        args[i++] =  const_cast<char*>(UTF8ToNative(_initData.stringConverter, IceUtil::wstringToString(argv[j])).c_str());
+		args[i++] = const_cast<char*>(IceUtil::wstringToString(argv[j], converter).c_str());
     }
     argc += static_cast<int>(_serviceArgs.size());
 
@@ -1743,7 +1776,7 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
         //
         if(_pidFile.size() > 0)
         {
-            IceUtilInternal::ofstream of(Ice::nativeToUTF8(_communicator, _pidFile));
+            IceUtilInternal::ofstream of(_pidFile);
             of << getpid() << endl;
 
             if(!of)

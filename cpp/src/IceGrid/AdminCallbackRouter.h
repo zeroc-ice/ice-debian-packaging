@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -28,31 +28,12 @@ public:
 
     void addMapping(const std::string&, const Ice::ConnectionPtr&);
     void removeMapping(const std::string&);
-
-    class InvokeCookie : public Ice::LocalObject
-    {
-    public:
-        
-        InvokeCookie(const Ice::AMD_Object_ice_invokePtr& cb) :
-            _cb(cb)
-        {
-        }
-        
-        Ice::AMD_Object_ice_invokePtr cb()
-        {
-            return _cb;
-        }
-        
-    private:
-        
-        Ice::AMD_Object_ice_invokePtr _cb;
-    };
-    typedef IceUtil::Handle<InvokeCookie> InvokeCookiePtr;
     
-    virtual void invokeResponse(bool, const std::pair<const ::Ice::Byte*, const ::Ice::Byte*>&, 
-                                const InvokeCookiePtr&);
+    virtual void invokeResponse(bool, 
+                                const std::pair<const ::Ice::Byte*, const ::Ice::Byte*>&, 
+                                const Ice::AMD_Object_ice_invokePtr&);
     
-    virtual void invokeException(const Ice::Exception&, const InvokeCookiePtr&);
+    virtual void invokeException(const Ice::Exception&, const Ice::AMD_Object_ice_invokePtr&);
 
     virtual void ice_invoke_async(const Ice::AMD_Object_ice_invokePtr&,
                                   const std::pair<const Ice::Byte*, const Ice::Byte*>&,

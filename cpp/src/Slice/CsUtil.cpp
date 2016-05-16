@@ -1,22 +1,11 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
-
-//
-// Disable unreferenced formal parameter warnings
-// for VC90 binary_search.
-//
-#if defined(_MSC_VER) && (_MSC_VER <= 1500)
-#  pragma warning( push )
-#  pragma warning( disable : 4100 )
-#  include <algorithm>
-#  pragma warning( pop )
-#endif
 
 #include <Slice/CsUtil.h>
 #include <Slice/DotNetNames.h>
@@ -415,6 +404,34 @@ Slice::CsGenerator::isValueType(const TypePtr& type)
     return false;
 }
 
+bool
+Slice::CsGenerator::isSerializable(const TypePtr& type)
+{
+    //
+    // A proxy cannot be serialized because a communicator is required during deserialization.
+    //
+    BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
+    ProxyPtr proxy = ProxyPtr::dynamicCast(type);
+    if((builtin && builtin->kind() == Builtin::KindObjectProxy) || proxy)
+    {
+        return false;
+    }
+
+    SequencePtr seq = SequencePtr::dynamicCast(type);
+    if(seq)
+    {
+        return isSerializable(seq->type());
+    }
+
+    DictionaryPtr d = DictionaryPtr::dynamicCast(type);
+    if(d)
+    {
+        return isSerializable(d->keyType()) && isSerializable(d->valueType());
+    }
+
+    return true;
+}
+
 void
 Slice::CsGenerator::writeMarshalUnmarshalCode(Output &out,
                                               const TypePtr& type,
@@ -612,48 +629,27 @@ Slice::CsGenerator::writeMarshalUnmarshalCode(Output &out,
     {
         if(marshal)
         {
+            const string write = streamingAPI ? "ice_write" : "write__";
             if(!isValueType(st))
             {
-                out << nl << "if(" << param << " == null)";
-                out << sb;
-                string typeS = typeToString(st);
-                out << nl << typeS << " tmp__ = new " << typeS << "();";
-                out << nl << "tmp__.";
-                out << (streamingAPI ? "ice_write" : "write__") << "(" << stream << ");";
-                out << eb;
-                out << nl << "else";
-                out << sb;
-                out << nl << param << "." << (streamingAPI ? "ice_write" : "write__") << "(" << stream << ");";
-                out << eb;
+                out << nl << typeToString(st) << "." << write << "(" << stream << ", " << param << ");";
             }
             else
             {
-                if(streamingAPI)
-                {
-                    out << nl << param << ".ice_write(" << stream << ");";
-                }
-                else
-                {
-                    out << nl << param << ".write__(" << stream << ");";
-                }
+                out << nl << param << "." << write << "(" << stream << ");";
             }
         }
         else
         {
             if(!isValueType(st))
             {
-                out << nl << "if(" << param << " == null)";
-                out << sb;
-                out << nl << param << " = new " << typeToString(type) << "();";
-                out << eb;
-            }
-            if(streamingAPI)
-            {
-                out << nl << param << ".ice_read(" << stream << ");";
+                const string r = streamingAPI ? "ice_read" : "read__";
+                out << nl << param << " = " << typeToString(type) << "." << r << "(" << stream << ", " << param << ");";
             }
             else
             {
-                out << nl << param << ".read__(" << stream << ");";
+                const string read = streamingAPI ? "ice_read" : "read__";
+                out << nl << param << "." << read << "(" << stream << ");";
             }
         }
         return;
@@ -881,9 +877,9 @@ Slice::CsGenerator::writeOptionalMarshalUnmarshalCode(Output &out,
             out << nl << "if(" << param << ".HasValue && " << stream << ".writeOpt(" << tag
                 << ", Ice.OptionalFormat.FSize))";
             out << sb;
-            out << nl << stream << ".startSize();";
+            out << nl << "int pos__ = " << stream << ".startSize();";
             writeMarshalUnmarshalCode(out, type, param + ".Value", marshal, streamingAPI);
-            out << nl << stream << ".endSize();";
+            out << nl << stream << ".endSize(pos__);";
             out << eb;
         }
         else
@@ -929,7 +925,7 @@ Slice::CsGenerator::writeOptionalMarshalUnmarshalCode(Output &out,
             out << sb;
             if(st->isVariableLength())
             {
-                out << nl << stream << ".startSize();";
+                out << nl << "int pos__ = " << stream << ".startSize();";
             }
             else
             {
@@ -938,7 +934,7 @@ Slice::CsGenerator::writeOptionalMarshalUnmarshalCode(Output &out,
             writeMarshalUnmarshalCode(out, type, param + ".Value", marshal, streamingAPI);
             if(st->isVariableLength())
             {
-                out << nl << stream << ".endSize();";
+                out << nl << stream << ".endSize(pos__);";
             }
             out << eb;
         }
@@ -1022,7 +1018,7 @@ Slice::CsGenerator::writeOptionalMarshalUnmarshalCode(Output &out,
         out << sb;
         if(keyType->isVariableLength() || valueType->isVariableLength())
         {
-            out << nl << stream << ".startSize();";
+            out << nl << "int pos__ = " << stream << ".startSize();";
         }
         else
         {
@@ -1033,7 +1029,7 @@ Slice::CsGenerator::writeOptionalMarshalUnmarshalCode(Output &out,
         writeMarshalUnmarshalCode(out, type, param + ".Value", marshal, streamingAPI);
         if(keyType->isVariableLength() || valueType->isVariableLength())
         {
-            out << nl << stream << ".endSize();";
+            out << nl << stream << ".endSize(pos__);";
         }
         out << eb;
     }
@@ -1443,7 +1439,7 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
         else
         {
             out << sb;
-            out << nl << "int szx__ = " << stream << ".readAndCheckSeqSize(" 
+            out << nl << "int szx__ = " << stream << ".readAndCheckSeqSize("
                 << static_cast<unsigned>(type->minWireSize()) << ");";
             out << nl << param << " = new ";
             if(isArray)
@@ -1586,7 +1582,7 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
         else
         {
             out << sb;
-            out << nl << "int szx__ = " << stream << ".readAndCheckSeqSize(" 
+            out << nl << "int szx__ = " << stream << ".readAndCheckSeqSize("
                 << static_cast<unsigned>(type->minWireSize()) << ");";
             if(isArray)
             {
@@ -1703,7 +1699,7 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
         else
         {
             out << sb;
-            out << nl << "int szx__ = " << stream << ".readAndCheckSeqSize(" << 
+            out << nl << "int szx__ = " << stream << ".readAndCheckSeqSize(" <<
                 static_cast<unsigned>(type->minWireSize()) << ");";
             if(isArray)
             {
@@ -1965,9 +1961,9 @@ Slice::CsGenerator::writeOptionalSequenceMarshalUnmarshalCode(Output& out,
                 out << nl << "if(" << param << ".HasValue && " << stream << ".writeOpt(" << tag << ", "
                     << getOptionalFormat(seq) << "))";
                 out << sb;
-                out << nl << stream << ".startSize();";
+                out << nl << "int pos__ = " << stream << ".startSize();";
                 writeSequenceMarshalUnmarshalCode(out, seq, param + ".Value", marshal, streamingAPI, true);
-                out << nl << stream << ".endSize();";
+                out << nl << stream << ".endSize(pos__);";
                 out << eb;
             }
             else
@@ -2005,7 +2001,7 @@ Slice::CsGenerator::writeOptionalSequenceMarshalUnmarshalCode(Output& out,
             out << sb;
             if(st->isVariableLength())
             {
-                out << nl << stream << ".startSize();";
+                out << nl << "int pos__ = " << stream << ".startSize();";
             }
             else if(st->minWireSize() > 1)
             {
@@ -2015,7 +2011,7 @@ Slice::CsGenerator::writeOptionalSequenceMarshalUnmarshalCode(Output& out,
             writeSequenceMarshalUnmarshalCode(out, seq, param + ".Value", marshal, streamingAPI, true);
             if(st->isVariableLength())
             {
-                out << nl << stream << ".endSize();";
+                out << nl << stream << ".endSize(pos__);";
             }
             out << eb;
         }
@@ -2052,9 +2048,9 @@ Slice::CsGenerator::writeOptionalSequenceMarshalUnmarshalCode(Output& out,
         out << nl << "if(" << param << ".HasValue && " << stream << ".writeOpt(" << tag << ", "
             << getOptionalFormat(seq) << "))";
         out << sb;
-        out << nl << stream << ".startSize();";
+        out << nl << "int pos__ = " << stream << ".startSize();";
         writeSequenceMarshalUnmarshalCode(out, seq, param + ".Value", marshal, streamingAPI, true);
-        out << nl << stream << ".endSize();";
+        out << nl << stream << ".endSize(pos__);";
         out << eb;
     }
     else
@@ -2071,6 +2067,249 @@ Slice::CsGenerator::writeOptionalSequenceMarshalUnmarshalCode(Output& out,
         out << sb;
         out << nl << param << " = new Ice.Optional<" << seqS << ">();";
         out << eb;
+    }
+}
+
+void
+Slice::CsGenerator::writeSerializeDeserializeCode(Output &out,
+                                                  const TypePtr& type,
+                                                  const string& param,
+                                                  bool optional,
+                                                  int tag,
+                                                  bool serialize)
+{
+    if(!isSerializable(type))
+    {
+        return;
+    }
+
+    if(optional)
+    {
+        const string typeName = typeToString(type, true);
+        if(serialize)
+        {
+            out << nl << "info__.AddValue(\"" << param << "\", " << param << ", typeof(" << typeName << "));";
+        }
+        else
+        {
+            out << nl << param << " = (" << typeName << ")info__.GetValue(\"" << param << "\", typeof(" << typeName
+                << "));";
+        }
+        return;
+    }
+
+    BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
+    if(builtin)
+    {
+        switch(builtin->kind())
+        {
+            case Builtin::KindByte:
+            {
+                if(serialize)
+                {
+                    out << nl << "info__.AddValue(\"" << param << "\", " << param << ");";
+                }
+                else
+                {
+                    out << nl << param << " = " << "info__.GetByte(\"" << param << "\");";
+                }
+                break;
+            }
+            case Builtin::KindBool:
+            {
+                if(serialize)
+                {
+                    out << nl << "info__.AddValue(\"" << param << "\", " << param << ");";
+                }
+                else
+                {
+                    out << nl << param << " = " << "info__.GetBoolean(\"" << param << "\");";
+                }
+                break;
+            }
+            case Builtin::KindShort:
+            {
+                if(serialize)
+                {
+                    out << nl << "info__.AddValue(\"" << param << "\", " << param << ");";
+                }
+                else
+                {
+                    out << nl << param << " = " << "info__.GetInt16(\"" << param << "\");";
+                }
+                break;
+            }
+            case Builtin::KindInt:
+            {
+                if(serialize)
+                {
+                    out << nl << "info__.AddValue(\"" << param << "\", " << param << ");";
+                }
+                else
+                {
+                    out << nl << param << " = " << "info__.GetInt32(\"" << param << "\");";
+                }
+                break;
+            }
+            case Builtin::KindLong:
+            {
+                if(serialize)
+                {
+                    out << nl << "info__.AddValue(\"" << param << "\", " << param << ");";
+                }
+                else
+                {
+                    out << nl << param << " = " << "info__.GetInt64(\"" << param << "\");";
+                }
+                break;
+            }
+            case Builtin::KindFloat:
+            {
+                if(serialize)
+                {
+                    out << nl << "info__.AddValue(\"" << param << "\", " << param << ");";
+                }
+                else
+                {
+                    out << nl << param << " = " << "info__.GetSingle(\"" << param << "\");";
+                }
+                break;
+            }
+            case Builtin::KindDouble:
+            {
+                if(serialize)
+                {
+                    out << nl << "info__.AddValue(\"" << param << "\", " << param << ");";
+                }
+                else
+                {
+                    out << nl << param << " = " << "info__.GetDouble(\"" << param << "\");";
+                }
+                break;
+            }
+            case Builtin::KindString:
+            {
+                if(serialize)
+                {
+                    out << nl << "info__.AddValue(\"" << param << "\", " << param << " == null ? \"\" : " << param
+                        << ");";
+                }
+                else
+                {
+                    out << nl << param << " = " << "info__.GetString(\"" << param << "\");";
+                }
+                break;
+            }
+            case Builtin::KindObject:
+            case Builtin::KindLocalObject:
+            {
+                const string typeName = typeToString(type, false);
+                if(serialize)
+                {
+                    out << nl << "info__.AddValue(\"" << param << "\", " << param << ", typeof(" << typeName << "));";
+                }
+                else
+                {
+                    out << nl << param << " = (" << typeName << ")info__.GetValue(\"" << param << "\", typeof("
+                        << typeName << "));";
+                }
+                break;
+            }
+            case Builtin::KindObjectProxy:
+            {
+                //
+                // Proxies cannot be serialized.
+                //
+                break;
+            }
+        }
+        return;
+    }
+
+    ProxyPtr prx = ProxyPtr::dynamicCast(type);
+    if(prx)
+    {
+        //
+        // Proxies cannot be serialized.
+        //
+        return;
+    }
+
+    ClassDeclPtr cl = ClassDeclPtr::dynamicCast(type);
+    if(cl)
+    {
+        const string typeName = typeToString(type, false);
+        if(serialize)
+        {
+            out << nl << "info__.AddValue(\"" << param << "\", " << param << ", typeof(" << typeName << "));";
+        }
+        else
+        {
+            out << nl << param << " = (" << typeName << ")info__.GetValue(\"" << param << "\", typeof(" << typeName
+                << "));";
+        }
+        return;
+    }
+
+    StructPtr st = StructPtr::dynamicCast(type);
+    if(st)
+    {
+        const string typeName = typeToString(type, false);
+        if(serialize)
+        {
+            out << nl << "info__.AddValue(\"" << param << "\", " << param << ", typeof(" << typeName << "));";
+        }
+        else
+        {
+            out << nl << param << " = (" << typeName << ")info__.GetValue(\"" << param << "\", typeof(" << typeName
+                << "));";
+        }
+        return;
+    }
+
+    EnumPtr en = EnumPtr::dynamicCast(type);
+    if(en)
+    {
+        const string typeName = typeToString(type, false);
+        if(serialize)
+        {
+            out << nl << "info__.AddValue(\"" << param << "\", " << param << ", typeof(" << typeName << "));";
+        }
+        else
+        {
+            out << nl << param << " = (" << typeName << ")info__.GetValue(\"" << param << "\", typeof(" << typeName
+                << "));";
+        }
+        return;
+    }
+
+    SequencePtr seq = SequencePtr::dynamicCast(type);
+    if(seq)
+    {
+        const string typeName = typeToString(type, false);
+        if(serialize)
+        {
+            out << nl << "info__.AddValue(\"" << param << "\", " << param << ", typeof(" << typeName << "));";
+        }
+        else
+        {
+            out << nl << param << " = (" << typeName << ")info__.GetValue(\"" << param << "\", typeof(" << typeName
+                << "));";
+        }
+        return;
+    }
+
+    DictionaryPtr d = DictionaryPtr::dynamicCast(type);
+    assert(d);
+    const string typeName = typeToString(type, false);
+    if(serialize)
+    {
+        out << nl << "info__.AddValue(\"" << param << "\", " << param << ", typeof(" << typeName << "));";
+    }
+    else
+    {
+        out << nl << param << " = (" << typeName << ")info__.GetValue(\"" << param << "\", typeof(" << typeName
+            << "));";
     }
 }
 
@@ -2258,6 +2497,7 @@ Slice::CsGenerator::MetaDataVisitor::visitConst(const ConstPtr& p)
 void
 Slice::CsGenerator::MetaDataVisitor::validate(const ContainedPtr& cont)
 {
+    static set<string> collectionWarnings;
     const string msg = "ignoring invalid metadata";
 
     StringList localMetaData = cont->getMetaData();
@@ -2276,6 +2516,10 @@ Slice::CsGenerator::MetaDataVisitor::validate(const ContainedPtr& cont)
                 {
                     if(s.substr(prefix.size()) == "collection")
                     {
+                        if(collectionWarnings.find(cont->file()) == collectionWarnings.end()) {
+                            emitWarning(cont->file(), cont->line(), "the \"" + s + "\" metadata has been deprecated");
+                            collectionWarnings.insert(cont->file());
+                        }
                         continue;
                     }
                     static const string clrGenericPrefix = prefix + "generic:";
@@ -2324,10 +2568,20 @@ Slice::CsGenerator::MetaDataVisitor::validate(const ContainedPtr& cont)
                     {
                         continue;
                     }
+                    static const string clrImplementsPrefix = prefix + "implements:";
+                    if(s.find(clrImplementsPrefix) == 0)
+                    {
+                        continue;
+                    }
                 }
                 else if(ClassDefPtr::dynamicCast(cont))
                 {
                     if(s.substr(prefix.size()) == "property")
+                    {
+                        continue;
+                    }
+                    static const string clrImplementsPrefix = prefix + "implements:";
+                    if(s.find(clrImplementsPrefix) == 0)
                     {
                         continue;
                     }
@@ -2336,6 +2590,10 @@ Slice::CsGenerator::MetaDataVisitor::validate(const ContainedPtr& cont)
                 {
                     if(s.substr(prefix.size()) == "collection")
                     {
+                        if(collectionWarnings.find(cont->file()) == collectionWarnings.end()) {
+                            emitWarning(cont->file(), cont->line(), "the \"" + s + "\" metadata has been deprecated");
+                            collectionWarnings.insert(cont->file());
+                        }
                         continue;
                     }
                     static const string clrGenericPrefix = prefix + "generic:";

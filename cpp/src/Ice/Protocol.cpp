@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -15,7 +15,7 @@ namespace IceInternal
 
 const Ice::Byte magic[] = { 0x49, 0x63, 0x65, 0x50 };   // 'I', 'c', 'e', 'P'
 
-const Ice::Byte requestHdr[] = 
+const Ice::Byte requestHdr[] =
 {
     magic[0],
     magic[1],
@@ -47,7 +47,7 @@ const Ice::Byte requestBatchHdr[] =
     0, 0, 0, 0  // Number of requests in batch (placeholder)
 };
 
-const Ice::Byte replyHdr[] = 
+const Ice::Byte replyHdr[] =
 {
     magic[0],
     magic[1],
@@ -81,7 +81,7 @@ stringToMajorMinor(const std::string& str, Ice::Byte& major, Ice::Byte& minor)
         ex.str = "invalid major version value `" + str + "'";
         throw ex;
     }
-    
+
     std::istringstream minStr(str.substr(pos + 1, std::string::npos));
     Ice::Int minVersion;
     if(!(minStr >> minVersion) || !minStr.eof())
@@ -97,12 +97,12 @@ stringToMajorMinor(const std::string& str, Ice::Byte& major, Ice::Byte& minor)
         ex.str = "range error in version `" + str + "'";
         throw ex;
     }
-    
+
     major = static_cast<Ice::Byte>(majVersion);
     minor = static_cast<Ice::Byte>(minVersion);
 }
 
-void 
+void
 throwUnsupportedProtocolException(const char* f, int l, const Ice::ProtocolVersion& v, const Ice::ProtocolVersion& s)
 {
     throw Ice::UnsupportedProtocolException(f, l, "", v, s);
@@ -126,7 +126,7 @@ const ProtocolVersion currentProtocol = { IceInternal::protocolMajor, IceInterna
 // The encoding to use for protocol messages, this version is tied to
 // the protocol version.
 //
-const EncodingVersion currentProtocolEncoding = { IceInternal::protocolEncodingMajor, 
+const EncodingVersion currentProtocolEncoding = { IceInternal::protocolEncodingMajor,
                                                   IceInternal::protocolEncodingMinor };
 
 const ProtocolVersion Protocol_1_0 = { 1, 0 };

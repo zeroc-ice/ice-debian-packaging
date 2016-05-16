@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,6 +11,7 @@
 #define TEST_ACCEPTOR_H
 
 #include <Ice/Acceptor.h>
+#include <EndpointI.h>
 
 class Acceptor : public IceInternal::Acceptor
 {
@@ -19,19 +20,24 @@ public:
     virtual IceInternal::NativeInfoPtr getNativeInfo();
 
     virtual void close();
-    virtual void listen();
+    virtual IceInternal::EndpointIPtr listen();
 #ifdef ICE_USE_IOCP
     virtual void startAccept();
     virtual void finishAccept();
 #endif
     virtual IceInternal::TransceiverPtr accept();
+    virtual std::string protocol() const;
     virtual std::string toString() const;
+    virtual std::string toDetailedString() const;
+
+    IceInternal::AcceptorPtr delegate() const { return _acceptor; }
 
 private:
 
-    Acceptor(const IceInternal::AcceptorPtr&);
+    Acceptor(const EndpointIPtr&, const IceInternal::AcceptorPtr&);
     friend class EndpointI;
 
+    EndpointIPtr _endpoint;
     const IceInternal::AcceptorPtr _acceptor;
 };
 

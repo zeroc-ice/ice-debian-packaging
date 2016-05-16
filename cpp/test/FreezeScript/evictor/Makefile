@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -13,12 +13,10 @@ CLIENT		= makedb
 
 TARGETS		= $(CLIENT)
 
-OBJS		= TestOld.o \
-                  makedb.o
+SLICE_OBJS	= TestOld.o
 
-SRCS		= $(OBJS:.o=.cpp)
-
-SLICE_SRCS	= TestOld.ice
+OBJS		= $(SLICE_OBJS) \
+		  makedb.o
 
 include $(top_srcdir)/config/Make.rules
 
@@ -26,9 +24,7 @@ CPPFLAGS	:= -I. $(CPPFLAGS)
 
 $(CLIENT): $(OBJS)
 	rm -f $@
-	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(DB_RPATH_LINK) -lFreeze $(LIBS)
+	$(CXX) $(LDFLAGS) $(LDEXEFLAGS) -o $@ $(OBJS) $(DB_RPATH_LINK) -lFreeze $(LIBS)
 
 clean::
 	-rm -rf db/* db_tmp db_check
-
-include .depend

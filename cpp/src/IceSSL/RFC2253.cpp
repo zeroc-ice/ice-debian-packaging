@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -198,7 +198,7 @@ unescapeHex(const string& data, size_t pos)
     {
         throw ParseException(__FILE__, __LINE__, "unescape: invalid hex pair");
     }
-    return (char)(hexToInt(data[pos]) * 16 + hexToInt(data[pos + 1]));
+    return static_cast<char>(hexToInt(data[pos]) * 16 + hexToInt(data[pos + 1]));
 }
 
 static pair<string,string>
@@ -231,6 +231,7 @@ parseAttributeTypeAndValue(const string& data, size_t& pos)
     pair<string, string> p;
     p.first = parseAttributeType(data, pos);
     eatWhite(data, pos);
+
     if(pos >= data.size())
     {
         throw ParseException(__FILE__, __LINE__, "invalid attribute type/value pair (unexpected end of data)");

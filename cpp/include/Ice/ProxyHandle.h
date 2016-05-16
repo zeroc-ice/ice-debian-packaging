@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -312,14 +312,19 @@ public:
         return ::IceInternal::uncheckedCastImpl<ProxyHandle>(r, f);
 #endif
     }
-};
 
-}
+    static const std::string& ice_staticId()
+    {
+        return T::ice_staticId();
+    }
+};
 
 template<class Y>
 std::ostream& operator<<(std::ostream& os, ::IceInternal::ProxyHandle<Y> p)
 {
     return os << (p ? p->ice_toString() : std::string(""));
+}
+
 }
 
 #endif

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -19,7 +19,7 @@ class ICE_API Buffer : private IceUtil::noncopyable
 {
 public:
 
-    Buffer(size_t maxCapacity) : b(maxCapacity), i(b.begin()) { }
+    Buffer() : i(b.begin()) { }
     Buffer(const Ice::Byte* beg, const Ice::Byte* end) : b(beg, end), i(b.begin()) { }
     virtual ~Buffer() { }
 
@@ -41,7 +41,7 @@ public:
         typedef Ice::Byte* pointer;
         typedef size_t size_type;
 
-        Container(size_type maxCapacity);
+        Container();
         Container(const_iterator, const_iterator);
 
         ~Container();
@@ -90,11 +90,11 @@ public:
             }
             else if(n > _capacity)
             {
-                reserve(n); 
+                reserve(n);
             }
             _size = n;
         }
-
+        
         void reset()
         {
             assert(!_buf || _capacity > 0);
@@ -147,7 +147,6 @@ public:
         pointer _buf;
         size_type _size;
         size_type _capacity;
-        size_type _maxCapacity;
         int _shrinkCounter;
     };
 

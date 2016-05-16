@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -120,13 +120,19 @@ public:
     void describeObject(const std::list<std::string>&);
     void listObject(const std::list<std::string>&);
 
-    void showFile(const std::string&, const std::list<std::string>&);
-
+    void show(const std::string&, const std::list<std::string>&);
+    
     void showBanner();
     void showCopying();
     void showWarranty();
 
-    void getInput(char*, int&, int);
+    //
+    // With older flex version <= 2.5.35 YY_INPUT second 
+    // paramenter is of type int&, in newer versions it
+    // changes to size_t&
+    // 
+    void getInput(char*, int&, size_t);
+    void getInput(char*, size_t&, size_t);
     void continueLine();
     const char* getPrompt();
 
@@ -150,6 +156,10 @@ private:
 
     Parser(const Ice::CommunicatorPtr&, const AdminSessionPrx&, const AdminPrx&, bool);
     void exception(const Ice::Exception&);
+
+    void showFile(const std::string&, const std::string&, const std::string&, bool, bool, bool, int);
+    void showLog(const std::string&, const std::string&, bool, bool, int);
+    
 
     std::string _commands;
     Ice::CommunicatorPtr _communicator;

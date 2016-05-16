@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -12,7 +12,6 @@
 
 #include <IceUtil/Thread.h>
 #include <IceUtil/Monitor.h>
-#include <IceUtil/DisableWarnings.h>
 
 #include <Ice/Ice.h>
 
@@ -40,7 +39,7 @@ typedef IceUtil::Handle<CreateSession> CreateSessionPtr;
 
 class Instance;
 typedef IceUtil::Handle<Instance> InstancePtr;
-    
+
 class ClientBlobject;
 typedef IceUtil::Handle<ClientBlobject> ClientBlobjectPtr;
 
@@ -63,7 +62,7 @@ public:
     void unexpectedCreateSessionException(const Ice::Exception&);
 
     void exception(const Ice::Exception&);
-    
+
     void createException(const Ice::Exception&);
 
     virtual void authorize() = 0;
@@ -90,8 +89,8 @@ typedef IceUtil::Handle<UserPasswordCreateSession> UserPasswordCreateSessionPtr;
 class SSLCreateSession;
 typedef IceUtil::Handle<SSLCreateSession> SSLCreateSessionPtr;
 
-class SessionRouterI : public Router, 
-                       public Glacier2::Instrumentation::ObserverUpdater, 
+class SessionRouterI : public Router,
+                       public Glacier2::Instrumentation::ObserverUpdater,
                        private IceUtil::Monitor<IceUtil::Mutex>
 {
 public:
@@ -103,16 +102,16 @@ public:
 
     virtual Ice::ObjectPrx getClientProxy(const Ice::Current&) const;
     virtual Ice::ObjectPrx getServerProxy(const Ice::Current&) const;
-    virtual void addProxy(const Ice::ObjectPrx&, const Ice::Current&);
     virtual Ice::ObjectProxySeq addProxies(const Ice::ObjectProxySeq&, const Ice::Current&);
     virtual std::string getCategoryForClient(const Ice::Current&) const;
-    virtual void createSession_async(const AMD_Router_createSessionPtr&, const std::string&, const std::string&, 
+    virtual void createSession_async(const AMD_Router_createSessionPtr&, const std::string&, const std::string&,
                                const Ice::Current&);
     virtual void createSessionFromSecureConnection_async(const AMD_Router_createSessionFromSecureConnectionPtr&,
                                                          const Ice::Current&);
-    virtual void refreshSession(const Ice::Current&);
+    virtual void refreshSession_async(const AMD_Router_refreshSessionPtr&, const Ice::Current&);
     virtual void destroySession(const ::Ice::Current&);
     virtual Ice::Long getSessionTimeout(const ::Ice::Current&) const;
+    virtual Ice::Int getACMTimeout(const ::Ice::Current&) const;
 
     virtual void updateSessionObservers();
 
@@ -123,15 +122,15 @@ public:
 
     void expireSessions();
 
+    void refreshSession(const ::Ice::ConnectionPtr&);
     void destroySession(const ::Ice::ConnectionPtr&);
 
     int sessionTraceLevel() const { return _sessionTraceLevel; }
-    
+
 private:
 
-    RouterIPtr getRouterImpl(const Ice::ConnectionPtr&, const Ice::Identity&, bool) const;    
+    RouterIPtr getRouterImpl(const Ice::ConnectionPtr&, const Ice::Identity&, bool) const;
 
-    void sessionPingException(const Ice::Exception&, const ::Ice::ConnectionPtr&);
     void sessionDestroyException(const Ice::Exception&);
 
     bool startCreateSession(const CreateSessionPtr&, const Ice::ConnectionPtr&);
@@ -147,7 +146,9 @@ private:
     const SessionManagerPrx _sessionManager;
     const SSLPermissionsVerifierPrx _sslVerifier;
     const SSLSessionManagerPrx _sslSessionManager;
-    const IceUtil::Time _sessionTimeout;
+
+    IceUtil::Time _sessionTimeout;
+    Ice::ConnectionCallbackPtr _connectionCallback;
 
     class SessionThread : public IceUtil::Thread, public IceUtil::Monitor<IceUtil::Mutex>
     {
@@ -174,10 +175,9 @@ private:
     mutable std::map<std::string, RouterIPtr>::iterator _routersByCategoryHint;
 
     std::map<Ice::ConnectionPtr, CreateSessionPtr> _pending;
-    
-    Ice::Callback_Object_ice_pingPtr _sessionPingCallback;
+
     Callback_Session_destroyPtr _sessionDestroyCallback;
-    
+
     bool _destroy;
 };
 

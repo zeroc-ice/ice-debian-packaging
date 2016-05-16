@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -157,29 +157,17 @@ IceInternal::RouterInfo::getClientEndpoints()
 }
 
 void
-IceInternal::RouterInfo::getClientProxyResponse(const Ice::ObjectPrx& proxy, const GetClientEndpointsCallbackPtr& callback)
+IceInternal::RouterInfo::getClientProxyResponse(const Ice::ObjectPrx& proxy, 
+                                                const GetClientEndpointsCallbackPtr& callback)
 {
     callback->setEndpoints(setClientEndpoints(proxy));
 }
 
 void
-IceInternal::RouterInfo::getClientProxyException(const Ice::Exception& ex, const GetClientEndpointsCallbackPtr& callback)
+IceInternal::RouterInfo::getClientProxyException(const Ice::Exception& ex, 
+                                                 const GetClientEndpointsCallbackPtr& callback)
 {
-    if(dynamic_cast<const Ice::CollocationOptimizationException*>(&ex))
-    {
-        try
-        {
-            callback->setEndpoints(getClientEndpoints());
-        }
-        catch(const Ice::LocalException& e)
-        {
-            callback->setException(e);
-        }
-    }
-    else
-    {
-        callback->setException(dynamic_cast<const Ice::LocalException&>(ex));
-    }
+    callback->setException(dynamic_cast<const Ice::LocalException&>(ex));
 }
 
 void
@@ -248,22 +236,7 @@ IceInternal::RouterInfo::addProxyResponse(const Ice::ObjectProxySeq& proxies, co
 void
 IceInternal::RouterInfo::addProxyException(const Ice::Exception& ex, const AddProxyCookiePtr& cookie)
 {
-    if(dynamic_cast<const Ice::CollocationOptimizationException*>(&ex))
-    {
-        try
-        {
-            addProxy(cookie->proxy());
-            cookie->cb()->addedProxy();
-        }
-        catch(const Ice::LocalException& e)
-        {
-            cookie->cb()->setException(e);
-        }
-    }
-    else
-    {
-        cookie->cb()->setException(dynamic_cast<const Ice::LocalException&>(ex));
-    }
+    cookie->cb()->setException(dynamic_cast<const Ice::LocalException&>(ex));
 }
 
 bool
@@ -336,13 +309,9 @@ IceInternal::RouterInfo::setClientEndpoints(const Ice::ObjectPrx& proxy)
             // we must use the same timeout as the already existing
             // connection.
             //
-            try
+            if(_router->ice_getConnection())
             {
                 clientProxy = clientProxy->ice_timeout(_router->ice_getConnection()->timeout());
-            }
-            catch(const Ice::CollocationOptimizationException&)
-            {
-                // Ignore - collocated router
             }
 
             _clientEndpoints = clientProxy->__reference()->getEndpoints();

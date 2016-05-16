@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,12 +9,13 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc"]]
 
 #include <Ice/EndpointF.ice>
 #include <Ice/ConnectionF.ice>
 #include <Ice/Current.ice>
 
+["objc:prefix:ICE"]
 module Ice
 {
 
@@ -24,6 +25,7 @@ module Ice
  * Ice core internal components (threads, connections, etc).
  *
  **/
+["objc:prefix:ICEINSTRUMENTATION"]
 module Instrumentation
 {
 
@@ -222,11 +224,11 @@ local interface DispatchObserver extends Observer
 
 /**
  *
- * The remote invocation observer to instrument invocations that go
- * over the wire.
+ * The child invocation observer to instrument remote or collocated
+ * invocations.
  *
  **/
-local interface RemoteObserver extends Observer
+local interface ChildInvocationObserver extends Observer
 {
     /**
      *
@@ -236,6 +238,27 @@ local interface RemoteObserver extends Observer
      *
      **/
     void reply(int size);
+};
+
+
+/**
+ *
+ * The remote observer to instrument invocations that are sent over
+ * the wire.
+ *
+ **/ 
+local interface RemoteObserver extends ChildInvocationObserver
+{
+};
+
+/**
+ *
+ * The collocated observer to instrument invocations that are
+ * collocated.
+ *
+ **/ 
+local interface CollocatedObserver extends ChildInvocationObserver
+{
 };
 
 /**
@@ -278,6 +301,21 @@ local interface InvocationObserver extends Observer
      *
      **/
     RemoteObserver getRemoteObserver(ConnectionInfo con, Endpoint endpt, int requestId, int size);
+
+    /**
+     *
+     * Get a collocated observer for this invocation.
+     *
+     * @param adapter The object adapter hosting the collocated Ice object.
+     *
+     * @param requestId The ID of the invocation.
+     *
+     * @param size The size of the invocation.
+     *
+     * @return The observer to instrument the collocated invocation.
+     *
+     **/
+    CollocatedObserver getCollocatedObserver(ObjectAdapter adapter, int requestId, int size);
 };
 
 /**

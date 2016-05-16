@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -126,7 +126,8 @@ printCatalogData(const string& dbName, const Freeze::CatalogData& data)
 }
 
 static int
-run(const Ice::StringSeq& originalArgs, const Ice::CommunicatorPtr& communicator)
+run(const Ice::StringSeq& originalArgs, const Ice::CommunicatorPtr& communicator,
+    const FreezeScript::CompactIdResolverIPtr& resolver)
 {
     vector<string> cppArgs;
     bool debug;
@@ -185,7 +186,7 @@ run(const Ice::StringSeq& originalArgs, const Ice::CommunicatorPtr& communicator
         //
         Ice::PropertiesPtr props = communicator->getProperties();
         string prefix = "Freeze.DbEnv." + args[0];
-        if(props->getPropertyAsIntWithDefault(prefix + ".DbPrivate", 1) == 0)
+        if(props->getPropertyAsIntWithDefault(prefix + ".DbPrivate", 1) <= 0)
         {
             props->setProperty(prefix + ".LockFile", "0");
         }
@@ -314,7 +315,7 @@ run(const Ice::StringSeq& originalArgs, const Ice::CommunicatorPtr& communicator
     {
         selectExpr = opts.optArg("select");
     }
-    
+
     if(outputFile.empty() && args.size() != 2)
     {
         usage(appName);
@@ -343,12 +344,14 @@ run(const Ice::StringSeq& originalArgs, const Ice::CommunicatorPtr& communicator
 
     Slice::UnitPtr unit = Slice::Unit::createUnit(true, true, ice, underscore);
     FreezeScript::Destroyer<Slice::UnitPtr> unitD(unit);
-    if(!FreezeScript::parseSlice(appName, unit, slice, cppArgs, debug, "-D___DUMPDB__"))
+    if(!FreezeScript::parseSlice(appName, unit, slice, cppArgs, debug, "-D__DUMPDB__"))
     {
         return EXIT_FAILURE;
     }
 
     FreezeScript::createEvictorSliceTypes(unit);
+
+    FreezeScript::collectCompactIds(unit, resolver);
 
     //
     // If no input file was provided, then we need to generate default descriptors.
@@ -449,10 +452,6 @@ run(const Ice::StringSeq& originalArgs, const Ice::CommunicatorPtr& communicator
 
         if(!outputFile.empty())
         {
-            //
-            // No nativeToUTF8 conversion necessary here, no string converter is installed 
-            // by wmain() on Windows and args are assumbed to be UTF8 on Unix platforms.
-            //
             IceUtilInternal::ofstream of(outputFile);
             if(!of.good())
             {
@@ -466,10 +465,6 @@ run(const Ice::StringSeq& originalArgs, const Ice::CommunicatorPtr& communicator
     }
     else
     {
-        //
-        // No nativeToUTF8 conversion necessary here, no string converter is installed 
-        // by wmain() on Windows and args are assumbed to be UTF8 on Unix platforms.
-        //
         IceUtilInternal::ifstream in(inputFile);
         char buff[1024];
         while(true)
@@ -653,12 +648,17 @@ main(int argc, char* argv[])
     Ice::StringSeq args = Ice::argsToStringSeq(argc, argv);
     assert(args.size() > 0);
     const string appName = args[0];
+
+    Ice::InitializationData initData;
+    FreezeScript::CompactIdResolverIPtr resolver = new FreezeScript::CompactIdResolverI;
+    initData.compactIdResolver = resolver;
+
     Ice::CommunicatorPtr communicator;
     int status = EXIT_SUCCESS;
     try
     {
-        communicator = Ice::initialize(args);
-        status = run(args, communicator);
+        communicator = Ice::initialize(args, initData);
+        status = run(args, communicator, resolver);
     }
     catch(const FreezeScript::FailureException& ex)
     {

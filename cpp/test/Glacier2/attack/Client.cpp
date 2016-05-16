@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -28,15 +28,19 @@ public:
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     Ice::InitializationData initData;
     initData.properties = Ice::createProperties(argc, argv);
-   
+
     //
     // We want to check whether the client retries for evicted
     // proxies, even with regular retries disabled.
     //
     initData.properties->setProperty("Ice.RetryIntervals", "-1");
-        
+
     AttackClient app;
     return app.main(argc, argv, initData);
 }
@@ -110,7 +114,7 @@ AttackClient::run(int, char**)
     }
     cout << string(msg.size(), '\b') << string(msg.size(), ' ') << string(msg.size(), '\b');
     cout << "ok" << endl;
-    
+
     cout << "testing server and router shutdown... " << flush;
     backend->shutdown();
     communicator()->setDefaultRouter(0);

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,8 +8,7 @@
 // **********************************************************************
 
 #include <Ice/Ice.h>
-#include <IceGrid/Admin.h>
-#include <IceGrid/Registry.h>
+#include <IceGrid/IceGrid.h>
 #include <IceUtil/Thread.h>
 #include <TestCommon.h>
 #include <Test.h>
@@ -37,7 +36,7 @@ waitForServerState(const IceGrid::AdminPrx& admin, const std::string& server, Ic
 class PingThread : public IceUtil::Thread, IceUtil::Monitor<IceUtil::Mutex>
 {
 public:
-    
+
     PingThread(const Ice::ObjectPrx& proxy, int nRepetitions) :
         _proxy(proxy), _finished(false), _nRepetitions(nRepetitions)
     {
@@ -78,7 +77,7 @@ public:
     }
 
 private:
-    
+
     Ice::ObjectPrx _proxy;
     IceUtil::UniquePtr<Ice::LocalException> _exception;
     bool _finished;
@@ -86,66 +85,17 @@ private:
 };
 typedef IceUtil::Handle<PingThread> PingThreadPtr;
 
-class SessionKeepAliveThread : public IceUtil::Thread, public IceUtil::Monitor<IceUtil::Mutex>
-{
-public:
-
-    SessionKeepAliveThread(const IceGrid::AdminSessionPrx& session, long timeout) :
-        _session(session),
-        _timeout(IceUtil::Time::seconds(timeout)),
-        _destroy(false)
-    {
-    }
-
-    virtual void
-    run()
-    {
-        Lock sync(*this);
-        while(!_destroy)
-        {
-            timedWait(_timeout);
-            if(_destroy)
-            {
-                break;
-            }
-            try
-            {
-                _session->keepAlive();
-            }
-            catch(const Ice::Exception&)
-            {
-                break;
-            }
-        }
-    }
-
-    void
-    destroy()
-    {
-        Lock sync(*this);
-        _destroy = true;
-        notify();
-    }
-
-private:
-
-    IceGrid::AdminSessionPrx _session;
-    const IceUtil::Time _timeout;
-    bool _destroy;
-};
-
-typedef IceUtil::Handle<SessionKeepAliveThread> SessionKeepAliveThreadPtr;
 
 void
 allTests(const Ice::CommunicatorPtr& communicator)
 {
-    IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(communicator->stringToProxy("IceGrid/Registry"));
+    IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
+        communicator->stringToProxy(communicator->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
     test(registry);
     IceGrid::AdminSessionPrx session = registry->createAdminSession("foo", "bar");
 
-    SessionKeepAliveThreadPtr keepAlive = new SessionKeepAliveThread(session, registry->getSessionTimeout()/2);
-    keepAlive->start();
-    
+    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::HeartbeatAlways);
+
     IceGrid::AdminPrx admin = session->getAdmin();
     test(admin);
 
@@ -204,7 +154,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         test(admin->getServerState("server-manual") == IceGrid::Inactive);
         admin->startServer("server-manual");
         test(admin->getServerState("server-manual") == IceGrid::Active);
-        obj = TestIntfPrx::checkedCast(communicator->stringToProxy("server-manual"));   
+        obj = TestIntfPrx::checkedCast(communicator->stringToProxy("server-manual"));
         test(admin->getServerState("server-manual") == IceGrid::Active);
         obj->shutdown();
         waitForServerState(admin, "server-manual", IceGrid::Inactive);
@@ -392,7 +342,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         test(false);
     }
     cout << "ok" << endl;
-    
+
 
     cout << "testing server enable... " << flush;
     try
@@ -442,7 +392,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         cerr << ex << endl;
         test(false);
     }
-    cout << "ok" << endl;       
+    cout << "ok" << endl;
 
     cout << "testing activation failure... " << flush;
     try
@@ -564,7 +514,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         cerr << ex << endl;
         test(false);
     }
-    cout << "ok" << endl;       
+    cout << "ok" << endl;
 
     cout << "testing deactivation timeout... " << flush;
     try
@@ -578,7 +528,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         cerr << ex << endl;
         test(false);
     }
-    cout << "ok" << endl;       
+    cout << "ok" << endl;
 
     cout << "testing permanent disable on failure... " << flush;
     try
@@ -590,18 +540,18 @@ allTests(const Ice::CommunicatorPtr& communicator)
         waitForServerState(admin, "server1", IceGrid::Inactive);
         try
         {
-            obj->ice_ping();    
+            obj->ice_ping();
             test(false);
         }
         catch(const Ice::NoEndpointException&)
         {
-        }       
+        }
         test(!admin->isServerEnabled("server1"));
 
         test(admin->getServerState("server1-manual") == IceGrid::Inactive);
         admin->startServer("server1-manual");
         test(admin->getServerState("server1-manual") == IceGrid::Active);
-        obj = TestIntfPrx::checkedCast(communicator->stringToProxy("server1-manual"));  
+        obj = TestIntfPrx::checkedCast(communicator->stringToProxy("server1-manual"));
         test(admin->getServerState("server1-manual") == IceGrid::Active);
         obj->fail();
         waitForServerState(admin, "server1-manual", IceGrid::Inactive);
@@ -618,7 +568,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         cerr << ex << endl;
         test(false);
     }
-    cout << "ok" << endl;       
+    cout << "ok" << endl;
 
 
     cout << "testing temporary disable on failure... " << flush;
@@ -631,12 +581,12 @@ allTests(const Ice::CommunicatorPtr& communicator)
         waitForServerState(admin, "server2", IceGrid::Inactive);
         try
         {
-            obj->ice_ping();    
+            obj->ice_ping();
             test(false);
         }
         catch(const Ice::NoEndpointException&)
         {
-        }       
+        }
         test(!admin->isServerEnabled("server2"));
         nRetry = 0;
         while(!admin->isServerEnabled("server2") && nRetry < 15)
@@ -645,7 +595,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
             ++nRetry;
             try
             {
-                obj->ice_ping();    
+                obj->ice_ping();
             }
             catch(const Ice::NoEndpointException&)
             {
@@ -691,13 +641,50 @@ allTests(const Ice::CommunicatorPtr& communicator)
     }
     cout << "ok" << endl;
 
+    cout << "testing large number of servers... " << flush;
+    {
+        IceGrid::ApplicationInfo info = admin->getApplicationInfo("Test");
+        IceGrid::ApplicationDescriptor testApp;
+        testApp.name = "TestApp";
+        testApp.serverTemplates = info.descriptor.serverTemplates;
+        testApp.variables = info.descriptor.variables;
+        const int nServers = 75;
+        for(int i = 0; i < nServers; ++i)
+        {
+            ostringstream id;
+            id << "server-" << i;
+            IceGrid::ServerInstanceDescriptor server;
+            server._cpp_template = "Server";
+            server.parameterValues["id"] = id.str();
+            testApp.nodes["localnode"].serverInstances.push_back(server);
+        }
+        try
+        {
+            admin->addApplication(testApp);
+        }
+        catch(const IceGrid::DeploymentException& ex)
+        {
+            cerr << ex.reason << endl;
+            test(false);
+        }
+        for(int i = 0; i < nServers; ++i)
+        {
+            ostringstream id;
+            id << "server-" << i;
+            admin->startServer(id.str());
+        }
+        for(int i = 0; i < nServers; ++i)
+        {
+            ostringstream id;
+            id << "server-" << i;
+            admin->stopServer(id.str());
+        }
+        admin->removeApplication("TestApp");
+    }
+    cout << "ok" << endl;
+
     admin->stopServer("node-1");
     admin->stopServer("node-2");
-    
-    keepAlive->destroy();
-    keepAlive->getThreadControl().join();
-    keepAlive = 0;
 
     session->destroy();
 }
-

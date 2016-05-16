@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -10,40 +10,30 @@
 top_srcdir	= ../..
 
 LIBFILENAME     = $(call mklibfilename,IceGrid,$(VERSION))
-SONAME          = $(call mksoname,IceGrid,$(SOVERSION))  
+SONAME          = $(call mksoname,IceGrid,$(SOVERSION))
 LIBNAME		= $(call mklibname,IceGrid)
 
-LIBTARGETS	= $(call mklibtargets,$(libdir)/$(LIBFILENAME),$(libdir)/$(SONAME),$(libdir)/$(LIBNAME))
+LIBTARGETS	= $(call mklibtargets,$(libdir)/$(LIBFILENAME),$(libdir)/$(SONAME),$(libdir)$(cpp11libdirsuffix)/$(LIBNAME))
 TARGETS         = $(LIBTARGETS) $(NODE_SERVER) $(REGISTRY_SERVER) $(ADMIN)
 
-LIB_OBJS	= Admin.o \
-		  Locator.o \
-		  Query.o \
-	 	  Exception.o \
+SLICE_OBJS	= Admin.o \
 		  Descriptor.o \
-                  FileParser.o \
+		  Exception.o \
+		  FileParser.o \
+		  Locator.o \
 		  Observer.o \
-		  Session.o \
+		  PluginFacade.o \
+		  Query.o \
 		  Registry.o \
+		  Session.o \
 		  UserAccountMapper.o
 
-SRCS		= $(LIB_OBJS:.o=.cpp)
+OBJS		= PluginFacadeI.o \
+		  $(SLICE_OBJS)
 
-SLICE_SRCS	= $(SDIR)/Admin.ice \
-                  $(SDIR)/Exception.ice \
-                  $(SDIR)/FileParser.ice \
-                  $(SDIR)/Locator.ice \
-                  $(SDIR)/Query.ice \
-		  $(SDIR)/Registry.ice \
-		  $(SDIR)/Session.ice \
-		  $(SDIR)/Observer.ice \
-		  $(SDIR)/Descriptor.ice \
-		  $(SDIR)/UserAccountMapper.ice \
 
 HDIR		= $(headerdir)/IceGrid
-LOCAL_HDIR	= ../IceGrid
 SDIR		= $(slicedir)/IceGrid
-LOCAL_SDIR	= ../IceGrid
 
 include $(top_srcdir)/config/Make.rules
 
@@ -52,19 +42,26 @@ ICECPPFLAGS	:= $(ICECPPFLAGS) -I..
 SLICE2CPPFLAGS 	:= --checksum --ice --include-dir IceGrid --dll-export ICE_GRID_API $(SLICE2CPPFLAGS)
 LINKWITH        := -lGlacier2 $(BZIP2_RPATH_LINK) -lIce -lIceUtil
 
-$(libdir)/$(LIBFILENAME): $(LIB_OBJS)
+ifeq ($(STATICLIBS),yes)
+$(libdir)/$(LIBNAME): $(OBJS)
+	@mkdir -p $(dir $@)
 	rm -f $@
-	$(call mkshlib,$@,$(SONAME),$(LIB_OBJS),$(LINKWITH))
+	$(call mklib,$@,$(OBJS))
+else
+$(libdir)/$(LIBFILENAME): $(OBJS)
+	@mkdir -p $(dir $@)
+	rm -f $@
+	$(call mkshlib,$@,$(SONAME),$(OBJS),$(LINKWITH))
 
 $(libdir)/$(SONAME): $(libdir)/$(LIBFILENAME)
 	rm -f $@
 	ln -s $(LIBFILENAME) $@
 
-$(libdir)/$(LIBNAME): $(libdir)/$(SONAME)
+$(libdir)$(cpp11libdirsuffix)/$(LIBNAME): $(libdir)/$(SONAME)
+	@mkdir -p $(libdir)$(cpp11libdirsuffix)
 	rm -f $@
-	ln -s $(SONAME) $@
+	ln -s $(cpp11sonamedir)$(SONAME) $@
+endif
 
 install:: all
 	$(call installlib,$(DESTDIR)$(install_libdir),$(libdir),$(LIBFILENAME),$(SONAME),$(LIBNAME))
-
-include .depend

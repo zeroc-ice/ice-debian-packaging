@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -24,8 +24,7 @@
 #include <Ice/TraceLevels.h>
 #include <Ice/LoggerUtil.h>
 #include <Ice/SlicedData.h>
-#include <Ice/StringConverter.h>
-#include <IceUtil/Unicode.h>
+#include <IceUtil/StringConverter.h>
 #include <iterator>
 
 using namespace std;
@@ -35,15 +34,15 @@ using namespace IceInternal;
 namespace
 {
 
-class StreamUTF8BufferI : public Ice::UTF8Buffer
+class StreamUTF8BufferI : public IceUtil::UTF8Buffer
 {
 public:
-    
-    StreamUTF8BufferI(BasicStream& stream) : 
+
+    StreamUTF8BufferI(BasicStream& stream) :
         _stream(stream)
     {
     }
-    
+
     Ice::Byte*
     getMoreBytes(size_t howMany, Ice::Byte* firstUnused)
     {
@@ -54,7 +53,7 @@ public:
             //
             // Return unused bytes
             //
-            _stream.b.resize(firstUnused - _stream.b.begin());
+            _stream.resize(firstUnused - _stream.b.begin());
         }
 
         //
@@ -89,20 +88,17 @@ const Byte FLAG_IS_LAST_SLICE         = (1<<5);
 }
 
 
-IceInternal::BasicStream::BasicStream(Instance* instance, const EncodingVersion& encoding, bool unlimited) :
-    IceInternal::Buffer(instance->messageSizeMax()),
+IceInternal::BasicStream::BasicStream(Instance* instance, const EncodingVersion& encoding) :
     _instance(instance),
     _closure(0),
     _encoding(encoding),
     _currentReadEncaps(0),
     _currentWriteEncaps(0),
     _sliceObjects(true),
-    _messageSizeMax(_instance->messageSizeMax()), // Cached for efficiency.
-    _unlimited(unlimited),
-    _stringConverter(instance->initializationData().stringConverter),
-    _wstringConverter(instance->initializationData().wstringConverter),
+    _stringConverter(instance->getStringConverter()),
+    _wstringConverter(instance->getWstringConverter()),
     _startSeq(-1),
-    _sizePos(-1)
+    _minSeqSize(0)
 {
     //
     // Initialize the encoding members of our pre-allocated encapsulations, in case
@@ -112,7 +108,7 @@ IceInternal::BasicStream::BasicStream(Instance* instance, const EncodingVersion&
     _preAllocatedWriteEncaps.encoding = encoding;
 }
 
-IceInternal::BasicStream::BasicStream(Instance* instance, const EncodingVersion& encoding, const Byte* begin, 
+IceInternal::BasicStream::BasicStream(Instance* instance, const EncodingVersion& encoding, const Byte* begin,
                                       const Byte* end) :
     IceInternal::Buffer(begin, end),
     _instance(instance),
@@ -121,12 +117,10 @@ IceInternal::BasicStream::BasicStream(Instance* instance, const EncodingVersion&
     _currentReadEncaps(0),
     _currentWriteEncaps(0),
     _sliceObjects(true),
-    _messageSizeMax(_instance->messageSizeMax()), // Cached for efficiency.
-    _unlimited(false),
-    _stringConverter(instance->initializationData().stringConverter),
-    _wstringConverter(instance->initializationData().wstringConverter),
+    _stringConverter(instance->getStringConverter()),
+    _wstringConverter(instance->getWstringConverter()),
     _startSeq(-1),
-    _sizePos(-1)
+    _minSeqSize(0)
 {
     //
     // Initialize the encoding members of our pre-allocated encapsulations, in case
@@ -154,7 +148,6 @@ IceInternal::BasicStream::clear()
     }
 
     _startSeq = -1;
-    _sizePos = -1;
     _sliceObjects = true;
 }
 
@@ -189,10 +182,8 @@ IceInternal::BasicStream::swap(BasicStream& other)
     resetEncaps();
     other.resetEncaps();
 
-    std::swap(_unlimited, other._unlimited);
     std::swap(_startSeq, other._startSeq);
     std::swap(_minSeqSize, other._minSeqSize);
-    std::swap(_sizePos, other._sizePos);
 }
 
 void
@@ -317,7 +308,7 @@ IceInternal::BasicStream::writePendingObjects()
         // If using the 1.0 encoding and no objects were written, we
         // still write an empty sequence for pending objects if
         // requested (i.e.: if this is called).
-        // 
+        //
         // This is required by the 1.0 encoding, even if no objects
         // are written we do marshal an empty sequence if marshaled
         // data types use classes.
@@ -340,8 +331,8 @@ IceInternal::BasicStream::readAndCheckSeqSize(int minSize)
     // The _startSeq variable points to the start of the sequence for which
     // we expect to read at least _minSeqSize bytes from the stream.
     //
-    // If not initialized or if we already read more data than _minSeqSize, 
-    // we reset _startSeq and _minSeqSize for this sequence (possibly a 
+    // If not initialized or if we already read more data than _minSeqSize,
+    // we reset _startSeq and _minSeqSize for this sequence (possibly a
     // top-level sequence or enclosed sequence it doesn't really matter).
     //
     // Otherwise, we are reading an enclosed sequence and we have to bump
@@ -350,7 +341,7 @@ IceInternal::BasicStream::readAndCheckSeqSize(int minSize)
     //
     // The goal of this check is to ensure that when we start un-marshalling
     // a new sequence, we check the minimal size of this new sequence against
-    // the estimated remaining buffer size. This estimatation is based on 
+    // the estimated remaining buffer size. This estimatation is based on
     // the minimum size of the enclosing sequences, it's _minSeqSize.
     //
     if(_startSeq == -1 || i > (b.begin() + _startSeq + _minSeqSize))
@@ -365,14 +356,14 @@ IceInternal::BasicStream::readAndCheckSeqSize(int minSize)
 
     //
     // If there isn't enough data to read on the stream for the sequence (and
-    // possibly enclosed sequences), something is wrong with the marshalled 
+    // possibly enclosed sequences), something is wrong with the marshalled
     // data: it's claiming having more data that what is possible to read.
     //
     if(_startSeq + _minSeqSize > static_cast<int>(b.size()))
     {
         throw UnmarshalOutOfBoundsException(__FILE__, __LINE__);
     }
-    
+
     return sz;
 }
 
@@ -1351,60 +1342,66 @@ IceInternal::BasicStream::write(const char*)
 */
 
 void
-IceInternal::BasicStream::writeConverted(const string& v)
+IceInternal::BasicStream::writeConverted(const char* vdata, size_t vsize)
 {
     //
     // What is the size of the resulting UTF-8 encoded string?
     // Impossible to tell, so we guess. If we don't guess correctly,
     // we'll have to fix the mistake afterwards
     //
-        
-    Int guessedSize = static_cast<Int>(v.size());
-    writeSize(guessedSize); // writeSize() only writes the size; it does not reserve any buffer space.
-        
-    size_t firstIndex = b.size();
-    StreamUTF8BufferI buffer(*this);
-            
-    Byte* lastByte = _stringConverter->toUTF8(v.data(), v.data() + v.size(), buffer);
-    if(lastByte != b.end())
+    try
     {
-        b.resize(lastByte - b.begin());
+        Int guessedSize = static_cast<Int>(vsize);
+        writeSize(guessedSize); // writeSize() only writes the size; it does not reserve any buffer space.
+
+        size_t firstIndex = b.size();
+        StreamUTF8BufferI buffer(*this);
+
+        Byte* lastByte = _stringConverter->toUTF8(vdata, vdata + vsize, buffer);
+        if(lastByte != b.end())
+        {
+            resize(lastByte - b.begin());
+        }
+        size_t lastIndex = b.size();
+
+        Int actualSize = static_cast<Int>(lastIndex - firstIndex);
+
+        //
+        // Check against the guess
+        //
+        if(guessedSize != actualSize)
+        {
+            if(guessedSize <= 254 && actualSize > 254)
+            {
+                //
+                // Move the UTF-8 sequence 4 bytes further
+                // Use memmove instead of memcpy since the source and destination typically overlap.
+                //
+                resize(b.size() + 4);
+                memmove(b.begin() + firstIndex + 4, b.begin() + firstIndex, actualSize);
+            }
+            else if(guessedSize > 254 && actualSize <= 254)
+            {
+                //
+                // Move the UTF-8 sequence 4 bytes back
+                //
+                memmove(b.begin() + firstIndex - 4, b.begin() + firstIndex, actualSize);
+                resize(b.size() - 4);
+            }
+
+            if(guessedSize <= 254)
+            {
+                rewriteSize(actualSize, b.begin() + firstIndex - 1);
+            }
+            else
+            {
+                rewriteSize(actualSize, b.begin() + firstIndex - 1 - 4);
+            }
+        }
     }
-    size_t lastIndex = b.size();
-        
-    Int actualSize = static_cast<Int>(lastIndex - firstIndex);
-        
-    //
-    // Check against the guess
-    //
-    if(guessedSize != actualSize)
+    catch(const IceUtil::IllegalConversionException& ex)
     {
-        if(guessedSize <= 254 && actualSize > 254)
-        {
-            //
-            // Move the UTF-8 sequence 4 bytes further
-            // Use memmove instead of memcpy since the source and destination typically overlap.
-            //
-            resize(b.size() + 4);
-            memmove(b.begin() + firstIndex + 4, b.begin() + firstIndex, actualSize);
-        }
-        else if(guessedSize > 254 && actualSize <= 254)
-        {
-            //
-            // Move the UTF-8 sequence 4 bytes back
-            //
-            memmove(b.begin() + firstIndex - 4, b.begin() + firstIndex, actualSize);
-            resize(b.size() - 4);
-        }
-    
-        if(guessedSize <= 254)
-        {
-            rewriteSize(actualSize, b.begin() + firstIndex - 1);
-        }
-        else
-        {
-            rewriteSize(actualSize, b.begin() + firstIndex - 1 - 4);
-        }
+        throw StringConversionException(__FILE__, __LINE__, ex.reason());
     }
 }
 
@@ -1425,7 +1422,14 @@ IceInternal::BasicStream::write(const string* begin, const string* end, bool con
 void
 IceInternal::BasicStream::readConverted(string& v, int sz)
 {
-    _stringConverter->fromUTF8(i, i + sz, v);
+    try
+    {
+        _stringConverter->fromUTF8(i, i + sz, v);
+    }
+    catch(const IceUtil::IllegalConversionException& ex)
+    {
+        throw StringConversionException(__FILE__, __LINE__, ex.reason());
+    }
 }
 
 void
@@ -1460,53 +1464,59 @@ IceInternal::BasicStream::write(const wstring& v)
     // Impossible to tell, so we guess. If we don't guess correctly,
     // we'll have to fix the mistake afterwards
     //
-        
-    Int guessedSize = static_cast<Int>(v.size());
-    writeSize(guessedSize); // writeSize() only writes the size; it does not reserve any buffer space.
-        
-    size_t firstIndex = b.size();
-    StreamUTF8BufferI buffer(*this);
-            
-    Byte* lastByte = _wstringConverter->toUTF8(v.data(), v.data() + v.size(), buffer);
-    if(lastByte != b.end())
+    try
     {
-        b.resize(lastByte - b.begin());
+        Int guessedSize = static_cast<Int>(v.size());
+        writeSize(guessedSize); // writeSize() only writes the size; it does not reserve any buffer space.
+
+        size_t firstIndex = b.size();
+        StreamUTF8BufferI buffer(*this);
+
+        Byte* lastByte = _wstringConverter->toUTF8(v.data(), v.data() + v.size(), buffer);
+        if(lastByte != b.end())
+        {
+            resize(lastByte - b.begin());
+        }
+        size_t lastIndex = b.size();
+
+        Int actualSize = static_cast<Int>(lastIndex - firstIndex);
+
+        //
+        // Check against the guess
+        //
+        if(guessedSize != actualSize)
+        {
+            if(guessedSize <= 254 && actualSize > 254)
+            {
+                //
+                // Move the UTF-8 sequence 4 bytes further
+                // Use memmove instead of memcpy since the source and destination typically overlap.
+                //
+                resize(b.size() + 4);
+                memmove(b.begin() + firstIndex + 4, b.begin() + firstIndex, actualSize);
+            }
+            else if(guessedSize > 254 && actualSize <= 254)
+            {
+                //
+                // Move the UTF-8 sequence 4 bytes back
+                //
+                memmove(b.begin() + firstIndex - 4, b.begin() + firstIndex, actualSize);
+                resize(b.size() - 4);
+            }
+
+            if(guessedSize <= 254)
+            {
+                rewriteSize(actualSize, b.begin() + firstIndex - 1);
+            }
+            else
+            {
+                rewriteSize(actualSize, b.begin() + firstIndex - 1 - 4);
+            }
+        }
     }
-    size_t lastIndex = b.size();
-        
-    Int actualSize = static_cast<Int>(lastIndex - firstIndex);
-        
-    //
-    // Check against the guess
-    //
-    if(guessedSize != actualSize)
+    catch(const IceUtil::IllegalConversionException& ex)
     {
-        if(guessedSize <= 254 && actualSize > 254)
-        {
-            //
-            // Move the UTF-8 sequence 4 bytes further
-            // Use memmove instead of memcpy since the source and destination typically overlap.
-            //
-            resize(b.size() + 4);
-            memmove(b.begin() + firstIndex + 4, b.begin() + firstIndex, actualSize);
-        }
-        else if(guessedSize > 254 && actualSize <= 254)
-        {
-            //
-            // Move the UTF-8 sequence 4 bytes back
-            //
-            memmove(b.begin() + firstIndex - 4, b.begin() + firstIndex, actualSize);
-            resize(b.size() - 4);
-        }
-    
-        if(guessedSize <= 254)
-        {
-            rewriteSize(actualSize, b.begin() + firstIndex - 1);
-        }
-        else
-        {
-            rewriteSize(actualSize, b.begin() + firstIndex - 1 - 4);
-        }
+        throw StringConversionException(__FILE__, __LINE__, ex.reason());
     }
 }
 
@@ -1535,8 +1545,15 @@ IceInternal::BasicStream::read(wstring& v)
             throwUnmarshalOutOfBoundsException(__FILE__, __LINE__);
         }
 
-        _wstringConverter->fromUTF8(i, i + sz, v);
-        i += sz;
+        try
+        {
+            _wstringConverter->fromUTF8(i, i + sz, v);
+            i += sz;
+        }
+        catch(const IceUtil::IllegalConversionException& ex)
+        {
+            throw StringConversionException(__FILE__, __LINE__, ex.reason());
+        }
     }
     else
     {
@@ -1591,7 +1608,7 @@ IceInternal::BasicStream::readEnum(Int maxValue)
             read(value);
             return value;
         }
-        else 
+        else
         {
             Int value;
             read(value);
@@ -1604,7 +1621,7 @@ IceInternal::BasicStream::readEnum(Int maxValue)
     }
 }
 
-void 
+void
 IceInternal::BasicStream::writeEnum(Int v, Int maxValue)
 {
     if(getWriteEncoding() == Encoding_1_0)
@@ -1617,7 +1634,7 @@ IceInternal::BasicStream::writeEnum(Int v, Int maxValue)
         {
             write(static_cast<Short>(v));
         }
-        else 
+        else
         {
             write(v);
         }
@@ -1629,7 +1646,7 @@ IceInternal::BasicStream::writeEnum(Int v, Int maxValue)
 }
 
 void
-IceInternal::BasicStream::writeException(const Ice::UserException& e)
+IceInternal::BasicStream::writeException(const UserException& e)
 {
     initWriteEncaps();
     _currentWriteEncaps->encoder->write(e);
@@ -1670,7 +1687,7 @@ IceInternal::BasicStream::readOptImpl(Int readTag, OptionalFormat expectedFormat
             --i; // Rewind
             return false;
         }
-        
+
         OptionalFormat format = static_cast<OptionalFormat>(v & 0x07); // First 3 bits.
         Int tag = static_cast<Int>(v >> 3);
         if(tag == 30)
@@ -1779,7 +1796,7 @@ BasicStream::skipOpts()
 {
     //
     // Skip remaining un-read optional members.
-    // 
+    //
     while(true)
     {
         if(i >= b.begin() + _currentReadEncaps->start + _currentReadEncaps->sz)
@@ -1978,7 +1995,7 @@ IceInternal::BasicStream::EncapsDecoder::unmarshal(Int index, const Ice::ObjectP
     //
     // Add the object to the map of un-marshalled objects, this must
     // be done before reading the objects (for circular references).
-    // 
+    //
     _unmarshaledMap.insert(make_pair(index, v));
 
     //
@@ -1993,7 +2010,7 @@ IceInternal::BasicStream::EncapsDecoder::unmarshal(Int index, const Ice::ObjectP
     if(patchPos != _patchMap.end())
     {
         assert(patchPos->second.size() > 0);
-        
+
         //
         // Patch all pointers that refer to the instance.
         //
@@ -2001,7 +2018,7 @@ IceInternal::BasicStream::EncapsDecoder::unmarshal(Int index, const Ice::ObjectP
         {
             (*k->patchFunc)(k->patchAddr, v);
         }
-        
+
         //
         // Clear out the patch map for that index -- there is nothing left
         // to patch for that index for the time being.
@@ -2013,6 +2030,10 @@ IceInternal::BasicStream::EncapsDecoder::unmarshal(Int index, const Ice::ObjectP
     {
         try
         {
+            if(_stream->instance()->collectObjects())
+            {
+                v->ice_collectable(true);
+            }
             v->ice_postUnmarshal();
         }
         catch(const std::exception& ex)
@@ -2042,6 +2063,10 @@ IceInternal::BasicStream::EncapsDecoder::unmarshal(Int index, const Ice::ObjectP
             {
                 try
                 {
+                    if(_stream->instance()->collectObjects())
+                    {
+                        (*p)->ice_collectable(true);
+                    }
                     (*p)->ice_postUnmarshal();
                 }
                 catch(const std::exception& ex)
@@ -2147,7 +2172,7 @@ IceInternal::BasicStream::EncapsDecoder10::throwException(const UserExceptionFac
                     readPendingObjects();
                 }
                 throw;
-        
+
                 // Never reached.
             }
         }
@@ -2155,7 +2180,7 @@ IceInternal::BasicStream::EncapsDecoder10::throwException(const UserExceptionFac
         //
         // Slice off what we don't understand.
         //
-        skipSlice(); 
+        skipSlice();
         try
         {
             startSlice();
@@ -2223,7 +2248,7 @@ IceInternal::BasicStream::EncapsDecoder10::startSlice()
     //
     // For objects, first read the type ID boolean which indicates
     // whether or not the type ID is encoded as a string or as an
-    // index. For exceptions, the type ID is always encoded as a 
+    // index. For exceptions, the type ID is always encoded as a
     // string.
     //
     if(_sliceType == ObjectSlice)
@@ -2231,7 +2256,7 @@ IceInternal::BasicStream::EncapsDecoder10::startSlice()
         bool isIndex;
         _stream->read(isIndex);
         _typeId = readTypeId(isIndex);
-    } 
+    }
     else
     {
         _stream->read(_typeId, false);
@@ -2248,7 +2273,7 @@ IceInternal::BasicStream::EncapsDecoder10::startSlice()
 void
 IceInternal::BasicStream::EncapsDecoder10::endSlice()
 {
-}            
+}
 
 void
 IceInternal::BasicStream::EncapsDecoder10::skipSlice()
@@ -2323,7 +2348,7 @@ IceInternal::BasicStream::EncapsDecoder10::readInstance()
         {
             throw NoObjectFactoryException(__FILE__, __LINE__, "", mostDerivedId);
         }
-        
+
         v = newInstance(_typeId);
 
         //
@@ -2339,7 +2364,8 @@ IceInternal::BasicStream::EncapsDecoder10::readInstance()
         //
         if(!_sliceObjects)
         {
-            throw NoObjectFactoryException(__FILE__, __LINE__, "object slicing is disabled", _typeId);
+            throw NoObjectFactoryException(__FILE__, __LINE__, "no object factory found and object slicing is disabled",
+                                           _typeId);
         }
 
         //
@@ -2444,7 +2470,7 @@ IceInternal::BasicStream::EncapsDecoder11::throwException(const UserExceptionFac
             {
                 ex.__read(_stream);
                 throw;
-        
+
                 // Never reached.
             }
         }
@@ -2452,7 +2478,7 @@ IceInternal::BasicStream::EncapsDecoder11::throwException(const UserExceptionFac
         //
         // Slice off what we don't understand.
         //
-        skipSlice(); 
+        skipSlice();
 
         //
         // If this is the last slice, raise an exception and stop un-marshalling.
@@ -2536,7 +2562,7 @@ IceInternal::BasicStream::EncapsDecoder11::startSlice()
             _current->typeId.clear();
             _current->compactId = -1;
         }
-    } 
+    }
     else
     {
         _stream->read(_current->typeId, false);
@@ -2578,7 +2604,7 @@ IceInternal::BasicStream::EncapsDecoder11::endSlice()
         for(IndexList::iterator p = indirectionTable.begin(); p != indirectionTable.end(); ++p)
         {
             *p = readInstance(_stream->readSize(), 0, 0);
-        }        
+        }
 
         //
         // Sanity checks. If there are optional members, it's possible
@@ -2609,7 +2635,7 @@ IceInternal::BasicStream::EncapsDecoder11::endSlice()
         }
         _current->indirectPatchList.clear();
     }
-}            
+}
 
 void
 IceInternal::BasicStream::EncapsDecoder11::skipSlice()
@@ -2638,10 +2664,10 @@ IceInternal::BasicStream::EncapsDecoder11::skipSlice()
     {
         if(_current->sliceType == ObjectSlice)
         {
-            throw NoObjectFactoryException(
-                __FILE__, __LINE__, 
-                "compact format prevents slicing (the sender should use the sliced format instead)", 
-                _current->typeId);
+            throw NoObjectFactoryException(__FILE__, __LINE__,
+                                           "no object factory found and compact format prevents "
+                                           "slicing (the sender should use the sliced format instead)",
+                                           _current->typeId);
         }
         else
         {
@@ -2718,7 +2744,7 @@ Int
 IceInternal::BasicStream::EncapsDecoder11::readInstance(Int index, PatchFunc patchFunc, void* patchAddr)
 {
     assert(index > 0);
-    
+
     if(index > 1)
     {
         if(patchFunc)
@@ -2805,7 +2831,8 @@ IceInternal::BasicStream::EncapsDecoder11::readInstance(Int index, PatchFunc pat
         //
         if(!_sliceObjects)
         {
-            throw NoObjectFactoryException(__FILE__, __LINE__, "object slicing is disabled", _current->typeId);
+            throw NoObjectFactoryException(__FILE__, __LINE__, "no object factory found and object slicing is disabled",
+                                           _current->typeId);
         }
 
         //
@@ -2831,7 +2858,7 @@ IceInternal::BasicStream::EncapsDecoder11::readInstance(Int index, PatchFunc pat
 
             break;
         }
-        
+
         startSlice(); // Read next Slice header for next iteration.
     }
 
@@ -2856,7 +2883,7 @@ IceInternal::BasicStream::EncapsDecoder11::readInstance(Int index, PatchFunc pat
     return index;
 }
 
-SlicedDataPtr 
+SlicedDataPtr
 IceInternal::BasicStream::EncapsDecoder11::readSlicedData()
 {
     if(_current->slices.empty()) // No preserved slices.
@@ -2926,7 +2953,7 @@ IceInternal::BasicStream::EncapsEncoder10::write(const UserException& v)
     //
     // User exception with the 1.0 encoding start with a boolean
     // flag that indicates whether or not the exception uses
-    // classes. 
+    // classes.
     //
     // This allows reading the pending objects even if some part of
     // the exception was sliced.
@@ -3050,7 +3077,7 @@ IceInternal::BasicStream::EncapsEncoder10::writePendingObjects()
     _stream->writeSize(0); // Zero marker indicates end of sequence of sequences of instances.
 }
 
-Int 
+Int
 IceInternal::BasicStream::EncapsEncoder10::registerObject(const ObjectPtr& v)
 {
     assert(v);
@@ -3096,14 +3123,14 @@ IceInternal::BasicStream::EncapsEncoder11::write(const ObjectPtr& v)
         // table. The indirect object table is encoded at the end of
         // each slice and is always read (even if the Slice is
         // unknown).
-        // 
+        //
         PtrToIndexMap::const_iterator p = _current->indirectionMap.find(v);
         if(p == _current->indirectionMap.end())
         {
             _current->indirectionTable.push_back(v);
             Int idx = static_cast<Int>(_current->indirectionTable.size()); // Position + 1 (0 is reserved for nil)
             _current->indirectionMap.insert(make_pair(v, idx));
-            _stream->writeSize(idx); 
+            _stream->writeSize(idx);
         }
         else
         {
@@ -3177,7 +3204,7 @@ IceInternal::BasicStream::EncapsEncoder11::startSlice(const string& typeId, int 
         //
         // Encode the type ID (only in the first slice for the compact
         // encoding).
-        // 
+        //
         if(_encaps->format == SlicedFormat || _current->firstSlice)
         {
             if(compactId >= 0)
@@ -3266,7 +3293,7 @@ IceInternal::BasicStream::EncapsEncoder11::endSlice()
     *dest = _current->sliceFlags;
 }
 
-bool 
+bool
 IceInternal::BasicStream::EncapsEncoder11::writeOpt(Ice::Int tag, Ice::OptionalFormat format)
 {
     if(!_current)
@@ -3306,12 +3333,12 @@ IceInternal::BasicStream::EncapsEncoder11::writeSlicedData(const SlicedDataPtr& 
     for(SliceInfoSeq::const_iterator p = slicedData->slices.begin(); p != slicedData->slices.end(); ++p)
     {
         startSlice((*p)->typeId, (*p)->compactId, (*p)->isLastSlice);
- 
+
         //
         // Write the bytes associated with this slice.
         //
         _stream->writeBlob((*p)->bytes);
-        
+
         if((*p)->hasOptionalMembers)
         {
             _current->sliceFlags |= FLAG_HAS_OPTIONAL_MEMBERS;

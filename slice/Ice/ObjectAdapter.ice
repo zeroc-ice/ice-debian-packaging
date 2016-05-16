@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc"]]
 
 #include <Ice/CommunicatorF.ice>
 #include <Ice/ServantLocatorF.ice>
@@ -18,6 +18,7 @@
 #include <Ice/FacetMap.ice>
 #include <Ice/Endpoint.ice>
 
+["objc:prefix:ICE"]
 module Ice
 {
 
@@ -130,7 +131,7 @@ local interface ObjectAdapter
      * Wait until the object adapter has deactivated. Calling
      * {@link #deactivate} initiates object adapter deactivation, and
      * {@link #waitForDeactivate} only returns when deactivation has
-     * been completed. 
+     * been completed.
      *
      * @see #deactivate
      * @see #waitForHold
@@ -154,11 +155,11 @@ local interface ObjectAdapter
      *
      * Destroys the object adapter and cleans up all resources held by
      * the object adapter. If the object adapter has not yet been
-     * deactivated, {@link #destroy} implicitly initiates the deactivation
-     * and waits for it to finish. Subsequent calls to {@link destroy} are
-     * ignored. Once {@link destroy} has returned, it is possible to create
+     * deactivated, destroy implicitly initiates the deactivation
+     * and waits for it to finish. Subsequent calls to destroy are
+     * ignored. Once destroy has returned, it is possible to create
      * another object adapter with the same name.
-     * 
+     *
      * @see #deactivate
      * @see #waitForDeactivate
      * @see Communicator#destroy
@@ -188,7 +189,7 @@ local interface ObjectAdapter
      * @see #find
      *
      **/
-    Object* add(Object servant, Identity id);
+    Object* add(Object servant, ["objc:param:identity"] Identity id);
 
     /**
      *
@@ -212,7 +213,7 @@ local interface ObjectAdapter
      * @see #findFacet
      *
      **/
-    Object* addFacet(Object servant, Identity id, string facet);
+    Object* addFacet(Object servant, ["objc:param:identity"] Identity id, string facet);
 
     /**
      *
@@ -609,17 +610,30 @@ local interface ObjectAdapter
      * Set an Ice locator for this object adapter. By doing so, the
      * object adapter will register itself with the locator registry
      * when it is activated for the first time. Furthermore, the proxies
-     * created by this object adapter will contain the adapter name
-     * instead of its endpoints.
+     * created by this object adapter will contain the adapter identifier
+     * instead of its endpoints. The adapter identifier must be configured
+     * using the AdapterId property.
      *
      * @param loc The locator used by this object adapter.
      *
      * @see #createDirectProxy
      * @see Locator
      * @see LocatorRegistry
-     * 
+     *
      **/
     void setLocator(Locator* loc);
+
+     /**
+     * Get the Ice locator used by this object adapter.
+     *
+     * @return  The locator used by this object adapter, or null if no locator is
+     * used by this object adapter.
+     *
+     * @see Locator
+     * @see #setLocator
+     *
+     **/
+    ["cpp:const"] Locator* getLocator();
 
     /**
      * Refresh the set of published endpoints. The run time re-reads
@@ -658,4 +672,3 @@ local interface ObjectAdapter
 };
 
 };
-

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -35,11 +35,10 @@ protected:
     virtual void writeInheritedOperations(const ClassDefPtr&);
     virtual void writeDispatchAndMarshalling(const ClassDefPtr&, bool);
     virtual std::vector<std::string> getParams(const OperationPtr&);
-    virtual std::vector<std::string> getParamsAsync(const OperationPtr&, bool, bool = false);
-    virtual std::vector<std::string> getParamsAsyncCB(const OperationPtr&, bool = false, bool = true);
+    virtual std::vector<std::string> getParamsAsync(const OperationPtr&, bool);
+    virtual std::vector<std::string> getParamsAsyncCB(const OperationPtr&, bool, bool);
     virtual std::vector<std::string> getArgs(const OperationPtr&);
-    virtual std::vector<std::string> getArgsAsync(const OperationPtr&, bool = false);
-    virtual std::vector<std::string> getArgsAsyncCB(const OperationPtr&, bool = false, bool = false);
+    virtual std::vector<std::string> getArgsAsync(const OperationPtr&, bool);
 
     void emitAttributes(const ContainedPtr&);
     void emitComVisibleAttribute();
@@ -55,6 +54,7 @@ protected:
     //
     // Generate assignment statements for those data members that have default values.
     //
+    bool requiresDataMemberInitializers(const DataMemberList&);
     void writeDataMemberInitializers(const DataMemberList&, int = 0, bool = false);
 
     std::string toCsIdent(const std::string&);
@@ -66,8 +66,10 @@ protected:
     void writeDocCommentOp(const OperationPtr&);
 
     enum ParamDir { InParam, OutParam };
-    void writeDocCommentAsync(const OperationPtr&, ParamDir, const std::string& = "", bool = false);
-    void writeDocCommentParam(const OperationPtr&, ParamDir, bool = false);
+    void writeDocCommentAMI(const OperationPtr&, ParamDir, const std::string&, const std::string& = "",
+                            const std::string& = "", const std::string& = "");
+    void writeDocCommentAMD(const OperationPtr&, ParamDir, const std::string&);
+    void writeDocCommentParam(const OperationPtr&, ParamDir, bool);
 
     ::IceUtilInternal::Output& _out;
 };
@@ -207,42 +209,6 @@ private:
     private:
 
         bool _stream;
-    };
-
-    class DelegateVisitor : public CsVisitor
-    {
-    public:
-
-        DelegateVisitor(::IceUtilInternal::Output&);
-
-        virtual bool visitModuleStart(const ModulePtr&);
-        virtual void visitModuleEnd(const ModulePtr&);
-        virtual bool visitClassDefStart(const ClassDefPtr&);
-        virtual void visitClassDefEnd(const ClassDefPtr&);
-    };
-
-    class DelegateMVisitor : public CsVisitor
-    {
-    public:
-
-        DelegateMVisitor(::IceUtilInternal::Output&);
-
-        virtual bool visitModuleStart(const ModulePtr&);
-        virtual void visitModuleEnd(const ModulePtr&);
-        virtual bool visitClassDefStart(const ClassDefPtr&);
-        virtual void visitClassDefEnd(const ClassDefPtr&);
-    };
-
-    class DelegateDVisitor : public CsVisitor
-    {
-    public:
-
-        DelegateDVisitor(::IceUtilInternal::Output&);
-
-        virtual bool visitModuleStart(const ModulePtr&);
-        virtual void visitModuleEnd(const ModulePtr&);
-        virtual bool visitClassDefStart(const ClassDefPtr&);
-        virtual void visitClassDefEnd(const ClassDefPtr&);
     };
 
     class DispatcherVisitor : public CsVisitor

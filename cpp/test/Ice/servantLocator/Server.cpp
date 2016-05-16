@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -33,7 +33,7 @@ protected:
         cookie = new CookieI();
         return new TestI();
     }
-    
+
     virtual void
     checkCookie(const Ice::LocalObjectPtr& cookie) const
     {
@@ -77,7 +77,7 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     communicator->getProperties()->setProperty("Ice.Warn.Dispatch", "0");
 
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
-    
+
     adapter->addServantLocator(new ServantLocatorI(""), "");
     adapter->addServantLocator(new ServantLocatorI("category"), "category");
     adapter->add(new TestI, communicator->stringToIdentity("asm"));
@@ -91,6 +91,10 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     int status;
     Ice::CommunicatorPtr communicator;
 

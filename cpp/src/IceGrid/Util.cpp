@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,7 +8,6 @@
 // **********************************************************************
 
 #include <Ice/Ice.h>
-#include <IcePatch2/Util.h>
 #include <IceGrid/Util.h>
 #include <IceGrid/Admin.h>
 #include <IceGrid/Internal.h>
@@ -63,13 +62,41 @@ IceGrid::toString(const Ice::Exception& exception)
 string
 IceGrid::getProperty(const PropertyDescriptorSeq& properties, const string& name, const string& def)
 {    
-    string result = def;
-
+    string result;
     for(PropertyDescriptorSeq::const_iterator q = properties.begin(); q != properties.end(); ++q)
     {
         if(q->name == name)
         {
             result = q->value;
+        }
+    }
+    if(result.empty())
+    {
+        return def;
+    }
+    return result;
+}
+
+int
+IceGrid::getPropertyAsInt(const PropertyDescriptorSeq& properties, const string& name, int def)
+{    
+    string strVal;
+    for(PropertyDescriptorSeq::const_iterator q = properties.begin(); q != properties.end(); ++q)
+    {
+        if(q->name == name)
+        {
+            strVal = q->value;
+        }
+    }
+    
+    int result = def;
+
+    if(!strVal.empty())
+    {
+        istringstream v(strVal);
+        if(!(v >> result) || !v.eof())
+        {
+            result = def;
         }
     }
     return result;
@@ -175,15 +202,15 @@ IceGrid::escapeProperty(const string& s, bool escapeEqual)
 }
 
 ObjectInfo
-IceGrid::toObjectInfo(const Ice::CommunicatorPtr& communicator, const ObjectDescriptor& object, const string& adapterId)
+IceGrid::toObjectInfo(const Ice::CommunicatorPtr& communicator, const ObjectDescriptor& obj, const string& adapterId)
 {
     ObjectInfo info;
-    info.type = object.type;
+    info.type = obj.type;
     ostringstream proxyStr;
-    proxyStr << "\"" << communicator->identityToString(object.id) << "\"";
-    if(!object.proxyOptions.empty())
+    proxyStr << "\"" << communicator->identityToString(obj.id) << "\"";
+    if(!obj.proxyOptions.empty())
     {
-        proxyStr << ' ' << object.proxyOptions;
+        proxyStr << ' ' << obj.proxyOptions;
     }
     proxyStr << " @ " << adapterId;
     try
@@ -193,7 +220,7 @@ IceGrid::toObjectInfo(const Ice::CommunicatorPtr& communicator, const ObjectDesc
     catch(const Ice::ProxyParseException&)
     {
         ostringstream fallbackProxyStr;
-        fallbackProxyStr << "\"" << communicator->identityToString(object.id) << "\"" << " @ " << adapterId;
+        fallbackProxyStr << "\"" << communicator->identityToString(obj.id) << "\"" << " @ " << adapterId;
         info.proxy = communicator->stringToProxy(fallbackProxyStr.str());
     }
     return info;

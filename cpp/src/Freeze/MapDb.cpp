@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,10 +14,11 @@
 #include <Freeze/CatalogIndexList.h>
 #include <algorithm>
 
-#include <Ice/StringConverter.h>
+#include <IceUtil/StringConverter.h>
 
 using namespace std;
 using namespace Ice;
+using namespace IceUtil;
 using namespace Freeze;
 
 namespace
@@ -30,16 +31,20 @@ const string _catalogIndexListName = "__catalogIndexList";
 
 extern "C" 
 {
-static int customCompare(DB* db, const DBT* dbt1, const DBT* dbt2)
-{
-    MapDb* me = static_cast<MapDb*>(db->app_private);
-    Ice::Byte* first = static_cast<Ice::Byte*>(dbt1->data);
-    Key k1(first, first + dbt1->size);
-    first = static_cast<Ice::Byte*>(dbt2->data);
-    Key k2(first, first + dbt2->size);
-
-    return me->getKeyCompare()->compare(k1, k2);
-}
+#if (DB_VERSION_MAJOR <= 5)
+    static int customCompare(DB* db, const DBT* dbt1, const DBT* dbt2)
+#else
+    static int customCompare(DB* db, const DBT* dbt1, const DBT* dbt2, size_t*)
+#endif
+    {
+	MapDb* me = static_cast<MapDb*>(db->app_private);
+	Ice::Byte* first = static_cast<Ice::Byte*>(dbt1->data);
+	Key k1(first, first + dbt1->size);
+	first = static_cast<Ice::Byte*>(dbt2->data);
+	Key k2(first, first + dbt2->size);
+	
+	return me->getKeyCompare()->compare(k1, k2);
+    }
 }
 
 const string&
@@ -184,8 +189,11 @@ Freeze::MapDb::MapDb(const ConnectionIPtr& connection,
                 flags |= DB_CREATE;
             }
 
-            open(txn, Ice::nativeToUTF8(_communicator, _dbName).c_str(), 0, DB_BTREE, flags, FREEZE_DB_MODE);
-            
+            //
+            // Berkeley DB expects file paths to be UTF8 encoded.
+            //
+            open(txn, nativeToUTF8(_dbName, getProcessStringConverter()).c_str(), 0, DB_BTREE,
+                 flags, FREEZE_DB_MODE);
             
             StringSeq oldIndices;
             StringSeq newIndices;
@@ -435,7 +443,11 @@ Freeze::MapDb::MapDb(const Ice::CommunicatorPtr& communicator,
 
         u_int32_t flags = DB_THREAD | DB_CREATE | DB_AUTO_COMMIT;
 
-        open(0, Ice::nativeToUTF8(_communicator, _dbName).c_str(), 0, DB_BTREE, flags, FREEZE_DB_MODE);
+        //
+        // Berkeley DB expects file paths to be UTF8 encoded.
+        //
+        open(0, nativeToUTF8(_dbName, getProcessStringConverter()).c_str(), 0, DB_BTREE, flags,
+             FREEZE_DB_MODE);
     }
     catch(const ::DbException& dx)
     {

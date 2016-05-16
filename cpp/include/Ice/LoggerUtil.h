@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -13,6 +13,7 @@
 #include <Ice/Logger.h>
 #include <Ice/CommunicatorF.h>
 #include <Ice/Plugin.h>
+#include <Ice/Exception.h>
 
 namespace Ice
 {
@@ -30,24 +31,61 @@ private:
     std::ostringstream _str;
 };
 
+ICE_API LoggerOutputBase& loggerInsert(LoggerOutputBase& out, const IceUtil::Exception& ex);
+
+template<typename T>
+struct IsException
+{
+    static char testex(IceUtil::Exception*);
+    static long testex(...);
+
+    static const bool value = sizeof(testex(static_cast<T*>(0))) == sizeof(char);
+};
+
+template<typename T, bool = false>
+struct LoggerOutputInserter
+{
+    static inline LoggerOutputBase&
+    insert(LoggerOutputBase& out, const T& val)
+    {
+        out.__str() << val;
+        return out;
+    }
+};
+
+// Partial specialization
+template<typename T>
+struct LoggerOutputInserter<T, true>
+{
+    static inline LoggerOutputBase&
+    insert(LoggerOutputBase& out, const T& ex)
+    {
+        return loggerInsert(out, ex);
+    }
+};
+
 template<typename T>
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& out, const T& val)
 {
-    out.__str() << val;
-    return out;
+    return LoggerOutputInserter<T, IsException<T>::value>::insert(out, val); 
 }
 
-template<class Y>
-LoggerOutputBase& 
-operator<<(LoggerOutputBase& os, ::IceInternal::ProxyHandle<Y> p)
+template<typename T>
+inline LoggerOutputBase& 
+operator<<(LoggerOutputBase& os, const ::IceInternal::ProxyHandle<T>& p)
 {
     return os << (p ? p->ice_toString() : "");
 }
 
-ICE_API LoggerOutputBase& operator<<(LoggerOutputBase&, std::ios_base& (*)(std::ios_base&));
-ICE_API LoggerOutputBase& operator<<(LoggerOutputBase&, const ::std::exception& ex);
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& out, const ::std::exception& ex)
+{
+    out.__str() << ex.what();
+    return out;
+}
 
+ICE_API LoggerOutputBase& operator<<(LoggerOutputBase&, std::ios_base& (*)(std::ios_base&));
 
 template<class L, class LPtr, void (L::*output)(const std::string&)>
 class LoggerOutput : public LoggerOutputBase

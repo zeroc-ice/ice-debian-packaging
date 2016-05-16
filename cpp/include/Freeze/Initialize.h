@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -15,6 +15,24 @@
 #include <Freeze/ConnectionF.h>
 #include <Freeze/Index.h>
 #include <Freeze/Transaction.h>
+
+//
+// Automatically link Freeze[D].lib with Visual C++
+//
+#if !defined(ICE_BUILDING_FREEZE) && defined(FREEZE_API_EXPORTS)
+#   define ICE_BUILDING_FREEZE
+#endif
+
+#ifdef _MSC_VER
+#   if !defined(ICE_BUILDING_FREEZE)
+#      if defined(_DEBUG) && !defined(ICE_OS_WINRT)
+#          pragma comment(lib, "FreezeD.lib")
+#      else
+#          pragma comment(lib, "Freeze.lib")
+#      endif
+#   endif
+#endif
+
 
 //
 // Berkeley DB's DbEnv and DbTxn

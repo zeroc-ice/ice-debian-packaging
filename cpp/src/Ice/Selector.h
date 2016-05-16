@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -28,6 +28,21 @@
 #   include <sys/poll.h>
 #endif
 
+#if defined(ICE_USE_CFSTREAM)
+#   include <IceUtil/RecMutex.h>
+#   include <IceUtil/Thread.h>
+#   include <set>
+
+struct __CFRunLoop;
+typedef struct __CFRunLoop * CFRunLoopRef;
+
+struct __CFRunLoopSource;
+typedef struct __CFRunLoopSource * CFRunLoopSourceRef;
+
+struct __CFSocket;
+typedef struct __CFSocket * CFSocketRef;
+#endif
+
 #if defined(ICE_OS_WINRT)
 #    include <deque>
 #endif
@@ -46,11 +61,11 @@ class SelectorTimeoutException
 
 struct SelectEvent
 {
-    SelectEvent(IceInternal::EventHandler* handler, SocketOperation status) : handler(handler), status(status)
+    SelectEvent(const EventHandlerPtr& handler, SocketOperation status) : handler(handler), status(status)
     {
     }
 
-    IceInternal::EventHandler* handler;
+    EventHandlerPtr handler;
     SocketOperation status;
 };
 
@@ -62,13 +77,13 @@ public:
 
     void destroy();
 
-    void initialize(IceInternal::EventHandler*);
-    void update(IceInternal::EventHandler*, SocketOperation, SocketOperation);    
-    void finish(IceInternal::EventHandler*);
+    void initialize(EventHandler*);
+    void update(EventHandler*, SocketOperation, SocketOperation);    
+    void finish(EventHandler*);
 
-    IceInternal::EventHandler* getNextHandler(SocketOperation&, int);
+    EventHandlerPtr getNextHandler(SocketOperation&, int);
     
-    void completed(IceInternal::EventHandler*, SocketOperation);
+    void completed(const EventHandlerPtr&, SocketOperation);
 
 private:
 
@@ -92,7 +107,7 @@ public:
     void update(EventHandler*, SocketOperation, SocketOperation);
     void finish(EventHandler*);
 
-    EventHandler* getNextHandler(SocketOperation&, int);
+    EventHandler* getNextHandler(SocketOperation&, DWORD&, int&, int);
 
     HANDLE getIOCPHandle() { return _handle; } 
     
@@ -120,11 +135,11 @@ public:
     void update(EventHandler*, SocketOperation, SocketOperation);
     void enable(EventHandler*, SocketOperation);
     void disable(EventHandler*, SocketOperation);
-    void finish(EventHandler*);
+    bool finish(EventHandler*, bool);
 
 #if defined(ICE_USE_KQUEUE)
     void updateSelector();
-#endif    
+#endif
 
     void
     startSelect()
@@ -161,6 +176,120 @@ private:
     int _queueFd;
 };
 
+#elif defined(ICE_USE_CFSTREAM)
+
+class Selector;
+
+class SelectorReadyCallback : public IceUtil::Shared
+{
+public: 
+
+    virtual ~SelectorReadyCallback() { }
+    virtual void readyCallback(SocketOperation, int = 0) = 0;
+};
+
+class StreamNativeInfo : public NativeInfo
+{
+public:
+
+    StreamNativeInfo(SOCKET fd) : NativeInfo(fd), _connectError(0)
+    {
+    }
+
+    virtual void initStreams(SelectorReadyCallback*) = 0;
+    virtual SocketOperation registerWithRunLoop(SocketOperation) = 0;
+    virtual SocketOperation unregisterFromRunLoop(SocketOperation, bool) = 0;
+    virtual void closeStreams() = 0;
+
+    void setConnectError(int error) 
+    {
+        _connectError = error; 
+    }
+
+private:
+
+    int _connectError;
+};
+typedef IceUtil::Handle<StreamNativeInfo> StreamNativeInfoPtr;
+
+class EventHandlerWrapper : public SelectorReadyCallback
+{
+public:
+
+    EventHandlerWrapper(const EventHandlerPtr&, Selector&);
+    ~EventHandlerWrapper();
+
+    void updateRunLoop();
+
+    virtual void readyCallback(SocketOperation, int = 0);
+
+    void ready(SocketOperation, int);
+
+    SocketOperation readyOp();
+    void checkReady();
+
+    bool update(SocketOperation, SocketOperation);
+    void finish();
+
+    bool operator<(const EventHandlerWrapper& o)
+    {
+        return this < &o;
+    }
+
+private:
+
+    friend class Selector;
+
+    EventHandlerPtr _handler;
+    StreamNativeInfoPtr _nativeInfo;
+    Selector& _selector;
+    SocketOperation _ready;
+    bool _finish;
+    CFSocketRef _socket;
+    CFRunLoopSourceRef _source;
+};
+typedef IceUtil::Handle<EventHandlerWrapper> EventHandlerWrapperPtr;
+
+class Selector : IceUtil::Monitor<IceUtil::RecMutex>
+{
+
+public:
+
+    Selector(const InstancePtr&);
+    virtual ~Selector();
+
+    void destroy();
+
+    void initialize(EventHandler*);
+    void update(EventHandler*, SocketOperation, SocketOperation);
+    void enable(EventHandler*, SocketOperation);
+    void disable(EventHandler*, SocketOperation);
+    bool finish(EventHandler*, bool);
+
+    void startSelect() { }
+    void finishSelect() { }
+    void select(std::vector<std::pair<EventHandler*, SocketOperation> >&, int); 
+
+    void processInterrupt();
+    void ready(EventHandlerWrapper*, SocketOperation, int = 0);
+    void addReadyHandler(EventHandlerWrapper*);
+    void run();
+
+private:
+
+    InstancePtr _instance;
+    IceUtil::ThreadPtr _thread;
+    CFRunLoopRef _runLoop;
+    CFRunLoopSourceRef _source;
+    bool _destroyed;
+
+    std::set<EventHandlerWrapperPtr> _changes;
+
+    std::vector<EventHandlerWrapperPtr> _readyHandlers;
+    std::vector<std::pair<EventHandlerWrapperPtr, SocketOperation> > _selectedHandlers;
+    std::map<EventHandler*, EventHandlerWrapperPtr> _wrappers;
+};
+
 #elif defined(ICE_USE_SELECT) || defined(ICE_USE_POLL)
 
 class Selector
@@ -179,7 +308,7 @@ public:
     void update(EventHandler*, SocketOperation, SocketOperation);
     void enable(EventHandler*, SocketOperation);
     void disable(EventHandler*, SocketOperation);
-    void finish(EventHandler*);
+    bool finish(EventHandler*, bool);
 
     void startSelect();
     void finishSelect();

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -70,14 +70,6 @@ public:
         return _cpp_and::_cpp_auto();
     }
 };
-
-class fooI : public _cpp_and::AMI_switch_foo
-{
-public:
-
-    virtual void ice_response(Ice::Int)  {}
-    virtual void ice_exception(const ::Ice::Exception&) {}
-};
    
 //
 // This section of the test is present to ensure that the C++ types
@@ -106,8 +98,6 @@ testtypes()
     e->_cpp_explicit();
     _cpp_and::charPtr e1 = new charI();
 
-    _cpp_and::switchPrx f;
-    f->foo_async(new fooI(), e);
     _cpp_and::switchPtr f1 = new switchI();
 
     _cpp_and::doPrx g;

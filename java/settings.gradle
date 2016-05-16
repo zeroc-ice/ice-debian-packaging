@@ -1,0 +1,37 @@
+// **********************************************************************
+//
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+//
+// This copy of Ice is licensed to you under the terms described in the
+// ICE_LICENSE file included in this distribution.
+//
+// **********************************************************************
+
+// Main source
+include ':ice'
+project(':ice').projectDir = new File('src/Ice')
+include ':icediscovery'
+project(':icediscovery').projectDir = new File('src/IceDiscovery')
+include ':icelocatordiscovery'
+project(':icelocatordiscovery').projectDir = new File('src/IceLocatorDiscovery')
+include ':freeze'
+project(':freeze').projectDir = new File('src/Freeze')
+include ':icebox'
+project(':icebox').projectDir = new File('src/IceBox')
+include ':glacier2'
+project(':glacier2').projectDir = new File('src/Glacier2')
+include ':icepatch2'
+project(':icepatch2').projectDir = new File('src/IcePatch2')
+include ':icestorm'
+project(':icestorm').projectDir = new File('src/IceStorm')
+include ':icegrid'
+project(':icegrid').projectDir = new File('src/IceGrid')
+include ':IceGridGUI'
+project(':IceGridGUI').projectDir = new File('src/IceGridGUI')
+
+// Tests
+include ':test'
+include ':testPlugins'
+project(':testPlugins').projectDir = new File('test/plugins')
+include ':testController'
+project(':testController').projectDir = new File('test/controller')

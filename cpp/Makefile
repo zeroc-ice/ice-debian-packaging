@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -11,13 +11,13 @@ top_srcdir	= .
 
 include $(top_srcdir)/config/Make.rules
 
-SUBDIRS		= config src include test
+SUBDIRS		= config src include
 
-ifeq ($(shell uname | grep MINGW),)
-SUBDIRS		:= $(SUBDIRS) demo
+ifneq ($(MAKECMDGOALS),install)
+    SUBDIRS		:= $(SUBDIRS) test
 endif
 
-INSTALL_SUBDIRS	= $(install_bindir) $(install_libdir) $(install_includedir) \
+INSTALL_SUBDIRS	= $(install_bindir) $(install_libdir)$(cpp11libdirsuffix) $(install_includedir) \
 	$(install_configdir) $(install_mandir)
 
 install:: install-common

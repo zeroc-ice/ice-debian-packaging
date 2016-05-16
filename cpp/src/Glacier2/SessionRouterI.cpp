@@ -1,27 +1,96 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <Glacier2/PermissionsVerifier.h>
-#include <Glacier2/Session.h>
 #include <Glacier2/SessionRouterI.h>
+#include <Glacier2/PermissionsVerifier.h>
 #include <Glacier2/FilterManager.h>
 #include <Glacier2/RouterI.h>
 
 #include <IceUtil/UUID.h>
 
 #include <IceSSL/IceSSL.h>
-#include <Ice/Connection.h>
-#include <Ice/Network.h>
 
 using namespace std;
 using namespace Ice;
 using namespace Glacier2;
+
+namespace
+{
+class PingCallback : public IceUtil::Shared
+{
+public:
+
+    PingCallback(const SessionRouterIPtr& router,
+                 const AMD_Router_refreshSessionPtr& callback,
+                 const Ice::ConnectionPtr& connection) : _router(router),
+        _callback(callback),
+        _connection(connection)
+    {
+    }
+
+    void
+    finished(const Ice::AsyncResultPtr& r)
+    {  
+        Ice::ObjectPrx o = r->getProxy();
+        try
+        {
+            o->end_ice_ping(r);
+            _callback->ice_response();
+        }
+        catch(const Ice::Exception&)
+        {
+            _callback->ice_exception(SessionNotExistException());
+            _router->destroySession(_connection);
+        }
+    }
+
+private:
+
+    const SessionRouterIPtr _router;
+    const AMD_Router_refreshSessionPtr _callback;
+    const Ice::ConnectionPtr _connection;
+};
+
+class ACMPingCallback : public IceUtil::Shared
+{
+public:
+
+    ACMPingCallback(const SessionRouterIPtr& router, const Ice::ConnectionPtr& connection) :
+         _router(router), _connection(connection)
+    {
+    }
+
+    void
+    finished(const Ice::AsyncResultPtr& r)
+    {  
+        Ice::ObjectPrx o = r->getProxy();
+        try
+        {
+            o->end_ice_ping(r);
+        }
+        catch(const Ice::Exception&)
+        {
+            //
+            // Close the connection otherwise the peer has no way to know that
+            // the session has gone.
+            //
+            _connection->close(false);
+            _router->destroySession(_connection);
+        }
+    }
+    
+private:
+
+    const SessionRouterIPtr _router;
+    const Ice::ConnectionPtr _connection;
+};
+}
 
 namespace Glacier2
 {
@@ -169,10 +238,6 @@ public:
         {
             exception(ex);
         }
-        else if(dynamic_cast<const CollocationOptimizationException*>(&ex))
-        {
-            authorizeCollocated();
-        }
         else
         {
             unexpectedAuthorizeException(ex);
@@ -191,29 +256,6 @@ public:
                                                           newCallback_PermissionsVerifier_checkPermissions(this,
                                                                 &UserPasswordCreateSession::checkPermissionsResponse,
                                                                 &UserPasswordCreateSession::checkPermissionsException));
-    }
-
-    virtual void
-    authorizeCollocated()
-    {
-        try
-        {
-            string reason;
-            Ice::Context ctx = _current.ctx;
-            ctx.insert(_context.begin(), _context.end());
-            if(_sessionRouter->_verifier->checkPermissions(_user, _password, reason, ctx))
-            {
-                authorized(_sessionRouter->_sessionManager);
-            }
-            else
-            {
-                exception(PermissionDeniedException(reason.empty() ? string("permission denied") : reason));
-            }
-        }
-        catch(const Ice::Exception& ex)
-        {
-            unexpectedAuthorizeException(ex);
-        }
     }
 
     virtual FilterManagerPtr
@@ -284,10 +326,6 @@ public:
         {
             exception(ex);
         }
-        else if(dynamic_cast<const CollocationOptimizationException*>(&ex))
-        {
-            authorizeCollocated();
-        }
         else
         {
             unexpectedAuthorizeException(ex);
@@ -305,29 +343,6 @@ public:
                                                       newCallback_SSLPermissionsVerifier_authorize(this,
                                                                              &SSLCreateSession::authorizeResponse, 
                                                                              &SSLCreateSession::authorizeException));
-    }
-
-    virtual void
-    authorizeCollocated()
-    {
-        try
-        {
-            string reason;
-            Ice::Context ctx = _current.ctx;
-            ctx.insert(_context.begin(), _context.end());
-            if(_sessionRouter->_sslVerifier->authorize(_sslInfo, reason, ctx))
-            {
-                authorized(_sessionRouter->_sslSessionManager);
-            }
-            else
-            {
-                exception(PermissionDeniedException(reason.empty() ? string("permission denied") : reason));
-            }
-        }
-        catch(const Ice::Exception& ex)
-        {
-            unexpectedAuthorizeException(ex);
-        }
     }
 
     virtual FilterManagerPtr
@@ -364,6 +379,43 @@ private:
 
     const AMD_Router_createSessionFromSecureConnectionPtr _amdCB;
     const SSLInfo _sslInfo;
+};
+
+class ConnectionCallbackI : public Ice::ConnectionCallback
+{
+public:
+
+    ConnectionCallbackI(const SessionRouterIPtr& sessionRouter) : _sessionRouter(sessionRouter)
+    {
+    }
+    
+    virtual void
+    heartbeat(const Ice::ConnectionPtr& connection)
+    {
+        try
+        {
+            _sessionRouter->refreshSession(connection);
+        }
+        catch(const Ice::Exception&)
+        {
+        }
+    }
+
+    virtual void
+    closed(const Ice::ConnectionPtr& connection)
+    {
+        try
+        {
+            _sessionRouter->destroySession(connection);
+        }
+        catch(const Ice::Exception&)
+        {
+        }
+    }
+
+private:
+
+    const SessionRouterIPtr _sessionRouter;
 };
 
 }
@@ -496,31 +548,8 @@ CreateSession::sessionCreated(const SessionPrx& session)
             ident = _control->ice_getIdentity();
         }
 
-        if(_instance->properties()->getPropertyAsInt("Glacier2.AddConnectionContext") == 1 ||
-           _instance->properties()->getPropertyAsInt("Glacier2.AddSSLContext") > 0)
+        if(_instance->properties()->getPropertyAsInt("Glacier2.AddConnectionContext") == 1)
         {
-            //
-            // DEPRECATED: Glacier2.AddSSLContext.
-            //
-            IceSSL::ConnectionInfoPtr info = IceSSL::ConnectionInfoPtr::dynamicCast(_current.con->getInfo());
-            if(info && _instance->properties()->getPropertyAsInt("Glacier2.AddSSLContext") > 0)
-            {
-                _context["SSL.Active"] = "1";
-                _context["SSL.Cipher"] = info->cipher;
-                ostringstream os;
-                os << info->remotePort;
-                _context["SSL.Remote.Port"] = os.str();
-                _context["SSL.Remote.Host"] = info->remoteAddress;
-                os.str("");
-                os << info->localPort;
-                _context["SSL.Local.Port"] = os.str();
-                _context["SSL.Local.Host"] = info->localAddress;
-                if(info->certs.size() > 0)
-                {
-                    _context["SSL.PeerCert"] = info->certs[0];
-                }
-            }
-
             router = new RouterI(_instance, _current.con, _user, session, ident, _filterManager, _context);
         }
         else
@@ -611,22 +640,13 @@ SessionRouterI::SessionRouterI(const InstancePtr& instance,
     _sslVerifier(sslVerifier),
     _sslSessionManager(sslSessionManager),
     _sessionTimeout(IceUtil::Time::seconds(_instance->properties()->getPropertyAsInt("Glacier2.SessionTimeout"))),
+    _connectionCallback(new ConnectionCallbackI(this)),
     _sessionThread(_sessionTimeout > IceUtil::Time() ? new SessionThread(this, _sessionTimeout) : 0),
     _routersByConnectionHint(_routersByConnection.end()),
     _routersByCategoryHint(_routersByCategory.end()),
-    _sessionPingCallback(newCallback_Object_ice_ping(this, &SessionRouterI::sessionPingException)),
     _sessionDestroyCallback(newCallback_Session_destroy(this, &SessionRouterI::sessionDestroyException)),
     _destroy(false)
 {
-
-    //
-    // This session router is used directly as servant for the main
-    // Glacier2 router Ice object.
-    //
-    Identity routerId;
-    routerId.category = _instance->properties()->getPropertyWithDefault("Glacier2.InstanceName", "Glacier2");
-    routerId.name = "router";
-
     if(_sessionThread)
     {
         __setNoDelete(true);
@@ -646,8 +666,6 @@ SessionRouterI::SessionRouterI(const InstancePtr& instance,
 
     try
     {
-        _instance->clientObjectAdapter()->add(this, routerId);
-        
         //
         // All other calls on the client object adapter are dispatched to
         // a router servant based on connection information.
@@ -705,8 +723,9 @@ SessionRouterI::destroy()
         sessionThread = _sessionThread;
         _sessionThread = 0;
 
+        _connectionCallback = 0;
+
         swap(destroyCallback, _sessionDestroyCallback); // Break cyclic reference count.
-        _sessionPingCallback = 0; // Break cyclic reference count.
     }
 
     //
@@ -735,14 +754,6 @@ ObjectPrx
 SessionRouterI::getServerProxy(const Current& current) const
 {
     return getRouter(current.con, current.id)->getServerProxy(current); // Forward to the per-client router.
-}
-
-void
-SessionRouterI::addProxy(const ObjectPrx& proxy, const Current& current)
-{
-    ObjectProxySeq seq;
-    seq.push_back(proxy);
-    addProxies(seq, current);
 }
 
 ObjectProxySeq
@@ -839,22 +850,59 @@ SessionRouterI::destroySession(const Current& current)
 }
 
 void
-SessionRouterI::refreshSession(const Ice::Current& current)
+SessionRouterI::refreshSession_async(const AMD_Router_refreshSessionPtr& callback, const Ice::Current& current)
 {
-    RouterIPtr router = getRouter(current.con, current.id, false); // getRouter updates the session timestamp.
-    if(!router)
+    RouterIPtr router;
     {
-        throw SessionNotExistException();
+        IceUtil::Monitor<IceUtil::Mutex>::Lock lock(*this);
+        router = getRouterImpl(current.con, current.id, false); // getRouter updates the session timestamp.
+        if(!router)
+        {
+            callback->ice_exception(SessionNotExistException());
+            return;
+        }
     }
 
-    //
-    // Ping the session to ensure it does not timeout.
-    //
-    assert(_sessionPingCallback);
     SessionPrx session = router->getSession();
     if(session)
     {
-        session->begin_ice_ping(_sessionPingCallback, current.con);
+        //
+        // Ping the session to ensure it does not timeout.
+        //
+        session->begin_ice_ping(Ice::newCallback(
+            new PingCallback(this, callback, current.con), &PingCallback::finished));
+    }
+    else
+    {
+        callback->ice_response();
+    }
+}
+
+void
+SessionRouterI::refreshSession(const Ice::ConnectionPtr& con)
+{
+    RouterIPtr router;
+    {
+        IceUtil::Monitor<IceUtil::Mutex>::Lock lock(*this);
+        router = getRouterImpl(con, Ice::Identity(), false); // getRouter updates the session timestamp.
+        if(!router)
+        {
+            //
+            // Close the connection otherwise the peer has no way to know that the
+            // session has gone.
+            //
+            con->close(false);
+            throw SessionNotExistException();
+        }
+    }
+
+    SessionPrx session = router->getSession();
+    if(session)
+    {
+        //
+        // Ping the session to ensure it does not timeout.
+        //
+        session->begin_ice_ping(Ice::newCallback(new ACMPingCallback(this, con), &ACMPingCallback::finished));
     }
 }
 
@@ -917,6 +965,12 @@ Ice::Long
 SessionRouterI::getSessionTimeout(const Ice::Current&) const
 {
     return _sessionTimeout.toSeconds();
+}
+
+int
+SessionRouterI::getACMTimeout(const Ice::Current& current) const
+{
+    return current.con->getACM().timeout;
 }
 
 void 
@@ -1074,12 +1128,6 @@ SessionRouterI::getRouterImpl(const ConnectionPtr& connection, const Ice::Identi
 }
 
 void
-SessionRouterI::sessionPingException(const Ice::Exception&, const Ice::ConnectionPtr& con)
-{
-    destroySession(con);
-}
-
-void
 SessionRouterI::sessionDestroyException(const Ice::Exception& ex)
 {
     if(_sessionTraceLevel > 0)
@@ -1088,7 +1136,6 @@ SessionRouterI::sessionDestroyException(const Ice::Exception& ex)
         out << "exception while destroying session\n" << ex;
     }
 }
-
 
 bool
 SessionRouterI::startCreateSession(const CreateSessionPtr& cb, const ConnectionPtr& connection)
@@ -1186,6 +1233,8 @@ SessionRouterI::finishCreateSession(const ConnectionPtr& connection, const Route
         _routersByCategoryHint = rc.first;
     }
 
+    connection->setCallback(_connectionCallback);
+
     if(_sessionTraceLevel >= 1)
     {
         Trace out(_instance->logger(), "Glacier2");
@@ -1194,7 +1243,7 @@ SessionRouterI::finishCreateSession(const ConnectionPtr& connection, const Route
 }
 
 SessionRouterI::SessionThread::SessionThread(const SessionRouterIPtr& sessionRouter,
-                                                       const IceUtil::Time& sessionTimeout) :
+                                             const IceUtil::Time& sessionTimeout) :
     IceUtil::Thread("Glacier2 session thread"),
     _sessionRouter(sessionRouter),
     _sessionTimeout(sessionTimeout)

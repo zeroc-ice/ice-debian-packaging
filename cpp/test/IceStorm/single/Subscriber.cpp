@@ -1,13 +1,12 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <Ice/Ice.h>
 #include <IceStorm/IceStorm.h>
 #include <Single.h>
@@ -140,76 +139,7 @@ run(int, char* argv[], const CommunicatorPtr& communicator)
     //
     vector<SingleIPtr> subscribers;
     vector<Ice::Identity> subscriberIdentities;
-    //
-    // First we use the old deprecated API.
-    //
-    {
-        subscribers.push_back(new SingleI(communicator, "default"));
-        Ice::ObjectPrx object = adapter->addWithUUID(subscribers.back());
-        subscriberIdentities.push_back(object->ice_getIdentity());
-        topic->subscribe(IceStorm::QoS(), object);
-    }
-    {
-        subscribers.push_back(new SingleI(communicator, "oneway"));
-        IceStorm::QoS qos;
-        qos["reliability"] = "oneway";
-        Ice::ObjectPrx object = adapter->addWithUUID(subscribers.back());
-        subscriberIdentities.push_back(object->ice_getIdentity());
-        topic->subscribe(qos, object);
-    }
-    {
-        subscribers.push_back(new SingleI(communicator, "twoway"));
-        IceStorm::QoS qos;
-        qos["reliability"] = "twoway";
-        Ice::ObjectPrx object = adapter->addWithUUID(subscribers.back());
-        subscriberIdentities.push_back(object->ice_getIdentity());
-        topic->subscribe(qos, object);
-    }
-    {
-        subscribers.push_back(new SingleI(communicator, "batch"));
-        IceStorm::QoS qos;
-        qos["reliability"] = "batch";
-        Ice::ObjectPrx object = adapter->addWithUUID(subscribers.back());
-        subscriberIdentities.push_back(object->ice_getIdentity());
-        topic->subscribe(qos, object);
-    }
-    {
-        subscribers.push_back(new SingleI(communicator, "twoway ordered")); // Ordered
-        IceStorm::QoS qos;
-        qos["reliability"] = "twoway ordered";
-        Ice::ObjectPrx object = adapter->addWithUUID(subscribers.back());
-        subscriberIdentities.push_back(object->ice_getIdentity());
-        topic->subscribe(qos, object);
-    }
-    {
-        // Use a separate adapter to ensure a separate connection is used for the subscriber
-        // (otherwise, if multiple UDP subscribers use the same connection we might get high
-        // packet loss, see bug 1784).
-        ObjectAdapterPtr adpt = communicator->createObjectAdapterWithEndpoints("UdpAdapter1", "udp");
-        subscribers.push_back(new SingleI(communicator, "datagram"));
-        IceStorm::QoS qos;
-        qos["reliability"] = "oneway";
-        Ice::ObjectPrx object = adpt->addWithUUID(subscribers.back())->ice_datagram();
-        topic->subscribe(IceStorm::QoS(), object);
-        subscriberIdentities.push_back(object->ice_getIdentity());
-        adpt->activate();
-    }
-    {
-        // Use a separate adapter to ensure a separate connection is used for the subscriber
-        // (otherwise, if multiple UDP subscribers use the same connection we might get high
-        // packet loss, see bug 1784).
-        ObjectAdapterPtr adpt = communicator->createObjectAdapterWithEndpoints("UdpAdapter2", "udp");
-        subscribers.push_back(new SingleI(communicator, "batch datagram"));
-        IceStorm::QoS qos;
-        qos["reliability"] = "batch";
-        Ice::ObjectPrx object = adpt->addWithUUID(subscribers.back())->ice_datagram();
-        topic->subscribe(IceStorm::QoS(), object);
-        subscriberIdentities.push_back(object->ice_getIdentity());
-        adpt->activate();
-    }
-    //
-    // Next we use the new API call with the new proxy semantics.
-    //
+
     {
         subscribers.push_back(new SingleI(communicator, "default"));
         Ice::ObjectPrx object = adapter->addWithUUID(subscribers.back())->ice_oneway();
@@ -266,7 +196,7 @@ run(int, char* argv[], const CommunicatorPtr& communicator)
     }
 
     adapter->activate();
-    
+
     vector<Ice::Identity> ids = topic->getSubscribers();
     test(ids.size() == subscriberIdentities.size());
     for(vector<Ice::Identity>::const_iterator i = ids.begin(); i != ids.end(); ++i)

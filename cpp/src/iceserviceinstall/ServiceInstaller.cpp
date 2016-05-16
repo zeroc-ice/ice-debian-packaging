@@ -1,19 +1,19 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <ServiceInstaller.h>
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/FileUtil.h>
 
 #include <Aclapi.h>
 #include <Sddl.h>
+#include <authz.h>
 
 using namespace std;
 using namespace Ice;
@@ -49,13 +49,11 @@ IceServiceInstaller::IceServiceInstaller(int serviceType, const string& configFi
     _sid(0),
     _debug(false)
 {
-
     _serviceProperties->load(_configFile);
 
     //
     // Compute _serviceName
     //
-    
 
     if(_serviceType == icegridregistry)
     {
@@ -122,14 +120,17 @@ IceServiceInstaller::install(const PropertiesPtr& properties)
     string imagePath = properties->getProperty("ImagePath");
     if(imagePath == "")
     {
-        char buffer[MAX_PATH];
-        DWORD size = GetModuleFileName(0, buffer, MAX_PATH);
-        if(size == 0)
+        string serviceInstallerPath = getServiceInstallerPath();
+        if(serviceInstallerPath.empty())
         {
-            throw "Can't get full path to self: " + IceUtilInternal::errorToString(GetLastError());
+            throw "Can't get full path to service installer!";
         }
-        imagePath = string(buffer, size);
-        imagePath.replace(imagePath.rfind('\\'), string::npos, "\\" + serviceTypeToLowerString(_serviceType) + ".exe");
+
+        imagePath = serviceInstallerPath + '\\' + serviceTypeToLowerString(_serviceType);
+#ifdef _DEBUG
+        imagePath += 'd';
+#endif
+        imagePath += ".exe";
     }
     else
     {
@@ -268,6 +269,10 @@ IceServiceInstaller::install(const PropertiesPtr& properties)
     bool autoStart = properties->getPropertyAsIntWithDefault("AutoStart", 1) != 0;
     string password = properties->getProperty("Password");
 
+    //
+    // We don't support to use a string converter with this tool, so don't need to
+    // use string converters in calls to stringToWstring.
+    //
     SC_HANDLE service = CreateServiceW(
         scm,
         IceUtil::stringToWstring(_serviceName).c_str(),
@@ -318,6 +323,10 @@ IceServiceInstaller::uninstall()
         throw "Cannot open SCM: " + IceUtilInternal::errorToString(res);
     }
 
+    //
+    // We don't support to use a string converter with this tool, so don't need to
+    // use string converters in calls to stringToWstring.
+    //
     SC_HANDLE service = OpenServiceW(scm, IceUtil::stringToWstring(_serviceName).c_str(), SERVICE_ALL_ACCESS);
     if(service == 0)
     {
@@ -361,7 +370,7 @@ IceServiceInstaller::uninstall()
     }
 }
 
-vector<string>
+/*static*/ vector<string>
 IceServiceInstaller::getPropertyNames()
 {
     static const string propertyNames[] = { "ImagePath", "DisplayName", "ObjectName", "Password",
@@ -372,7 +381,7 @@ IceServiceInstaller::getPropertyNames()
     return result;
 }
 
-string
+/*static*/  string
 IceServiceInstaller::serviceTypeToString(int serviceType)
 {
     static const string serviceTypeArray[] = { "IceGridRegistry", "IceGridNode", "Glacier2Router" };
@@ -387,7 +396,7 @@ IceServiceInstaller::serviceTypeToString(int serviceType)
     }
 }
 
-string
+/*static*/ string
 IceServiceInstaller::serviceTypeToLowerString(int serviceType)
 {
     static const string serviceTypeArray[] = { "icegridregistry", "icegridnode", "glacier2router" };
@@ -402,6 +411,29 @@ IceServiceInstaller::serviceTypeToLowerString(int serviceType)
     }
 }
 
+/*static*/ string
+IceServiceInstaller::getServiceInstallerPath()
+{
+    string path;
+
+    char buffer[MAX_PATH];
+    DWORD size = GetModuleFileName(0, buffer, MAX_PATH);
+    if(size > 0)
+    {
+        path = string(buffer, size);
+        size_t p = path.find_last_of("/\\");
+        if(p != string::npos)
+        {
+            path = path.substr(0, p);
+        }
+        else
+        {
+            path = "";
+        }
+    }
+    return path;
+}
+
 void
 IceServiceInstaller::initializeSid(const string& name)
 {
@@ -412,6 +444,10 @@ IceServiceInstaller::initializeSid(const string& name)
         DWORD domainNameSize = 32;
         IceUtil::ScopedArray<wchar_t> domainName(new wchar_t[domainNameSize]);
 
+        //
+        // We don't support to use a string converter with this tool, so don't need to
+        // use string converters in calls to stringToWstring.
+        //
         SID_NAME_USE nameUse;
         while(LookupAccountNameW(0, IceUtil::stringToWstring(name).c_str(), _sidBuffer.get(), &sidSize, domainName.get(),
               &domainNameSize, &nameUse) == false)
@@ -494,7 +530,8 @@ IceServiceInstaller::fileExists(const string& path) const
         }
         else
         {
-            const char* msg = strerror(errno);
+            char msg[128];
+            strerror_s(msg, 128, errno);
             throw "Problem with " + path + ": " + msg;
         }
     }
@@ -503,34 +540,67 @@ IceServiceInstaller::fileExists(const string& path) const
 void
 IceServiceInstaller::grantPermissions(const string& path, SE_OBJECT_TYPE type, bool inherit, bool fullControl) const
 {
+    if(_debug)
+    {
+        Trace trace(_communicator->getLogger(), "IceServiceInstaller");
+        trace << "Granting access on " << path << " to " << _sidName;
+    }
+
     //
     // First retrieve the ACL for our file/directory/key
     //
-    PACL acl = 0;
+    PACL acl = 0; // will point to memory in sd
     PACL newAcl = 0;
     PSECURITY_DESCRIPTOR sd = 0;
+
+    AUTHZ_RESOURCE_MANAGER_HANDLE manager = 0;
+    AUTHZ_CLIENT_CONTEXT_HANDLE clientContext = 0;
+
+    SECURITY_INFORMATION flags = DACL_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION;
+
     DWORD res = GetNamedSecurityInfoW(const_cast<wchar_t*>(IceUtil::stringToWstring(path).c_str()), type,
-                                     DACL_SECURITY_INFORMATION, 0, 0, &acl, 0, &sd);
+                                      flags, 0, 0, &acl, 0, &sd);
     if(res != ERROR_SUCCESS)
     {
         throw "Could not retrieve securify info for " + path + ": " + IceUtilInternal::errorToString(res);
     }
 
+    //
+    // Now check if _sid can access this file/dir/key
+    //
     try
     {
-        //
-        // Now check if _sid can read this file/dir/key
-        //
-        TRUSTEE_W trustee;
-        BuildTrusteeWithSidW(&trustee, _sid);
+        if(!AuthzInitializeResourceManager(AUTHZ_RM_FLAG_NO_AUDIT, 0, 0, 0, 0, &manager))
+        {
+            throw "AutzInitializeResourceManager failed: " + IceUtilInternal::lastErrorToString();
+        }
+
+        LUID unusedId = { 0 };
+        
+        if(!AuthzInitializeContextFromSid(0, _sid, manager, 0, unusedId, 0, &clientContext))
+        {
+            throw "AuthzInitializeContextFromSid failed: " + IceUtilInternal::lastErrorToString();
+        }
+
+        AUTHZ_ACCESS_REQUEST accessRequest = { 0 }; 
+        accessRequest.DesiredAccess = MAXIMUM_ALLOWED;
+        accessRequest.PrincipalSelfSid = 0;
+        accessRequest.ObjectTypeList = 0;
+        accessRequest.ObjectTypeListLength = 0;
+        accessRequest.OptionalArguments = 0; 
 
         ACCESS_MASK accessMask = 0;
-        res = GetEffectiveRightsFromAclW(acl, &trustee, &accessMask);
+        DWORD accessUnused = 0;
+        DWORD accessError = 0;
+        AUTHZ_ACCESS_REPLY accessReply = { 0 };
+        accessReply.ResultListLength = 1;
+        accessReply.GrantedAccessMask = &accessMask;
+        accessReply.SaclEvaluationResults = &accessUnused;
+        accessReply.Error = &accessError;
 
-        if(res != ERROR_SUCCESS)
+        if(!AuthzAccessCheck(0, clientContext, &accessRequest, 0, sd, 0, 0, &accessReply, 0))
         {
-            throw "Could not retrieve effective rights for " + _sidName + " on " + path + ": " + 
-                  IceUtilInternal::errorToString(res);
+            throw "AuthzAccessCheck failed: " + IceUtilInternal::lastErrorToString();
         }
 
         bool done = false;
@@ -548,7 +618,7 @@ IceServiceInstaller::grantPermissions(const string& path, SE_OBJECT_TYPE type, b
         }
         else
         {
-            done = (accessMask & READ_CONTROL);
+            done = (accessMask & READ_CONTROL) != 0;
         }
 
         if(done)
@@ -580,6 +650,9 @@ IceServiceInstaller::grantPermissions(const string& path, SE_OBJECT_TYPE type, b
             {
                 ea.grfInheritance = NO_INHERITANCE;
             }
+            
+            TRUSTEE_W trustee;
+            BuildTrusteeWithSidW(&trustee, _sid);
             ea.Trustee = trustee;
 
             //
@@ -590,9 +663,9 @@ IceServiceInstaller::grantPermissions(const string& path, SE_OBJECT_TYPE type, b
             {
                 throw "Could not modify ACL for " + path + ": " + IceUtilInternal::errorToString(res);
             }
-
+            
             res = SetNamedSecurityInfoW(const_cast<wchar_t*>(IceUtil::stringToWstring(path).c_str()), type,
-                                       DACL_SECURITY_INFORMATION, 0, 0, newAcl, 0);
+                                        DACL_SECURITY_INFORMATION, 0, 0, newAcl, 0);
             if(res != ERROR_SUCCESS)
             {
                 throw "Could not grant access to " + _sidName + " on " + path + ": " +
@@ -608,11 +681,15 @@ IceServiceInstaller::grantPermissions(const string& path, SE_OBJECT_TYPE type, b
     }
     catch(...)
     {
+        AuthzFreeResourceManager(manager);
+        AuthzFreeContext(clientContext);
         LocalFree(sd);
         LocalFree(newAcl);
         throw;
     }
 
+    AuthzFreeResourceManager(manager);
+    AuthzFreeContext(clientContext);
     LocalFree(sd);
     LocalFree(newAcl);
 }
@@ -620,6 +697,10 @@ IceServiceInstaller::grantPermissions(const string& path, SE_OBJECT_TYPE type, b
 bool
 IceServiceInstaller::mkdir(const string& path) const
 {
+    //
+    // We don't support to use a string converter with this tool, so don't need to
+    // use string converters in calls to stringToWstring.
+    //
     if(CreateDirectoryW(IceUtil::stringToWstring(path).c_str(), 0) == 0)
     {
         DWORD res = GetLastError();
@@ -655,6 +736,10 @@ IceServiceInstaller::addLog(const string& log) const
 
     HKEY key = 0;
     DWORD disposition = 0;
+    //
+    // We don't support to use a string converter with this tool, so don't need to
+    // use string converters in calls to stringToWstring.
+    //
     LONG res = RegCreateKeyExW(HKEY_LOCAL_MACHINE, IceUtil::stringToWstring(createLog(log)).c_str(), 0, L"REG_SZ",
                                REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, 0, &key, &disposition);
 
@@ -673,6 +758,10 @@ IceServiceInstaller::addLog(const string& log) const
 void
 IceServiceInstaller::removeLog(const string& log) const
 {
+    //
+    // We don't support to use a string converter with this tool, so don't need to
+    // use string converters in calls to stringToWstring.
+    //
     LONG res = RegDeleteKeyW(HKEY_LOCAL_MACHINE, IceUtil::stringToWstring(createLog(log)).c_str());
 
     //
@@ -687,6 +776,10 @@ IceServiceInstaller::removeLog(const string& log) const
 void
 IceServiceInstaller::addSource(const string& source, const string& log, const string& resourceFile) const
 {
+    //
+    // We don't support to use a string converter with this tool, so don't need to
+    // use string converters in calls to stringToWstring.
+    //
     HKEY key = 0;
     DWORD disposition = 0;
     LONG res = RegCreateKeyExW(HKEY_LOCAL_MACHINE, IceUtil::stringToWstring(createSource(source, log)).c_str(),
@@ -758,6 +851,9 @@ IceServiceInstaller::removeSource(const string& source) const
         {
             //
             // Check if we can delete the source sub-key
+            //
+            // We don't support to use a string converter with this tool, so don't need to
+            // use string converters in calls to stringToWstring.
             //
             LONG delRes = RegDeleteKeyW(HKEY_LOCAL_MACHINE,
                                         IceUtil::stringToWstring(createSource(source, 

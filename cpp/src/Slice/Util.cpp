@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,12 +8,13 @@
 // **********************************************************************
 
 #include <Slice/Util.h>
-#include <IceUtil/Unicode.h>
 #include <IceUtil/FileUtil.h>
 #include <IceUtil/StringUtil.h>
 #include <climits>
 
-#include <unistd.h> // For readlink()
+#ifndef _MSC_VER
+#  include <unistd.h> // For readlink()
+#endif
 
 using namespace std;
 using namespace Slice;
@@ -83,6 +84,18 @@ normalizePath(const string& path)
 string
 Slice::fullPath(const string& path)
 {
+    //
+    // This function returns the canonicalized absolute pathname of
+    // the given path.
+    //
+    // It is used for instance used to normalize the paths provided
+    // with -I options. Like mcpp, we need to follow the symbolic
+    // links to ensure changeIncludes works correctly. For example, it
+    // must be possible to specify -I/opt/Ice-3.6 where Ice-3.6 is
+    // symbolic link to Ice-3.6.0 (if we don't do the same as mcpp,
+    // the generated headers will contain a full path...)
+    //
+
     string result = path;
     if(!IceUtilInternal::isAbsolutePath(result))
     {
@@ -141,46 +154,52 @@ Slice::fullPath(const string& path)
 }
 
 string
-Slice::changeInclude(const string& orig, const vector<string>& includePaths)
+Slice::changeInclude(const string& path, const vector<string>& includePaths)
 {
-    //
-    // MCPP does not follow symlinks included files so we only
-    // call fullPath on the base directory and not the file itself.
-    //
-    string file = orig;
-    string::size_type pos;
-    if((pos = orig.rfind('/')) != string::npos)
-    {
-        string base = orig.substr(0, pos);
-        file = fullPath(base) + orig.substr(pos);
-    }
-
     //
     // Compare each include path against the included file and select
     // the path that produces the shortest relative filename.
     //
-    string result = file;
-    for(vector<string>::const_iterator p = includePaths.begin(); p != includePaths.end(); ++p)
+    string result = path;
+    vector<string> paths;
+    paths.push_back(path);
+    //
+    // if path is not a canonical path we also test with its canonical
+    // path
+    //
+    string canonicalPath = fullPath(path);
+    if(canonicalPath != path)
     {
-        if(file.compare(0, p->length(), *p) == 0)
-        {
-            string s = file.substr(p->length() + 1); // + 1 for the '/'
-            if(s.size() < result.size())
+        paths.push_back(canonicalPath);
+    }
+    
+    for(vector<string>::const_iterator i = paths.begin(); i != paths.end(); ++i)
+    {
+        for(vector<string>::const_iterator j = includePaths.begin(); j != includePaths.end(); ++j)
+        {            
+            if(i->compare(0, j->length(), *j) == 0)
             {
-                result = s;
+                string s = i->substr(j->length() + 1); // + 1 for the '/'
+                if(s.size() < result.size())
+                {
+                    result = s;
+                }
             }
+        }
+        
+        //
+        // If the path has been already shortened no need to test
+        // with canonical path.
+        //
+        if(result != path)
+        {
+            break;
         }
     }
 
-    if(result == file)
-    {
-        //
-        // Don't return a full path if we couldn't reduce the given path, instead
-        // return the normalized given path.
-        //
-        result = normalizePath(orig);
-    }
+    result = normalizePath(result); // Normalize the result.
 
+    string::size_type pos;
     if((pos = result.rfind('.')) != string::npos)
     {
         result.erase(pos);
@@ -375,4 +394,39 @@ Slice::printGeneratedHeader(IceUtilInternal::Output& out, const string& path, co
     out << comment << "\n";
     out << comment << " </auto-generated>\n";
     out << comment << "\n";
+}
+
+Slice::DependOutputUtil::DependOutputUtil(string& file) : _file(file)
+{
+    if(!_file.empty())
+    {
+        _os.open(file.c_str(), ios::out);
+    }
+}
+
+Slice::DependOutputUtil::~DependOutputUtil()
+{
+    if(!_file.empty() && _os.is_open())
+    {
+        _os.close();
+    }
+}
+
+void
+Slice::DependOutputUtil::cleanup()
+{
+    if(!_file.empty())
+    {
+        if(_os.is_open())
+        {
+            _os.close();
+        }
+        IceUtilInternal::unlink(_file);
+    }
+}
+
+ostream&
+Slice::DependOutputUtil::os()
+{
+    return _file.empty() ? cout : _os;
 }

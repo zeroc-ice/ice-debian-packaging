@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -20,9 +20,29 @@
 #include <set>
 #include <stdio.h>
 
+//
+// Automatically link Slice[D].lib with Visual C++
+//
+
+#if !defined(ICE_BUILDING_SLICE) && defined(SLICE_API_EXPORTS)
+#   define ICE_BUILDING_SLICE
+#endif
+
+#if defined(_MSC_VER)
+#   if !defined(ICE_BUILDING_SLICE)
+#      if defined(_DEBUG) && !defined(ICE_OS_WINRT)
+#          pragma comment(lib, "SliceD.lib")
+#      else
+#          pragma comment(lib, "Slice.lib")
+#      endif
+#   endif
+#endif
+
 #ifndef SLICE_API
 #   ifdef SLICE_API_EXPORTS
 #       define SLICE_API ICE_DECLSPEC_EXPORT
+#   elif defined(ICE_STATIC_LIBS)
+#       define SLICE_API /**/
 #   else
 #       define SLICE_API ICE_DECLSPEC_IMPORT
 #   endif
@@ -32,7 +52,7 @@ namespace Slice
 {
 
 #if defined(_WIN32) && !defined(__MINGW32__)
- 
+
 const IceUtil::Int64 Int32Max =  0x7fffffffi64;
 const IceUtil::Int64 Int32Min = -Int32Max - 1i64;
 
@@ -57,13 +77,13 @@ const IceUtil::Int64 Int16Min = -Int16Max - 1;
 const IceUtil::Int64 ByteMax = 0xff;
 const IceUtil::Int64 ByteMin = 0x00;
 
-SLICE_API enum FeatureProfile
+enum FeatureProfile
 {
     Ice,
     IceE
 };
 
-SLICE_API enum NodeType
+enum NodeType
 {
     Dummy,
     Real
@@ -72,7 +92,7 @@ SLICE_API enum NodeType
 //
 // Format preference for classes and exceptions.
 //
-SLICE_API enum FormatType
+enum FormatType
 {
     DefaultFormat,    // No preference was specified.
     CompactFormat,    // Minimal format.
@@ -424,7 +444,7 @@ public:
     virtual void destroy();
     ModulePtr createModule(const std::string&);
     ClassDefPtr createClassDef(const std::string&, int, bool, const ClassList&, bool);
-    ClassDeclPtr createClassDecl(const std::string&, bool, bool);
+    ClassDeclPtr createClassDecl(const std::string&, bool, bool, bool = true);
     ExceptionPtr createException(const std::string&, const ExceptionPtr&, bool, NodeType = Real);
     StructPtr createStruct(const std::string&, bool, NodeType = Real);
     SequencePtr createSequence(const std::string&, const TypePtr&, const StringList&, bool, NodeType = Real);
@@ -458,6 +478,7 @@ public:
     bool hasOnlyDictionaries(DictionaryList&) const;
     bool hasClassDecls() const;
     bool hasClassDefs() const;
+    bool hasOnlyClassDecls() const;
     bool hasAbstractClassDefs() const;
     bool hasNonLocalDataOnlyClasses() const;
     bool hasOtherConstructedOrExceptions() const; // Exceptions or constructed types other than classes.
@@ -578,7 +599,7 @@ private:
 class SLICE_API Operation : virtual public Contained, virtual public Container
 {
 public:
-    
+
     //
     // Note: The order of definitions here *must* match the order of
     // definitions of ::Ice::OperationMode in slice/Ice/Current.ice!
@@ -822,7 +843,7 @@ public:
 
 protected:
 
-    Dictionary(const ContainerPtr&, const std::string&, const TypePtr&, const StringList&, const TypePtr&, 
+    Dictionary(const ContainerPtr&, const std::string&, const TypePtr&, const StringList&, const TypePtr&,
                const StringList&, bool);
     friend class Container;
 
@@ -972,8 +993,9 @@ public:
     virtual std::string kindOf() const;
     virtual void visit(ParserVisitor*, bool);
 
+
 protected:
-    
+
     DataMember(const ContainerPtr&, const std::string&, const TypePtr&, bool, int, const SyntaxTreeBasePtr&,
                const std::string&, const std::string&);
     friend class ClassDef;
@@ -1063,6 +1085,9 @@ public:
 
     BuiltinPtr builtin(Builtin::Kind); // Not const, as builtins are created on the fly. (Lazy initialization.)
 
+    void addTopLevelModule(const std::string&, const std::string&);
+    std::set<std::string> getTopLevelModules(const std::string&) const;
+
 private:
 
     Unit(bool, bool, bool, bool, const StringList&);
@@ -1087,6 +1112,7 @@ private:
     FeatureProfile _featureProfile;
     std::map<std::string, DefinitionContextPtr> _definitionContextMap;
     std::map<int, std::string> _typeIds;
+    std::map< std::string, std::set<std::string> > _fileTopLevelModules;
 };
 
 extern SLICE_API Unit* unit; // The current parser for bison/flex

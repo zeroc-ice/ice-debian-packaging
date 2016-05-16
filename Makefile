@@ -1,16 +1,23 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
 #
 # **********************************************************************
 
-SUBDIRS			= cpp java cs py rb php
-CLEAN_SUBDIRS		= java cs py rb php cpp
-DEPEND_SUBDIRS		= cpp cs py rb php
-INSTALL_SUBDIRS		= cpp java cs py rb php
+SUBDIRS		= cpp java js python ruby php
+CLEAN_SUBDIRS	= js java python ruby php cpp
+DEPEND_SUBDIRS	= cpp python ruby php
+INSTALL_SUBDIRS	= cpp java python ruby php
+
+ifeq ($(shell uname),Darwin)
+SUBDIRS		+= objective-c
+CLEAN_SUBDIRS	+= objective-c
+DEPEND_SUBDIRS	+= objective-c
+INSTALL_SUBDIRS	+= objective-c
+endif
 
 all::
 	@for subdir in $(SUBDIRS); \
@@ -59,13 +66,13 @@ cs::
 	echo "making all in cs";
 	( cd cs && $(MAKE) all ) || exit 1;
 
-py::
-	echo "making all in py";
-	( cd py && $(MAKE) all ) || exit 1;
+python::
+	echo "making all in python";
+	( cd python && $(MAKE) all ) || exit 1;
 
-rb::
-	echo "making all in rb";
-	( cd rb && $(MAKE) all ) || exit 1;
+ruby::
+	echo "making all in ruby";
+	( cd ruby && $(MAKE) all ) || exit 1;
 
 php::
 	echo "making all in php";

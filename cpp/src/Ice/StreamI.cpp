@@ -1,19 +1,11 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
-
-//
-// We disable deprecation warning here, to allow clean compilation of
-// of deprecated methods.
-//
-#ifdef _MSC_VER
-#   pragma warning( disable : 4996 )
-#endif
 
 #include <Ice/StreamI.h>
 #include <Ice/Instance.h>
@@ -83,7 +75,7 @@ UserExceptionReader::__read(BasicStream* is)
 //
 // InputStreamI
 //
-InputStreamI::InputStreamI(const CommunicatorPtr& communicator, const pair<const Byte*, const Byte*>& data, 
+InputStreamI::InputStreamI(const CommunicatorPtr& communicator, const pair<const Byte*, const Byte*>& data,
                            bool copyData) :
     _communicator(communicator),
     _closure(0)
@@ -137,7 +129,7 @@ InputStreamI::readProxy()
     return v;
 }
 
-namespace 
+namespace
 {
 
 void
@@ -203,6 +195,18 @@ void
 InputStreamI::read(string& v, bool convert)
 {
     _is->read(v, convert);
+}
+
+void
+InputStreamI::read(const char*& vdata, size_t& vsize)
+{
+    _is->read(vdata, vsize);
+}
+
+void
+InputStreamI::read(const char*& vdata, size_t& vsize, string& holder)
+{
+    _is->read(vdata, vsize, holder);
 }
 
 void
@@ -355,6 +359,12 @@ InputStreamI::readPendingObjects()
     _is->readPendingObjects();
 }
 
+InputStream::size_type
+InputStreamI::pos()
+{
+    return _is->i - _is->b.begin();
+}
+
 void
 InputStreamI::rewind()
 {
@@ -387,12 +397,12 @@ InputStreamI::closure() const
 }
 
 void
-InputStreamI::initialize(Instance* instance, const pair<const Byte*, const Byte*>& buf, const EncodingVersion& v, 
+InputStreamI::initialize(Instance* instance, const pair<const Byte*, const Byte*>& buf, const EncodingVersion& v,
                          bool copyData)
 {
     if(copyData)
     {
-        _is = new BasicStream(instance, v, true);
+        _is = new BasicStream(instance, v);
         _is->writeBlob(buf.first, buf.second - buf.first);
         _is->i = _is->b.begin();
     }
@@ -410,7 +420,7 @@ OutputStreamI::OutputStreamI(const CommunicatorPtr& communicator) :
     _communicator(communicator), _own(true)
 {
     Instance* instance = getInstance(communicator).get();
-    _os = new BasicStream(instance, instance->defaultsAndOverrides()->defaultEncoding, true);
+    _os = new BasicStream(instance, instance->defaultsAndOverrides()->defaultEncoding);
     _os->closure(this);
 }
 
@@ -418,7 +428,7 @@ OutputStreamI::OutputStreamI(const CommunicatorPtr& communicator, const Encoding
     _communicator(communicator), _own(true)
 {
     Instance* instance = getInstance(communicator).get();
-    _os = new BasicStream(instance, v, true);
+    _os = new BasicStream(instance, v);
     _os->closure(this);
 }
 
@@ -521,9 +531,15 @@ OutputStreamI::write(const string& v, bool convert)
 }
 
 void
+OutputStreamI::write(const char* vdata, size_t vsize, bool convert)
+{
+    _os->write(vdata, vsize, convert);
+}
+
+void
 OutputStreamI::write(const char* v, bool convert)
 {
-    _os->write(v, convert);
+    _os->write(v, strlen(v), convert);
 }
 
 void
@@ -545,7 +561,7 @@ OutputStreamI::write(const wstring& v)
     _os->write(v);
 }
 
-void 
+void
 OutputStreamI::write(const vector<bool>& v)
 {
     _os->write(v);
@@ -688,7 +704,7 @@ void
 OutputStreamI::reset(bool clearBuffer)
 {
     _os->clear();
-    
+
     if(clearBuffer)
     {
         _os->b.clear();
@@ -697,14 +713,14 @@ OutputStreamI::reset(bool clearBuffer)
     {
         _os->b.reset();
     }
-    
+
     _os->i = _os->b.begin();
 }
 
 OutputStream::size_type
 OutputStreamI::pos()
 {
-    return _os->pos();
+    return _os->b.size();
 }
 
 void
@@ -713,16 +729,16 @@ OutputStreamI::rewrite(Int sz, size_type p)
     _os->rewrite(sz, p);
 }
 
-void
+OutputStream::size_type
 OutputStreamI::startSize()
 {
-    _os->startSize();
+    return _os->startSize();
 }
 
 void
-OutputStreamI::endSize()
+OutputStreamI::endSize(OutputStream::size_type pos)
 {
-    _os->endSize();
+    _os->endSize(pos);
 }
 
 //

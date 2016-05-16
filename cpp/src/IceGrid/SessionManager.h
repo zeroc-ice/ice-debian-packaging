@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,6 +14,9 @@
 #include <IceUtil/Mutex.h>
 #include <IceUtil/Monitor.h>
 #include <IceUtil/Thread.h>
+
+#include <Ice/Logger.h>
+#include <Ice/LoggerUtil.h>
 
 #include <IceGrid/Query.h>
 #include <IceGrid/Internal.h>
@@ -189,8 +192,8 @@ public:
         return _state != Destroyed;
     }
 
-    virtual void
-    tryCreateSession(bool waitForTry = true, const IceUtil::Time& timeout = IceUtil::Time())
+    void
+    tryCreateSession()
     {
         {
             Lock sync(*this);
@@ -209,23 +212,24 @@ public:
             }
             notifyAll();
         }
+    }
 
-        if(waitForTry)
+    void
+    waitTryCreateSession(const IceUtil::Time& timeout = IceUtil::Time())
+    {
+        Lock sync(*this);
+        // Wait until the action is executed and the state changes.
+        while(_nextAction == Connect || _nextAction == KeepAlive || _state == InProgress)
         {
-            Lock sync(*this);
-            // Wait until the action is executed and the state changes.
-            while(_nextAction == Connect || _nextAction == KeepAlive || _state == InProgress)
+            if(timeout == IceUtil::Time())
             {
-                if(timeout == IceUtil::Time())
+                wait();
+            }
+            else
+            {
+                if(!timedWait(timeout))
                 {
-                    wait();
-                }
-                else
-                {
-                    if(!timedWait(timeout))
-                    {
-                        break;
-                    }
+                    break;
                 }
             }
         }
@@ -317,16 +321,17 @@ class SessionManager : public IceUtil::Monitor<IceUtil::Mutex>
 {
 public:
 
-    SessionManager(const Ice::CommunicatorPtr&);
+    SessionManager(const Ice::CommunicatorPtr&, const std::string&);
     virtual ~SessionManager();
 
     virtual bool isDestroyed() = 0;
 
 protected:
 
-    std::vector<IceGrid::QueryPrx> findAllQueryObjects();
+    std::vector<IceGrid::QueryPrx> findAllQueryObjects(bool);
 
     Ice::CommunicatorPtr _communicator;
+    std::string _instanceName;
     InternalRegistryPrx _master;
     std::vector<IceGrid::QueryPrx> _queryObjects;
 };

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -35,7 +35,7 @@ tests = [
     ("Ice/operations", ["core"]),
     ("Ice/seqMapping", ["core"]),
     ("Ice/exceptions", ["core"]),
-    ("Ice/ami", ["core"]),
+    ("Ice/ami", ["core", "nocompress"]),
     ("Ice/info", ["core", "noipv6", "nocompress", "nosocks"]),
     ("Ice/inheritance", ["core"]),
     ("Ice/facets", ["core"]),
@@ -49,12 +49,14 @@ tests = [
     ("Ice/custom", ["core"]),
     ("Ice/checksum", ["core"]),
     ("Ice/dispatcher", ["core"]),
+    ("Ice/interrupt", ["core", "nocompress"]),
     ("Ice/packagemd", ["core"]),
     ("Ice/stream", ["core"]),
     ("Ice/hold", ["core"]),
     ("Ice/retry", ["core"]),
-    ("Ice/timeout", ["core"]),
-    ("Ice/background", ["core"]),
+    ("Ice/timeout", ["core", "nocompress"]),
+    ("Ice/acm", ["core"]),
+    ("Ice/background", ["core", "nosocks"]),
     ("Ice/servantLocator", ["core"]),
     ("Ice/interceptor", ["core"]),
     ("Ice/udp", ["core"]),
@@ -69,16 +71,18 @@ tests = [
     ("Ice/hash", ["once"]),
     ("Ice/optional", ["once"]),
     ("Ice/admin", ["core"]),
-    ("Ice/metrics", ["core", "nossl", "noipv6", "nocompress", "nosocks"]),
+    ("Ice/metrics", ["core", "nossl", "nows", "noipv6", "nocompress", "nosocks"]),
     ("Ice/enums", ["once"]),
+    ("Ice/networkProxy", ["core", "noipv6", "nosocks"]),
     ("IceBox/admin", ["core", "noipv6", "nomx"]),
     ("IceBox/configuration", ["core", "noipv6", "nomx"]),
     ("Freeze/dbmap", ["once"]),
     ("Freeze/complex", ["once"]),
-    ("Freeze/evictor", ["core"]),
+    ("Freeze/evictor", ["once"]),
     ("Freeze/fileLock", ["once"]),
     ("Glacier2/router", ["service"]),
-    ("Glacier2/sessionHelper", ["service", "nossl", "noipv6"]),
+    ("Glacier2/sessionHelper", ["core"]),
+    ("IceDiscovery/simple", ["service"]),
     ("IceGrid/simple", ["service"]),
     ("IceSSL/configuration", ["once"])
     ]

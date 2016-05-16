@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -64,7 +64,7 @@ private:
     // We need a separate ConnectionIPtr, because IncomingBase only
     // holds a ConnectionI* for optimization.
     //
-    const Ice::ConnectionIPtr _connectionCopy;
+    const ResponseHandlerPtr _responseHandlerCopy;
 
     const bool _retriable;
     bool _active;

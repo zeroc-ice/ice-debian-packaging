@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -13,6 +13,7 @@
 #include <IceUtil/Mutex.h>
 #include <IceUtil/Shared.h>
 #include <Ice/CommunicatorF.h>
+#include <Freeze/Freeze.h>
 #include <IceGrid/Admin.h>
 #include <IceGrid/Internal.h>
 #include <IceGrid/ServerCache.h>
@@ -22,7 +23,11 @@
 #include <IceGrid/AllocatableObjectCache.h>
 #include <IceGrid/AdapterCache.h>
 #include <IceGrid/Topics.h>
-#include <IceGrid/DB.h>
+#include <IceGrid/PluginFacadeI.h>
+
+#include <IceGrid/StringApplicationInfoDict.h>
+#include <IceGrid/StringAdapterInfoDict.h>
+#include <IceGrid/IdentityObjectInfoDict.h>
 
 namespace IceGrid
 {
@@ -53,9 +58,8 @@ public:
 #endif
 
 
-    Database(const Ice::ObjectAdapterPtr&, const IceStorm::TopicManagerPrx&, const std::string&, const TraceLevelsPtr&,
-             const RegistryInfo&, const DatabasePluginPtr&, bool);
-    virtual ~Database();
+    Database(const Ice::ObjectAdapterPtr&, const IceStorm::TopicManagerPrx&, const std::string&,
+             const TraceLevelsPtr&, const RegistryInfo&, const Freeze::ConnectionPtr&, const std::string&, bool);
     
     std::string getInstanceName() const;
     bool isReadOnly() const { return _readonly; }
@@ -63,7 +67,8 @@ public:
     const Ice::CommunicatorPtr& getCommunicator() const { return _communicator; }
     const Ice::ObjectAdapterPtr& getInternalAdapter() { return _internalAdapter; }
 
-    void destroyTopics();
+    void destroy();
+
     ObserverTopicPtr getObserverTopic(TopicName) const;
 
     int lock(AdminSessionI*, const std::string&);
@@ -101,17 +106,24 @@ public:
     AllocatableObjectEntryPtr getAllocatableObject(const Ice::Identity&) const;
 
     void setAdapterDirectProxy(const std::string&, const std::string&, const Ice::ObjectPrx&, Ice::Long = 0);
-    Ice::ObjectPrx getAdapterDirectProxy(const std::string&, const Ice::EncodingVersion&);
+    Ice::ObjectPrx getAdapterDirectProxy(const std::string&, const Ice::EncodingVersion&, const Ice::ConnectionPtr&, 
+                                         const Ice::Context&);
 
     void removeAdapter(const std::string&);
     AdapterPrx getAdapterProxy(const std::string&, const std::string&, bool);
-    void getLocatorAdapterInfo(const std::string&, LocatorAdapterInfoSeq&, int&, bool&, bool&,
+    void getLocatorAdapterInfo(const std::string&, const Ice::ConnectionPtr&, const Ice::Context&, 
+                               LocatorAdapterInfoSeq&, int&, bool&, bool&, 
                                const std::set<std::string>& = std::set<std::string>());
+
     bool addAdapterSyncCallback(const std::string&, const SynchronizationCallbackPtr&, 
                                 const std::set<std::string>& = std::set<std::string>());
 
     std::vector<std::pair<std::string, AdapterPrx> > getAdapters(const std::string&, int&, bool&);
     AdapterInfoSeq getAdapterInfo(const std::string&);
+    AdapterInfoSeq getFilteredAdapterInfo(const std::string&, const Ice::ConnectionPtr&, const Ice::Context&);
+    std::string getAdapterServer(const std::string&) const;
+    std::string getAdapterApplication(const std::string&) const;
+    std::string getAdapterNode(const std::string&) const;
     Ice::StringSeq getAllAdapters(const std::string& = std::string());
 
     void addObject(const ObjectInfo&);
@@ -122,9 +134,15 @@ public:
     int removeRegistryWellKnownObjects(const ObjectInfoSeq&);
 
     Ice::ObjectPrx getObjectProxy(const Ice::Identity&);
-    Ice::ObjectPrx getObjectByType(const std::string&);
-    Ice::ObjectPrx getObjectByTypeOnLeastLoadedNode(const std::string&, LoadSample);
-    Ice::ObjectProxySeq getObjectsByType(const std::string&);
+    Ice::ObjectPrx getObjectByType(const std::string&,
+                                   const Ice::ConnectionPtr& = Ice::ConnectionPtr(),
+                                   const Ice::Context& = Ice::Context());
+    Ice::ObjectPrx getObjectByTypeOnLeastLoadedNode(const std::string&, LoadSample,
+                                                    const Ice::ConnectionPtr& = Ice::ConnectionPtr(),
+                                                    const Ice::Context& = Ice::Context());
+    Ice::ObjectProxySeq getObjectsByType(const std::string&, 
+                                         const Ice::ConnectionPtr& = Ice::ConnectionPtr(),
+                                         const Ice::Context& = Ice::Context());
     ObjectInfo getObjectInfo(const Ice::Identity&);
     ObjectInfoSeq getObjectInfosByType(const std::string&);
     ObjectInfoSeq getAllObjectInfos(const std::string& = std::string());
@@ -135,13 +153,13 @@ public:
 
 private:
 
-    void checkForAddition(const ApplicationHelper&, const IceDB::DatabaseConnectionPtr&);
-    void checkForUpdate(const ApplicationHelper&, const ApplicationHelper&, const IceDB::DatabaseConnectionPtr&);
+    void checkForAddition(const ApplicationHelper&, const Freeze::ConnectionPtr&);
+    void checkForUpdate(const ApplicationHelper&, const ApplicationHelper&, const Freeze::ConnectionPtr&);
     void checkForRemove(const ApplicationHelper&);
 
     void checkServerForAddition(const std::string&);
-    void checkAdapterForAddition(const std::string&, const AdaptersWrapperPtr&);
-    void checkObjectForAddition(const Ice::Identity&, const ObjectsWrapperPtr&);
+    void checkAdapterForAddition(const std::string&, const StringAdapterInfoDict&);
+    void checkObjectForAddition(const Ice::Identity&, const IdentityObjectInfoDict&);
     void checkReplicaGroupExists(const std::string&);
     void checkReplicaGroupForRemove(const std::string&);
 
@@ -151,8 +169,8 @@ private:
 
     void checkUpdate(const ApplicationHelper&, const ApplicationHelper&, const std::string&, int, bool);
 
-    Ice::Long saveApplication(const ApplicationInfo&, const IceDB::DatabaseConnectionPtr&, Ice::Long = 0);
-    Ice::Long removeApplication(const std::string&, const IceDB::DatabaseConnectionPtr&, Ice::Long = 0);
+    Ice::Long saveApplication(const ApplicationInfo&, const Freeze::ConnectionPtr&, Ice::Long = 0);
+    Ice::Long removeApplication(const std::string&, const Freeze::ConnectionPtr&, Ice::Long = 0);
 
     void finishApplicationUpdate(const ApplicationUpdateInfo&, const ApplicationInfo&, const ApplicationHelper&,
                                  const ApplicationHelper&, AdminSessionI*, bool, Ice::Long = 0);
@@ -162,7 +180,7 @@ private:
     void waitForUpdate(const std::string&);
     void startUpdating(const std::string&, const std::string&, int);
     void finishUpdating(const std::string&);
-    
+
     friend struct AddComponent;
 
     static const std::string _applicationDbName;
@@ -192,8 +210,15 @@ private:
     AdapterObserverTopicPtr _adapterObserverTopic;
     ObjectObserverTopicPtr _objectObserverTopic;
 
-    ConnectionPoolPtr _connectionPool;
-    DatabasePluginPtr _databasePlugin;
+    Freeze::ConnectionPtr _connection;
+    const std::string _envName;
+    
+    StringApplicationInfoDict _applications;
+    StringAdapterInfoDict _adapters;
+    IdentityObjectInfoDict _objects;
+    IdentityObjectInfoDict _internalObjects;
+    
+    RegistryPluginFacadeIPtr _pluginFacade;
     
     AdminSessionI* _lock;
     std::string _lockUserId;

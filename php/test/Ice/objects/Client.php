@@ -1,7 +1,7 @@
 <?
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -23,9 +23,11 @@ require_once 'Test.php';
 if($NS)
 {
     $code = <<<EOT
+        class Test_A1 extends Test\A1 {}
         abstract class Test_B extends Test\B {}
         abstract class Test_C extends Test\C {}
         abstract class Test_D extends Test\D {}
+        class Test_D1 extends Test\D1 {}
         abstract class Test_E extends Test\E {}
         abstract class Test_F extends Test\F {}
         interface Test_I extends Test\I {}
@@ -171,7 +173,8 @@ function test($b)
     if(!$b)
     {
         $bt = debug_backtrace();
-        die("\ntest failed in ".$bt[0]["file"]." line ".$bt[0]["line"]."\n");
+        echo "\ntest failed in ".$bt[0]["file"]." line ".$bt[0]["line"]."\n";
+        exit(1);
     }
 }
 
@@ -345,6 +348,36 @@ function allTests($communicator)
     test($j != null and $j instanceof Test_J);
     $h = $initial->getH();
     test($h != null and $h instanceof Test_H);
+    echo "ok\n";
+
+    echo "getting D1... ";
+    flush();
+    $d1 = $initial->getD1(new Test_D1(new Test_A1("a1"), new Test_A1("a2"), new Test_A1("a3"), new Test_A1("a4")));
+    test($d1->a1->name == "a1");
+    test($d1->a2->name == "a2");
+    test($d1->a3->name == "a3");
+    test($d1->a4->name == "a4");
+    echo "ok\n";
+
+    echo "throw EDerived... ";
+    flush();
+    try
+    {
+        $initial->throwEDerived();
+        test(false);
+    }
+    catch(Exception $ex)
+    {
+        $ed = $NS ? "Test\\EDerived" : "Test_EDerived";
+        if(!($ex instanceof $ed))
+        {
+            throw $ex;
+        }
+        test($ex->a1->name == "a1");
+        test($ex->a2->name == "a2");
+        test($ex->a3->name == "a3");
+        test($ex->a4->name == "a4");
+    }
     echo "ok\n";
 
     echo "setting I... ";

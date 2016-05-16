@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -15,7 +15,7 @@
 using namespace std;
 
 Test::MyClassPrx
-allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
+allTests(const Ice::CommunicatorPtr& communicator)
 {
     string ref = "test:default -p 12010";
     Ice::ObjectPrx base = communicator->stringToProxy(ref);
@@ -34,36 +34,28 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
     oneways(communicator, cl);
     cout << "ok" << endl;
 
-    if(!collocated)
-    {
-        cout << "testing twoway operations with AMI... " << flush;
-        void twowaysAMI(const Ice::CommunicatorPtr&, const Test::MyClassPrx&);
-        twowaysAMI(communicator, cl);
-        twowaysAMI(communicator, derived);
-        cout << "ok" << endl;
+    cout << "testing twoway operations with AMI... " << flush;
+    void twowaysAMI(const Ice::CommunicatorPtr&, const Test::MyClassPrx&);
+    twowaysAMI(communicator, cl);
+    twowaysAMI(communicator, derived);
+    cout << "ok" << endl;
 
-        cout << "testing twoway operations with new AMI mapping... " << flush;
-        void twowaysNewAMI(const Ice::CommunicatorPtr&, const Test::MyClassPrx&);
-        twowaysNewAMI(communicator, cl);
-        twowaysNewAMI(communicator, derived);
-        cout << "ok" << endl;
+    cout << "testing oneway operations with AMI... " << flush;
+    void onewaysAMI(const Ice::CommunicatorPtr&, const Test::MyClassPrx&);
+    onewaysAMI(communicator, cl);
+    cout << "ok" << endl;
 
-        cout << "testing oneway operations with AMI... " << flush;
-        void onewaysAMI(const Ice::CommunicatorPtr&, const Test::MyClassPrx&);
-        onewaysAMI(communicator, cl);
-        cout << "ok" << endl;
+    cout << "testing batch oneway operations... " << flush;
+    void batchOneways(const Test::MyClassPrx&);
+    batchOneways(cl);
+    batchOneways(derived);
+    cout << "ok" << endl;
 
-        cout << "testing oneway operations with new AMI mapping... " << flush;
-        void onewaysNewAMI(const Ice::CommunicatorPtr&, const Test::MyClassPrx&);
-        onewaysNewAMI(communicator, cl);
-        cout << "ok" << endl;
-
-        cout << "testing batch oneway operations... " << flush;
-        void batchOneways(const Test::MyClassPrx&);
-        batchOneways(cl);
-        batchOneways(derived);
-        cout << "ok" << endl;
-    }
+    cout << "testing batch AMI oneway operations... " << flush;
+    void batchOnewaysAMI(const Test::MyClassPrx&);
+    batchOnewaysAMI(cl);
+    batchOnewaysAMI(derived);
+    cout << "ok" << endl;
 
     return cl;
 }

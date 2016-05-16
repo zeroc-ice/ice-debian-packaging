@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -32,11 +32,6 @@ for filename in [os.path.join("db", f) for f in os.listdir("db") if f.endswith("
     os.remove(filename)
 
 variables = "icebox.exe='%s'" % TestUtil.getIceBox()
-
-if TestUtil.sqlType != None:
-    variables += " db-plugin=IceStormSqlDB:createSqlDB"
-else:
-    variables += " db-plugin=IceStormFreezeDB:createFreezeDB"
 
 #
 # Don't use a slave registry for this test.

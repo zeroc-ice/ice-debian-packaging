@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -20,14 +20,19 @@ if len(path) == 0:
 sys.path.append(os.path.join(path[0], "scripts"))
 import TestUtil
 
-hostname = socket.gethostname()
-fqdn = socket.getfqdn()
+hostname = socket.gethostname().lower()
+fqdn = socket.getfqdn().lower()
 
 limitedTests = False
 
 router = TestUtil.getGlacier2Router()
 clientCmd = os.path.join(os.getcwd(), 'client')
 serverCmd = os.path.join(os.getcwd(), 'server')
+
+#
+# Generate the crypt passwords file
+#
+TestUtil.hashPasswords(os.path.join(os.getcwd(), "passwords"), {"userid": "abc123"})
 
 targets = []
 if TestUtil.appverifier:
@@ -218,8 +223,8 @@ if not limitedTests:
                 [(False, 'hello:tcp -h %s -p 12010:tcp -h 127.0.0.1 -p 12010' % fqdn),
                 (True, 'bar:tcp -h 127.0.0.1 -p 12010')], []),
             ('testing maximum proxy length rule',
-                ('', '', '41', '', '', ''),
-                [(True, 'hello:tcp -h 127.0.0.1 -p 12010'),
+                ('', '', '53', '', '', ''),
+                [(True, 'hello:tcp -h 127.0.0.1 -p 12010 -t infinite'),
                 (False, '012345678901234567890123456789012345678901234567890123456789:tcp -h 127.0.0.1 -p 12010')], []),
             ])
 
@@ -258,7 +263,7 @@ for testcase in testcases:
             rejects +=1
         attackcfg.write(proxy + '\n')
 
-    attackcfg.close()
+    attackcfg.close()    
     pingProgress()
 
     hostArg = ""

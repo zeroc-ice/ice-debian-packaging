@@ -1,36 +1,36 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
 #
 # **********************************************************************
 
-ANT_FLAGS = -emacs
- 
-ifeq ($(APPEND_VERSION_SUFFIX),yes)
-ANT_FLAGS += -Dappend-version-suffix=yes
-endif
-
-INSTALL_FLAGS += $(ANT_FLAGS)
-
 ifneq ($(prefix),)
-INSTALL_FLAGS += -Dprefix=$(prefix)
+INSTALL_FLAGS += -Dorg.gradle.project.prefix=$(prefix)
 endif
 
 ifneq ($(DESTDIR),)
-INSTALL_FLAGS += -DDESTDIR=$(DESTDIR)
+INSTALL_FLAGS += -Dorg.gradle.project.DESTDIR=$(DESTDIR)
+endif
+
+ifeq ($(GRADLE),)
+GRADLE = ./gradlew
 endif
 
 all:
-	ant $(ANT_FLAGS)
+	$(GRADLE) $(BUILD_FLAGS) build
+
+dist:
+	$(GRADLE) $(BUILD_FLAGS) :Ice:assemble :Freeze:assemble :Glacier2:assemble :IceGrid:assemble \
+		:IceBox:assemble :IceDiscovery:assemble :IcePatch2:assemble :IceStorm:assemble :IceGridGUI:assemble
 
 clean:
-	ant $(ANT_FLAGS) clean
+	$(GRADLE) clean
 
 install::
-	ant $(INSTALL_FLAGS) install
+	$(GRADLE) $(INSTALL_FLAGS) install
 
 test::
 	@python ./allTests.py

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -138,12 +138,22 @@ public:
         }
     }
 
-    ::Ice::Instrumentation::RemoteObserverPtr
+    ::Ice::Instrumentation::ChildInvocationObserverPtr
     getRemoteObserver(const Ice::ConnectionInfoPtr& con, const Ice::EndpointPtr& endpt, int requestId, int size)
     {
         if(_observer)
         {
             return _observer->getRemoteObserver(con, endpt, requestId, size);
+        }
+        return 0;
+    }
+
+    ::Ice::Instrumentation::ChildInvocationObserverPtr
+    getCollocatedObserver(const Ice::ObjectAdapterPtr& adapter, int requestId, int size)
+    {
+        if(_observer)
+        {
+            return _observer->getCollocatedObserver(adapter, requestId, size);
         }
         return 0;
     }

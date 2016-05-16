@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -135,6 +135,17 @@ InitialI::opString(const Optional<string>& p1, Optional<string>& p3, const Curre
     p3 = p1;
     return p1;
 }
+
+Optional<string>
+InitialI::opCustomString(const Optional<Util::string_view>& p1, Optional<string>& p3, const Current&)
+{
+    if(p1)
+    {
+        p3 = p1->to_string();
+    }
+    return p3;
+}
+
 
 Optional<MyEnum>
 InitialI::opMyEnum(const Optional<MyEnum>& p1, Optional<MyEnum>& p3, const Current&)
@@ -339,6 +350,23 @@ InitialI::opStringIntDict(const Optional<StringIntDict>& p1, Optional<StringIntD
     return p3;
 }
 
+Optional<IntStringDict>
+InitialI::opCustomIntStringDict(const Optional<std::map<int, Util::string_view> >& p1,
+                                Optional<IntStringDict>& p3, const Current&)
+{
+    if(p1)
+    {
+        p3 = IntStringDict();
+        for(std::map<int, Util::string_view>::const_iterator p = p1->begin();
+            p != p1->end(); ++p)
+        {
+            (*p3)[p->first] = p->second.to_string();
+        }
+    }
+    return p3;
+}
+
+
 void
 InitialI::opClassAndUnknownOptional(const APtr&, const Ice::Current&)
 {
@@ -355,6 +383,12 @@ InitialI::returnOptionalClass(bool, Optional<OneOptionalPtr>& o, const Ice::Curr
     o = new OneOptional(53);
 }
 
+GPtr
+InitialI::opG(const GPtr& g, const Ice::Current&)
+{
+    return g;
+}
+
 bool
 InitialI::supportsRequiredParams(const Ice::Current&)
 {
@@ -369,6 +403,12 @@ InitialI::supportsJavaSerializable(const Ice::Current&)
 
 bool
 InitialI::supportsCsharpSerializable(const Ice::Current&)
+{
+    return true;
+}
+
+bool
+InitialI::supportsCppStringView(const Ice::Current&)
 {
     return true;
 }

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -50,7 +50,7 @@ Glacier2::RouterI::RouterI(const InstancePtr& instance, const ConnectionPtr& con
         ident.name = "dummy";
         ident.category.resize(20);
         char buf[20];
-        IceUtilInternal::generateRandom(buf, static_cast<int>(sizeof(buf)));
+        IceUtilInternal::generateRandom(buf, sizeof(buf));
         for(unsigned int i = 0; i < sizeof(buf); ++i)
         {
             const unsigned char c = static_cast<unsigned char>(buf[i]); // A value between 0-255
@@ -143,14 +143,6 @@ Glacier2::RouterI::getServerProxy(const Current&) const
     return _serverProxy;
 }
 
-void
-Glacier2::RouterI::addProxy(const ObjectPrx& proxy, const Current& current)
-{
-    ObjectProxySeq proxies;
-    proxies.push_back(proxy);
-    addProxies(proxies, current);
-}
-
 ObjectProxySeq
 Glacier2::RouterI::addProxies(const ObjectProxySeq& proxies, const Current& current)
 {
@@ -179,7 +171,7 @@ Glacier2::RouterI::createSessionFromSecureConnection_async(const AMD_Router_crea
 }
 
 void
-Glacier2::RouterI::refreshSession(const Current&)
+Glacier2::RouterI::refreshSession_async(const AMD_Router_refreshSessionPtr&, const ::Ice::Current&)
 {
     assert(false); // Must not be called in this router implementation.
 }
@@ -192,6 +184,13 @@ Glacier2::RouterI::destroySession(const Current&)
 
 Ice::Long
 Glacier2::RouterI::getSessionTimeout(const Current&) const
+{
+    assert(false); // Must not be called in this router implementation.
+    return 0;
+}
+
+Ice::Int
+Glacier2::RouterI::getACMTimeout(const Current&) const
 {
     assert(false); // Must not be called in this router implementation.
     return 0;

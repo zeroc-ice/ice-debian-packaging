@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -59,10 +59,10 @@ public:
 
     virtual void __write(::IceInternal::BasicStream*) const;
     virtual void __read(::IceInternal::BasicStream*);
-    
+
     virtual void __write(const OutputStreamPtr&) const;
     virtual void __read(const InputStreamPtr&);
-  
+
     virtual bool __usesClasses() const;
 
 protected:

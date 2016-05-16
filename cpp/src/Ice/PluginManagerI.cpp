@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -13,7 +13,6 @@
 #include <Ice/Communicator.h>
 #include <Ice/Properties.h>
 #include <Ice/LoggerUtil.h>
-#include <Ice/Initialize.h>
 #include <Ice/Instance.h>
 #include <Ice/LocalException.h>
 
@@ -23,7 +22,51 @@ using namespace IceInternal;
 
 const char * const Ice::PluginManagerI::_kindOfObject = "plugin";
 
-typedef Ice::Plugin* (*PLUGIN_FACTORY)(const CommunicatorPtr&, const string&, const StringSeq&);
+namespace
+{
+
+map<string, PLUGIN_FACTORY>* factories = 0;
+vector<string>* loadOnInitialization = 0;
+
+class PluginFactoryDestroy
+{
+public:
+
+    ~PluginFactoryDestroy()
+    {
+        delete factories;
+        factories = 0;
+
+        delete loadOnInitialization;
+        loadOnInitialization = 0;
+    }
+};
+PluginFactoryDestroy destroy;
+
+}
+
+void
+Ice::PluginManagerI::registerPluginFactory(const std::string& name, PLUGIN_FACTORY factory, bool loadOnInit)
+{
+    if(factories == 0)
+    {
+        factories = new map<string, PLUGIN_FACTORY>();
+    }
+
+    map<string, PLUGIN_FACTORY>::const_iterator p = factories->find(name);
+    if(p == factories->end())
+    {
+        factories->insert(make_pair(name, factory));
+        if(loadOnInit)
+        {
+            if(loadOnInitialization == 0)
+            {
+                loadOnInitialization = new vector<string>();
+            }
+            loadOnInitialization->push_back(name);
+        }
+    }
+}
 
 void
 Ice::PluginManagerI::initializePlugins()
@@ -43,7 +86,26 @@ Ice::PluginManagerI::initializePlugins()
     {
         for(PluginInfoList::iterator p = _plugins.begin(); p != _plugins.end(); ++p)
         {
-            p->plugin->initialize();
+            try
+            {
+                p->plugin->initialize();
+            }
+            catch(const Ice::PluginInitializationException&)
+            {
+                throw;
+            }
+            catch(const std::exception& ex)
+            {
+                ostringstream os;
+                os << "plugin `" << p->name << "' initialization failed:\n" << ex.what();
+                throw PluginInitializationException(__FILE__, __LINE__, os.str());
+            }
+            catch(...)
+            {
+                ostringstream os;
+                os << "plugin `" << p->name << "' initialization failed:\nunknown exception";
+                throw PluginInitializationException(__FILE__, __LINE__, os.str());
+            }
             initializedPlugins.push_back(p->plugin);
         }
     }
@@ -193,10 +255,48 @@ Ice::PluginManagerI::loadPlugins(int& argc, char* argv[])
 
     StringSeq cmdArgs = argsToStringSeq(argc, argv);
 
+    const string prefix = "Ice.Plugin.";
+    PropertiesPtr properties = _communicator->getProperties();
+    PropertyDict plugins = properties->getPropertiesForPrefix(prefix);
+
     //
-    // Load and initialize the plug-ins defined in the property set
-    // with the prefix "Ice.Plugin.". These properties should
-    // have the following format:
+    // First, load static plugin factories which were setup to load on
+    // communicator initialization. If a matching plugin property is
+    // set, we load the plugin with the plugin specification. The
+    // entryPoint will be ignored but the rest of the plugin
+    // specification might be used.
+    //
+    if(loadOnInitialization)
+    {
+        for(vector<string>::const_iterator p = loadOnInitialization->begin(); p != loadOnInitialization->end(); ++p)
+        {
+            string property = prefix + *p;
+            PropertyDict::iterator r = plugins.find(property + ".cpp");
+            if(r == plugins.end())
+            {
+                r = plugins.find(property);
+            }
+            else
+            {
+                plugins.erase(property);
+            }
+
+            if(r != plugins.end())
+            {
+                loadPlugin(*p, r->second, cmdArgs);
+                plugins.erase(r);
+            }
+            else
+            {
+                loadPlugin(*p, "", cmdArgs);
+            }
+        }
+    }
+
+    //
+    // Next, load and initialize the plug-ins defined in the property
+    // set with the prefix "Ice.Plugin.". These properties should have
+    // the following format:
     //
     // Ice.Plugin.name[.<language>]=entry_point [args]
     //
@@ -204,10 +304,6 @@ Ice::PluginManagerI::loadPlugins(int& argc, char* argv[])
     // specified plug-ins in the specified order, then load any
     // remaining plug-ins.
     //
-    const string prefix = "Ice.Plugin.";
-    PropertiesPtr properties = _communicator->getProperties();
-    PropertyDict plugins = properties->getPropertiesForPrefix(prefix);
-
     StringSeq loadOrder = properties->getPropertyAsList("Ice.PluginLoadOrder");
     for(StringSeq::const_iterator p = loadOrder.begin(); p != loadOrder.end(); ++p)
     {
@@ -220,14 +316,15 @@ Ice::PluginManagerI::loadPlugins(int& argc, char* argv[])
             throw ex;
         }
 
-        PropertyDict::iterator r = plugins.find("Ice.Plugin." + name + ".cpp");
+        string property = prefix + name;
+        PropertyDict::iterator r = plugins.find(property + ".cpp");
         if(r == plugins.end())
         {
-            r = plugins.find("Ice.Plugin." + name);
+            r = plugins.find(property);
         }
         else
         {
-            plugins.erase("Ice.Plugin." + name);
+            plugins.erase(property);
         }
 
         if(r != plugins.end())
@@ -270,7 +367,7 @@ Ice::PluginManagerI::loadPlugins(int& argc, char* argv[])
                 loadPlugin(name, p->second, cmdArgs);
                 plugins.erase(p);
 
-                plugins.erase("Ice.Plugin." + name);
+                plugins.erase(prefix + name);
             }
             else
             {
@@ -286,7 +383,7 @@ Ice::PluginManagerI::loadPlugins(int& argc, char* argv[])
             //
             // Is there a .cpp entry?
             //
-            PropertyDict::iterator q = plugins.find("Ice.Plugin." + name + ".cpp");
+            PropertyDict::iterator q = plugins.find(prefix + name + ".cpp");
             if(q != plugins.end())
             {
                 plugins.erase(p);
@@ -305,64 +402,91 @@ void
 Ice::PluginManagerI::loadPlugin(const string& name, const string& pluginSpec, StringSeq& cmdArgs)
 {
     assert(_communicator);
-    //
-    // Split the entire property value into arguments. An entry point containing spaces
-    // must be enclosed in quotes.
-    //
+
+    string entryPoint;
     StringSeq args;
-    try
+    if(!pluginSpec.empty())
     {
-        args = IceUtilInternal::Options::split(pluginSpec);
-    }
-    catch(const IceUtilInternal::BadOptException& ex)
-    {
-        PluginInitializationException e(__FILE__, __LINE__);
-        e.reason = "invalid arguments for plug-in `" + name + "':\n" + ex.reason;
-        throw e;
-    }
-
-    assert(!args.empty());
-
-    //
-    // Shift the arguments.
-    //
-    const string entryPoint = args[0];
-    args.erase(args.begin());
-
-    //
-    // Convert command-line options into properties. First we
-    // convert the options from the plug-in configuration, then
-    // we convert the options from the application command-line.
-    //
-    PropertiesPtr properties = _communicator->getProperties();
-    args = properties->parseCommandLineOptions(name, args);
-    cmdArgs = properties->parseCommandLineOptions(name, cmdArgs);
-
-    //
-    // Load the entry point symbol.
-    //
-    PluginPtr plugin;
-    DynamicLibraryPtr library = new DynamicLibrary(IceInternal::getInstance(_communicator)->initializationData().stringConverter);
-    DynamicLibrary::symbol_type sym = library->loadEntryPoint(entryPoint);
-    if(sym == 0)
-    {
-        ostringstream out;
-        string msg = library->getErrorMessage();
-        out << "unable to load entry point `" << entryPoint << "'";
-        if(!msg.empty())
+        //
+        // Split the entire property value into arguments. An entry point containing spaces
+        // must be enclosed in quotes.
+        //
+        try
         {
-            out << ": " + msg;
+            args = IceUtilInternal::Options::split(pluginSpec);
         }
-        PluginInitializationException ex(__FILE__, __LINE__);
-        ex.reason = out.str();
-        throw ex;
+        catch(const IceUtilInternal::BadOptException& ex)
+        {
+            PluginInitializationException e(__FILE__, __LINE__);
+            e.reason = "invalid arguments for plug-in `" + name + "':\n" + ex.reason;
+            throw e;
+        }
+
+        assert(!args.empty());
+
+        //
+        // Shift the arguments.
+        //
+        entryPoint = args[0];
+        args.erase(args.begin());
+
+        //
+        // Convert command-line options into properties. First we
+        // convert the options from the plug-in configuration, then
+        // we convert the options from the application command-line.
+        //
+        PropertiesPtr properties = _communicator->getProperties();
+        args = properties->parseCommandLineOptions(name, args);
+        cmdArgs = properties->parseCommandLineOptions(name, cmdArgs);
+    }
+
+    PluginPtr plugin;
+    PLUGIN_FACTORY factory = 0;
+    DynamicLibraryPtr library;
+
+    //
+    // Always check the static plugin factory table first, it takes
+    // precedence over the the entryPoint specified in the plugin
+    // property value.
+    //
+    if(factories)
+    {
+        map<string, PLUGIN_FACTORY>::const_iterator p = factories->find(name);
+        if(p != factories->end())
+        {
+            factory = p->second;
+        }
+    }
+
+    //
+    // If we didn't find the factory, get the factory using the entry
+    // point symbol.
+    //
+    if(!factory)
+    {
+        assert(!entryPoint.empty());
+        library = new DynamicLibrary();
+        DynamicLibrary::symbol_type sym = library->loadEntryPoint(entryPoint);
+        if(sym == 0)
+        {
+            ostringstream out;
+            string msg = library->getErrorMessage();
+            out << "unable to load entry point `" << entryPoint << "'";
+            if(!msg.empty())
+            {
+                out << ": " + msg;
+            }
+            PluginInitializationException ex(__FILE__, __LINE__);
+            ex.reason = out.str();
+            throw ex;
+        }
+        factory = reinterpret_cast<PLUGIN_FACTORY>(sym);
     }
 
     //
     // Invoke the factory function. No exceptions can be raised
     // by the factory function because it's declared extern "C".
     //
-    PLUGIN_FACTORY factory = (PLUGIN_FACTORY)sym;
     plugin = factory(_communicator, name, args);
     if(!plugin)
     {
@@ -378,7 +502,10 @@ Ice::PluginManagerI::loadPlugin(const string& name, const string& pluginSpec, St
     info.plugin = plugin;
     _plugins.push_back(info);
 
-    _libraries->add(library);
+    if(library)
+    {
+        _libraries->add(library);
+    }
 }
 
 Ice::PluginPtr
@@ -392,14 +519,4 @@ Ice::PluginManagerI::findPlugin(const string& name) const
         }
     }
     return 0;
-}
-
-void
-IceInternal::loadPlugin(const Ice::CommunicatorPtr& communicator,
-                        const string& name,
-                        const string& pluginSpec,
-                        Ice::StringSeq& cmdArgs)
-{
-    PluginManagerIPtr pluginManager = PluginManagerIPtr::dynamicCast(getInstance(communicator)->pluginManager());
-    pluginManager->loadPlugin(name, pluginSpec, cmdArgs);
 }

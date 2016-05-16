@@ -1,11 +1,15 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
+
+#pragma once
+
+[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
 
 #include <Ice/BuiltinSequences.ice>
 
@@ -14,8 +18,9 @@
  * The Ice Management eXtension facility. It provides the {@link
  * IceMX#MetricsAdmin} interface for management clients to retrieve
  * metrics from Ice applications.
- * 
+ *
  **/
+["objc:prefix:ICEMX"]
 module IceMX
 {
 
@@ -31,7 +36,7 @@ dictionary<string, int> StringIntDict;
  * The base class for metrics. A metrics object represents a
  * collection of measurements associated to a given a system.
  *
- **/ 
+ **/
 class Metrics
 {
     /**
@@ -40,14 +45,14 @@ class Metrics
      *
      **/
     string id;
-    
+
     /**
      *
      * The total number of objects that were observed by this metrics.
      *
      **/
     long total = 0;
-    
+
     /**
      *
      * The current number of objects observed by this metrics.
@@ -123,7 +128,7 @@ dictionary<string, MetricsMap> MetricsView;
 /**
  *
  * Raised if a metrics view cannot be found.
- * 
+ *
  **/
 exception UnknownMetricsView
 {
@@ -136,7 +141,7 @@ exception UnknownMetricsView
  * that enabled the Ice administrative facility and configured some
  * metrics views.
  *
- **/ 
+ **/
 ["format:sliced"]
 interface MetricsAdmin
 {
@@ -156,7 +161,7 @@ interface MetricsAdmin
      * Enables a metrics view.
      *
      * @param name The metrics view name.
-     * 
+     *
      * @throws UnknownMetricsView Raised if the metrics view cannot be
      * found.
      *
@@ -169,7 +174,7 @@ interface MetricsAdmin
      * Disable a metrics view.
      *
      * @param name The metrics view name.
-     * 
+     *
      * @throws UnknownMetricsView Raised if the metrics view cannot be
      * found.
      *
@@ -259,7 +264,7 @@ class ThreadMetrics extends Metrics
      *
      **/
     int inUseForUser = 0;
-    
+
     /**
      *
      * The number of threads which are currently performing other
@@ -274,7 +279,7 @@ class ThreadMetrics extends Metrics
 /**
  *
  * Provides information on servant dispatch.
- * 
+ *
  **/
 class DispatchMetrics extends Metrics
 {
@@ -304,12 +309,14 @@ class DispatchMetrics extends Metrics
 
 /**
  *
- * Provides information on invocations that are specifically sent over
- * Ice connections. Remote metrics are embedded within {@link
+ * Provides information on child invocations. A child invocation is
+ * either remote (sent over an Ice connection) or collocated. An
+ * invocation can have multiple child invocation if it is
+ * retried. Child invocation metrics are embedded within {@link
  * InvocationMetrics}.
  *
  **/
-class RemoteMetrics extends Metrics
+class ChildInvocationMetrics extends Metrics
 {
     /**
      *
@@ -323,17 +330,36 @@ class RemoteMetrics extends Metrics
      *
      * The size of the invocation reply. This corresponds to the size
      * of the marshalled output and return parameters.
-     * 
+     *
      **/
     long replySize = 0;
 };
 
 /**
  *
+ * Provides information on invocations that are collocated. Collocated
+ * metrics are embedded within {@link InvocationMetrics}.
+ *
+ **/
+class CollocatedMetrics extends ChildInvocationMetrics
+{
+};
+
+/**
+ *
+ * Provides information on invocations that are specifically sent over
+ * Ice connections. Remote metrics are embedded within {@link
+ * InvocationMetrics}.
+ *
+ **/
+class RemoteMetrics extends ChildInvocationMetrics
+{
+};
+
+/**
+ *
  * Provide measurements for proxy invocations. Proxy invocations can
- * either be sent over the wire or be collocated. The metrics for
- * invocations sent over the wire are specifically measured with
- * {@link RemoteMetrics}.
+ * either be sent over the wire or be collocated.
  *
  **/
 class InvocationMetrics extends Metrics
@@ -360,6 +386,15 @@ class InvocationMetrics extends Metrics
      *
      **/
     MetricsMap remotes;
+
+    /**
+     *
+     * The collocated invocation metrics map.
+     *
+     * @see CollocatedMetrics
+     *
+     **/
+    MetricsMap collocated;
 };
 
 /**
@@ -372,7 +407,7 @@ class ConnectionMetrics extends Metrics
 {
     /**
      *
-     * The number of bytes received by the connection. 
+     * The number of bytes received by the connection.
      *
      **/
     long receivedBytes = 0;

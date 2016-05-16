@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -70,7 +70,14 @@ public:
 
     void showBanner();
 
-    void getInput(char*, int&, int);
+    //
+    // With older flex version <= 2.5.35 YY_INPUT second 
+    // paramenter is of type int&, in newer versions it
+    // changes to size_t&
+    // 
+    void getInput(char*, int&, size_t);
+    void getInput(char*, size_t&, size_t);
+
     void continueLine();
     const char* getPrompt();
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -48,22 +48,6 @@ class smnpTest7Class extends smnpBaseClass implements smnpBaseInterface
 {
     smnpStruct
     smnpTest7Op1(smnpEnum i1,
-                 smnpStruct i2,
-                 smnpStructSeq i3,
-                 smnpStringStructDict i4,
-                 smnpInterface i5,
-                 smnpClass i6,
-                 out smnpEnum o1,
-                 out smnpStruct o2,
-                 out smnpStructSeq o3,
-                 out smnpStringStructDict o4,
-                 out smnpInterface o5,
-                 out smnpClass o6)
-        throws smnpException;
-
-    ["ami"]
-    smnpStruct
-    smnpTest7Op2(smnpEnum i1,
                  smnpStruct i2,
                  smnpStructSeq i3,
                  smnpStringStructDict i4,

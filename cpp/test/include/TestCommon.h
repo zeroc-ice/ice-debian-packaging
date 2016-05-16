@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,15 +11,14 @@
 #define TEST_COMMON_H
 
 #include <IceUtil/IceUtil.h>
-#ifdef ICE_OS_WINRT
+
+#if defined(ICE_OS_WINRT) || (TARGET_OS_IPHONE)
 #   include <Ice/Initialize.h>
 #   include <Ice/Logger.h>
 #   include <Ice/LocalException.h>
 #endif
 
-#include <cstdlib>
-
-void 
+void
 inline print(const std::string& msg)
 {
     std::cout << msg << std::flush;
@@ -31,7 +30,7 @@ inline println(const std::string& msg)
     std::cout << msg << std::endl;
 }
 
-#ifndef ICE_OS_WINRT
+#if !defined(ICE_OS_WINRT) && (TARGET_OS_IPHONE == 0)
 
 void
 inline testFailed(const char* expr, const char* file, unsigned int line)
@@ -46,75 +45,10 @@ inline testFailed(const char* expr, const char* file, unsigned int line)
 
 #else
 
+#include <TestHelper.h>
+
 namespace Test
 {
-
-class MainHelper : public std::streambuf
-{
-public:
-
-    MainHelper()
-    {
-        setp(&data[0], &data[sizeof(data) - 1]);
-    }
-
-    virtual void serverReady() = 0;
-
-    virtual void shutdown() = 0;
-
-    virtual void waitForCompleted() = 0;
-
-    virtual bool redirect() = 0;
-
-    virtual void print(const std::string& msg) = 0;
-
-    virtual void
-    flush()
-    {
-    }
-
-    virtual void
-    newLine()
-    {
-        print("\n");
-    }
-
-private:
-
-    //
-    // streambuf redirection implementation
-    //
-
-    int sync()
-    {
-        std::streamsize n = pptr() - pbase();
-        print(std::string(pbase(), static_cast<int>(n)));
-        pbump(-static_cast<int>(pptr() - pbase()));
-        return 0;
-    }
-
-    int overflow(int ch)
-    {
-        sync();
-        if(ch != EOF)
-        {
-            assert(pptr() != epptr());
-            sputc(ch);
-        }
-        return 0;
-    }
-
-    int sputc(char c)
-    {
-        if(c == '\n')
-        {
-            pubsync();
-        }
-        return std::streambuf::sputc(c);
-    }
-
-    char data[1024];
-};
 
 extern MainHelper* helper;
 
@@ -130,10 +64,10 @@ public:
         {
             _previousLogger = Ice::getProcessLogger();
             Ice::setProcessLogger(Ice::getProcessLogger()->cloneWithPrefix(name));
-            
+
             _previousCoutBuffer = std::cout.rdbuf();
             std::cout.rdbuf(r);
-            
+
             _previousCerrBuffer = std::cerr.rdbuf();
             std::cerr.rdbuf(r);
         }
@@ -168,7 +102,7 @@ class TestFailedException : public ::Ice::LocalException
 {
 public:
 
-    TestFailedException(const char* file, int line) : 
+    TestFailedException(const char* file, int line) :
         LocalException(file, line)
     {
     }
@@ -213,7 +147,7 @@ inline testFailed(const char* expr, const char* file, unsigned int line)
    Test::MainHelper* Test::helper; \
    Ice::CommunicatorPtr communicatorInstance; \
    extern "C" { \
-      _declspec(dllexport) void dllTestShutdown(); \
+      ICE_DECLSPEC_EXPORT void dllTestShutdown(); \
       void dllTestShutdown() \
       { \
           try \
@@ -224,6 +158,7 @@ inline testFailed(const char* expr, const char* file, unsigned int line)
           { \
           } \
       } \
+      ICE_DECLSPEC_EXPORT int dllMain(int, char**, Test::MainHelper*); \
       int dllMain(int argc, char** argv, Test::MainHelper* helper) \
       { \
           Test::MainHelperInit init(helper, name, helper->redirect());  \
@@ -239,4 +174,3 @@ inline testFailed(const char* expr, const char* file, unsigned int line)
 #define test(ex) ((ex) ? ((void)0) : testFailed(#ex, __FILE__, __LINE__))
 
 #endif
-

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,6 +11,19 @@
 #define MY_OBJECT_I_H
 
 #include <Test.h>
+
+class MySystemException : public Ice::SystemException
+{
+public:
+  
+    MySystemException(const char*, int);
+
+    virtual ~MySystemException() throw();
+
+    virtual std::string ice_name() const;
+    virtual MySystemException* ice_clone() const;
+    virtual void ice_throw() const;
+};
 
 class MyObjectI : public Test::MyObject
 {

@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -9,19 +9,16 @@
 
 top_srcdir	= ../..
 
-LIBFILENAME     = $(call mklibfilename,IceStorm,$(VERSION))
-SONAME          = $(call mksoname,IceStorm,$(SOVERSION))  
+LIBFILENAME	= $(call mklibfilename,IceStorm,$(VERSION))
+SONAME 		= $(call mksoname,IceStorm,$(SOVERSION))
 LIBNAME		= $(call mklibname,IceStorm)
 
-TARGETS		= $(call mklibtargets,$(libdir)/$(LIBFILENAME),$(libdir)/$(SONAME),$(libdir)/$(LIBNAME))
+TARGETS		= $(call mklibtargets,$(libdir)/$(LIBFILENAME),$(libdir)/$(SONAME),$(libdir)$(cpp11libdirsuffix)/$(LIBNAME))
 
-OBJS		= IceStorm.o \
+SLICE_OBJS	= IceStorm.o \
 		  Metrics.o
 
-SRCS		= $(OBJS:.o=.cpp)
-
-SLICE_SRCS	= $(SDIR)/IceStorm.ice \
-		  $(SDIR)/Metrics.ice
+OBJS		= $(SLICE_OBJS)
 
 HDIR		= $(headerdir)/IceStorm
 SDIR		= $(slicedir)/IceStorm
@@ -34,6 +31,7 @@ SLICE2CPPFLAGS	:= --ice --include-dir IceStorm --checksum --dll-export ICE_STORM
 LINKWITH	:= $(BZIP2_RPATH_LINK) -lIce -lIceUtil
 
 $(libdir)/$(LIBFILENAME): $(OBJS)
+	@mkdir -p $(dir $@)
 	rm -f $@
 	$(call mkshlib,$@,$(SONAME),$(OBJS),$(LINKWITH))
 
@@ -41,11 +39,10 @@ $(libdir)/$(SONAME): $(libdir)/$(LIBFILENAME)
 	rm -f $@
 	ln -s $(LIBFILENAME) $@
 
-$(libdir)/$(LIBNAME): $(libdir)/$(SONAME)
+$(libdir)$(cpp11libdirsuffix)/$(LIBNAME): $(libdir)/$(SONAME)
+	@mkdir -p $(libdir)$(cpp11libdirsuffix)
 	rm -f $@
-	ln -s $(SONAME) $@
+	ln -s $(cpp11sonamedir)$(SONAME) $@
 
 install:: all
 	$(call installlib,$(DESTDIR)$(install_libdir),$(libdir),$(LIBFILENAME),$(SONAME),$(LIBNAME))
-
-include .depend

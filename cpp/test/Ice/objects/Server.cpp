@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -57,6 +57,7 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
     InitialPtr initial = new InitialI(adapter);
     adapter->add(initial, communicator->stringToIdentity("initial"));
+    adapter->add(new TestIntfI(), communicator->stringToIdentity("test"));
     UnexpectedObjectExceptionTestIPtr uoet = new UnexpectedObjectExceptionTestI;
     adapter->add(uoet, communicator->stringToIdentity("uoet"));
     adapter->activate();
@@ -68,6 +69,10 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     int status;
     Ice::CommunicatorPtr communicator;
 

@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -12,40 +12,47 @@ top_srcdir	= ..
 include $(top_srcdir)/config/Make.rules
 
 ifneq ($(findstring MINGW,$(UNAME)),)
-    SUBDIRS		= IceUtil \
-			  Slice \
-			  slice2cpp \
-			  slice2rb \
-			  Ice \
-			  IceSSL
+    SUBDIRS	= IceUtil \
+		  Slice \
+		  slice2cpp \
+		  Ice \
+		  IceSSL \
+		  IceDiscovery \
+		  IceLocatorDiscovery
 else
-    SUBDIRS		= IceUtil \
-			  Slice \
-			  slice2cpp \
-			  slice2cs \
-			  slice2freeze \
-			  slice2freezej \
-			  slice2java \
-			  slice2php \
-			  slice2py \
-			  slice2rb \
-			  slice2html \
-			  Ice \
-			  IceXML \
-			  IceSSL \
-			  Freeze \
-			  FreezeScript \
-			  IceBox \
-			  Glacier2Lib \
-			  Glacier2 \
-			  IceDB \
-			  IcePatch2Lib \
-			  IcePatch2 \
-			  IceStormLib \
-			  IceGridLib \
-			  IceStorm \
-			  IceGrid \
-			  ca
+    SUBDIRS	= IceUtil \
+		  Slice \
+		  slice2cpp \
+		  slice2cs \
+		  slice2freeze \
+		  slice2freezej \
+		  slice2java \
+		  slice2php \
+		  slice2html \
+		  slice2js
+
+ifeq ($(UNAME),Darwin)
+    SUBDIRS	:= $(SUBDIRS) slice2objc
+endif
+
+    SUBDIRS	:= $(SUBDIRS) \
+		   Ice \
+		   IceXML \
+		   IceSSL \
+		   IceDiscovery \
+		   IceLocatorDiscovery \
+		   Freeze \
+		   FreezeScript \
+		   IceBox \
+		   Glacier2Lib \
+		   Glacier2CryptPermissionsVerifier \
+		   Glacier2 \
+		   IcePatch2Lib \
+		   IcePatch2 \
+		   IceStormLib \
+		   IceGridLib \
+		   IceStorm \
+		   IceGrid
 endif
 
 .PHONY: $(EVERYTHING) $(SUBDIRS)
@@ -56,7 +63,7 @@ endif
 
 Slice: IceUtil
 
-slice2cpp slice2cs slice2freeze slice2freezej slice2java slice2php slice2py slice2rb slice2html: Slice
+slice2cpp slice2cs slice2freeze slice2freezej slice2java slice2js slice2php slice2html slice2objc: Slice
 
 Ice: slice2cpp
 
@@ -64,16 +71,17 @@ IceXML IceSSL Freeze FreezeScript IceBox Glacier2Lib IcePatch2Lib IceStormLib Ic
 
 Freeze: slice2freeze
 
-FreezeScript IceDB: Freeze
+FreezeScript: Freeze
 
-Glacier2 IceGridLib: Glacier2Lib
+Glacier2 IceGridLib Glacier2CryptPermissionsVerifier: Glacier2Lib
 
 IcePatch2: IcePatch2Lib
 
-IceStorm: IceBox IceDB IceGridLib
+IceStorm: IceBox IceStormLib IceGridLib Glacier2Lib Freeze
 
-IceGrid: IceGridLib IceStorm IcePatch2Lib IceDB
+IceGrid: IceGridLib IceStorm IcePatch2Lib Freeze IceSSL IceBox IceXML
 
+IceDiscovery IceLocatorDiscovery: Ice
 
 all:: $(SUBDIRS)
 
@@ -90,4 +98,3 @@ $(EVERYTHING_EXCEPT_ALL)::
                 ( cd $$subdir && $(MAKE) $@ ) || exit 1; \
             fi; \
         done
-

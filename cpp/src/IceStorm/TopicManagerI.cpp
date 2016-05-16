@@ -1,13 +1,12 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <IceStorm/TopicManagerI.h>
 #include <IceStorm/TopicI.h>
 #include <IceStorm/TraceLevels.h>
@@ -15,7 +14,8 @@
 #include <IceStorm/NodeI.h>
 #include <IceStorm/Observers.h>
 #include <IceStorm/Subscriber.h>
-#include <IceStorm/DB.h>
+#include <IceStorm/SubscriberMap.h>
+#include <IceStorm/LLUMap.h>
 #include <IceStorm/Util.h>
 #include <Ice/SliceChecksums.h>
 
@@ -24,11 +24,14 @@
 using namespace std;
 using namespace IceStorm;
 using namespace IceStormElection;
+using namespace IceStormInternal;
 
-using namespace IceDB;
+using namespace Freeze;
 
 namespace
 {
+
+const string subscriberDbName = "subscribers";
 
 void
 halt(const Ice::CommunicatorPtr& com, const DatabaseException& ex)
@@ -290,7 +293,7 @@ nameToIdentity(const InstancePtr& instance, const string& name)
 
 TopicManagerImpl::TopicManagerImpl(const InstancePtr& instance) :
     _instance(instance),
-    _connectionPool(instance->connectionPool())
+    _connection(Freeze::createConnection(instance->communicator(), instance->serviceName()))
 {
     try
     {
@@ -317,18 +320,15 @@ TopicManagerImpl::TopicManagerImpl(const InstancePtr& instance) :
             _sync = _instance->nodeAdapter()->addWithUUID(_syncImpl);
         }
 
-        DatabaseConnectionPtr connection = _connectionPool->newConnection();
+
 
         // Ensure that the llu counter is present in the log.
-        LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
         LogUpdate empty = {0, 0};
-        lluWrapper->put(empty);
+        putLLU(_connection, empty);
 
         // Recreate each of the topics.
-        SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-        map<SubscriberRecordKey, SubscriberRecord> subscriberMap = subscribersWrapper->getMap();
-
-        map<SubscriberRecordKey, SubscriberRecord>::const_iterator p = subscriberMap.begin();
+        SubscriberMap subscriberMap(_connection, subscriberDbName);
+        SubscriberMap::const_iterator p = subscriberMap.begin();
         while(p != subscriberMap.end())
         {
             // This record has to be a place holder record, otherwise
@@ -339,14 +339,14 @@ TopicManagerImpl::TopicManagerImpl(const InstancePtr& instance) :
 
             // Skip the place holder.
             ++p;
-            
+
             SubscriberRecordSeq content;
             while(p != subscriberMap.end() && p->first.topic == topic)
             {
                 content.push_back(p->second);
                 ++p;
             }
-            
+
             string name = identityToTopicName(topic);
             installTopic(name, topic, false, content);
         }
@@ -386,8 +386,7 @@ TopicManagerImpl::create(const string& name)
     {
         try
         {
-            DatabaseConnectionPtr connection = _connectionPool->newConnection();
-            TransactionHolder txn(connection);
+            TransactionHolder txn(_connection);
 
             SubscriberRecordKey key;
             key.topic = id;
@@ -395,13 +394,12 @@ TopicManagerImpl::create(const string& name)
             rec.link = false;
             rec.cost = 0;
 
-            SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-            subscribersWrapper->put(key, rec);
+            SubscriberMap subscriberMap(_connection, subscriberDbName);
+            subscriberMap.put(SubscriberMap::value_type(key, rec));
 
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            llu = lluWrapper->get();
+            llu = getLLU(_connection);
             llu.iteration++;
-            lluWrapper->put(llu);
+            putLLU(_connection, llu);
 
             txn.commit();
             break;
@@ -413,11 +411,10 @@ TopicManagerImpl::create(const string& name)
         catch(const DatabaseException& ex)
         {
             halt(_instance->communicator(), ex);
-        }       
+        }
     }
 
     _instance->observers()->createTopic(llu, name);
-
     return installTopic(name, id, true);
 }
 
@@ -491,14 +488,12 @@ TopicManagerImpl::observerInit(const LogUpdate& llu, const TopicContentSeq& cont
     {
         try
         {
-            DatabaseConnectionPtr connection = _connectionPool->newConnection();
-            TransactionHolder txn(connection);
+            TransactionHolder txn(_connection);
 
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            lluWrapper->put(llu);
+            putLLU(_connection, llu);
 
-            SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-            subscribersWrapper->clear();
+            SubscriberMap subscriberMap(_connection, subscriberDbName);
+            subscriberMap.clear();
 
             for(TopicContentSeq::const_iterator p = content.begin(); p != content.end(); ++p)
             {
@@ -508,7 +503,7 @@ TopicManagerImpl::observerInit(const LogUpdate& llu, const TopicContentSeq& cont
                 rec.link = false;
                 rec.cost = 0;
 
-                subscribersWrapper->put(key, rec);
+                subscriberMap.put(SubscriberMap::value_type(key, rec));
 
                 for(SubscriberRecordSeq::const_iterator q = p->records.begin(); q != p->records.end(); ++q)
                 {
@@ -516,7 +511,7 @@ TopicManagerImpl::observerInit(const LogUpdate& llu, const TopicContentSeq& cont
                     key.topic = p->id;
                     key.id = q->id;
 
-                    subscribersWrapper->put(key, *q);
+                    subscriberMap.put(SubscriberMap::value_type(key, *q));
                 }
             }
             txn.commit();
@@ -529,7 +524,7 @@ TopicManagerImpl::observerInit(const LogUpdate& llu, const TopicContentSeq& cont
         catch(const DatabaseException& ex)
         {
             halt(_instance->communicator(), ex);
-        }       
+        }
     }
 
     // We do this with two scans. The first runs through the topics
@@ -595,8 +590,7 @@ TopicManagerImpl::observerCreateTopic(const LogUpdate& llu, const string& name)
     {
         try
         {
-            DatabaseConnectionPtr connection = _connectionPool->newConnection();
-            TransactionHolder txn(connection);
+            TransactionHolder txn(_connection);
 
             SubscriberRecordKey key;
             key.topic = id;
@@ -604,19 +598,14 @@ TopicManagerImpl::observerCreateTopic(const LogUpdate& llu, const string& name)
             rec.link = false;
             rec.cost = 0;
 
-            SubscribersWrapperPtr subscribersWrapper = _connectionPool->getSubscribers(connection);
-            try
+            SubscriberMap subscriberMap(_connection, subscriberDbName);
+            if(subscriberMap.find(key) != subscriberMap.end())
             {
-                subscribersWrapper->find(key);
                 throw ObserverInconsistencyException("topic exists: " + name);
             }
-            catch(const NotFoundException&)
-            {
-            }
-            subscribersWrapper->put(key, rec);
+            subscriberMap.put(SubscriberMap::value_type(key, rec));
 
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            lluWrapper->put(llu);
+            putLLU(_connection, llu);
 
             txn.commit();
             break;
@@ -628,7 +617,7 @@ TopicManagerImpl::observerCreateTopic(const LogUpdate& llu, const string& name)
         catch(const DatabaseException& ex)
         {
             halt(_instance->communicator(), ex);
-        }       
+        }
     }
     installTopic(name, id, true);
 }
@@ -689,10 +678,8 @@ TopicManagerImpl::getContent(LogUpdate& llu, TopicContentSeq& content)
 {
     {
         Lock sync(*this);
-        reap(); 
+        reap();
     }
-
-    DatabaseConnectionPtr connection = _connectionPool->newConnection();
 
     for(;;)
     {
@@ -704,9 +691,7 @@ TopicManagerImpl::getContent(LogUpdate& llu, TopicContentSeq& content)
                 TopicContent rec = p->second->getContent();
                 content.push_back(rec);
             }
-        
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            llu = lluWrapper->get();
+            llu = getLLU(_connection);
             break;
         }
         catch(const DeadlockException&)
@@ -716,21 +701,18 @@ TopicManagerImpl::getContent(LogUpdate& llu, TopicContentSeq& content)
         catch(const DatabaseException& ex)
         {
             halt(_instance->communicator(), ex);
-        }       
+        }
     }
 }
 
 LogUpdate
 TopicManagerImpl::getLastLogUpdate() const
 {
-    DatabaseConnectionPtr connection = _connectionPool->newConnection();
-
     for(;;)
     {
         try
         {
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            return lluWrapper->get();
+            return getLLU(_connection);
         }
         catch(const DeadlockException&)
         {
@@ -760,7 +742,7 @@ TopicManagerImpl::initMaster(const set<GroupNodeInfo>& slaves, const LogUpdate& 
 {
     Lock sync(*this);
 
-    reap(); 
+    reap();
 
     TopicContentSeq content;
 
@@ -781,18 +763,14 @@ TopicManagerImpl::initMaster(const set<GroupNodeInfo>& slaves, const LogUpdate& 
         {
             content.clear();
 
-            DatabaseConnectionPtr connection = _connectionPool->newConnection();
-            TransactionHolder txn(connection);
+            TransactionHolder txn(_connection);
 
             for(map<string, TopicImplPtr>::const_iterator p = _topics.begin(); p != _topics.end(); ++p)
             {
                 TopicContent rec = p->second->getContent();
                 content.push_back(rec);
             }
-
-            LLUWrapperPtr lluWrapper = _connectionPool->getLLU(connection);
-            lluWrapper->put(llu);
-
+            putLLU(_connection, llu);
             txn.commit();
             break;
         }
@@ -803,7 +781,7 @@ TopicManagerImpl::initMaster(const set<GroupNodeInfo>& slaves, const LogUpdate& 
         catch(const DatabaseException& ex)
         {
             halt(_instance->communicator(), ex);
-        }       
+        }
     }
 
     // Now initialize the observers.
@@ -830,16 +808,13 @@ TopicManagerImpl::reap()
     //
     // Lock sync(*this);
     //
-    map<string, TopicImplPtr>::iterator p = _topics.begin();
-    while(p != _topics.end())
+    vector<string> reaped = _instance->topicReaper()->consumeReapedTopics();
+    for(vector<string>::const_iterator p = reaped.begin(); p != reaped.end(); ++p)
     {
-        if(p->second->destroyed())
+        map<string, TopicImplPtr>::iterator q = _topics.find(*p);
+        if(q != _topics.end() && q->second->destroyed())
         {
-            _topics.erase(p++);
-        }
-        else
-        {
-            ++p;
+            _topics.erase(q);
         }
     }
 }
@@ -891,7 +866,7 @@ TopicManagerImpl::installTopic(const string& name, const Ice::Identity& id, bool
                                const IceStorm::SubscriberRecordSeq& subscribers)
 {
     //
-    // Called by constructor or with 'this' mutex locked. 
+    // Called by constructor or with 'this' mutex locked.
     //
     TraceLevelsPtr traceLevels = _instance->traceLevels();
     if(traceLevels->topicMgr > 0)

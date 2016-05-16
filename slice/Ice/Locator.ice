@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,11 +9,13 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+
 
 #include <Ice/Identity.ice>
 #include <Ice/ProcessF.ice>
 
+["objc:prefix:ICE"]
 module Ice
 {
 
@@ -103,7 +105,7 @@ interface Locator
      * @param id The adapter id.
      *
      * @return The adapter proxy, or null if the adapter is not active.
-     * 
+     *
      * @throws AdapterNotFoundException Raised if the adapter cannot be
      * found.
      *
@@ -200,5 +202,28 @@ interface LocatorRegistry
         throws ServerNotFoundException;
 };
 
+/**
+ *
+ * This inferface should be implemented by services implementing the
+ * Ice::Locator interface. It should be advertised through an Ice
+ * object with the identity `Ice/LocatorFinder'. This allows clients
+ * to retrieve the locator proxy with just the endpoint information of
+ * the service.
+ *
+ **/
+interface LocatorFinder
+{
+    /**
+     *
+     * Get the locator proxy implemented by the process hosting this
+     * finder object. The proxy might point to several replicas.
+     *
+     * @return The locator proxy.
+     *
+     **/
+    Locator* getLocator();
 };
+
+};
+
 

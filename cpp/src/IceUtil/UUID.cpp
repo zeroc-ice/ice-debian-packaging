@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -135,7 +135,7 @@ IceUtil::generateUUID()
     // Randoms by the last 15 bits of the process id.
     //
     char* buffer = reinterpret_cast<char*>(&uuid);
-    IceUtilInternal::generateRandom(buffer, static_cast<int>(sizeof(UUID)));
+    IceUtilInternal::generateRandom(buffer, sizeof(UUID));
 
     //
     // Adjust the bits that say "version 4" UUID

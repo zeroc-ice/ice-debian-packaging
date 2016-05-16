@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -15,11 +15,17 @@ import TestUtil
 
 testGroups = []
 
-for d in [ "cpp", "java", "cs", "py", "rb", "php" ]:
-    
+languages = [ "cpp", "java", "python", "ruby", "php", "js" ]
+if TestUtil.isWin32():
+    languages.append("csharp")
+if TestUtil.isDarwin():
+    languages.append("objective-c")
+
+for d in languages:
+
     filename = os.path.abspath(os.path.join(os.path.dirname(__file__), d, "allTests.py"))
     f = open(filename, "r")
-    current_mod = imp.load_module("allTests", f, filename, (".py", "r", imp.PY_SOURCE)) 
+    current_mod = imp.load_module("allTests", f, filename, (".py", "r", imp.PY_SOURCE))
     f.close()
 
     tests = []

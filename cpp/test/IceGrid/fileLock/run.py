@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -26,19 +26,14 @@ testdir = os.getcwd();
 IceGridAdmin.nreplicas = 0
 
 def runIceGridRegistry():
-    iceGrid = ""
-    if TestUtil.isVC90():
-        iceGrid = os.path.join(TestUtil.getServiceDir(), "icegridregistry")
-    else:
-        iceGrid = os.path.join(TestUtil.getCppBinDir(), "icegridregistry")
-
+    iceGrid = TestUtil.getIceGridRegistry()
     command = ' --nowarn ' + IceGridAdmin.registryOptions
 
     dataDir = os.path.join(testdir, "db", "registry")
     if not os.path.exists(dataDir):
         os.mkdir(dataDir)
 
-    cmd = command + ' ' + TestUtil.getQtSqlOptions('IceGrid') + \
+    cmd = command + ' ' + \
             r' --Ice.ProgramName=registry' + \
             r' --IceGrid.Registry.Client.Endpoints="default -p ' + str(IceGridAdmin.iceGridPort) + '" ' + \
             r' --IceGrid.Registry.Data="' + dataDir + '"'

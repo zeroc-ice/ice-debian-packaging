@@ -1,0 +1,51 @@
+{
+  "name": "ice",
+  "version": "3.6.2",
+  "description": "Ice for JavaScript runtime",
+  "author": "Zeroc, Inc.",
+  "homepage": "https://zeroc.com",
+  "repository": "https://github.com/zeroc-ice/ice.git",
+  "license": "GPL-2.0",
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "keywords": [
+    "Ice",
+    "rpc"
+  ],
+  "main": "src/ice.js",
+  "devDependencies": {
+    "bower": "^1.4.1",
+    "del": "^2.2.0",
+    "esprima": "^2.2.0",
+    "gulp": "^3.9.0",
+    "gulp-concat": "^2.5.2",
+    "gulp-ext-replace": "^0.2.0",
+    "gulp-gzip": "1.2.0",
+    "gulp-ice-builder": "^1.0.1",
+    "gulp-jshint": "^2.0.0",
+    "gulp-minify-css": "^1.2.3",
+    "gulp-newer": "^1.1.0",
+    "gulp-open": "^1.0.0",
+    "gulp-sourcemaps": "^1.5.2",
+    "gulp-uglify": "^1.5.1",
+    "gulp-util": "^3.0.5",
+    "gulp-watch": "^4.2.4",
+    "hogan.js": "^3.0.2",
+    "http-proxy": "^1.11.1",
+    "jshint": "^2.8.0",
+    "source-map": "^0.5.3",
+    "through2": "^2.0.0",
+    "vinyl-paths": "^2.1.0"
+  },
+  "scripts": {
+    "gulp:build": "gulp",
+    "gulp:dist": "gulp dist",
+    "gulp:watch": "gulp watch",
+    "gulp:clean": "gulp clean",
+    "gulp:test": "gulp test",
+    "gulp:lint": "gulp lint",
+    "gulp:test:run-with-browser": "gulp test:run-with-browser",
+    "gulp:test:run-with-node": "gulp test:run-with-node"
+  }
+}

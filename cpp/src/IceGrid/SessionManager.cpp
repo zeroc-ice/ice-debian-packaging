@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -13,26 +13,14 @@
 using namespace std;
 using namespace IceGrid;
 
-SessionManager::SessionManager(const Ice::CommunicatorPtr& communicator) : _communicator(communicator)
+SessionManager::SessionManager(const Ice::CommunicatorPtr& communicator, const string& instanceName) :
+    _communicator(communicator), _instanceName(instanceName)
 {
-    if(communicator->getDefaultLocator())
+    Ice::LocatorPrx prx = communicator->getDefaultLocator();
+    if(prx)
     {
-        Ice::ObjectPrx prx = communicator->getDefaultLocator();
-
-        //
-        // Derive the query objects from the locator proxy endpoints.
-        //
-        Ice::EndpointSeq endpoints = prx->ice_getEndpoints();
-        Ice::Identity id = prx->ice_getIdentity();
-        id.name = "Query";
-        QueryPrx query = QueryPrx::uncheckedCast(prx->ice_identity(id));
-        for(Ice::EndpointSeq::const_iterator p = endpoints.begin(); p != endpoints.end(); ++p)
-        {
-            Ice::EndpointSeq singleEndpoint;
-            singleEndpoint.push_back(*p);
-            _queryObjects.push_back(QueryPrx::uncheckedCast(query->ice_endpoints(singleEndpoint)));
-        }
-
+        Ice::Identity id;
+        id.category = instanceName;
         id.name = "InternalRegistry-Master";
         _master = InternalRegistryPrx::uncheckedCast(prx->ice_identity(id)->ice_endpoints(Ice::EndpointSeq()));
     }
@@ -43,21 +31,71 @@ SessionManager::~SessionManager()
 }
 
 vector<QueryPrx>
-SessionManager::findAllQueryObjects()
+SessionManager::findAllQueryObjects(bool cached)
 {
-    vector<QueryPrx> queryObjects = _queryObjects;
-    for(vector<QueryPrx>::const_iterator q = _queryObjects.begin(); q != _queryObjects.end(); ++q)
+    vector<QueryPrx> queryObjects;
+    Ice::LocatorPrx locator;
     {
-        Ice::ConnectionPtr connection = (*q)->ice_getCachedConnection();
-        if(connection)
+        Lock sync(*this);
+        if(!_communicator)
+        {
+            return queryObjects;
+        }
+        if(cached && !_queryObjects.empty())
+        {
+            return _queryObjects;
+        }
+        queryObjects = _queryObjects;
+        locator = _communicator->getDefaultLocator();
+    }
+
+    if(!cached)
+    {
+        for(vector<QueryPrx>::const_iterator q = queryObjects.begin(); q != queryObjects.end(); ++q)
+        {
+            Ice::ConnectionPtr connection = (*q)->ice_getCachedConnection();
+            if(connection)
+            {
+                try
+                {
+                    connection->close(false);
+                }
+                catch(const Ice::LocalException&)
+                {
+                }
+            }
+        }
+        queryObjects.clear();
+    }
+
+    if(queryObjects.empty() && locator)
+    {
+        Ice::Identity id;
+        id.category = _instanceName;
+        id.name = "Query";
+        QueryPrx query = QueryPrx::uncheckedCast(locator->ice_identity(id));
+        Ice::EndpointSeq endpoints = query->ice_getEndpoints();
+        if(endpoints.empty())
         {
             try
             {
-                connection->close(false);
+                Ice::ObjectPrx r = locator->findObjectById(id);
+                if(r)
+                {
+                    endpoints = r->ice_getEndpoints();
+                }
             }
-            catch(const Ice::LocalException&)
+            catch(const Ice::Exception&)
             {
+                // Ignore.
             }
+        }
+        
+        for(Ice::EndpointSeq::const_iterator p = endpoints.begin(); p != endpoints.end(); ++p)
+        {
+            Ice::EndpointSeq singleEndpoint;
+            singleEndpoint.push_back(*p);
+            queryObjects.push_back(QueryPrx::uncheckedCast(query->ice_endpoints(singleEndpoint)));
         }
     }
 
@@ -103,5 +141,8 @@ SessionManager::findAllQueryObjects()
         }
     }
     while(proxies.size() != previousSize);
-    return queryObjects;
+    
+    Lock sync(*this);
+    _queryObjects.swap(queryObjects);
+    return _queryObjects;
 }

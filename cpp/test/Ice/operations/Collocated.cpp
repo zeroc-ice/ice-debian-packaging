@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -20,12 +20,15 @@ run(int, char**, const Ice::CommunicatorPtr& communicator,
     const Ice::InitializationData&)
 {
     communicator->getProperties()->setProperty("TestAdapter.Endpoints", "default -p 12010");
+    communicator->getProperties()->setProperty("TestAdapter.AdapterId", "test");
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
-    adapter->add(new MyDerivedClassI, communicator->stringToIdentity("test"));
-    adapter->activate();
+    Ice::ObjectPrx prx = adapter->add(new MyDerivedClassI, communicator->stringToIdentity("test"));
+    //adapter->activate(); // Don't activate OA to ensure collocation is used.
 
-    Test::MyClassPrx allTests(const Ice::CommunicatorPtr&, bool);
-    allTests(communicator, true);
+    test(!prx->ice_getConnection());
+
+    Test::MyClassPrx allTests(const Ice::CommunicatorPtr&);
+    allTests(communicator);
 
     return EXIT_SUCCESS;
 }
@@ -33,6 +36,10 @@ run(int, char**, const Ice::CommunicatorPtr& communicator,
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     int status;
     Ice::CommunicatorPtr communicator;
 
@@ -40,6 +47,9 @@ main(int argc, char* argv[])
     {
         Ice::InitializationData initData;
         initData.properties = Ice::createProperties(argc, argv);
+
+        initData.properties->setProperty("Ice.BatchAutoFlushSize", "100");
+
         communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator, initData);
     }

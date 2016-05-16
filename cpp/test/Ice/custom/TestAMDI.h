@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -47,10 +47,6 @@ public:
                                                        Test::VariableList::const_iterator>&,
                                        const Ice::Current&);
 
-    virtual void opBoolRangeType_async(const Test::AMD_TestIntf_opBoolRangeTypePtr&,
-                                       const std::pair<const bool*, const bool*>&,
-                                       const Ice::Current&);
-
     virtual void opByteRangeType_async(const Test::AMD_TestIntf_opByteRangeTypePtr&,
                                        const std::pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>&,
                                        const Ice::Current&);
@@ -79,6 +75,10 @@ public:
     virtual void opMyByteSeq_async(const Test::AMD_TestIntf_opMyByteSeqPtr&,
                                    const MyByteSeq&,
                                    const Ice::Current&);
+
+    virtual void opString_async(const Test::AMD_TestIntf_opStringPtr&,
+                                const Util::string_view&,
+                                const Ice::Current&);
 
     virtual void opStringSeq_async(const Test::AMD_TestIntf_opStringSeqPtr&,
                                    const std::deque<std::string>&,
@@ -158,15 +158,19 @@ public:
     virtual void opVarDict_async(const ::Test::AMD_TestIntf_opVarDictPtr&,
                                  const ::Test::CustomMap<std::string, Ice::Int>&,                          
                                  const ::Ice::Current&);
+
+    virtual void opCustomIntStringDict_async(const ::Test::AMD_TestIntf_opCustomIntStringDictPtr&,
+                                             const std::map<Ice::Int, Util::string_view>&,
+                                             const Ice::Current&);
     
-    void opShortBuffer_async(const ::Test::AMD_TestIntf_opShortBufferPtr&,
-                             const Test::ShortBuffer&, const Ice::Current&);
+    virtual void opShortBuffer_async(const ::Test::AMD_TestIntf_opShortBufferPtr&,
+                                     const Test::ShortBuffer&, const Ice::Current&);
 
-    void opBoolBuffer_async(const ::Test::AMD_TestIntf_opBoolBufferPtr&,
-                            const Test::CustomBuffer<bool>&, const Ice::Current&);
+    virtual void opBoolBuffer_async(const ::Test::AMD_TestIntf_opBoolBufferPtr&,
+                                    const Test::CustomBuffer<bool>&, const Ice::Current&);
 
-    void opBufferStruct_async(const ::Test::AMD_TestIntf_opBufferStructPtr&, const Test::BufferStruct&,
-                              const Ice::Current&);
+    virtual void opBufferStruct_async(const ::Test::AMD_TestIntf_opBufferStructPtr&, const Test::BufferStruct&,
+                                      const Ice::Current&);
 
     virtual void shutdown_async(const Test::AMD_TestIntf_shutdownPtr&,
                                 const Ice::Current&);

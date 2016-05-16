@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -34,12 +34,9 @@ string
 IceUtilInternal::int64ToString(Int64 val)
 {
     char buf[64];
-#ifdef _WIN32
-#   if defined(_MSC_VER)
+
+#if defined(_WIN32)
     sprintf_s(buf, sizeof(buf), "%I64d", val);
-#   else
-    sprintf(buf, "%I64d", val);
-#   endif
 #elif defined(ICE_64)
     sprintf(buf, "%ld", val); // Avoids a format warning from GCC.
 #else
@@ -73,7 +70,7 @@ IceUtilInternal::OutputBase::OutputBase(ostream& os) :
 }
 
 
-IceUtilInternal::OutputBase::OutputBase(const char* s) :
+IceUtilInternal::OutputBase::OutputBase(const string& s) :
     _out(_fout),
     _pos(0),
     _indent(0),
@@ -89,14 +86,14 @@ IceUtilInternal::OutputBase::~OutputBase()
 }
 
 void
-IceUtilInternal::OutputBase::open(const char* s)
+IceUtilInternal::OutputBase::open(const string& s)
 {
     //
     // Remove any existing file first. This prevents file name
     // mismatches on case-insensitive OSs.
     //
     IceUtilInternal::unlink(s);
-    _fout.open(s);
+    _fout.open(s.c_str());
 }
 
 void
@@ -115,9 +112,10 @@ IceUtilInternal::OutputBase::isOpen()
 }
 
 void
-IceUtilInternal::OutputBase::print(const char* s)
+IceUtilInternal::OutputBase::print(const string& s)
 {
-    for(unsigned int i = 0; i < strlen(s); ++i)
+    size_t len = s.size();
+    for(unsigned int i = 0; i < len; ++i)
     {
         if(s[i] == '\n')
         {
@@ -128,7 +126,6 @@ IceUtilInternal::OutputBase::print(const char* s)
             ++_pos;
         }
     }
-
     _out << s;
 }
 
@@ -267,7 +264,7 @@ IceUtilInternal::Output::Output(const char* s) :
 }
 
 void
-IceUtilInternal::Output::print(const char* s)
+IceUtilInternal::Output::print(const string& s)
 {
     if(_par >= 0)
     {
@@ -277,18 +274,6 @@ IceUtilInternal::Output::print(const char* s)
         }
     }
     OutputBase::print(s);
-}
-
-void 
-IceUtilInternal::Output::setBeginBlock(const char *bb)
-{
-    _blockStart = bb;
-}
-
-void 
-IceUtilInternal::Output::setEndBlock(const char *eb)
-{
-    _blockEnd = eb;
 }
 
 void
@@ -335,7 +320,7 @@ IceUtilInternal::operator<<(Output& out, ios_base& (*val)(ios_base&))
 {
     ostringstream s;
     s << val;
-    out.print(s.str().c_str());
+    out.print(s.str());
     return out;
 }
 
@@ -368,7 +353,7 @@ IceUtilInternal::XMLOutput::XMLOutput(const char* s) :
 }
 
 void
-IceUtilInternal::XMLOutput::print(const char* s)
+IceUtilInternal::XMLOutput::print(const string& s)
 {
     if(_se)
     {
@@ -379,8 +364,7 @@ IceUtilInternal::XMLOutput::print(const char* s)
 
     if(_escape)
     {
-        string escaped = escape(s);
-        OutputBase::print(escaped.c_str());
+        OutputBase::print(escape(s));
     }
     else
     {
@@ -560,7 +544,7 @@ IceUtilInternal::operator<<(XMLOutput& out, ios_base& (*val)(ios_base&))
 {
     ostringstream s;
     s << val;
-    out.print(s.str().c_str());
+    out.print(s.str());
     return out;
 }
 

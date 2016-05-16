@@ -1,13 +1,12 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <IceUtil/ArgVector.h>
 #include <IceUtil/FileUtil.h>
 #include <Ice/Ice.h>
@@ -18,7 +17,7 @@
 #include <IceGrid/Util.h>
 #include <IceGrid/ServerI.h>
 
-#include <IcePatch2/Util.h>
+#include <IcePatch2Lib/Util.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -62,14 +61,14 @@ public:
     {
     }
 
-    virtual 
+    virtual
     void run()
     {
         _activator.runTerminationListener();
     }
 
 private:
-    
+
     Activator& _activator;
 };
 
@@ -289,6 +288,14 @@ operator()(const wstring& lhs, const wstring& rhs) const
 
 }
 
+#ifdef _WIN32
+extern "C" void CALLBACK activatorWaitCallback(PVOID data, BOOLEAN)
+{
+    Activator::Process* process = reinterpret_cast<Activator::Process*>(data);
+    process->activator->processTerminated(process);
+}
+#endif
+
 Activator::Activator(const TraceLevelsPtr& traceLevels) :
     _traceLevels(traceLevels),
     _deactivating(false)
@@ -328,7 +335,7 @@ Activator::Activator(const TraceLevelsPtr& traceLevels) :
 Activator::~Activator()
 {
     assert(!_thread);
-    
+
 #ifdef _WIN32
     if(_hIntr != NULL)
     {
@@ -344,7 +351,7 @@ int
 Activator::activate(const string& name,
                     const string& exePath,
                     const string& pwdPath,
-#ifndef _WIN32      
+#ifndef _WIN32
                     uid_t uid,
                     gid_t gid,
 #endif
@@ -365,7 +372,7 @@ Activator::activate(const string& name,
         throw string("The server executable path is empty.");
     }
 
-    string pwd = IcePatch2::simplify(pwdPath);
+    string pwd = IcePatch2Internal::simplify(pwdPath);
 #ifdef _WIN32
     if(!IceUtilInternal::isAbsolutePath(path))
     {
@@ -377,6 +384,11 @@ Activator::activate(const string& name,
             wchar_t absbuf[_MAX_PATH];
             wchar_t* fPart;
             wstring ext = path.size() <= 4 || path[path.size() - 4] != '.' ? L".exe" : L"";
+
+            //
+            // IceGrid doesn't support to use string converters, so don't need to use
+            // any string converter in wstringToString conversions.
+            //
             if(SearchPathW(NULL, IceUtil::stringToWstring(path).c_str(), ext.c_str(), _MAX_PATH, absbuf, &fPart) == 0)
             {
                 if(_traceLevels->activator > 0)
@@ -396,6 +408,10 @@ Activator::activate(const string& name,
 
     //
     // Get the absolute pathname of the working directory.
+    //
+    // IceGrid doesn't support to use string converters, so
+    // don't need to use any string converter in stringToWstring
+    // conversions.
     //
     if(!pwd.empty())
     {
@@ -484,6 +500,10 @@ Activator::activate(const string& name,
         }
     }
 
+    //
+    // IceGrid doesn't support to use string converters, so don't need to use
+    // any string converter in stringToWstring conversions.
+    //
     wstring wpwd = IceUtil::stringToWstring(pwd);
     const wchar_t* dir = !wpwd.empty() ? wpwd.c_str() : NULL;
 
@@ -530,6 +550,10 @@ Activator::activate(const string& name,
         FreeEnvironmentStringsW(static_cast<wchar_t*>(parentEnv));
         for(StringSeq::const_iterator p = envs.begin(); p != envs.end(); ++p)
         {
+            //
+            // IceGrid doesn't support to use string converters, so don't need to use
+            // any string converter in stringToWstring conversions.
+            //
             wstring s = IceUtil::stringToWstring(*p);
             wstring::size_type pos = s.find(L'=');
             if(pos != wstring::npos)
@@ -554,7 +578,7 @@ Activator::activate(const string& name,
     STARTUPINFOW si;
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
-    
+
     PROCESS_INFORMATION pi;
     ZeroMemory(&pi, sizeof(pi));
     BOOL b = CreateProcessW(
@@ -582,16 +606,21 @@ Activator::activate(const string& name,
     // keep the thread handle, so we close it now. The process handle will be closed later.
     //
     CloseHandle(pi.hThread);
-    
+    process.activator = this;
     process.pid = pi.dwProcessId;
     process.hnd = pi.hProcess;
     process.server = server;
-    _processes.insert(make_pair(name, process));
-    
-    setInterrupt();
+    map<string, Process>::iterator it = _processes.insert(make_pair(name, process)).first;
 
-    //  
-    // Don't print the following trace, this might interfere with the
+    Process* pp = &it->second;
+    if(!RegisterWaitForSingleObject(&pp->waithnd, pp->hnd, activatorWaitCallback, pp, INFINITE,
+                                    WT_EXECUTEDEFAULT | WT_EXECUTEONLYONCE))
+    {
+        throw IceUtilInternal::lastErrorToString();
+    }
+
+    //
+    // Don't print the following trace, this might interfer with the
     // output of the started process if it fails with an error message.
     //
 //     if(_traceLevels->activator > 0)
@@ -617,14 +646,14 @@ Activator::activate(const string& name,
         ex.error = getSystemErrno();
         throw ex;
     }
-    
+
 
     //
     // Convert to standard argc/argv.
     //
     IceUtilInternal::ArgVector av(args);
     IceUtilInternal::ArgVector env(envs);
-    
+
     //
     // Current directory
     //
@@ -690,10 +719,10 @@ Activator::activate(const string& name,
         {
             ostringstream os;
             os << pw->pw_name;
-            reportChildError(getSystemErrno(), errorFds[1], "cannot initialize process supplementary group access list for user", 
+            reportChildError(getSystemErrno(), errorFds[1], "cannot initialize process supplementary group access list for user",
                              os.str().c_str(), _traceLevels);
         }
-        
+
         if(setuid(uid) == -1)
         {
             ostringstream os;
@@ -703,7 +732,7 @@ Activator::activate(const string& name,
         }
 
         //
-        // Assign a new process group for this process. 
+        // Assign a new process group for this process.
         //
         setpgid(0, 0);
 
@@ -728,8 +757,8 @@ Activator::activate(const string& name,
             //
             if(putenv(strdup(env.argv[i])) != 0)
             {
-                reportChildError(errno, errorFds[1], "cannot set environment variable",  env.argv[i], 
-                                 _traceLevels); 
+                reportChildError(errno, errorFds[1], "cannot set environment variable",  env.argv[i],
+                                 _traceLevels);
             }
         }
 
@@ -790,7 +819,7 @@ Activator::activate(const string& name,
         if(!message.empty())
         {
             close(fds[0]);
-            close(errorFds[0]);            
+            close(errorFds[0]);
             waitPid(pid);
             throw message;
         }
@@ -806,14 +835,14 @@ Activator::activate(const string& name,
         process.pipeFd = fds[0];
         process.server = server;
         _processes.insert(make_pair(name, process));
-        
+
         int flags = fcntl(process.pipeFd, F_GETFL);
         flags |= O_NONBLOCK;
         fcntl(process.pipeFd, F_SETFL, flags);
 
         setInterrupt();
 
-    //  
+    //
     // Don't print the following trace, this might interfere with the
     // output of the started process if it fails with an error message.
     //
@@ -838,10 +867,10 @@ public:
     ShutdownCallback(const ActivatorPtr& activator, const string& name, const TraceLevelsPtr& traceLevels) :
         _activator(activator), _name(name), _traceLevels(traceLevels)
     {
-        
+
     }
 
-    virtual void 
+    virtual void
     exception(const Ice::Exception& ex)
     {
         Ice::Warning out(_traceLevels->logger);
@@ -854,7 +883,7 @@ public:
     }
 
 private:
-    
+
     const ActivatorPtr _activator;
     const string _name;
     const TraceLevelsPtr _traceLevels;
@@ -958,16 +987,16 @@ Activator::sendSignal(const string& name, int signal)
             ex.error = getSystemErrno();
             throw ex;
         }
-        
+
         TerminateProcess(hnd, 0); // We use 0 for the exit code to make sure it's not considered as a crash.
-        
+
         CloseHandle(hnd);
-        
+
         if(_traceLevels->activator > 1)
         {
             Ice::Trace out(_traceLevels->logger, _traceLevels->activatorCat);
             out << "terminated server `" << name << "' (pid = " << pid << ")";
-        }        
+        }
     }
     else
     {
@@ -1029,7 +1058,7 @@ Activator::shutdown()
 {
     IceUtil::Monitor< IceUtil::Mutex>::Lock sync(*this);
     //
-    // Deactivation has been initiated. Set _deactivating to true to 
+    // Deactivation has been initiated. Set _deactivating to true to
     // prevent activation of new processes. This will also cause the
     // termination listener thread to stop when there are no more
     // active processes.
@@ -1129,51 +1158,30 @@ Activator::terminationListener()
 #ifdef _WIN32
     while(true)
     {
-        vector<HANDLE> handles;
-
         //
-        // Lock while we collect the process handles.
+        // Wait for the interrupt event to be signaled.
         //
-        {
-            IceUtil::Monitor< IceUtil::Mutex>::Lock sync(*this);
-
-            for(map<string, Process>::iterator p = _processes.begin(); p != _processes.end(); ++p)
-            {
-                handles.push_back(p->second.hnd);
-            }
-        }
-
-        handles.push_back(_hIntr);
-
-        //
-        // Wait for a child to terminate, or the interrupt event to be signaled.
-        //
-        DWORD ret = WaitForMultipleObjects(static_cast<DWORD>(handles.size()), &handles[0], FALSE, INFINITE);
+        DWORD ret = WaitForSingleObject(_hIntr, INFINITE);
         if(ret == WAIT_FAILED)
         {
             SyscallException ex(__FILE__, __LINE__);
             ex.error = getSystemErrno();
             throw ex;
         }
+		clearInterrupt();
 
-        vector<HANDLE>::size_type pos = ret - WAIT_OBJECT_0;
-        assert(pos < handles.size());
-        HANDLE hnd = handles[pos];
-
+        //
+        // Collect terminated processes
+        //
         vector<Process> terminated;
         bool deactivated = false;
         {
             IceUtil::Monitor< IceUtil::Mutex>::Lock sync(*this);
-            
-            if(hnd == _hIntr)
-            {
-                clearInterrupt();
-            }
-            else
+            for(vector<Process*>::const_iterator q = _terminated.begin(); q != _terminated.end(); ++q)
             {
                 for(map<string, Process>::iterator p = _processes.begin(); p != _processes.end(); ++p)
                 {
-                    if(p->second.hnd == hnd)
+                    if(&p->second == *q)
                     {
                         terminated.push_back(p->second);
                         _processes.erase(p);
@@ -1181,14 +1189,17 @@ Activator::terminationListener()
                     }
                 }
             }
-
+            _terminated.clear();
             deactivated = _deactivating && _processes.empty();
         }
-        
+
         for(vector<Process>::const_iterator p = terminated.begin(); p != terminated.end(); ++p)
         {
+            UnregisterWait(p->waithnd);
+
             DWORD status;
             GetExitCodeProcess(p->hnd, &status);
+
             CloseHandle(p->hnd);
             assert(status != STILL_ACTIVE);
 
@@ -1225,7 +1236,7 @@ Activator::terminationListener()
         int maxFd = _fdIntrRead;
         FD_ZERO(&fdSet);
         FD_SET(_fdIntrRead, &fdSet);
-        
+
         {
             IceUtil::Monitor< IceUtil::Mutex>::Lock sync(*this);
 
@@ -1239,11 +1250,11 @@ Activator::terminationListener()
                 }
             }
         }
-        
+
     repeatSelect:
         int ret = ::select(maxFd + 1, &fdSet, 0, 0, 0);
         assert(ret != 0);
-        
+
         if(ret == -1)
         {
 #ifdef EPROTO
@@ -1257,17 +1268,17 @@ Activator::terminationListener()
                 goto repeatSelect;
             }
 #endif
-            
+
             SyscallException ex(__FILE__, __LINE__);
             ex.error = getSystemErrno();
             throw ex;
         }
-        
+
         vector<Process> terminated;
         bool deactivated = false;
         {
             IceUtil::Monitor< IceUtil::Mutex>::Lock sync(*this);
-            
+
             if(FD_ISSET(_fdIntrRead, &fdSet))
             {
                 clearInterrupt();
@@ -1277,12 +1288,12 @@ Activator::terminationListener()
                     return;
                 }
             }
-            
+
             map<string, Process>::iterator p = _processes.begin();
             while(p != _processes.end())
             {
                 int fd = p->second.pipeFd;
-                if(!FD_ISSET(fd, &fdSet))   
+                if(!FD_ISSET(fd, &fdSet))
                 {
                     ++p;
                     continue;
@@ -1320,13 +1331,13 @@ Activator::terminationListener()
                     ++p;
                 }
                 else if(rs == 0)
-                {    
+                {
                     //
                     // If the pipe was closed, the process has terminated.
                     //
 
                     terminated.push_back(p->second);
-    
+
                     close(p->second.pipeFd);
                     _processes.erase(p++);
                 }
@@ -1337,7 +1348,7 @@ Activator::terminationListener()
             //
             deactivated = _deactivating && _processes.empty();
         }
-        
+
         for(vector<Process>::const_iterator p = terminated.begin(); p != terminated.end(); ++p)
         {
             int status = waitPid(p->pid);
@@ -1422,15 +1433,15 @@ Activator::waitPid(pid_t processPid)
             if(pid < 0)
             {
                 //
-                // Some Linux distribution have a bogus waitpid() (e.g.: CentOS 4.x). It doesn't 
-                // block and reports an incorrect ECHILD error on the first call. We sleep a 
+                // Some Linux distribution have a bogus waitpid() (e.g.: CentOS 4.x). It doesn't
+                // block and reports an incorrect ECHILD error on the first call. We sleep a
                 // little and retry to work around this issue (it appears from testing that a
                 // single retry is enough but to make sure we retry up to 10 times before to throw.)
                 //
                 if(errno == ECHILD && nRetry < 10)
                 {
                     // Wait 1ms, 11ms, 21ms, etc.
-                    IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(nRetry * 10 + 1)); 
+                    IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(nRetry * 10 + 1));
                     ++nRetry;
                     continue;
                 }
@@ -1459,5 +1470,13 @@ Activator::waitPid(pid_t processPid)
         out << "unable to get process status:\n" << ex;
         return -1;
     }
+}
+#else
+void
+Activator::processTerminated(Activator::Process* process)
+{
+    IceUtil::Monitor< IceUtil::Mutex>::Lock sync(*this);
+    setInterrupt();
+    _terminated.push_back(process);
 }
 #endif

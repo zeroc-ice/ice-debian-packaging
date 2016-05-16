@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -15,6 +15,11 @@ SERVERAMD	= $(call mktestname,serveramd)
 COLLOCATED	= $(call mktestname,collocated)
 
 TARGETS		= $(CLIENT) $(SERVER) $(SERVERAMD) $(COLLOCATED)
+
+SLICE_OBJS	= Test.o \
+		  TestAMD.o \
+		  Wstring.o \
+		  WstringAMD.o
 
 COBJS		= Test.o \
 		  Wstring.o \
@@ -48,22 +53,16 @@ COLOBJS		= Test.o \
 		  MyByteSeq.o \
 		  StringConverterI.o
 
-SRCS		= $(COBJS:.o=.cpp) \
-		  $(SOBJS:.o=.cpp) \
-		  $(SAMDOBJS:.o=.cpp) \
-		  $(COLOBJS:.o=.cpp)
-
-SLICE_SRCS	= Test.ice \
-		  TestAMD.ice \
-		  Wstring.ice \
-		  WstringAMD.ice
+OBJS		= $(COBJS) \
+		  $(SOBJS) \
+		  $(SAMDOBJS) \
+		  $(COLOBJS)
 
 GENPIC          = no
 
 include $(top_srcdir)/config/Make.rules
 
-CPPFLAGS	:= -I. -I../../include $(CPPFLAGS)
-SLICE2CPPFLAGS	:= --stream $(SLICE2CPPFLAGS)
+CPPFLAGS	:= -I. -I../../include $(CPPFLAGS) -DSTRING_VIEW_IGNORE_STRING_CONVERTER
 
 #
 # Disables optimization when building with Solaris CC:
@@ -94,5 +93,3 @@ $(SERVERAMD): $(SAMDOBJS)
 $(COLLOCATED): $(COLOBJS)
 	rm -f $@
 	$(call mktest,$@,$(COLOBJS),$(LIBS))
-
-include .depend

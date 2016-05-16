@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -73,12 +73,12 @@ typedef IceUtil::Handle<AsyncCallback> AsyncCallbackPtr;
 class MisbehavedClient : public IceUtil::Thread, public IceUtil::Monitor<IceUtil::Mutex>
 {
 public:
-    
+
     MisbehavedClient(int id) : _id(id), _callback(false)
     {
     }
 
-    virtual 
+    virtual
     void run()
     {
         CommunicatorPtr communicator = initialize(initData);
@@ -103,12 +103,12 @@ public:
             _callbackReceiver = new CallbackReceiverI;
             notify();
         }
-        
+
         Identity ident;
         ident.name = "callbackReceiver";
         ident.category = category;
         CallbackReceiverPrx receiver = CallbackReceiverPrx::uncheckedCast(adapter->add(_callbackReceiver, ident));
-        
+
         ObjectPrx base = communicator->stringToProxy("c1/callback:tcp -p 12010");
         base = base->ice_oneway();
         CallbackPrx callback = CallbackPrx::uncheckedCast(base);
@@ -134,7 +134,7 @@ public:
         // Callback the client with a large payload. This should cause
         // the Glacier2 request queue thread to block trying to send the
         // callback to the client because the client is currently blocked
-        // in CallbackReceiverI::waitCallback() and can't process more 
+        // in CallbackReceiverI::waitCallback() and can't process more
         // requests.
         //
         callback->initiateCallbackWithPayload(receiver);
@@ -180,12 +180,12 @@ typedef IceUtil::Handle<MisbehavedClient> MisbehavedClientPtr;
 class StressClient : public IceUtil::Thread, public IceUtil::Monitor<IceUtil::Mutex>
 {
 public:
-    
+
     StressClient(int id) : _id(id), _initialized(false), _notified(false)
     {
     }
 
-    virtual 
+    virtual
     void run()
     {
         CommunicatorPtr communicator = initialize(initData);
@@ -199,14 +199,14 @@ public:
         communicator->getProperties()->setProperty("Ice.PrintAdapterReady", "");
         ObjectAdapterPtr adapter = communicator->createObjectAdapterWithRouter("CallbackReceiverAdapter", _router);
         adapter->activate();
-        
+
         string category = _router->getCategoryForClient();
         _callbackReceiver = new CallbackReceiverI;
         Identity ident;
         ident.name = "callbackReceiver";
         ident.category = category;
         CallbackReceiverPrx receiver = CallbackReceiverPrx::uncheckedCast(adapter->add(_callbackReceiver, ident));
-        
+
         ObjectPrx base = communicator->stringToProxy("c1/callback:tcp -p 12010");
         base = base->ice_oneway();
         CallbackPrx callback = CallbackPrx::uncheckedCast(base);
@@ -223,7 +223,7 @@ public:
                 wait();
             }
         }
-        
+
         //
         // Stress the router until the connection is closed.
         //
@@ -286,7 +286,7 @@ class PingStressClient : public StressClient
 {
 public:
 
-    PingStressClient(int id) : StressClient(id) 
+    PingStressClient(int id) : StressClient(id)
     {
     }
 
@@ -325,7 +325,7 @@ class CallbackStressClient : public StressClient
 {
 public:
 
-    CallbackStressClient(int id) : StressClient(id) 
+    CallbackStressClient(int id) : StressClient(id)
     {
     }
 
@@ -350,7 +350,7 @@ public:
         }
         catch(const Ice::ObjectNotExistException&)
         {
-            // This might be raised by the CallbackI implementation if it can't invoke on the 
+            // This might be raised by the CallbackI implementation if it can't invoke on the
             // callback receiver because the session is being destroyed concurrently.
         }
         catch(const Ice::CommunicatorDestroyedException&)
@@ -369,7 +369,7 @@ class CallbackWithPayloadStressClient : public StressClient
 {
 public:
 
-    CallbackWithPayloadStressClient(int id) : StressClient(id) 
+    CallbackWithPayloadStressClient(int id) : StressClient(id)
     {
     }
 
@@ -394,7 +394,7 @@ public:
         }
         catch(const Ice::ObjectNotExistException&)
         {
-            // This might be raised by the CallbackI implementation if it can't invoke on the 
+            // This might be raised by the CallbackI implementation if it can't invoke on the
             // callback receiver because the session is being destroyed concurrently.
         }
         catch(const Ice::CommunicatorDestroyedException&)
@@ -419,6 +419,10 @@ public:
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     //
     // We must disable connection warnings, because we attempt to ping
     // the router before session establishment, as well as after
@@ -441,13 +445,21 @@ CallbackClient::run(int argc, char* argv[])
         routerBase = communicator()->stringToProxy("Glacier2/router:default -p 12347");
         cout << "ok" << endl;
     }
-    
+
     Glacier2::RouterPrx router;
 
     {
         cout << "testing checked cast for router... " << flush;
         router = Glacier2::RouterPrx::checkedCast(routerBase);
         test(router);
+        cout << "ok" << endl;
+    }
+
+    {
+        cout << "testing router finder... " << flush;
+        Ice::RouterFinderPrx finder =
+            RouterFinderPrx::uncheckedCast(communicator()->stringToProxy("Ice/RouterFinder:default -p 12347"));
+        test(finder->getRouter()->ice_getIdentity() == router->ice_getIdentity());
         cout << "ok" << endl;
     }
 
@@ -471,7 +483,7 @@ CallbackClient::run(int argc, char* argv[])
         base = communicator()->stringToProxy("c1/callback:tcp -p 12010");
         cout << "ok" << endl;
     }
-        
+
     {
         cout << "trying to ping server before session creation... " << flush;
         try
@@ -577,7 +589,7 @@ CallbackClient::run(int argc, char* argv[])
     ObjectPtr callbackReceiver;
     CallbackReceiverPrx twowayR;
     CallbackReceiverPrx fakeTwowayR;
-    
+
     {
         cout << "creating and adding callback receiver object... " << flush;
         callbackReceiverImpl = new CallbackReceiverI;
@@ -592,7 +604,7 @@ CallbackClient::run(int argc, char* argv[])
         fakeTwowayR = CallbackReceiverPrx::uncheckedCast(adapter->add(callbackReceiver, fakeCallbackReceiverIdent));
         cout << "ok" << endl;
     }
-    
+
     {
         cout << "testing oneway callback... " << flush;
         CallbackPrx oneway = CallbackPrx::uncheckedCast(twoway->ice_oneway());
@@ -600,7 +612,10 @@ CallbackClient::run(int argc, char* argv[])
         Context context;
         context["_fwd"] = "o";
         oneway->initiateCallback(onewayR, context);
-        callbackReceiverImpl->callbackOK();
+        oneway->initiateCallback(onewayR, context);
+        oneway->initiateCallback(onewayR, context);
+        oneway->initiateCallback(onewayR, context);
+        callbackReceiverImpl->callbackOK(4);
         cout << "ok" << endl;
     }
 
@@ -609,7 +624,27 @@ CallbackClient::run(int argc, char* argv[])
         Context context;
         context["_fwd"] = "t";
         twoway->initiateCallback(twowayR, context);
-        callbackReceiverImpl->callbackOK();
+        twoway->initiateCallback(twowayR, context);
+        twoway->initiateCallback(twowayR, context);
+        twoway->initiateCallback(twowayR, context);
+        callbackReceiverImpl->callbackOK(4);
+        cout << "ok" << endl;
+    }
+
+    {
+        cout << "testing batch oneway callback... " << flush;
+        Context context;
+        context["_fwd"] = "O";
+        CallbackPrx batchOneway = CallbackPrx::uncheckedCast(twoway->ice_batchOneway());
+        CallbackReceiverPrx onewayR = CallbackReceiverPrx::uncheckedCast(twowayR->ice_oneway());
+        batchOneway->initiateCallback(onewayR, context);
+        batchOneway->initiateCallback(onewayR, context);
+        batchOneway->initiateCallback(onewayR, context);
+        batchOneway->initiateCallback(onewayR, context);
+        batchOneway->initiateCallback(onewayR, context);
+        batchOneway->initiateCallback(onewayR, context);
+        batchOneway->ice_flushBatchRequests();
+        callbackReceiverImpl->callbackOK(6);
         cout << "ok" << endl;
     }
 
@@ -734,7 +769,7 @@ CallbackClient::run(int argc, char* argv[])
         IceUtil::ThreadControl::sleep(IceUtil::Time::seconds(1));
 
         //
-        // Initiate few callbacks with a large payload. Because of 
+        // Initiate few callbacks with a large payload. Because of
         // the buffered mode, this shouldn't block even though the
         // misbehaved client are not answering their callback
         // requests.
@@ -834,7 +869,7 @@ CallbackClient::run(int argc, char* argv[])
           }
         */
     }
-    
+
     {
         cout << "destroying session... " << flush;
         try
@@ -876,9 +911,9 @@ CallbackClient::run(int argc, char* argv[])
             processBase = communicator()->stringToProxy("Glacier2/admin -f Process:tcp -h 127.0.0.1 -p 12348");
             cout << "ok" << endl;
         }
-        
+
         Ice::ProcessPrx process;
-        
+
         {
             cout << "testing checked cast for process facet... " << flush;
             process = Ice::ProcessPrx::checkedCast(processBase);
@@ -898,6 +933,6 @@ CallbackClient::run(int argc, char* argv[])
             cout << "ok" << endl;
         }
     }
-    
+
     return EXIT_SUCCESS;
 }

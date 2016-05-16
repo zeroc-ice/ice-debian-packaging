@@ -1,7 +1,7 @@
 
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,11 +10,12 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["cpp:header-ext:h", "objc:header-dir:objc"]]
 
 #include <Ice/LoggerF.ice>
 #include <Ice/BuiltinSequences.ice>
 
+["objc:prefix:ICE"]
 module Ice
 {
 
@@ -24,7 +25,7 @@ module Ice
  * communicator, such as support for a protocol.
  *
  * The communicator loads its plug-ins in two stages: the first stage
- * creates the plug-ins, and the second stage invokes {@link Plugin.initialize} on
+ * creates the plug-ins, and the second stage invokes {@link Plugin#initialize} on
  * each one.
  *
  **/

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,7 +11,6 @@
 #include <Ice/Incoming.h>
 #include <Ice/IncomingAsync.h>
 #include <Ice/IncomingRequest.h>
-#include <Ice/Direct.h>
 #include <Ice/LocalException.h>
 #include <Ice/Stream.h>
 #include <Ice/SlicedData.h>
@@ -40,11 +39,6 @@ Ice::Object::operator<(const Object& r) const
     return this < &r;
 }
 
-Int
-Ice::Object::ice_getHash() const
-{
-    return static_cast<Int>(reinterpret_cast<Long>(this) >> 4);
-}
 
 namespace
 {
@@ -193,18 +187,11 @@ Ice::Object::ice_dispatch(Request& request, const DispatchInterceptorAsyncCallba
     };
 
 
-    if(request.isCollocated())
-    {
-        return __collocDispatch(dynamic_cast<IceInternal::Direct&>(request));
-    }
-    else
-    {
-        IceInternal::Incoming& in = dynamic_cast<IceInternal::IncomingRequest&>(request)._in;
-        
-        PushCb pusbCb(in, cb);
-        in.startOver(); // may raise ResponseSentException
-        return __dispatch(in, in.getCurrent());
-    }
+    IceInternal::Incoming& in = dynamic_cast<IceInternal::IncomingRequest&>(request)._in;
+    
+    PushCb pusbCb(in, cb);
+    in.startOver(); // may raise ResponseSentException
+    return __dispatch(in, in.getCurrent());
 }
 
 DispatchStatus
@@ -240,12 +227,6 @@ Ice::Object::__dispatch(Incoming& in, const Current& current)
 
     assert(false);
     throw OperationNotExistException(__FILE__, __LINE__, current.id, current.facet, current.operation);
-}
-
-DispatchStatus
-Ice::Object::__collocDispatch(IceInternal::Direct& request)
-{
-    return request.run(this);
 }
 
 void

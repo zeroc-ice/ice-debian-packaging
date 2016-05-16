@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,13 +10,15 @@
 #include <IceUtil/Options.h>
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/FileUtil.h>
+#include <IceUtil/DisableWarnings.h>
 #include <Ice/Service.h>
 #include <IcePatch2/FileServerI.h>
-#include <IcePatch2/Util.h>
+#include <IcePatch2Lib/Util.h>
 
 using namespace std;
 using namespace Ice;
 using namespace IcePatch2;
+using namespace IcePatch2Internal;
 
 namespace IcePatch2
 {
@@ -55,7 +57,7 @@ IcePatch2::PatcherService::start(int argc, char* argv[], int& status)
     vector<string> args;
     try
     {
-        args = opts.parse(argc, (const char**)argv);
+        args = opts.parse(argc, const_cast<const char**>(argv));
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
@@ -96,7 +98,7 @@ IcePatch2::PatcherService::start(int argc, char* argv[], int& status)
         return false;
     }
 
-    FileInfoSeq infoSeq;
+    LargeFileInfoSeq infoSeq;
 
     try
     {

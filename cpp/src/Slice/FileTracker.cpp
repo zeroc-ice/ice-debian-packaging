@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -99,6 +99,7 @@ Slice::FileTracker::setOutput(const string& output, bool error)
     _errors.insert(make_pair(_source, output));
     if(error)
     {
+        _generated.erase(_curr);
         _curr = _generated.end();
     }
 }
@@ -128,7 +129,7 @@ Slice::FileTracker::cleanup()
         {
 #ifdef _WIN32
             _unlink(p->first.c_str());
-#else       
+#else
             unlink(p->first.c_str());
 #endif
         }
@@ -136,7 +137,7 @@ Slice::FileTracker::cleanup()
         {
 #ifdef _WIN32
             _rmdir(p->first.c_str());
-#else       
+#else
             rmdir(p->first.c_str());
 #endif
         }

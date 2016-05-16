@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -17,6 +17,7 @@
 #include <IceGrid/Internal.h>
 #include <IceGrid/PlatformInfo.h>
 #include <IceGrid/ReplicaSessionManager.h>
+#include <IceGrid/PluginFacade.h>
 #include <Glacier2/PermissionsVerifierF.h>
 #include <IceStorm/Service.h>
 
@@ -50,7 +51,7 @@ class RegistryI : public Registry
 {
 public:
 
-    RegistryI(const Ice::CommunicatorPtr&, const TraceLevelsPtr&, bool, bool, const std::string&);
+    RegistryI(const Ice::CommunicatorPtr&, const TraceLevelsPtr&, bool, bool, const std::string&, const std::string&);
     ~RegistryI();
 
     bool start();
@@ -64,6 +65,7 @@ public:
     virtual AdminSessionPrx createAdminSessionFromSecureConnection(const Ice::Current&);
 
     virtual int getSessionTimeout(const Ice::Current& = Ice::Current()) const;
+    virtual int getACMTimeout(const Ice::Current& = Ice::Current()) const;
     
     std::string getName() const;
     RegistryInfo getInfo() const;
@@ -71,27 +73,29 @@ public:
     void waitForShutdown();
     virtual void shutdown();
     
-    std::string getServerAdminCategory() const { return _instanceName + "-RegistryRouter"; }
+    std::string getServerAdminCategory() const { return _instanceName + "-RegistryServerAdminRouter"; }
+    std::string getNodeAdminCategory() const { return _instanceName + "-RegistryNodeAdminRouter"; }
+    std::string getReplicaAdminCategory() const { return _instanceName + "-RegistryReplicaAdminRouter"; }
 
     Ice::ObjectPrx createAdminCallbackProxy(const Ice::Identity&) const;
 
+    const Ice::ObjectAdapterPtr& getRegistryAdapter() { return _registryAdapter; }
+
+    Ice::LocatorPrx getLocator();
+
 private:
 
-    Ice::LocatorRegistryPrx setupLocatorRegistry(const Ice::ObjectAdapterPtr&); 
-    LocatorPrx setupLocator(const Ice::ObjectAdapterPtr&, const Ice::ObjectAdapterPtr&, const Ice::LocatorRegistryPrx&,
-                            const RegistryPrx&, const QueryPrx&); 
-    QueryPrx setupQuery(const Ice::ObjectAdapterPtr&);
-    RegistryPrx setupRegistry(const Ice::ObjectAdapterPtr&);
-    InternalRegistryPrx setupInternalRegistry(const Ice::ObjectAdapterPtr&);
-    void setupNullPermissionsVerifier(const Ice::ObjectAdapterPtr&);
-    bool setupUserAccountMapper(const Ice::ObjectAdapterPtr&);
-    Ice::ObjectAdapterPtr setupClientSessionFactory(const Ice::ObjectAdapterPtr&, const LocatorPrx&);
-    Ice::ObjectAdapterPtr setupAdminSessionFactory(const Ice::ObjectAdapterPtr&, const Ice::ObjectPtr&, 
-                                                   const LocatorPrx&);
+    void setupLocatorRegistry(); 
+    LocatorPrx setupLocator(const RegistryPrx&, const QueryPrx&); 
+    QueryPrx setupQuery();
+    RegistryPrx setupRegistry();
+    InternalRegistryPrx setupInternalRegistry();
+    bool setupUserAccountMapper();
+    Ice::ObjectAdapterPtr setupClientSessionFactory(const LocatorPrx&);
+    Ice::ObjectAdapterPtr setupAdminSessionFactory(const Ice::ObjectPtr&, const Ice::ObjectPtr&, 
+                                                   const Ice::ObjectPtr&, const LocatorPrx&);
 
-    Glacier2::PermissionsVerifierPrx getPermissionsVerifier(const Ice::ObjectAdapterPtr&, const LocatorPrx&,
-                                                            const std::string&, const std::string&);
-
+    Glacier2::PermissionsVerifierPrx getPermissionsVerifier(const LocatorPrx&, const std::string&);
     Glacier2::SSLPermissionsVerifierPrx getSSLPermissionsVerifier(const LocatorPrx&, const std::string&);
     Glacier2::SSLInfo getSSLInfo(const Ice::ConnectionPtr&, std::string&);
 
@@ -103,10 +107,12 @@ private:
     const bool _nowarn;
     const bool _readonly;
     const std::string _initFromReplica;
+    const std::string _collocatedNodeName;
 
     DatabasePtr _database;
     Ice::ObjectAdapterPtr _clientAdapter;
     Ice::ObjectAdapterPtr _serverAdapter;
+    Ice::ObjectAdapterPtr _registryAdapter;
     WellKnownObjectsManagerPtr _wellKnownObjects;
     std::string _instanceName;
     bool _master;
@@ -115,12 +121,9 @@ private:
     IceUtil::TimerPtr _timer;
     SessionServantManagerPtr _servantManager;
     int _sessionTimeout;
-    ReplicaSessionManager _session;
+    IceUtil::UniquePtr<ReplicaSessionManager> _session;
     mutable PlatformInfo _platform;
-
-    Glacier2::PermissionsVerifierPrx _nullPermissionsVerifier;
-    Glacier2::SSLPermissionsVerifierPrx _nullSSLPermissionsVerifier;
-
+    
     ClientSessionFactoryPtr _clientSessionFactory;
     Glacier2::PermissionsVerifierPrx _clientVerifier;
     Glacier2::SSLPermissionsVerifierPrx _sslClientVerifier;

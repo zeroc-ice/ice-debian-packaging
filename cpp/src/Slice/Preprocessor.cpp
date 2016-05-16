@@ -1,20 +1,20 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <Slice/Preprocessor.h>
 #include <Slice/Util.h>
 #include <IceUtil/StringUtil.h>
+#include <IceUtil/StringConverter.h>
 #include <IceUtil/FileUtil.h>
 #include <IceUtil/UUID.h>
-#include <IceUtil/Unicode.h>
 #include <algorithm>
+#include <vector>
 #include <fstream>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -122,7 +122,7 @@ Slice::Preprocessor::normalizeIncludePath(const string& path)
         result.replace(pos, 2, "/");
     }
 
-    if(result == "/" || (result.size() == 3 && IceUtilInternal::isAlpha(result[0]) && result[1] == ':' && 
+    if(result == "/" || (result.size() == 3 && IceUtilInternal::isAlpha(result[0]) && result[1] == ':' &&
                          result[2] == '/'))
     {
         return result;
@@ -148,7 +148,7 @@ baseArgs(vector<string> args, bool keepComments, const string& extraArgs, const 
     }
     args.push_back("-e");
     args.push_back("en_us.utf8");
-    
+
     //
     // Define version macros __ICE_VERSION__ is preferred. We keep
     // ICE_VERSION for backward compatibility with 3.5.0.
@@ -160,7 +160,7 @@ baseArgs(vector<string> args, bool keepComments, const string& extraArgs, const 
         os << "-D" << version[i] << "=" << ICE_INT_VERSION;
         args.push_back(os.str());
     }
-    
+
     if(!extraArgs.empty())
     {
         args.push_back(extraArgs);
@@ -229,10 +229,17 @@ Slice::Preprocessor::preprocess(bool keepComments, const string& extraArgs)
         // First try to open temporay file in tmp directory.
         //
 #ifdef _WIN32
-        wchar_t* name = _wtempnam(NULL, L".preprocess");
+        //
+        // We use an unique id as the tmp file name prefix to avoid
+        // problems with this code being called concurrently from
+        // several processes, otherwise there is a change that two
+        // process call _tempnam before any of them call fopen and
+        // they will end up using the same tmp file.
+        //
+        char* name = _tempnam(0, ("slice-" + IceUtil::generateUUID()).c_str());
         if(name)
         {
-            _cppFile = IceUtil::wstringToString(name);
+            _cppFile = name;
             free(name);
             _cppHandle = IceUtilInternal::fopen(_cppFile, "w+");
         }
@@ -245,7 +252,11 @@ Slice::Preprocessor::preprocess(bool keepComments, const string& extraArgs)
         //
         if(_cppHandle == 0)
         {
-            _cppFile = ".preprocess." + IceUtil::generateUUID();
+#ifdef _WIN32
+            _cppFile = "slice-" + IceUtil::generateUUID();
+#else
+            _cppFile = ".slice-" + IceUtil::generateUUID();
+#endif
             _cppHandle = IceUtilInternal::fopen(_cppFile, "w+");
         }
 
@@ -275,15 +286,15 @@ Slice::Preprocessor::preprocess(bool keepComments, const string& extraArgs)
 }
 
 bool
-Slice::Preprocessor::printMakefileDependencies(Language lang, const vector<string>& includePaths,
-                                               const std::string& extraArgs, const string& cppSourceExt,
+Slice::Preprocessor::printMakefileDependencies(ostream& out, Language lang, const vector<string>& includePaths,
+                                               const string& extraArgs, const string& cppSourceExt,
                                                const string& optValue)
 {
     if(!checkInputFile())
     {
         return false;
     }
-    
+
     string cppHeaderExt;
     string pyPrefix;
     if(lang == CPlusPlus)
@@ -301,7 +312,7 @@ Slice::Preprocessor::printMakefileDependencies(Language lang, const vector<strin
     vector<string> args = _args;
     args.push_back("-M");
     args = baseArgs(args, false, extraArgs, _fileName);
-   
+
     const char** argv = new const char*[args.size() + 1];
     for(unsigned int i = 0; i < args.size(); ++i)
     {
@@ -365,14 +376,14 @@ Slice::Preprocessor::printMakefileDependencies(Language lang, const vector<strin
     //
     // Get the main output file name.
     //
-#ifdef _WIN32
+#ifdef _MSC_VER
      string suffix = ".obj:";
 #else
      string suffix = ".o:";
 #endif
     pos = unprocessed.find(suffix) + suffix.size();
     string result;
-    if(lang != JavaXML)
+    if(lang != SliceXML)
     {
         result = unprocessed.substr(0, pos);
     }
@@ -387,6 +398,10 @@ Slice::Preprocessor::printMakefileDependencies(Language lang, const vector<strin
     //
     // Process each dependency.
     //
+
+    string sourceFile;
+    vector<string> dependencies;
+
     string::size_type end;
     while((end = unprocessed.find(".ice", pos)) != string::npos)
     {
@@ -420,7 +435,7 @@ Slice::Preprocessor::printMakefileDependencies(Language lang, const vector<strin
             }
         }
 
-        if(lang == JavaXML)
+        if(lang == SliceXML)
         {
             if(result.size() == 0)
             {
@@ -429,6 +444,17 @@ Slice::Preprocessor::printMakefileDependencies(Language lang, const vector<strin
             else
             {
                 result += "\n    <dependsOn name=\"" + file + "\"/>";
+            }
+        }
+        else if(lang == JavaScriptJSON)
+        {
+            if(sourceFile.empty())
+            {
+                sourceFile = file;
+            }
+            else
+            {
+                dependencies.push_back(file);
             }
         }
         else
@@ -450,9 +476,33 @@ Slice::Preprocessor::printMakefileDependencies(Language lang, const vector<strin
         }
         pos = end;
     }
-    if(lang == JavaXML)
+    if(lang == SliceXML)
     {
         result += "\n  </source>\n";
+    }
+    else if(lang == JavaScriptJSON)
+    {
+        result = "\"" + sourceFile + "\":" + (dependencies.empty() ? "[]" : "[");
+        for(vector<string>::const_iterator i = dependencies.begin(); i != dependencies.end();)
+        {
+            string file = *i;
+            result += "\n    \"" + file + "\"";
+            if(++i == dependencies.end())
+            {
+                result += "]";
+            }
+            else
+            {
+                result += ",";
+            }
+        }
+
+        string::size_type pos = 0;
+        while((pos = result.find("\\", pos + 1)) != string::npos)
+        {
+            result.insert(pos, 1, '\\');
+            ++pos;
+        }
     }
     else
     {
@@ -487,23 +537,24 @@ Slice::Preprocessor::printMakefileDependencies(Language lang, const vector<strin
         case CPlusPlus:
         {
             //
-            // Change .o[bj] suffix to the cpp source extension suffix.
+            // Change .o[bj] suffix to the h header extension suffix.
             //
             string::size_type pos = result.find(suffix);
             if(pos != string::npos)
             {
                 string name = result.substr(0, pos);
-                result.replace(0, pos + suffix.size() - 1, name + "." + cppHeaderExt + " " + name + "." + cppSourceExt);
+                result.replace(0, pos + suffix.size() - 1, name + "." + cppHeaderExt);
+
             }
             break;
         }
-        case JavaXML:
+        case SliceXML:
             break;
         case Java:
         {
             //
             // We want to shift the files left one position, so that
-            // "x.cpp: x.ice y.ice" becomes "x.ice: y.ice".
+            // "x.h: x.ice y.ice" becomes "x.ice: y.ice".
             //
 
             //
@@ -558,6 +609,20 @@ Slice::Preprocessor::printMakefileDependencies(Language lang, const vector<strin
             }
             break;
         }
+        case JavaScriptJSON:
+            break;
+        case JavaScript:
+        {
+            //
+            // Change .o[bj] suffix to .js suffix.
+            //
+            string::size_type pos;
+            if((pos = result.find(suffix)) != string::npos)
+            {
+                result.replace(pos, suffix.size() - 1, ".js");
+            }
+            break;
+        }
         case Python:
         {
             //
@@ -598,6 +663,16 @@ Slice::Preprocessor::printMakefileDependencies(Language lang, const vector<strin
             }
             break;
         }
+        case ObjC:
+        {
+            string::size_type pos = result.find(suffix);
+            if(pos != string::npos)
+            {
+                string name = result.substr(0, pos);
+                result.replace(0, pos + suffix.size() - 1, name + ".h " + name + ".m");
+            }
+            break;
+        }
         default:
         {
             abort();
@@ -608,7 +683,7 @@ Slice::Preprocessor::printMakefileDependencies(Language lang, const vector<strin
     //
     // Output result
     //
-    fputs(result.c_str(), stdout);
+    out << result;
     return true;
 }
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,6 +11,7 @@
 #define ICEMX_METRICSOBSERVER_I_H
 
 #include <IceUtil/StopWatch.h>
+#include <IceUtil/Atomic.h>
 
 #include <Ice/Instrumentation.h>
 #include <Ice/Endpoint.h>
@@ -28,6 +29,10 @@ namespace IceMX
 template<typename T> class MetricsHelperT
 {
 public:
+
+    virtual ~MetricsHelperT()
+    {
+    }
 
     virtual std::string operator()(const std::string&) const = 0;
 
@@ -48,7 +53,7 @@ protected:
             {
             }
 
-            virtual ~Resolver() 
+            virtual ~Resolver()
             {
             }
 
@@ -90,7 +95,7 @@ protected:
             }
             return (*p->second)(helper);
         }
-        
+
         void
         setDefault(std::string (Helper::*memberFn)(const std::string&) const)
         {
@@ -100,29 +105,34 @@ protected:
         template<typename Y> void
         add(const std::string& name, Y Helper::*member)
         {
-            _attributes.insert(typename std::map<std::string, Resolver*>::value_type(name, new HelperMemberResolver<Y>(name, member)));
+            _attributes.insert(typename std::map<std::string,
+                               Resolver*>::value_type(name, new HelperMemberResolver<Y>(name, member)));
         }
 
         template<typename Y> void
         add(const std::string& name, Y (Helper::*memberFn)() const)
         {
-            _attributes.insert(typename std::map<std::string, Resolver*>::value_type(name, new HelperMemberFunctionResolver<Y>(name, memberFn)));
+            _attributes.insert(typename std::map<std::string,
+                               Resolver*>::value_type(name, new HelperMemberFunctionResolver<Y>(name, memberFn)));
         }
 
         template<typename I, typename O, typename Y> void
         add(const std::string& name, O (Helper::*getFn)() const, Y I::*member)
         {
-            _attributes.insert(typename std::map<std::string, Resolver*>::value_type(name, new MemberResolver<I, O, Y>(name, getFn, member)));
+            _attributes.insert(typename std::map<std::string,
+                               Resolver*>::value_type(name, new MemberResolver<I, O, Y>(name, getFn, member)));
         }
 
         template<typename I, typename O, typename Y> void
         add(const std::string& name, O (Helper::*getFn)() const, Y (I::*memberFn)() const)
         {
-            _attributes.insert(typename std::map<std::string, Resolver*>::value_type(name, new MemberFunctionResolver<I, O, Y>(name, getFn, memberFn)));
+            _attributes.insert(typename std::map<std::string,
+                               Resolver*>::value_type(name, new MemberFunctionResolver<I, O, Y>(name, getFn,
+                                                                                                memberFn)));
         }
 
     private:
-            
+
         template<typename Y> class HelperMemberResolver : public Resolver
         {
         public:
@@ -165,7 +175,7 @@ protected:
         {
         public:
 
-            MemberResolver(const std::string& name, O (Helper::*getFn)() const, Y I::*member) : 
+            MemberResolver(const std::string& name, O (Helper::*getFn)() const, Y I::*member) :
                 Resolver(name), _getFn(getFn), _member(member)
             {
             }
@@ -267,19 +277,19 @@ typedef IceUtil::Handle<Updater> UpdaterPtr;
 template<typename T> class UpdaterT : public Updater
 {
 public:
-    
-    UpdaterT(T* updater, void (T::*fn)()) : 
+
+    UpdaterT(T* updater, void (T::*fn)()) :
         _updater(updater), _fn(fn)
     {
     }
-        
+
     virtual void update()
     {
         (_updater.get()->*_fn)();
     }
-    
-private: 
-    
+
+private:
+
     const IceUtil::Handle<T> _updater;
     void (T::*_fn)();
 };
@@ -308,8 +318,8 @@ public:
     ObserverT() : _previousDelay(0)
     {
     }
-    
-    virtual void 
+
+    virtual void
     attach()
     {
         if(!_watch.isStarted())
@@ -318,7 +328,7 @@ public:
         }
     }
 
-    virtual void 
+    virtual void
     detach()
     {
         ::Ice::Long lifetime = _previousDelay + _watch.stop();
@@ -345,7 +355,7 @@ public:
             (*p)->execute(func);
         }
     }
-    
+
     void
     init(const MetricsHelperT<MetricsType>& /*helper*/, EntrySeqType& objects, ObserverT* previous = 0)
     {
@@ -406,7 +416,7 @@ public:
         obsv->init(helper, metricsObjects);
         return obsv;
     }
-    
+
 private:
 
     EntrySeqType _objects;
@@ -414,7 +424,7 @@ private:
     IceUtil::Int64 _previousDelay;
 };
 
-template<typename ObserverImplType> 
+template<typename ObserverImplType>
 class ObserverFactoryT : public Updater, private IceUtil::Mutex
 {
 public:
@@ -424,8 +434,8 @@ public:
 
     typedef std::vector<IceUtil::Handle<IceInternal::MetricsMapT<MetricsType> > > MetricsMapSeqType;
 
-    ObserverFactoryT(const IceInternal::MetricsAdminIPtr& metrics, const std::string& name) : 
-        _metrics(metrics), _name(name), _enabled(false)
+    ObserverFactoryT(const IceInternal::MetricsAdminIPtr& metrics, const std::string& name) :
+        _metrics(metrics), _name(name), _enabled(0)
     {
         _metrics->registerMap<MetricsType>(name, this);
     }
@@ -503,7 +513,7 @@ public:
         return obsv;
     }
 
-    template<typename SubMapMetricsType> void 
+    template<typename SubMapMetricsType> void
     registerSubMap(const std::string& subMap, MetricsMap MetricsType::* member)
     {
         assert(_metrics);
@@ -512,7 +522,7 @@ public:
 
     bool isEnabled() const
     {
-        return _enabled;
+        return _enabled != 0;
     }
 
     virtual void update()
@@ -532,7 +542,7 @@ public:
                 _maps.push_back(IceUtil::Handle<IceInternal::MetricsMapT<MetricsType> >::dynamicCast(*p));
                 assert(_maps.back());
             }
-            _enabled = !_maps.empty();
+            _enabled.exchange(_maps.empty() ? 0 : 1);
             updater = _updater;
         }
 
@@ -560,7 +570,11 @@ private:
     IceInternal::MetricsAdminIPtr _metrics;
     const std::string _name;
     MetricsMapSeqType _maps;
-    volatile bool _enabled;
+    //
+    // TODO: Replace by std::atomic<bool> when it becomes widely
+    // available.
+    //
+    IceUtilInternal::Atomic _enabled;
     UpdaterPtr _updater;
 };
 

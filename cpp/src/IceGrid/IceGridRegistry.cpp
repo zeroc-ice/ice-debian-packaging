@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -79,7 +79,7 @@ RegistryService::start(int argc, char* argv[], int& status)
     vector<string> args;
     try
     {
-        args = opts.parse(argc, (const char**)argv);
+        args = opts.parse(argc, const_cast<const char**>(argv));
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
@@ -129,7 +129,7 @@ RegistryService::start(int argc, char* argv[], int& status)
 
     TraceLevelsPtr traceLevels = new TraceLevels(communicator(), "IceGrid.Registry");
     
-    _registry = new RegistryI(communicator(), traceLevels, nowarn, readonly, initFromReplica);
+    _registry = new RegistryI(communicator(), traceLevels, nowarn, readonly, initFromReplica, "");
     if(!_registry->start())
     {
         return false;
@@ -164,23 +164,58 @@ RegistryService::initializeCommunicator(int& argc, char* argv[],
     InitializationData initData = initializationData;
     initData.properties = createProperties(argc, argv, initData.properties);
     
+
+    // If IceGrid.Registry.[Admin]PermissionsVerifier is not set and 
+    // IceGrid.Registry.[Admin]CryptPasswords is set, load the 
+    // Glacier2CryptPermissionsVerifier plug-in
     //
-    // Make sure that IceGridRegistry doesn't use collocation optimization.
+    vector<string> vTypes;
+    vTypes.push_back("");
+    vTypes.push_back("Admin");
+
+    for(vector<string>::const_iterator p = vTypes.begin(); p != vTypes.end(); ++p)
+    {
+        string verifier = "IceGrid.Registry." + *p + "PermissionsVerifier";
+        
+        if(initData.properties->getProperty(verifier).empty())
+        {
+            string cryptPasswords = initData.properties->getProperty("IceGrid.Registry." + *p + "CryptPasswords");
+            
+            if(!cryptPasswords.empty())
+            {
+                initData.properties->setProperty("Ice.Plugin.Glacier2CryptPermissionsVerifier",
+                                                 "Glacier2CryptPermissionsVerifier:createCryptPermissionsVerifier");
+            
+                initData.properties->setProperty("Glacier2CryptPermissionsVerifier.IceGrid.Registry." + *p + 
+                                                 "PermissionsVerifier", cryptPasswords);
+            }
+        }
+    }
+
+     
     //
-    initData.properties->setProperty("Ice.Default.CollocationOptimized", "0");
+    // Never create Admin object in Ice.Admin adapter
+    //
+    initData.properties->setProperty("Ice.Admin.Endpoints", "");
 
     //
-    // Default backend database plugin is Freeze if none is specified.
+    // Enable Admin unless explicitely disabled (or enabled) in configuration
     //
-    if(initData.properties->getProperty("Ice.Plugin.DB").empty())
+    if(initData.properties->getProperty("Ice.Admin.Enabled").empty())
     {
-        initData.properties->setProperty("Ice.Plugin.DB", "IceGridFreezeDB:createFreezeDB");
+        initData.properties->setProperty("Ice.Admin.Enabled", "1");
     }
 
     //
     // Setup the client thread pool size.
     //
     setupThreadPool(initData.properties, "Ice.ThreadPool.Client", 1, 100);
+
+    //
+    // Close idle connections
+    //
+    initData.properties->setProperty("Ice.ACM.Close", "3");
+
 
     return Service::initializeCommunicator(argc, argv, initData);
 }

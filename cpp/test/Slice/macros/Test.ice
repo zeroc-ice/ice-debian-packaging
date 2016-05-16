@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -32,12 +32,6 @@ class Default
 {
     int x DEFAULT(10);
     int y DEFAULT(10);
-};
-
-class NoDefault
-{
-    int x NODEFAULT(10);
-    int y NODEFAULT(10);
 };
 
 //

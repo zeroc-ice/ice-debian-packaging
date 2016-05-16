@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -41,7 +41,7 @@ run(int, char**, const Ice::CommunicatorPtr& communicator,
     Ice::ObjectPtr object = new ServerManagerI(registry, initData);
     adapter->add(object, communicator->stringToIdentity("ServerManager"));
 
-    Ice::LocatorRegistryPrx registryPrx = 
+    Ice::LocatorRegistryPrx registryPrx =
         Ice::LocatorRegistryPrx::uncheckedCast(adapter->add(registry, communicator->stringToIdentity("registry")));
 
     Ice::LocatorPtr locator = new ServerLocator(registry, registryPrx);
@@ -57,6 +57,10 @@ run(int, char**, const Ice::CommunicatorPtr& communicator,
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
+
     int status;
     Ice::CommunicatorPtr communicator;
 

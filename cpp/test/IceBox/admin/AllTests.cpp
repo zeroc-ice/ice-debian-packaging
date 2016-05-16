@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -47,12 +47,13 @@ allTests(const Ice::CommunicatorPtr& communicator)
         // Test: PropertiesAdmin::getProperties()
         //
         Ice::PropertyDict pd = pa->getPropertiesForPrefix("");
-        test(pd.size() == 5);
+        test(pd.size() == 6);
         test(pd["Prop1"] == "1");
         test(pd["Prop2"] == "2");
         test(pd["Prop3"] == "3");
         test(pd["Ice.Config"] == "config.service");
         test(pd["Ice.ProgramName"] == "IceBox-TestService");
+        test(pd["Ice.Admin.Enabled"] == "1");
 
         Ice::PropertyDict changes;
 

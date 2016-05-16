@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -17,7 +17,7 @@
 #include <IceGrid/PlatformInfo.h>
 #include <IceGrid/TraceLevels.h>
 
-#include <IcePatch2/Util.h>
+#include <set>
 #include <climits>
 
 #if defined(_WIN32)
@@ -248,7 +248,17 @@ PlatformInfo::PlatformInfo(const string& prefix,
     }
     OSVERSIONINFO osInfo;
     osInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+
+//
+// GetVersionEx deprecated in Windows 8.1
+//
+#  if defined(_MSC_VER) && _MSC_VER >= 1800
+#    pragma warning (disable : 4996)
+#  endif
     GetVersionEx(&osInfo);
+#  if defined(_MSC_VER) && _MSC_VER >= 1800
+#    pragma warning (default : 4996)
+#  endif
     ostringstream os;
     os << osInfo.dwMajorVersion << "." << osInfo.dwMinorVersion;
     _release = os.str();

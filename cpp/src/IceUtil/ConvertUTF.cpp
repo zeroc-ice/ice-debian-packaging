@@ -22,7 +22,7 @@
 
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -49,12 +49,18 @@
 
 
 #include <IceUtil/ConvertUTF.h>
+#include <IceUtil/StringConverter.h>
 
 #ifdef CVTUTF_DEBUG
 #include <stdio.h>
 #endif
 
 using namespace IceUtil;
+
+#ifdef __GNUC__
+//#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wold-style-cast"
+#endif
 
 namespace IceUtilInternal
 {

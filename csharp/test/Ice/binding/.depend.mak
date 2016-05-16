@@ -1,0 +1,3 @@
+
+Test.cs: \
+    .\Test.ice

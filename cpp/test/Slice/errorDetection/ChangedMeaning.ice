@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -16,7 +16,8 @@ sequence<long> ls;
 
 struct s00
 {
-    ls ls;      // Changed meaning
+    ls ls;      // OK as of Ice 3.6 (data member has its own scope)
+    ls l;
 };
 
 struct s0
@@ -27,7 +28,7 @@ struct s0
 struct s1
 {
     ls mem;
-    long ls;    // Changed meaning
+    long ls;    // OK as of Ice 3.6 (data member has its own scope)
 };
 
 struct s2
@@ -123,15 +124,15 @@ interface ParamTest
 {
     void op(long param);
     void op2(counter param);
-    void param(counter counter);        // Changed meaning
-    void op3(long counter, counter x);  // Second "counter" is not a type
+    void param(counter counter);        // OK as of Ice 3.6 (parameters have their own scope)
+    void op3(long counter, counter x);  // OK as of Ice 3.6.1 (second "counter" is not a type)
     void op4(long param, long param);
 };
 
 sequence<int> IS;
 struct x
 {
-    IS is;                              // Changed meaning (case-insensitive)
+    IS is;                              // OK as of Ice 3.6 (data member has its own scope)
 };
 
 struct y
@@ -186,6 +187,43 @@ const ::Test::M1::M2::C MyConstant4 = ::Test::M1::M2::C2; // OK
 class smnpTest1Class
 {
     M1::smnpStruct smnpTest1Op1() throws M1::smnpException; // OK
+};
+
+class Foo
+{
+    string x;
+    string X;
+};
+
+struct Foo1
+{
+    string x;
+    string X;
+};
+
+interface Foo2
+{
+    void op1(int a, int A); // Changed meaning
+    void op2(int Foo2); // OK
+    void op3(int op3); // Ok
+};
+
+class Foo3
+{
+    void x(int x);
+    string x; // Changed meaning
+};
+
+class Foo4
+{
+    void op(int x);
+    string x; // Ok
+};
+
+exception Foo5
+{
+    string x;
+    int X; // Changed meaning
 };
 
 };

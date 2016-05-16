@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -18,14 +18,17 @@ using namespace std;
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    void allTests(const Ice::CommunicatorPtr&);
-    allTests(communicator);
+    void allTests(const Ice::CommunicatorPtr&, bool);
+    allTests(communicator, false);
     return EXIT_SUCCESS;
 }
 
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL();
+#endif
     int status;
     Ice::CommunicatorPtr communicator;
 
@@ -34,6 +37,12 @@ main(int argc, char* argv[])
         Ice::InitializationData initData;
         initData.properties = Ice::createProperties(argc, argv);
         initData.properties->setProperty("Ice.Warn.AMICallback", "0");
+
+        //
+        // Limit the send buffer size, this test relies on the socket
+        // send() blocking after sending a given amount of data.
+        //
+        initData.properties->setProperty("Ice.TCP.SndSize", "50000");
 
         communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator);

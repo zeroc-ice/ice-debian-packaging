@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -898,11 +898,9 @@ FreezeGenerator::generate(UnitPtr& u, const Dict& dict)
         //
         // encode
         //
-        out << sp << nl << "public byte[]" << nl << "encode" << keyValue << "(" << typeS
-            << " v, Ice.Communicator communicator, Ice.EncodingVersion encoding)";
+        out << sp << nl << "public void" << nl << "encode" << keyValue << "(" << typeS
+            << " v, IceInternal.BasicStream __os)";
         out << sb;
-        out << nl << "IceInternal.BasicStream __os = "
-            << "new IceInternal.BasicStream(IceInternal.Util.getInstance(communicator), encoding, true, false);";
         if(encaps)
         {
             out << nl << "__os.startWriteEncaps();";
@@ -917,20 +915,13 @@ FreezeGenerator::generate(UnitPtr& u, const Dict& dict)
         {
             out << nl << "__os.endWriteEncaps();";
         }
-        out << nl << "IceInternal.Buffer __buf = __os.prepareWrite();";
-        out << nl << "byte[] __r = new byte[__buf.size()];";
-        out << nl << "__buf.b.get(__r);";
-        out << nl << "return __r;";
         out << eb;
 
         //
         // decode
         //
-        out << sp << nl << "public " << typeS << nl << "decode" << keyValue
-            << "(byte[] b, Ice.Communicator communicator, Ice.EncodingVersion encoding)";
+        out << sp << nl << "public " << typeS << nl << "decode" << keyValue << "(IceInternal.BasicStream __is)";
         out << sb;
-        out << nl << "IceInternal.BasicStream __is = "
-            << "new IceInternal.BasicStream(IceInternal.Util.getInstance(communicator), encoding, b);";
         if(type->usesClasses())
         {
             out << nl << "__is.sliceObjects(false);";
@@ -947,6 +938,10 @@ FreezeGenerator::generate(UnitPtr& u, const Dict& dict)
         {
             out << nl << "Patcher __p = new Patcher();";
             patchParams = "__p";
+        }
+        else if(StructPtr::dynamicCast(type))
+        {
+            out << nl << typeS << " __r = null;";
         }
         else
         {
@@ -1041,9 +1036,8 @@ FreezeGenerator::generate(UnitPtr& u, const Dict& dict)
         //
         // encodeKey
         //
-        out << sp << nl << "public byte[]";
-        out << nl << "encodeKey(" << indexKeyTypeS << " key, Ice.Communicator communicator, "
-            << "Ice.EncodingVersion encoding)";
+        out << sp << nl << "public void";
+        out << nl << "encodeKey(" << indexKeyTypeS << " key, IceInternal.BasicStream __os)";
         out << sb;
         if(dict.indices[i].member.empty())
         {
@@ -1056,7 +1050,7 @@ FreezeGenerator::generate(UnitPtr& u, const Dict& dict)
                 keyS = "key.toLowerCase()";
             }
 
-            out << nl << "return encodeValue(" << keyS << ", communicator, encoding);";
+            out << nl << "encodeValue(" << keyS << ", __os);";
         }
         else
         {
@@ -1067,16 +1061,9 @@ FreezeGenerator::generate(UnitPtr& u, const Dict& dict)
 
             keyS = objectToVar(indexTypes[i], keyS);
 
-            out << nl << "IceInternal.BasicStream __os = "
-                << "new IceInternal.BasicStream(IceInternal.Util.getInstance(communicator), encoding, true, false);";
             int iter = 0;
             writeMarshalUnmarshalCode(out, "", indexTypes[i], OptionalNone, false, 0, keyS, true, iter, false);
             assert(!indexTypes[i]->usesClasses());
-
-            out << nl << "IceInternal.Buffer buf = __os.prepareWrite();";
-            out << nl << "byte[] r = new byte[buf.size()];";
-            out << nl << "buf.b.get(r);";
-            out << nl << "return r;";
         }
         out << eb;
 
@@ -1084,25 +1071,29 @@ FreezeGenerator::generate(UnitPtr& u, const Dict& dict)
         // decodeKey
         //
         out << sp << nl << "public " << indexKeyTypeS;
-        out << nl << "decodeKey(byte[] bytes, Ice.Communicator communicator, Ice.EncodingVersion encoding)";
+        out << nl << "decodeKey(IceInternal.BasicStream __is)";
         out << sb;
         if(dict.indices[i].member.empty())
         {
             //
             // Decode the full value (with an encaps!)
             //
-            out << nl << "return decodeValue(bytes, communicator, encoding);";
+            out << nl << "return decodeValue(__is);";
         }
         else
         {
-            out << nl << "IceInternal.BasicStream __is = "
-                << "new IceInternal.BasicStream(IceInternal.Util.getInstance(communicator), encoding, bytes);";
-
             int iter = 0;
             list<string> metaData;
             string patchParams;
 
-            out << nl << indexKeyTypeS << " r;";
+            if(StructPtr::dynamicCast(indexTypes[i]))
+            {
+                out << nl << indexKeyTypeS << " r = null;";
+            }
+            else
+            {
+                out << nl << indexKeyTypeS << " r;";
+            }
 
             BuiltinPtr b = BuiltinPtr::dynamicCast(indexTypes[i]);
             if(b != 0)
@@ -1197,8 +1188,8 @@ FreezeGenerator::generate(UnitPtr& u, const Dict& dict)
         //
         if(dict.indices[i].member.empty() && dict.indices[i].caseSensitive)
         {
-            out << sp << nl << "protected byte[]";
-            out << nl << "marshalKey(byte[] value)";
+            out << sp << nl << "protected java.nio.ByteBuffer";
+            out << nl << "marshalKey(java.nio.ByteBuffer value)";
             out << sb;
             out << nl << "return value;";
             out << eb;
@@ -1383,7 +1374,7 @@ FreezeGenerator::generate(UnitPtr& u, const Index& index)
     //
     string typeString = typeToString(type, TypeModeIn);
 
-    out << sp << nl << "protected byte[]" << nl
+    out << sp << nl << "protected java.nio.ByteBuffer" << nl
         << "marshalKey(Ice.Object __servant)";
     out << sb;
     out << nl << "if(__servant instanceof " << typeString << ")";
@@ -1399,21 +1390,18 @@ FreezeGenerator::generate(UnitPtr& u, const Index& index)
 
     string valueS = index.caseSensitive ? "__key" : "__key.toLowerCase()";
 
-    out << sp << nl << "private byte[]" << nl
+    out << sp << nl << "private java.nio.ByteBuffer" << nl
         << "marshalKey(" << memberTypeString << " __key)";
     out << sb;
     out << nl << "IceInternal.BasicStream __os = "
-        << "new IceInternal.BasicStream(IceInternal.Util.getInstance(communicator()), encoding(), true, false);";
+        << "new IceInternal.BasicStream(IceInternal.Util.getInstance(communicator()), encoding(), false);";
     int iter = 0;
     writeMarshalUnmarshalCode(out, "", dataMember->type(), OptionalNone, false, 0, valueS, true, iter, false);
     if(dataMember->type()->usesClasses())
     {
         out << nl << "__os.writePendingObjects();";
     }
-    out << nl << "IceInternal.Buffer __buf = __os.prepareWrite();";
-    out << nl << "byte[] __r = new byte[__buf.size()];";
-    out << nl << "__buf.b.get(__r);";
-    out << nl << "return __r;";
+    out << nl << "return __os.prepareWrite().b;";
     out << eb;
 
     out << eb;
@@ -1429,6 +1417,7 @@ usage(const char* n)
         "Options:\n"
         "-h, --help                Show this message.\n"
         "-v, --version             Display the Ice version.\n"
+        "--validate               Validate command line options.\n"
         "-DNAME                    Define NAME as 1.\n"
         "-DNAME=DEF                Define NAME as DEF.\n"
         "-UNAME                    Remove any definition for NAME.\n"
@@ -1457,9 +1446,10 @@ usage(const char* n)
         "--output-dir DIR          Create files in the directory DIR.\n"
         "--depend                  Generate Makefile dependencies.\n"
         "--depend-xml              Generate dependencies in XML format.\n"
+        "--depend-file FILE        Write dependencies to FILE instead of standard output.\n"
         "-d, --debug               Print debug messages.\n"
-        "--ice                     Permit `Ice' prefix (for building Ice source code only).\n"
-        "--underscore              Permit underscores in Slice identifiers.\n"
+        "--ice                     Allow reserved Ice prefix in Slice identifiers.\n"
+        "--underscore              Allow underscores in Slice identifiers.\n"
         "--meta META               Define global metadata directive META.\n"
         ;
 }
@@ -1470,6 +1460,7 @@ compile(int argc, char* argv[])
     IceUtilInternal::Options opts;
     opts.addOpt("h", "help");
     opts.addOpt("v", "version");
+    opts.addOpt("", "validate");
     opts.addOpt("D", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
     opts.addOpt("U", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
     opts.addOpt("I", "", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
@@ -1481,20 +1472,34 @@ compile(int argc, char* argv[])
     opts.addOpt("", "output-dir", IceUtilInternal::Options::NeedArg);
     opts.addOpt("", "depend");
     opts.addOpt("", "depend-xml");
+    opts.addOpt("", "depend-file", IceUtilInternal::Options::NeedArg, "");
     opts.addOpt("d", "debug");
     opts.addOpt("", "ice");
     opts.addOpt("", "underscore");
     opts.addOpt("", "meta", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
 
+    bool validate = false;
+    for(int i = 0; i < argc; ++i)
+    {
+        if(string(argv[i]) == "--validate")
+        {
+            validate = true;
+            break;
+        }
+    }
+
     vector<string> args;
     try
     {
-        args = opts.parse(argc, (const char**)argv);
+        args = opts.parse(argc, const_cast<const char**>(argv));
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
         getErrorStream() << argv[0] << ": error: " << e.reason << endl;
-        usage(argv[0]);
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
         return EXIT_FAILURE;
     }
 
@@ -1559,21 +1564,30 @@ compile(int argc, char* argv[])
         if(dict.name.empty())
         {
             getErrorStream() << argv[0] << ": error: " << *i << ": no name specified" << endl;
-            usage(argv[0]);
+            if(!validate)
+            {
+                usage(argv[0]);
+            }
             return EXIT_FAILURE;
         }
 
         if(dict.key.empty())
         {
             getErrorStream() << argv[0] << ": error: " << *i << ": no key specified" << endl;
-            usage(argv[0]);
+            if(!validate)
+            {
+                usage(argv[0]);
+            }
             return EXIT_FAILURE;
         }
 
         if(dict.value.empty())
         {
             getErrorStream() << argv[0] << ": error: " << *i << ": no value specified" << endl;
-            usage(argv[0]);
+            if(!validate)
+            {
+                usage(argv[0]);
+            }
             return EXIT_FAILURE;
         }
 
@@ -1618,21 +1632,30 @@ compile(int argc, char* argv[])
         if(index.name.empty())
         {
             getErrorStream() << argv[0] << ": error: " << *i << ": no name specified" << endl;
-            usage(argv[0]);
+            if(!validate)
+            {
+                usage(argv[0]);
+            }
             return EXIT_FAILURE;
         }
 
         if(index.type.empty())
         {
             getErrorStream() << argv[0] << ": error: " << *i << ": no type specified" << endl;
-            usage(argv[0]);
+            if(!validate)
+            {
+                usage(argv[0]);
+            }
             return EXIT_FAILURE;
         }
 
         if(index.member.empty())
         {
             getErrorStream() << argv[0] << ": error: " << *i << ": no member specified" << endl;
-            usage(argv[0]);
+            if(!validate)
+            {
+                usage(argv[0]);
+            }
             return EXIT_FAILURE;
         }
 
@@ -1640,7 +1663,10 @@ compile(int argc, char* argv[])
         {
             getErrorStream() << argv[0] << ": error: " << *i << ": the case can be `case-sensitive' or "
                              << "`case-insensitive'" << endl;
-            usage(argv[0]);
+            if(!validate)
+            {
+                usage(argv[0]);
+            }
             return EXIT_FAILURE;
         }
         index.caseSensitive = (caseString == "case-sensitive");
@@ -1693,7 +1719,10 @@ compile(int argc, char* argv[])
             if(dictName.empty())
             {
                 getErrorStream() << argv[0] << ": error: " << *i << ": no dictionary specified" << endl;
-                usage(argv[0]);
+                if(!validate)
+                {
+                    usage(argv[0]);
+                }
                 return EXIT_FAILURE;
             }
 
@@ -1701,7 +1730,10 @@ compile(int argc, char* argv[])
             {
                 getErrorStream() << argv[0] << ": error: " << *i << ": the case can be `case-sensitive' or "
                                  << "`case-insensitive'" << endl;
-                usage(argv[0]);
+                if(!validate)
+                {
+                    usage(argv[0]);
+                }
                 return EXIT_FAILURE;
             }
             index.caseSensitive = (caseString == "case-sensitive");
@@ -1726,7 +1758,10 @@ compile(int argc, char* argv[])
             if(!found)
             {
                 getErrorStream() << argv[0] << ": error: " << *i << ": unknown dictionary" << endl;
-                usage(argv[0]);
+                if(!validate)
+                {
+                    usage(argv[0]);
+                }
                 return EXIT_FAILURE;
             }
         }
@@ -1736,6 +1771,8 @@ compile(int argc, char* argv[])
 
     bool depend = opts.isSet("depend");
     bool dependxml = opts.isSet("depend-xml");
+
+    string dependFile = opts.optArg("depend-file");
 
     bool debug = opts.isSet("debug");
 
@@ -1747,11 +1784,29 @@ compile(int argc, char* argv[])
     vector<string> v = opts.argVec("meta");
     copy(v.begin(), v.end(), back_inserter(globalMetadata));
 
-    if(dicts.empty() && indices.empty())
+    if(dicts.empty() && indices.empty() && !(depend || dependxml))
     {
         getErrorStream() << argv[0] << ": error: no Freeze types specified" << endl;
-        usage(argv[0]);
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
         return EXIT_FAILURE;
+    }
+
+    if(depend && dependxml)
+    {
+        getErrorStream() << argv[0] << ": error: cannot specify both --depend and --depend-xml" << endl;
+        if(!validate)
+        {
+            usage(argv[0]);
+        }
+        return EXIT_FAILURE;
+    }
+
+    if(validate)
+    {
+        return EXIT_SUCCESS;
     }
 
     UnitPtr u = Unit::createUnit(true, false, ice, underscore, globalMetadata);
@@ -1760,10 +1815,11 @@ compile(int argc, char* argv[])
 
     IceUtil::CtrlCHandler ctrlCHandler;
     ctrlCHandler.setCallback(interruptedCallback);
-    
+
+    DependOutputUtil out(dependFile);
     if(dependxml)
     {
-        cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<dependencies>" << endl;
+        out.os() << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<dependencies>" << endl;
     }
 
     for(vector<string>::size_type idx = 0; idx < args.size(); ++idx)
@@ -1771,10 +1827,11 @@ compile(int argc, char* argv[])
         if(depend || dependxml)
         {
             PreprocessorPtr icecpp = Preprocessor::create(argv[0], args[idx], cppArgs);
-            FILE* cppHandle = icecpp->preprocess(false, "-DICE_COMPILER=ICE_SLICE2FREEZEJ");
+            FILE* cppHandle = icecpp->preprocess(false, "-D__SLICE2FREEZEJ__");
 
             if(cppHandle == 0)
             {
+                out.cleanup();
                 u->destroy();
                 return EXIT_FAILURE;
             }
@@ -1783,19 +1840,22 @@ compile(int argc, char* argv[])
 
             if(status == EXIT_FAILURE)
             {
+                out.cleanup();
                 u->destroy();
                 return EXIT_FAILURE;
             }
 
-            if(!icecpp->printMakefileDependencies(depend ? Preprocessor::Java : Preprocessor::JavaXML, includePaths,
-                                                  "-DICE_COMPILER=ICE_SLICE2FREEZEJ"))
+            if(!icecpp->printMakefileDependencies(out.os(), depend ? Preprocessor::Java : Preprocessor::SliceXML, includePaths,
+                                                  "-D__SLICE2FREEZEJ__"))
             {
+                out.cleanup();
                 u->destroy();
                 return EXIT_FAILURE;
             }
 
             if(!icecpp->close())
             {
+                out.cleanup();
                 u->destroy();
                 return EXIT_FAILURE;
             }
@@ -1834,20 +1894,21 @@ compile(int argc, char* argv[])
                 return EXIT_FAILURE;
             }
         }
-        
+
         {
             IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(globalMutex);
 
             if(interrupted)
             {
+                out.cleanup();
                 return EXIT_FAILURE;
             }
         }
     }
-    
+
     if(dependxml)
     {
-        cout << "</dependencies>\n";
+        out.os() << "</dependencies>\n";
     }
 
     if(depend || dependxml)

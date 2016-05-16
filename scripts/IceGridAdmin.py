@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -14,12 +14,13 @@ from threading import Thread
 #
 # Set nreplicas to a number N to test replication with N replicas.
 #
-#nreplicas=0
-nreplicas=1
+nreplicas=0
+#nreplicas=1
 
 iceGridPort = 12010;
 
 nodeOptions = r' --Ice.Warn.Connections=0' + \
+              r' --IceGrid.InstanceName=TestIceGrid' + \
               r' --IceGrid.Node.Endpoints=default' + \
               r' --IceGrid.Node.WaitTime=240' + \
               r' --Ice.ProgramName=icegridnode' + \
@@ -30,14 +31,15 @@ nodeOptions = r' --Ice.Warn.Connections=0' + \
               r' --IceGrid.Node.ThreadPool.SizeWarn=0' + \
               r' --IceGrid.Node.PrintServersReady=node1' + \
               r' --Ice.NullHandleAbort' + \
-              r' --Ice.ThreadPool.Server.Size=0' + \
+              r' --Ice.ThreadPool.Server.Size=1' + \
               r' --Ice.ServerIdleTime=0'
 
 registryOptions = r' --Ice.Warn.Connections=0' + \
-                  r' --IceGrid.Registry.PermissionsVerifier=IceGrid/NullPermissionsVerifier' + \
-                  r' --IceGrid.Registry.AdminPermissionsVerifier=IceGrid/NullPermissionsVerifier' + \
-                  r' --IceGrid.Registry.SSLPermissionsVerifier=IceGrid/NullSSLPermissionsVerifier' + \
-                  r' --IceGrid.Registry.AdminSSLPermissionsVerifier=IceGrid/NullSSLPermissionsVerifier' + \
+                  r' --IceGrid.InstanceName=TestIceGrid' + \
+                  r' --IceGrid.Registry.PermissionsVerifier=TestIceGrid/NullPermissionsVerifier' + \
+                  r' --IceGrid.Registry.AdminPermissionsVerifier=TestIceGrid/NullPermissionsVerifier' + \
+                  r' --IceGrid.Registry.SSLPermissionsVerifier=TestIceGrid/NullSSLPermissionsVerifier' + \
+                  r' --IceGrid.Registry.AdminSSLPermissionsVerifier=TestIceGrid/NullSSLPermissionsVerifier' + \
                   r' --IceGrid.Registry.Server.Endpoints=default' + \
                   r' --IceGrid.Registry.Internal.Endpoints=default' + \
                   r' --IceGrid.Registry.SessionManager.Endpoints=default' + \
@@ -50,17 +52,21 @@ registryOptions = r' --Ice.Warn.Connections=0' + \
                   r' --IceGrid.Registry.Trace.Object=0' + \
                   r' --IceGrid.Registry.Trace.Server=0' + \
                   r' --IceGrid.Registry.Trace.Locator=0' + \
-                  r' --Ice.ThreadPool.Server.Size=0 ' + \
+                  r' --IceGrid.Registry.SessionTimeout=60' + \
+                  r' --Ice.ThreadPool.Server.Size=1 ' + \
                   r' --Ice.ThreadPool.Client.SizeWarn=0' + \
                   r' --IceGrid.Registry.Client.ThreadPool.SizeWarn=0' + \
                   r' --Ice.ServerIdleTime=0' + \
                   r' --IceGrid.Registry.DefaultTemplates="' + \
                   os.path.abspath(os.path.join(TestUtil.toplevel, "cpp", "config", "templates.xml") + '"')
 
+if TestUtil.ipv6 and TestUtil.isDarwin():
+   registryOptions += r' --IceGrid.Registry.Discovery.Interface="::1"'
+
 def getDefaultLocatorProperty():
 
    i = 0
-   property = '--Ice.Default.Locator="IceGrid/Locator';
+   property = '--Ice.Default.Locator="TestIceGrid/Locator';
    objrefs = ""
    while i < nreplicas + 1:
        objrefs = objrefs + ':default -p ' + str(iceGridPort + i)
@@ -74,7 +80,7 @@ def startIceGridRegistry(testdir, dynamicRegistration = False):
 
     command = ' --nowarn ' + registryOptions
     if dynamicRegistration:
-        command += r' --IceGrid.Registry.DynamicRegistration'        
+        command += r' --IceGrid.Registry.DynamicRegistration'
 
     procs = []
     i = 0
@@ -93,7 +99,7 @@ def startIceGridRegistry(testdir, dynamicRegistration = False):
 
         sys.stdout.write("starting icegrid " + name + "... ")
         sys.stdout.flush()
-        cmd = command + ' ' + TestUtil.getQtSqlOptions('IceGrid') + \
+        cmd = command + ' ' + \
               r' --Ice.ProgramName=' + name + \
               r' --IceGrid.Registry.Client.Endpoints="default -p ' + str(iceGridPort + i) + '" ' + \
               r' --IceGrid.Registry.Data="' + dataDir + '" '
@@ -129,7 +135,7 @@ def shutdownIceGridRegistry(procs):
         p.waitTestSuccess()
 
 def iceGridNodePropertiesOverride():
-   
+
     #
     # Create property overrides from command line options.
     #
@@ -139,7 +145,7 @@ def iceGridNodePropertiesOverride():
        index = opt.find("=")
        if index == -1:
           overrideOptions += ("%s=1 ") % opt
-       else:          
+       else:
           key = opt[0:index]
           value = opt[index + 1:]
           if(value.find(' ') == -1):
@@ -175,7 +181,7 @@ def startIceGridNode(testdir):
     driverConfig = TestUtil.DriverConfig("server")
     driverConfig.lang = "cpp"
     proc = TestUtil.startServer(iceGrid, command, driverConfig, adapter='node1')
-        
+
     print("ok")
 
     return proc
@@ -205,9 +211,9 @@ def iceGridAdmin(cmd, ignoreFailure = False):
         print(proc.buf)
         sys.exit(1)
     return proc.buf
-    
+
 def killNodeServers():
-    
+
     for server in iceGridAdmin("server list"):
         server = server.strip()
         iceGridAdmin("server disable " + server, True)
@@ -222,12 +228,9 @@ def iceGridTest(application, additionalOptions = "", applicationOptions = ""):
         print
         return
 
-    if TestUtil.getDefaultMapping() == "java":
-        os.environ['CLASSPATH'] = os.path.join(os.getcwd(), "classes") + os.pathsep + os.environ.get("CLASSPATH", "")
-
     client = TestUtil.getDefaultClientFile()
     if TestUtil.getDefaultMapping() != "java":
-        client = os.path.join(testdir, client) 
+        client = os.path.join(testdir, client)
 
     clientOptions = ' ' + getDefaultLocatorProperty() + ' ' + additionalOptions
 
@@ -238,12 +241,18 @@ def iceGridTest(application, additionalOptions = "", applicationOptions = ""):
 
     registryProcs = startIceGridRegistry(testdir)
     iceGridNodeProc = startIceGridNode(testdir)
-    
+
+    javaHome = os.environ.get("JAVA_HOME", None)
+    javaExe = os.path.join(javaHome, "bin", "java") if javaHome else "java"
+
     if application != "":
         sys.stdout.write("adding application... ")
         sys.stdout.flush()
-        iceGridAdmin("application add -n '" + os.path.join(testdir, application) + "' " + \
-                     "test.dir='" + testdir + "' ice.bindir='" + TestUtil.getCppBinDir() + "' " + applicationOptions)
+        iceGridAdmin("application add -n '" + os.path.join(testdir, application) + "' " +
+                     "test.dir='" + testdir + "' " +
+                     "ice.bindir='" + TestUtil.getCppBinDir() + "' " +
+                     "java.exe='" + javaExe + "' " +
+                     applicationOptions)
         print("ok")
 
     sys.stdout.write("starting client... ")
@@ -275,11 +284,8 @@ def iceGridClientServerTest(additionalClientOptions, additionalServerOptions):
     server = TestUtil.getDefaultServerFile()
     client = TestUtil.getDefaultClientFile()
     if TestUtil.getDefaultMapping() != "java":
-        server = os.path.join(testdir, server) 
-        client = os.path.join(testdir, client) 
-
-    if TestUtil.getDefaultMapping() == "java":
-        os.environ['CLASSPATH'] = os.path.join(os.getcwd(), "classes") + os.pathsep + os.environ.get("CLASSPATH", "")
+        server = os.path.join(testdir, server)
+        client = os.path.join(testdir, client)
 
     targets = []
     if TestUtil.appverifier:
@@ -288,7 +294,7 @@ def iceGridClientServerTest(additionalClientOptions, additionalServerOptions):
 
     clientOptions = getDefaultLocatorProperty() + ' ' + additionalClientOptions
     serverOptions = getDefaultLocatorProperty() + ' ' + additionalServerOptions
-    
+
     registryProcs = startIceGridRegistry(testdir, True)
 
     sys.stdout.write("starting server... ")

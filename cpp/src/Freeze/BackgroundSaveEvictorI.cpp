@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2013 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -23,34 +23,6 @@
 using namespace std;
 using namespace Freeze;
 using namespace Ice;
-
-
-//
-// createEvictor functions
-// 
-
-Freeze::BackgroundSaveEvictorPtr
-Freeze::createBackgroundSaveEvictor(const ObjectAdapterPtr& adapter, 
-                                    const string& envName, 
-                                    const string& filename,
-                                    const ServantInitializerPtr& initializer,
-                                    const vector<IndexPtr>& indices,
-                                    bool createDb)
-{
-    return new BackgroundSaveEvictorI(adapter, envName, 0, filename, initializer, indices, createDb);
-}
-
-BackgroundSaveEvictorPtr
-Freeze::createBackgroundSaveEvictor(const ObjectAdapterPtr& adapter, 
-                                    const string& envName, 
-                                    DbEnv& dbEnv, 
-                                    const string& filename,
-                                    const ServantInitializerPtr& initializer,
-                                    const vector<IndexPtr>& indices,
-                                    bool createDb)
-{
-    return new BackgroundSaveEvictorI(adapter, envName, &dbEnv, filename, initializer, indices, createDb);
-}
 
 namespace
 {
@@ -79,18 +51,7 @@ public:
 };
 Init init;
 
-}
-
-FatalErrorCallback 
-Freeze::registerFatalErrorCallback(FatalErrorCallback cb)
-{
-    IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(fatalErrorCallbackMutex);
-    FatalErrorCallback result = fatalErrorCallback;
-    fatalErrorCallback = cb;
-    return result;
-}
-
-static void 
+void 
 handleFatalError(const Freeze::BackgroundSaveEvictorPtr& evictor, const Ice::CommunicatorPtr& communicator)
 {
     IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(fatalErrorCallbackMutex);
@@ -104,67 +65,69 @@ handleFatalError(const Freeze::BackgroundSaveEvictorPtr& evictor, const Ice::Com
     }
 }
 
-
 //
-// WatchDogThread
+// The timer is used to ensure the streaming of some object does not take more than
+// timeout ms. We only measure the time necessary to acquire the lock on the object
+// (servant), not the streaming itself.
 //
-
-Freeze::WatchDogThread::WatchDogThread(long timeout, BackgroundSaveEvictorI& evictor) :
-    IceUtil::Thread("Freeze background save evictor watchdog thread"),
-    _timeout(IceUtil::Time::milliSeconds(timeout)),
-    _evictor(evictor),
-    _done(false),
-    _active(false)     
+class WatchDogTask : public IceUtil::TimerTask
 {
-}
+public:
     
-
-void 
-Freeze::WatchDogThread::run()
-{
-    Lock sync(*this);
-
-    while(!_done)
+    WatchDogTask(BackgroundSaveEvictorI& evictor) : _evictor(evictor)
     {
-        if(_active)
-        {
-            if(timedWait(_timeout) == false && _active && !_done)
-            {
-                Error out(_evictor.communicator()->getLogger());
-                out << "Fatal error: streaming watch dog thread timed out.";
-                out.flush();
-                handleFatalError(&_evictor, _evictor.communicator());
-            }
-        }
-        else
-        {
-            wait();
-        }
     }
+
+    virtual void runTimerTask()
+    {
+        Error out(_evictor.communicator()->getLogger());
+        out << "Fatal error: streaming watch dog timed out.";
+        out.flush();
+        handleFatalError(&_evictor, _evictor.communicator());
+    }
+    
+private:
+
+    BackgroundSaveEvictorI& _evictor;
+};
+
 }
 
-void Freeze::WatchDogThread::activate()
+//
+// createEvictor functions
+// 
+
+Freeze::BackgroundSaveEvictorPtr
+Freeze::createBackgroundSaveEvictor(const ObjectAdapterPtr& adapter, 
+                                    const string& envName, 
+                                    const string& filename,
+                                    const ServantInitializerPtr& initializer,
+                                    const vector<IndexPtr>& indices,
+                                    bool createDb)
 {
-    Lock sync(*this);
-    _active = true;
-    notify();
+    return new BackgroundSaveEvictorI(adapter, envName, 0, filename, initializer, indices, createDb);
 }
 
-void Freeze::WatchDogThread::deactivate()
+BackgroundSaveEvictorPtr
+Freeze::createBackgroundSaveEvictor(const ObjectAdapterPtr& adapter, 
+                                    const string& envName, 
+                                    DbEnv& dbEnv, 
+                                    const string& filename,
+                                    const ServantInitializerPtr& initializer,
+                                    const vector<IndexPtr>& indices,
+                                    bool createDb)
 {
-    Lock sync(*this);
-    _active = false;
-    notify();
-}
- 
-void 
-Freeze::WatchDogThread::terminate()
-{
-    Lock sync(*this);
-    _done = true;
-    notify();
+    return new BackgroundSaveEvictorI(adapter, envName, &dbEnv, filename, initializer, indices, createDb);
 }
 
+FatalErrorCallback 
+Freeze::registerFatalErrorCallback(FatalErrorCallback cb)
+{
+    IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(fatalErrorCallbackMutex);
+    FatalErrorCallback result = fatalErrorCallback;
+    fatalErrorCallback = cb;
+    return result;
+}
 
 //
 // BackgroundSaveEvictorI
@@ -211,13 +174,12 @@ Freeze::BackgroundSaveEvictorI::BackgroundSaveEvictorI(const ObjectAdapterPtr& a
     //
     // By default, no stream timeout
     //
-    long streamTimeout = _communicator->getProperties()->
+    _streamTimeout = _communicator->getProperties()->
         getPropertyAsIntWithDefault(propertyPrefix+ ".StreamTimeout", 0) * 1000;
     
-    if(streamTimeout > 0)
+    if(_streamTimeout > 0)
     {
-        _watchDogThread = new WatchDogThread(streamTimeout, *this);
-        _watchDogThread->start();
+        _timer = IceInternal::getInstanceTimer(_communicator);
     }
 
     //
@@ -233,6 +195,7 @@ Ice::ObjectPrx
 Freeze::BackgroundSaveEvictorI::addFacet(const ObjectPtr& servant, const Identity& ident, const string& facet)
 {
     checkIdentity(ident);
+    checkServant(servant);
     DeactivateController::Guard deactivateGuard(_deactivateController);
    
     ObjectStore<BackgroundSaveEvictorElement>* store = findStore(facet, _createDb);
@@ -846,12 +809,6 @@ Freeze::BackgroundSaveEvictorI::deactivate(const string&)
             sync.release();
             getThreadControl().join();
             
-            if(_watchDogThread != 0)
-            {
-                _watchDogThread->terminate();
-                _watchDogThread->getThreadControl().join();  
-            }
-
             closeDbEnv();
         }
         catch(...)
@@ -932,7 +889,7 @@ Freeze::BackgroundSaveEvictorI::run()
             
             const size_t size = allObjects.size();
             
-            deque<StreamedObject> streamedObjectQueue;
+            deque<StreamedObjectPtr> streamedObjectQueue;
             
             Long streamStart = IceUtil::Time::now(IceUtil::Time::Monotonic).toMilliSeconds();
             
@@ -970,8 +927,8 @@ Freeze::BackgroundSaveEvictorI::run()
                         {
                             size_t index = streamedObjectQueue.size();
                             streamedObjectQueue.resize(index + 1);
-                            StreamedObject& obj = streamedObjectQueue[index];
-                            stream(element, streamStart, obj);
+                            streamedObjectQueue[index] = new StreamedObject;
+                            stream(element, streamStart, streamedObjectQueue[index]);
 
                             element->status = dead;
                             deadObjects.push_back(element);
@@ -1010,14 +967,17 @@ Freeze::BackgroundSaveEvictorI::run()
                             {
                                 lockElement.release();
 
-                                if(_watchDogThread != 0)
+                                IceUtil::TimerTaskPtr watchDogTask;
+                                if(_timer)
                                 {
-                                    _watchDogThread->activate();
+                                    watchDogTask = new WatchDogTask(*this);
+                                    _timer->schedule(watchDogTask, IceUtil::Time::milliSeconds(_streamTimeout));
                                 }
                                 lockServant.acquire();
-                                if(_watchDogThread != 0)
+                                if(watchDogTask)
                                 {
-                                    _watchDogThread->deactivate();
+                                    _timer->cancel(watchDogTask);
+                                    watchDogTask = 0;
                                 }
 
                                 lockElement.acquire();
@@ -1033,8 +993,8 @@ Freeze::BackgroundSaveEvictorI::run()
                                     {
                                         size_t index = streamedObjectQueue.size();
                                         streamedObjectQueue.resize(index + 1);
-                                        StreamedObject& obj = streamedObjectQueue[index];
-                                        stream(element, streamStart, obj);
+                                        streamedObjectQueue[index] = new StreamedObject;
+                                        stream(element, streamStart, streamedObjectQueue[index]);
 
                                         element->status = clean;
                                     }
@@ -1050,8 +1010,8 @@ Freeze::BackgroundSaveEvictorI::run()
                                     
                                     size_t index = streamedObjectQueue.size();
                                     streamedObjectQueue.resize(index + 1);
-                                    StreamedObject& obj = streamedObjectQueue[index];
-                                    stream(element, streamStart, obj);
+                                    streamedObjectQueue[index] = new StreamedObject;
+                                    stream(element, streamStart, streamedObjectQueue[index]);
 
                                     element->status = dead;
                                     deadObjects.push_back(element);
@@ -1074,8 +1034,8 @@ Freeze::BackgroundSaveEvictorI::run()
                         else
                         {
                             DatabaseException ex(__FILE__, __LINE__);
-                            ex.message = string(typeid(*element->rec.servant).name()) 
-                                + " does not implement IceUtil::AbstractMutex";
+			    Ice::Object& servant = *element->rec.servant;
+                            ex.message = string(typeid(servant).name()) + " does not implement IceUtil::AbstractMutex";
                             throw ex;
                         }
                     }
@@ -1135,8 +1095,14 @@ Freeze::BackgroundSaveEvictorI::run()
                         {       
                             for(size_t i = 0; i < txSize; i++)
                             {
-                                StreamedObject& obj = streamedObjectQueue[i];
-                                obj.store->save(obj.key, obj.value, obj.status, tx);
+                                StreamedObjectPtr obj = streamedObjectQueue[i];
+                                Dbt key, value;
+                                obj->key->getDbt(key);
+                                if(obj->value)
+                                {
+                                    obj->value->getDbt(value);
+                                }
+                                obj->store->save(key, value, obj->status, tx);
                             }
                         }
                         catch(...)
@@ -1157,9 +1123,7 @@ Freeze::BackgroundSaveEvictorI::run()
                             out << "committed transaction " << hex << txnId << dec;
                         }
 
-                        streamedObjectQueue.erase
-                            (streamedObjectQueue.begin(), 
-                             streamedObjectQueue.begin() + txSize);
+                        streamedObjectQueue.erase(streamedObjectQueue.begin(), streamedObjectQueue.begin() + txSize);
                         
                         if(_trace >= 1)
                         {
@@ -1390,24 +1354,25 @@ Freeze::BackgroundSaveEvictorI::addToModifiedQueue(const BackgroundSaveEvictorEl
 
 
 void
-Freeze::BackgroundSaveEvictorI::stream(const BackgroundSaveEvictorElementPtr& element, Long streamStart, StreamedObject& obj)
+Freeze::BackgroundSaveEvictorI::stream(const BackgroundSaveEvictorElementPtr& element, Long streamStart,
+                                       const StreamedObjectPtr& obj)
 {
     assert(element->status != dead);
     
-    obj.status = element->status;
-    obj.store = &element->store;
+    obj->status = element->status;
+    obj->store = &element->store;
 
     const Identity& ident = element->cachePosition->first;
-    ObjectStoreBase::marshal(ident, obj.key, _communicator, _encoding);
+    obj->key = new ObjectStoreBase::KeyMarshaler(ident, _communicator, _encoding);
 
     if(element->status != destroyed)
     {
-        bool keepStats = obj.store->keepStats();
+        const bool keepStats = obj->store->keepStats();
         if(keepStats)
         {
             EvictorIBase::updateStats(element->rec.stats, streamStart);
         }
-        ObjectStoreBase::marshal(element->rec, obj.value, _communicator, _encoding, keepStats);
+        obj->value = new ObjectStoreBase::ValueMarshaler(element->rec, _communicator, _encoding, keepStats);
     }
 }
 
