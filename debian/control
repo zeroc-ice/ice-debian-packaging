@@ -12,7 +12,7 @@ Build-Depends: debhelper (>= 9),
                libmcpp-dev (>= 2.7.2),
                libssl-dev,
                maven-repo-helper (>= 1.8),
-               openjdk-8-jdk-headless,
+               java-sdk-headless | default-jdk,
                php-cli,
                php-all-dev
 Standards-Version: 3.9.8
