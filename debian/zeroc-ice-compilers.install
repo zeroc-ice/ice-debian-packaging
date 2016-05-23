@@ -10,3 +10,7 @@ usr/share/man/man1/slice2freezej.1
 usr/share/man/man1/slice2html.1
 usr/share/man/man1/slice2java.1
 usr/share/man/man1/slice2php.1
+usr/share/man/man1/slice2cs.1
+usr/share/man/man1/slice2js.1
+usr/bin/slice2cs
+usr/bin/slice2js

@@ -161,16 +161,10 @@ override_dh_install: icebox_install
 	#
 	# Continue with regular dh_install
 	#
-	dh_install --fail-missing
+	dh_install --list-missing
 
-	#
-	# Copy package readme
-	#
-	for name in $(PACKAGE_NAMES) ; \
-	do \
-		mkdir -p $(DESTDIR)$(prefix)/share/doc/$$name ; \
-		cp debian/README $(DESTDIR)$(prefix)/share/doc/$$name/README ; \
-	done ;
+dh_installdocs:
+	dh_installdocs debian/README
 
 override_dh_clean:
 	dh_clean
