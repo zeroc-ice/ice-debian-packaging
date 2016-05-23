@@ -1,0 +1,17 @@
+usr/include/*
+
+usr/lib/*/libFreeze.so
+usr/lib/*/libGlacier2CryptPermissionsVerifier.so
+usr/lib/*/libGlacier2.so
+usr/lib/*/libIce.so
+usr/lib/*/libIceBox.so
+usr/lib/*/libIceDiscovery.so
+usr/lib/*/libIceGrid.so
+usr/lib/*/libIceLocatorDiscovery.so
+usr/lib/*/libIcePatch2.so
+usr/lib/*/libIceSSL.so
+usr/lib/*/libIceStorm.so
+usr/lib/*/libIceUtil.so
+usr/lib/*/libSlice.so
+
+usr/lib/*/c++11/*

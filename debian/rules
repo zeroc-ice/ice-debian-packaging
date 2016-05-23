@@ -1,106 +1,180 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
-DEB_BUILD_OPTIONS += nocheck
-DEB_COMPRESS_EXCLUDE := .xml .py .Linux .rules .cnf .cfg .ice .mak .js Makefile
-DEB_DH_INSTALL_SOURCEDIR := debian/tmp
+DEB_BUILD_OPTIONS += nocheck notest
+
+#export DH_VERBOSE=1
+
+# This has to be exported to make some magic below work.
+export DH_OPTIONS
+
+export CLASSPATH=/usr/share/java/proguard.jar
+export GRADLE_HOME=$(HOME)/.gradle
+export GRADLE = ./gradlew -g $(GRADLE_HOME)
+
+
+PACKAGE_NAMES =	\
+	libzeroc-freeze3.6 \
+	libzeroc-ice-dev \
+	libzeroc-ice-java \
+	libzeroc-ice3.6 \
+	libzeroc-icestorm3.6 \
+	php-zeroc-ice \
+	zeroc-glacier2 \
+	zeroc-ice-all-dev \
+	zeroc-ice-all-runtime \
+	zeroc-ice-compilers \
+	zeroc-ice-slice \
+	zeroc-ice-utils \
+	zeroc-ice-utils-java \
+	zeroc-icebox \
+	zeroc-icegrid \
+	zeroc-icepatch2 \
+
+CPP11_DESTDIR = $(CURDIR)/debian/tmp-cpp11
+
+CPP11_LIB_NAMES = \
+	libFreeze \
+	libGlacier2 \
+	libIce \
+	libIceBox \
+	libIceDiscovery \
+	libIceGrid \
+	libIceLocatorDiscovery \
+	libIcePatch2 \
+	libIceSSL \
+	libIceStorm \
+	libIceStormService \
+	libIceUtil
+
+VERSION = 3.6.2
+SOVERSION = 36
+
+ARTIFACT_NAMES = \
+	glacier2 \
+	ice \
+	icebox \
+	icediscovery \
+	icegrid \
+	icelocatordiscovery \
+	icepatch2 \
+	icestorm \
+	freeze
+
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
-# Support parallel=<n> in DEB_BUILD_OPTIONS
-ifneq (,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
-  USE_CPUS := $(subst parallel=,,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
-  NJOBS := -j $(USE_CPUS)
+ifeq ($(DEB_HOST_MULTIARCH),i386-linux-gnu)
+ICEBOX = icebox32
+else
+ICEBOX = icebox
 endif
 
-V=3.5.1
-RV=3.5
-R=35
-
-# Workaround compiler issues on optimized output on PPC As a
-# conservative measure I will only enable optimizations on targets
-# known to work
-LP64=no
+DESTDIR=$(CURDIR)/debian/tmp
 ifeq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
-ifeq ($(shell dpkg-architecture -qDEB_HOST_ARCH_CPU), i386)
-  OPTIMIZE=yes
-endif
-ifeq ($(shell dpkg-architecture -qDEB_HOST_ARCH_CPU), amd64)
-  OPTIMIZE=yes
-  LP64=yes
-endif
+	OPTIMIZE=yes
 endif
 
-# Unsupported systems will fall back to upstream Linux building rules
-UNAME := $(shell uname)
-ifeq ($(shell test -f $(CURDIR)/cpp/config/Make.rules.$(UNAME) && echo 0),)
-    UNAME := Linux
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+	MAKEFLAGS += -j$(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+else
+	PROCESSORS := $(shell cat /proc/cpuinfo | grep processor | wc -l)
+	ifneq ($(PROCESSORS),0)
+	    MAKEFLAGS += -j$(PROCESSORS)
+	endif
 endif
 
-# Common build flags
-MAKE_COMMON_FLAGS := \
-	OPTIMIZE=$(OPTIMIZE)\
-	UNAME=$(UNAME) \
-	LP64=$(LP64) \
-	lp64suffix="" \
-	USE_READLINE=yes \
-	CPP11=yes \
-	$(NJOBS)
-MAKE_INVOKE := make $(MAKE_COMMON_FLAGS)
 
-LANGS_ARCH:=cpp py rb php
-LANGS_INDEP:=java cs
-LANGS:=$(LANGS_ARCH) $(LANGS_INDEP)
+DHARGS	= --parallel --with maven_repo_helper --with systemd --with php
 
-include debian/rules-cpp.mk
-include debian/rules-py.mk
-include debian/rules-rb.mk
-include debian/rules-php.mk
-include debian/rules-java.mk
-include debian/rules-cs.mk
+prefix = /usr
+MAKEOPTS = prefix=$(prefix) OPTIMIZE=$(OPTIMIZE)
 
-override_dh_auto_clean: $(LANGS:%=clean-%)
-	dh_clean
-
-override_dh_auto_build-arch: $(LANGS_ARCH:%=debian/stamp-build-%)
-	# all built
-
-override_dh_auto_build-indep: $(LANGS_INDEP:%=debian/stamp-build-%)
-	# all built
-
-override_dh_auto_install-arch: $(LANGS_ARCH:%=debian/stamp-install-%)
-	# all installed
-
-override_dh_auto_install-indep: $(LANGS_INDEP:%=debian/stamp-install-%)
-	# all installed
-
-override_dh_auto_test:
-	# done
-
-override_dh_strip:
-	dh_strip --dbg-package=libzeroc-ice$(R)-dbg
-
-override_dh_makeshlibs:
-	dh_makeshlibs -XIcePy -XIceRuby -XIcePHP
-
-override_dh_compress:
-	dh_compress -Xtemplates.xml
-
-build-orig-source:
-	mkdir -p zeroc-ice-$(V)
-	tar --exclude=debian --exclude=\*~ --exclude=\.svn --exclude=\*.pyc \
-		--exclude=zeroc-ice-$(V) --exclude=accounts.txt -cf - . \
-		| ( cd zeroc-ice-$(V) && tar xf - )
-	tar -czf ../zeroc-ice_$(V).orig.tar.gz zeroc-ice-$(V)
-	$(RM) -r zeroc-ice-$(V)
-
-binary-arch:
-	   dh $@ --with python2 --with python3 --buildsystem=pybuild
-
-binary-indep:
-	   dh $@ --with python2 --with python3 --buildsystem=pybuild --with cli
-
-binary:
-	   dh $@ --with python2 --with python3 --buildsystem=pybuild --with cli
+icebox_install:
+	@echo usr/bin/$(ICEBOX) > $(CURDIR)/debian/zeroc-icebox.install
+	@echo usr/bin/$(ICEBOX)++11 >> $(CURDIR)/debian/zeroc-icebox.install
+	@echo usr/share/man/man1/icebox.1 >> $(CURDIR)/debian/zeroc-icebox.install
 
 %:
-	dh $@
+	dh $@ $(DHARGS)
+
+override_dh_auto_build-arch:
+	if [ ! -d cpp11 ]; then cp -r cpp cpp11; fi
+	$(MAKE) $(MAKEOPTS) -C cpp/src
+	$(MAKE) $(MAKEOPTS) -C php/src
+	$(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
+
+override_dh_auto_build-indep:
+	$(MAKE) $(MAKEOPTS) -C java dist
+
+override_dh_auto_install-arch:
+	$(MAKE) $(MAKEOPTS) -C cpp DESTDIR=$(DESTDIR) install
+	$(MAKE) $(MAKEOPTS) -C php DESTDIR=$(DESTDIR) install
+	$(MAKE) $(MAKEOPTS) -C cpp11 DESTDIR=$(CPP11_DESTDIR) CPP11=yes install
+
+override_dh_auto_install-indep:
+	$(MAKE) $(MAKEOPTS) -C java DESTDIR=$(DESTDIR) install
+
+override_dh_auto_clean-arch:
+	$(MAKE) $(MAKEOPTS) -C cpp/src clean
+	$(MAKE) $(MAKEOPTS) -C php/src clean
+	if [ -d cpp11 ]; then $(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes clean; fi
+
+override_dh_auto_clean-indep:
+	$(MAKE) $(MAKEOPTS) -C java clean
+
+override_dh_auto_test:
+
+override_dh_installinit:
+	dh_installinit --noscripts --name icegridregistry
+	dh_installinit --noscripts --name icegridnode
+	dh_installinit --noscripts --name glacier2router
+
+override_dh_install: icebox_install
+
+	#
+	# Move C++11 libraries and binaries to their locations
+	#
+	mkdir -p $(DESTDIR)$(prefix)/lib/$(DEB_HOST_MULTIARCH)/c++11
+	for name in $(CPP11_LIB_NAMES) ; \
+	do \
+		cp $(CPP11_DESTDIR)$(prefix)/lib/$(DEB_HOST_MULTIARCH)/$$name++11*.so.$(VERSION) $(DESTDIR)$(prefix)/lib/$(DEB_HOST_MULTIARCH) ; \
+		cd $(DESTDIR)$(prefix)/lib/$(DEB_HOST_MULTIARCH) && ln -s $$name++11.so.$(VERSION) $$name++11.so.$(SOVERSION) ; \
+		cd $(DESTDIR)$(prefix)/lib/$(DEB_HOST_MULTIARCH)/c++11 && ln -s ../$$name++11.so.$(SOVERSION) $$name.so ; \
+	done ;
+
+	cp $(CPP11_DESTDIR)$(prefix)/bin/$(ICEBOX)++11 $(DESTDIR)$(prefix)/bin/$(ICEBOX)++11
+
+	mkdir -p $(DESTDIR)$(prefix)/bin
+	cp debian/zeroc-ice-utils-java.icegridgui $(DESTDIR)$(prefix)/bin/icegridgui && \
+	chmod 755 $(DESTDIR)$(prefix)/bin/icegridgui
+	mkdir -p $(DESTDIR)/etc/php/mods-available
+
+	mkdir -p $(DESTDIR)/etc
+	cp debian/zeroc-glacier2.glacier2router.conf $(DESTDIR)/etc/glacier2router.conf
+	cp debian/zeroc-icegrid.icegridnode.conf $(DESTDIR)/etc/icegridnode.conf
+	cp debian/zeroc-icegrid.icegridregistry.conf $(DESTDIR)/etc/icegridregistry.conf
+
+	mkdir -p $(DESTDIR)/var/lib/ice/icegrid/registry
+	mkdir -p $(DESTDIR)/var/lib/ice/icegrid/node1
+
+	#
+	# Continue with regular dh_install
+	#
+	dh_install
+
+	#
+	# Copy package readme
+	#
+	for name in $(PACKAGE_NAMES) ; \
+	do \
+		mkdir -p $(DESTDIR)$(prefix)/share/doc/$$name ; \
+		cp debian/README $(DESTDIR)$(prefix)/share/doc/$$name/README ; \
+	done ;
+
+	cp debian/JGOODIES_LICENSE $(DESTDIR)$(prefix)/share/doc/zeroc-ice-utils-java/JGOODIES_LICENSE
+
+override_dh_clean:
+	dh_clean
+	rm -rf cpp11
+	rm -rf java/.gradle
+	rm -rf debian/tmp-cpp11
