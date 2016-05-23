@@ -2,7 +2,7 @@
 # postrm script for zeroc-icegrid
 set -e
 
-if [ "$1" == "purge" ]; then
+if [ "$1" = "purge" ]; then
     # We remove /var/lib/ice/icegrid
     rm -rf /var/lib/ice/icegrid
 

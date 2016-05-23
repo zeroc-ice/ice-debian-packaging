@@ -2,7 +2,7 @@
 # postinst script for libzeroc-ice3.6
 set -e
 
-if [ "$1" == "configure" ]; then
+if [ "$1" = "configure" ]; then
     if ! getent passwd ice > /dev/null; then
 	adduser --quiet --system --group --no-create-home --home /var/lib/ice --gecos "Ice Service account" ice
     fi

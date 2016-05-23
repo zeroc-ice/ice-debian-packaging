@@ -11,7 +11,7 @@ usr/lib/*/libIceLocatorDiscovery.so
 usr/lib/*/libIcePatch2.so
 usr/lib/*/libIceSSL.so
 usr/lib/*/libIceStorm.so
-usr/lib/*/libIceUtil.so
-usr/lib/*/libSlice.so
-usr/lib/*/libIceXML.so
 usr/lib/*/libIceStormService.so
+usr/lib/*/libIceUtil.so
+usr/lib/*/libIceXML.so
+usr/lib/*/libSlice.so

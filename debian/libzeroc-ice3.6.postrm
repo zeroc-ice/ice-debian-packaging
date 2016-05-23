@@ -2,7 +2,7 @@
 # postrm script for libzeroc-ice3.6
 set -e
 
-if [ "$1" == "purge" ]; then
+if [ "$1" = "purge" ]; then
     # We remove /var/lib/ice on purge
     rm -rf /var/lib/ice
     
