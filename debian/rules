@@ -12,6 +12,7 @@ export CLASSPATH=/usr/share/java/proguard.jar
 export GRADLE_HOME=$(HOME)/.gradle
 export GRADLE = ./gradlew -g $(GRADLE_HOME)
 
+PHP_VERSION=$(shell phpquery -V | head -1)
 
 PACKAGE_NAMES =	\
 	libzeroc-freeze3.6 \
@@ -147,7 +148,7 @@ override_dh_install: icebox_install
 	mkdir -p $(DESTDIR)$(prefix)/bin
 	cp debian/zeroc-ice-utils-java.icegridgui $(DESTDIR)$(prefix)/bin/icegridgui && \
 	chmod 755 $(DESTDIR)$(prefix)/bin/icegridgui
-	mkdir -p $(DESTDIR)/etc/php/mods-available
+	mkdir -p $(DESTDIR)/etc/php/$(PHP_VERSION)/mods-available
 
 	mkdir -p $(DESTDIR)/etc
 	cp debian/zeroc-glacier2.glacier2router.conf $(DESTDIR)/etc/glacier2router.conf
@@ -160,7 +161,7 @@ override_dh_install: icebox_install
 	#
 	# Continue with regular dh_install
 	#
-	dh_install
+	dh_install --fail-missing
 
 	#
 	# Copy package readme
@@ -170,8 +171,6 @@ override_dh_install: icebox_install
 		mkdir -p $(DESTDIR)$(prefix)/share/doc/$$name ; \
 		cp debian/README $(DESTDIR)$(prefix)/share/doc/$$name/README ; \
 	done ;
-
-	cp debian/JGOODIES_LICENSE $(DESTDIR)$(prefix)/share/doc/zeroc-ice-utils-java/JGOODIES_LICENSE
 
 override_dh_clean:
 	dh_clean

@@ -6,15 +6,15 @@ Uploaders: Ondřej Surý <ondrej@debian.org>
 Build-Depends: debhelper (>= 9),
                dh-systemd (>= 1.3),
                libbz2-dev,
-               libdb5.3++-dev (>= 5.3.28),
-               libdb5.3-java (>= 5.3.28),
+               libdb++-dev,
+               libdb-java,
                libexpat1-dev,
                libmcpp-dev (>= 2.7.2),
                libssl-dev,
                maven-repo-helper (>= 1.8),
                openjdk-8-jdk-headless,
                php-cli,
-               php-dev
+               php-all-dev
 Standards-Version: 3.9.8
 Homepage: https://zeroc.com
 
