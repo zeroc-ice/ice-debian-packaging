@@ -171,3 +171,6 @@ override_dh_clean:
 	rm -rf cpp11
 	rm -rf java/.gradle
 	rm -rf debian/tmp-cpp11
+
+override_dh_php:
+	dh_php -p php-zeroc-ice
