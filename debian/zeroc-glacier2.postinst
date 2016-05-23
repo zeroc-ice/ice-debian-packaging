@@ -1,0 +1,14 @@
+#!/bin/sh
+# postinst script for zeroc-glacier2
+set -e
+
+if [ "$1" == "configure" ]; then
+    # Make /var/lib/ice writeable by ice:ice user
+    if ! dpkg-statoverride --list /var/lib/ice >/dev/null; then
+	dpkg-statoverride --update --add ice adm 0770 /var/lib/ice >/dev/null 2>/dev/null || true
+    fi
+fi
+
+#DEBHELPER#
+
+exit 0
