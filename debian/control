@@ -2,19 +2,20 @@ Source: zeroc-ice3.6
 Section: devel
 Priority: extra
 Maintainer: ZeroC, Inc. <support@zeroc.com>
-Build-Depends: debhelper (>= 9.0.0),
+Uploaders: Ondřej Surý <ondrej@debian.org>
+Build-Depends: debhelper (>= 9),
                dh-systemd (>= 1.3),
                libbz2-dev,
-               libdb5.3++-dev (>=5.3.28),
-               libdb5.3-java (>=5.3.28),
+               libdb5.3++-dev (>= 5.3.28),
+               libdb5.3-java (>= 5.3.28),
                libexpat1-dev,
-               libmcpp-dev (>=2.7.2),
+               libmcpp-dev (>= 2.7.2),
                libssl-dev,
                maven-repo-helper (>= 1.8),
                openjdk-8-jdk-headless,
                php-cli,
                php-dev
-Standards-Version: 3.9.4
+Standards-Version: 3.9.8
 Homepage: https://zeroc.com
 
 Package: libzeroc-freeze3.6
@@ -22,7 +23,7 @@ Architecture: any
 Multi-Arch: same
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
-Depends: libzeroc-ice3.6 (=${binary:Version}),
+Depends: libzeroc-ice3.6 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: Freeze persistence service C++ run-time
@@ -34,10 +35,10 @@ Multi-Arch: same
 Section: devel
 Replaces: libice++-dev,
           libzeroc-ice35-dev
-Depends: libzeroc-freeze3.6 (=${binary:Version}),
-         libzeroc-ice3.6 (=${binary:Version}),
-         zeroc-ice-compilers (=${binary:Version}),
-         zeroc-ice-slice (=${binary:Version}),
+Depends: libzeroc-freeze3.6 (= ${binary:Version}),
+         libzeroc-ice3.6 (= ${binary:Version}),
+         zeroc-ice-compilers (= ${binary:Version}),
+         zeroc-ice-slice (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: Tools, libraries and headers for developing Ice applications in C++
@@ -51,10 +52,10 @@ Replaces: ice35-translators,
           libice-java-dev,
           libzeroc-ice3.6-java
 Depends: libdb5.3-java (>=5.3.28),
-         libzeroc-ice3.6 (=${binary:Version}),
+         libzeroc-ice3.6 (= ${binary:Version}),
          openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer,
-         zeroc-ice-compilers (=${binary:Version}),
-         zeroc-ice-slice (=${binary:Version}),
+         zeroc-ice-compilers (= ${binary:Version}),
+         zeroc-ice-slice (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: Tools for developing Ice applications in Java
@@ -75,8 +76,8 @@ Architecture: any
 Multi-Arch: same
 Section: net
 Pre-Depends: ${misc:Pre-Depends}
-Depends: libzeroc-freeze3.6 (=${binary:Version}),
-         libzeroc-ice3.6 (=${binary:Version}),
+Depends: libzeroc-freeze3.6 (= ${binary:Version}),
+         libzeroc-ice3.6 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: IceStorm publish–subscribe event distribution service for Ice
@@ -88,7 +89,7 @@ Architecture: any
 Section: php
 Replaces: libice3.5-php,
           php-zeroc-ice
-Depends: libzeroc-ice3.6 (=${binary:Version}),
+Depends: libzeroc-ice3.6 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: The Ice run time for PHP
@@ -100,7 +101,7 @@ Multi-Arch: foreign
 Section: net
 Replaces: glacier2,
           ice35-services
-Depends: libzeroc-ice3.6 (=${binary:Version}),
+Depends: libzeroc-ice3.6 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: The Glacier2 router daemon
@@ -110,10 +111,10 @@ Description: The Glacier2 router daemon
 Package: zeroc-ice-all-dev
 Architecture: all
 Section: devel
-Depends: libzeroc-ice-dev (=${binary:Version}),
-         libzeroc-ice-java (=${binary:Version}),
-         zeroc-ice-compilers (=${binary:Version}),
-         zeroc-ice-slice (=${binary:Version})
+Depends: libzeroc-ice-dev (= ${binary:Version}),
+         libzeroc-ice-java (= ${binary:Version}),
+         zeroc-ice-compilers (= ${binary:Version}),
+         zeroc-ice-slice (= ${binary:Version})
 Replaces: libzeroc-ice-java (<=3.5.1)
 Description: Ice development packages
  Ice development packages.
@@ -121,17 +122,17 @@ Description: Ice development packages
 Package: zeroc-ice-all-runtime
 Architecture: all
 Section: net
-Depends: libzeroc-freeze3.6 (=${binary:Version}),
-         libzeroc-ice3.6 (=${binary:Version}),
-         libzeroc-icestorm3.6 (=${binary:Version}),
-         php-zeroc-ice (=${binary:Version}),
-         zeroc-glacier2 (=${binary:Version}),
-         zeroc-ice-slice (=${binary:Version}),
-         zeroc-ice-utils (=${binary:Version}),
-         zeroc-ice-utils-java (=${binary:Version}),
-         zeroc-icebox (=${binary:Version}),
-         zeroc-icegrid (=${binary:Version}),
-         zeroc-icepatch2 (=${binary:Version})
+Depends: libzeroc-freeze3.6 (= ${binary:Version}),
+         libzeroc-ice3.6 (= ${binary:Version}),
+         libzeroc-icestorm3.6 (= ${binary:Version}),
+         php-zeroc-ice (= ${binary:Version}),
+         zeroc-glacier2 (= ${binary:Version}),
+         zeroc-ice-slice (= ${binary:Version}),
+         zeroc-ice-utils (= ${binary:Version}),
+         zeroc-ice-utils-java (= ${binary:Version}),
+         zeroc-icebox (= ${binary:Version}),
+         zeroc-icegrid (= ${binary:Version}),
+         zeroc-icepatch2 (= ${binary:Version})
 Replaces: icebox
 Provides: icebox
 Description: Ice (Internet Communications Engine)
@@ -148,8 +149,8 @@ Package: zeroc-ice-compilers
 Architecture: any
 Multi-Arch: foreign
 Section: devel
-Depends: libzeroc-ice3.6 (=${binary:Version}),
-         zeroc-ice-slice (=${binary:Version}),
+Depends: libzeroc-ice3.6 (= ${binary:Version}),
+         zeroc-ice-slice (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: Slice compilers for developing Ice applications
@@ -170,9 +171,9 @@ Section: admin
 Replaces: ice-utils,
           ice35-services,
           icebox
-Depends: libzeroc-freeze3.6 (=${binary:Version}),
-         libzeroc-ice3.6 (=${binary:Version}),
-         libzeroc-icestorm3.6 (=${binary:Version}),
+Depends: libzeroc-freeze3.6 (= ${binary:Version}),
+         libzeroc-ice3.6 (= ${binary:Version}),
+         libzeroc-icestorm3.6 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: Ice utilities and admin tools
@@ -187,7 +188,7 @@ Replaces: ice-utils,
 Depends: openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer | openjdk-7-jre | openjdk-8-jre,
          ${java:Depends},
          ${misc:Depends}
- zeroc-ice-utils (=${binary:Version})
+ zeroc-ice-utils (= ${binary:Version})
 Description: IceGrid Admin graphical client for IceGrid
 
 Package: zeroc-icebox
@@ -196,7 +197,7 @@ Multi-Arch: foreign
 Section: net
 Replaces: icebox
 Provides: icebox
-Depends: libzeroc-ice3.6 (=${binary:Version}),
+Depends: libzeroc-ice3.6 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: IceBox C++ server
@@ -208,9 +209,9 @@ Multi-Arch: foreign
 Section: net
 Replaces: ice35-services,
           icegrid
-Depends: libzeroc-freeze3.6 (=${binary:Version}),
-         libzeroc-ice3.6 (=${binary:Version}),
-         libzeroc-icestorm3.6 (=${binary:Version}),
+Depends: libzeroc-freeze3.6 (= ${binary:Version}),
+         libzeroc-ice3.6 (= ${binary:Version}),
+         libzeroc-icestorm3.6 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: IceGrid is the server deployment and monitoring for Ice
@@ -223,7 +224,7 @@ Multi-Arch: foreign
 Section: net
 Replaces: ice35-services,
           icepatch2
-Depends: libzeroc-ice3.6 (=${binary:Version}),
+Depends: libzeroc-ice3.6 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: The software distribution and patching service for Ice.
