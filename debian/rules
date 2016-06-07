@@ -22,10 +22,10 @@ GRADLEOPTS	:= -g $(GRADLEHOME) \
 
 PHP_VERSIONS := $(shell /usr/sbin/phpquery -V)
 
-CPPFLAGS	:= $(shell dpkg-buildflags --get CPPFLAGS)
-CFLAGS		:= $(shell dpkg-buildflags --get CFLAGS)
-CXXFLAGS 	:= $(shell dpkg-buildflags --get CXXFLAGS)
-LDFLAGS 	:= $(shell dpkg-buildflags --get LDFLAGS)
+#CPPFLAGS	:= $(shell dpkg-buildflags --get CPPFLAGS)
+#CFLAGS		:= $(shell dpkg-buildflags --get CFLAGS)
+#CXXFLAGS 	:= $(shell dpkg-buildflags --get CXXFLAGS)
+#LDFLAGS 	:= $(shell dpkg-buildflags --get LDFLAGS)
 
 PACKAGE_NAMES =	\
 	libzeroc-freeze3.6 \
