@@ -1,10 +1,8 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
-# Uncomment this to turn on verbose mode. 
+# Uncomment this to turn on verbose mode.
 # export DH_VERBOSE=1
-
-DEB_BUILD_OPTIONS += nocheck notest
 
 # This has to be exported to make some magic below work.
 export DH_OPTIONS
@@ -14,11 +12,18 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/default.mk
 
-export CLASSPATH=/usr/share/java/proguard.jar
-export GRADLE_HOME=$(HOME)/.gradle
-export GRADLE = ./gradlew -g $(GRADLE_HOME)
+GRADLEHOME	:= $(CURDIR)/debian/.gradle
+GRADLEOPTS	:= -g $(GRADLEHOME) \
+		   --offline -PicegridguiProguard=false \
+		   -PjgoodiesLooksVersion=debian \
+		   -PjgoodiesFormsVersion=debian
 
-PHP_VERSION=$(shell phpquery -V | head -1)
+PHP_VERSION	:= $(shell phpquery -V | head -1)
+
+CPPFLAGS	:= $(shell dpkg-buildflags --get CPPFLAGS)
+CFLAGS		:= $(shell dpkg-buildflags --get CFLAGS)
+CXXFLAGS 	:= $(shell dpkg-buildflags --get CXXFLAGS)
+LDFLAGS 	:= $(shell dpkg-buildflags --get LDFLAGS)
 
 PACKAGE_NAMES =	\
 	libzeroc-freeze3.6 \
@@ -68,7 +73,7 @@ ARTIFACT_NAMES = \
 	icestorm \
 	freeze
 
-DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+export DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
 ifeq ($(DEB_HOST_MULTIARCH),i386-linux-gnu)
 ICEBOX = icebox32
@@ -111,7 +116,7 @@ override_dh_auto_build-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
 
 override_dh_auto_build-indep:
-	$(MAKE) $(MAKEOPTS) -C java dist
+	gradle $(GRADLEOPTS) -pjava dist
 
 override_dh_auto_install-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp DESTDIR=$(DESTDIR) install
@@ -119,15 +124,22 @@ override_dh_auto_install-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp11 DESTDIR=$(CPP11_DESTDIR) CPP11=yes install
 
 override_dh_auto_install-indep:
-	$(MAKE) $(MAKEOPTS) -C java DESTDIR=$(DESTDIR) install
+	gradle $(GRADLEOPTS) -pjava -Pprefix=$(prefix) -PDESTDIR=$(DESTDIR) install
 
 override_dh_auto_clean-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp/src clean
-	$(MAKE) $(MAKEOPTS) -C php/src clean
+	$(MAKE) $(MAKEOPTS) -C php clean
 	if [ -d cpp11 ]; then $(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes clean; fi
+	rm -rf cpp11
+	rm -rf debian/tmp-cpp11
 
 override_dh_auto_clean-indep:
-	$(MAKE) $(MAKEOPTS) -C java clean
+	gradle $(GRADLEOPTS) -pjava clean
+	rm -rf java/.gradle
+	rm -rf $(GRADLEHOME)
+
+get-orig-source:
+	uscan --download-current-version --rename --force-download
 
 override_dh_auto_test:
 
@@ -174,9 +186,4 @@ dh_installdocs:
 
 override_dh_clean:
 	dh_clean
-	rm -rf cpp11
-	rm -rf java/.gradle
-	rm -rf debian/tmp-cpp11
-
-override_dh_php:
-	dh_php -p php-zeroc-ice
+	-rm -rf debian/.gradle
