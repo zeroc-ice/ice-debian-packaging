@@ -18,7 +18,7 @@ GRADLEOPTS	:= -g $(GRADLEHOME) \
 		   -PjgoodiesLooksVersion=debian \
 		   -PjgoodiesFormsVersion=debian
 
-PHP_VERSION	:= $(shell phpquery -V | head -1)
+PHP_VERSIONS := $(shell /usr/sbin/phpquery -V)
 
 CPPFLAGS	:= $(shell dpkg-buildflags --get CPPFLAGS)
 CFLAGS		:= $(shell dpkg-buildflags --get CFLAGS)
@@ -112,7 +112,10 @@ icebox_install:
 override_dh_auto_build-arch:
 	if [ ! -d cpp11 ]; then cp -r cpp cpp11; fi
 	$(MAKE) $(MAKEOPTS) -C cpp/src
-	$(MAKE) $(MAKEOPTS) -C php/src
+	for v in $(PHP_VERSIONS); do \
+	  cp -a php/src php/src-$${v}; \
+	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php/src-$${v}; \
+	done
 	$(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
 
 override_dh_auto_build-indep:
@@ -120,7 +123,9 @@ override_dh_auto_build-indep:
 
 override_dh_auto_install-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp DESTDIR=$(DESTDIR) install
-	$(MAKE) $(MAKEOPTS) -C php DESTDIR=$(DESTDIR) install
+	for v in $(PHP_VERSIONS); do \
+	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php/src-$${v}; \
+	done
 	$(MAKE) $(MAKEOPTS) -C cpp11 DESTDIR=$(CPP11_DESTDIR) CPP11=yes install
 
 override_dh_auto_install-indep:
@@ -128,7 +133,9 @@ override_dh_auto_install-indep:
 
 override_dh_auto_clean-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp/src clean
-	$(MAKE) $(MAKEOPTS) -C php clean
+	for v in $(PHP_VERSIONS); do \
+	  rm -rf php/src php/src-$${v}; \
+	done
 	if [ -d cpp11 ]; then $(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes clean; fi
 	rm -rf cpp11
 	rm -rf debian/tmp-cpp11
@@ -149,7 +156,6 @@ override_dh_installinit:
 	dh_installinit --noscripts --name glacier2router
 
 override_dh_install: icebox_install
-
 	#
 	# Move C++11 libraries and binaries to their locations
 	#
@@ -166,7 +172,6 @@ override_dh_install: icebox_install
 	mkdir -p $(DESTDIR)$(prefix)/bin
 	cp debian/zeroc-ice-utils-java.icegridgui $(DESTDIR)$(prefix)/bin/icegridgui && \
 	chmod 755 $(DESTDIR)$(prefix)/bin/icegridgui
-	mkdir -p $(DESTDIR)/etc/php/$(PHP_VERSION)/mods-available
 
 	mkdir -p $(DESTDIR)/etc
 	cp debian/zeroc-glacier2.glacier2router.conf $(DESTDIR)/etc/glacier2router.conf
@@ -183,7 +188,3 @@ override_dh_install: icebox_install
 
 dh_installdocs:
 	dh_installdocs debian/README
-
-override_dh_clean:
-	dh_clean
-	-rm -rf debian/.gradle
