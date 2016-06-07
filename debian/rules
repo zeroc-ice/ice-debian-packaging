@@ -134,7 +134,7 @@ override_dh_auto_install-indep:
 override_dh_auto_clean-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp/src clean
 	for v in $(PHP_VERSIONS); do \
-	  rm -rf php/src php/src-$${v}; \
+	  rm -rf php/src-$${v}; \
 	done
 	if [ -d cpp11 ]; then $(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes clean; fi
 	rm -rf cpp11
