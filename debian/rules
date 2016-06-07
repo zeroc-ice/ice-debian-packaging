@@ -116,8 +116,8 @@ override_dh_auto_build-arch:
 	if [ ! -d cpp11 ]; then cp -r cpp cpp11; fi
 	$(MAKE) $(MAKEOPTS) -C cpp/src
 	for v in $(PHP_VERSIONS); do \
-	  cp -a php/src php/src-$${v}; \
-	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php/src-$${v}; \
+	  cp -a php php-$${v}; \
+	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v}/src; \
 	done
 	$(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
 
@@ -127,7 +127,7 @@ override_dh_auto_build-indep:
 override_dh_auto_install-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp DESTDIR=$(DESTDIR) install
 	for v in $(PHP_VERSIONS); do \
-	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php/src-$${v}; \
+	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v} DESTDIR=$(DESTDIR) install; \
 	done
 	$(MAKE) $(MAKEOPTS) -C cpp11 DESTDIR=$(CPP11_DESTDIR) CPP11=yes install
 
@@ -137,7 +137,7 @@ override_dh_auto_install-indep:
 override_dh_auto_clean-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp/src clean
 	for v in $(PHP_VERSIONS); do \
-	  rm -rf php/src-$${v}; \
+	  rm -rf php-$${v}; \
 	done
 	if [ -d cpp11 ]; then $(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes clean; fi
 	rm -rf cpp11
