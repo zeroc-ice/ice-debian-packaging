@@ -1,4 +1,4 @@
-zeroc-ice (3.6.2-stretch-1) unstable; urgency=medium
+zeroc-ice (3.6.2-stretch+git1+6f49504-1) unstable; urgency=medium
 
   * Imported Upstream version 3.6.2-stretch+git1+6f49504
   * Merge the upstream packaging
