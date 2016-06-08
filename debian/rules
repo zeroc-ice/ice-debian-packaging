@@ -17,6 +17,8 @@ include /usr/share/dpkg/default.mk
 
 export DEB_HOST_MULTIARCH
 
+export JAVA_HOME=/usr/lib/jvm/default-java
+
 GRADLEHOME	:= $(CURDIR)/debian/.gradle
 GRADLEOPTS	:= -g $(GRADLEHOME) \
 		   --offline -PicegridguiProguard=false \
