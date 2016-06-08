@@ -1,0 +1,1 @@
+libzeroc-ice-dev: dev-pkg-without-shlib-symlink usr/lib/*/lib*++11.so.* usr/lib/*/lib*++11.so

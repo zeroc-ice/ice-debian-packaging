@@ -1,0 +1,2 @@
+libzeroc-freeze3.6: package-name-doesnt-match-sonames *
+libzeroc-freeze3.6: dev-pkg-without-shlib-symlink usr/lib/*/lib*++11.so.3.6.2 usr/lib/*/lib*++11.so
