@@ -1,6 +1,7 @@
 usr/lib/*/libGlacier2++11.so.*
 usr/lib/*/libGlacier2.so.*
 usr/lib/*/libGlacier2CryptPermissionsVerifier.so.*
+usr/lib/*/libGlacier2CryptPermissionsVerifier++11.so.*
 usr/lib/*/libIce++11.so.*
 usr/lib/*/libIce.so.*
 usr/lib/*/libIceBox++11.so.*
@@ -20,3 +21,5 @@ usr/lib/*/libIceStorm.so.*
 usr/lib/*/libIceUtil++11.so.*
 usr/lib/*/libIceUtil.so.*
 usr/lib/*/libSlice.so.*
+usr/lib/*/libSlice++11.so.*
+usr/lib/*/libIceXML++11.so.*
