@@ -1,0 +1,4 @@
+#!/usr/bin/dh-exec
+usr/bin/$(ICEBOX)
+usr/bin/$(ICEBOX)++11
+usr/share/man/man1/icebox.1

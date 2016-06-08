@@ -58,9 +58,9 @@ ARTIFACT_NAMES = \
 	freeze
 
 ifeq ($(DEB_HOST_MULTIARCH),i386-linux-gnu)
-ICEBOX = icebox32
+export ICEBOX := icebox32
 else
-ICEBOX = icebox
+export ICEBOX := icebox
 endif
 
 DESTDIR=$(CURDIR)/debian/tmp
@@ -78,15 +78,9 @@ else
 endif
 
 
-DHARGS	= --parallel --with maven_repo_helper --with systemd --with php
+DHARGS	= --parallel --with maven_repo_helper --with systemd --with php --with python2
 
-prefix = /usr
-MAKEOPTS = prefix=$(prefix) OPTIMIZE=$(OPTIMIZE)
-
-icebox_install:
-	@echo usr/bin/$(ICEBOX) > $(CURDIR)/debian/zeroc-icebox.install
-	@echo usr/bin/$(ICEBOX)++11 >> $(CURDIR)/debian/zeroc-icebox.install
-	@echo usr/share/man/man1/icebox.1 >> $(CURDIR)/debian/zeroc-icebox.install
+MAKEOPTS = prefix=/usr OPTIMIZE=$(OPTIMIZE)
 
 %:
 	dh $@ $(DHARGS)
@@ -111,7 +105,7 @@ override_dh_auto_install-arch:
 	done
 
 override_dh_auto_install-indep:
-	gradle $(GRADLEOPTS) -pjava -Pprefix=$(prefix) -PDESTDIR=$(DESTDIR) install
+	gradle $(GRADLEOPTS) -pjava -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
 
 override_dh_auto_clean-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp/src clean
@@ -135,15 +129,20 @@ override_dh_installinit:
 	dh_installinit --noscripts --name icegridnode
 	dh_installinit --noscripts --name glacier2router
 
-override_dh_install: icebox_install
-	install -d -m 0755 $(DESTDIR)$(prefix)/bin
-	install -m 0755 debian/zeroc-ice-utils-java.icegridgui $(DESTDIR)$(prefix)/bin/icegridgui
+override_dh_install:
+	install -d -m 0755 $(DESTDIR)/usr/bin
+	install -m 0755 debian/zeroc-ice-utils-java.icegridgui $(DESTDIR)/usr/bin/icegridgui
 
 	install -d -m 0755 $(DESTDIR)/etc/
 
 	install -m 0644 debian/zeroc-glacier2.glacier2router.conf $(DESTDIR)/etc/glacier2router.conf
 	install -m 0644 debian/zeroc-icegrid.icegridnode.conf $(DESTDIR)/etc/icegridnode.conf
 	install -m 0644 debian/zeroc-icegrid.icegridregistry.conf $(DESTDIR)/etc/icegridregistry.conf
+
+	for slice in $(DESTDIR)/usr/share/Ice-$(DEB_VERSION_UPSTREAM)/icegrid-slice.*.ice.gz; do \
+	  gzip -d $${slice}; \
+	  gzip -9 -n $${slice%.gz}; \
+	done
 
 	dh_install --list-missing -X*.pom -XICE_LICENSE -XLICENSE
 
