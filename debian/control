@@ -177,7 +177,7 @@ Replaces: glacier2,
 Depends: libzeroc-ice3.6 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
-Description: The Glacier2 router daemon
+Description: Glacier2 router daemon for Ice
  Internet Communications Engins (Ice) is a comprehensive RPC framework
  that helps you build distributed applications with minimal
  effort. Ice takes care of all interactions with low-level network
