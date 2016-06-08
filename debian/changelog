@@ -14,8 +14,23 @@ zeroc-ice (3.6.2-stretch+git1+6f49504-1) unstable; urgency=medium
   * Merge fixes to upstream d/rules
   * Add patch to allow setting custom php-config via PHP_CONFIG
   * Build for multiple PHP versions
+  * Hardcode locale to C.UTF-8
+  * Add Vcs-* links
+  * Don't re-export *FLAGS again
+  * Don't enable full hardening as it breaks the build
+  * Various little improvements using standard debhelper tools
+  * Improve description and other fixes in d/control
+  * Use even more debhelper and dh-exec
+  * Override some shared library quirks in the package
+  * Use simple upstream version (without any git version cruft)
+  * Fix the zeroc-icebox dh-exec and rename manpage to ${ICEBOX}.1
+  * Add symlinks for *-source.jar(s)
+  * export default JAVA_HOME
+  * Add three missing C++11 libraries to libzeroc-ice3.6 package
+  * Add /usr/share/slice to zeroc-ice-slice package
+  * Add dh-python to Build-Depends
 
- -- Ondřej Surý <ondrej@debian.org>  Tue, 07 Jun 2016 10:48:04 +0200
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 08 Jun 2016 14:16:57 +0200
 
 zeroc-ice (3.5.1-6.4) unstable; urgency=medium
 
