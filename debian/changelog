@@ -2,6 +2,7 @@ zeroc-ice (3.6.2-stretch+git1+6f49504-2) unstable; urgency=medium
 
   * Remove unused variables from d/rules
   * Update d/copyright with the upstream version
+  * Simplify icebox installation by using wildcards
 
  -- Ondřej Surý <ondrej@debian.org>  Wed, 08 Jun 2016 16:21:28 +0200
 
