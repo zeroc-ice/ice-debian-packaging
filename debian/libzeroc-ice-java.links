@@ -8,3 +8,12 @@ usr/share/java/icelocatordiscovery-${VERSION}.jar usr/share/java/icelocatordisco
 usr/share/java/icegrid-${VERSION}.jar usr/share/java/icegrid.jar
 usr/share/java/icepatch2-${VERSION}.jar usr/share/java/icepatch2.jar
 usr/share/java/icestorm-${VERSION}.jar usr/share/java/icestorm.jar
+usr/share/java/freeze-${VERSION}-source.jar usr/share/java/freeze-source.jar
+usr/share/java/glacier2-${VERSION}-source.jar usr/share/java/glacier2-source.jar
+usr/share/java/ice-${VERSION}-source.jar usr/share/java/ice-source.jar
+usr/share/java/icebox-${VERSION}-source.jar usr/share/java/icebox-source.jar
+usr/share/java/icediscovery-${VERSION}-source.jar usr/share/java/icediscovery-source.jar
+usr/share/java/icelocatordiscovery-${VERSION}-source.jar usr/share/java/icelocatordiscovery-source.jar
+usr/share/java/icegrid-${VERSION}-source.jar usr/share/java/icegrid-source.jar
+usr/share/java/icepatch2-${VERSION}-source.jar usr/share/java/icepatch2-source.jar
+usr/share/java/icestorm-${VERSION}-source.jar usr/share/java/icestorm-source.jar
