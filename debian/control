@@ -122,7 +122,7 @@ Description: Internet Communications Engine (ICE) shared libraries
  connection attempts (to name just a few of dozens of such low-level
  details).
  .
- This packages contains shared libraries for the Ice framework.
+ This package contains shared libraries for the Ice framework.
 
 Package: libzeroc-icestorm3.6
 Architecture: any
