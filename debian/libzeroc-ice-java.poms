@@ -1,10 +1,9 @@
-#!/usr/bin/dh-exec
-java/lib/ice-${VERSION}.pom --artifact=java/lib/ice-${VERSION}.jar
-java/lib/icebox-${VERSION}.pom --artifact=java/lib/icebox-${VERSION}.jar
-java/lib/icediscovery-${VERSION}.pom --artifact=java/lib/icediscovery-${VERSION}.jar
-java/lib/icelocatordiscovery-${VERSION}.pom --artifact=java/lib/icelocatordiscovery-${VERSION}.jar
-java/lib/icegrid-${VERSION}.pom --artifact=java/lib/icegrid-${VERSION}.jar
-java/lib/icestorm-${VERSION}.pom --artifact=java/lib/icestorm-${VERSION}.jar
-java/lib/icepatch2-${VERSION}.pom --artifact=java/lib/icepatch2-${VERSION}.jar
-java/lib/glacier2-${VERSION}.pom --artifact=java/lib/glacier2-${VERSION}.jar
-java/lib/freeze-${VERSION}.pom --artifact=java/lib/freeze-${VERSION}.jar
+java/lib/ice-3.6.2.pom --artifact=java/lib/ice-3.6.2.jar
+java/lib/icebox-3.6.2.pom --artifact=java/lib/icebox-3.6.2.jar
+java/lib/icediscovery-3.6.2.pom --artifact=java/lib/icediscovery-3.6.2.jar
+java/lib/icelocatordiscovery-3.6.2.pom --artifact=java/lib/icelocatordiscovery-3.6.2.jar
+java/lib/icegrid-3.6.2.pom --artifact=java/lib/icegrid-3.6.2.jar
+java/lib/icestorm-3.6.2.pom --artifact=java/lib/icestorm-3.6.2.jar
+java/lib/icepatch2-3.6.2.pom --artifact=java/lib/icepatch2-3.6.2.jar
+java/lib/glacier2-3.6.2.pom --artifact=java/lib/glacier2-3.6.2.jar
+java/lib/freeze-3.6.2.pom --artifact=java/lib/freeze-3.6.2.jar
