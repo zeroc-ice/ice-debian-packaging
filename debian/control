@@ -5,10 +5,9 @@ Maintainer: ZeroC, Inc. <support@zeroc.com>
 Uploaders: Ondřej Surý <ondrej@debian.org>
 Build-Depends: debhelper (>= 9),
                default-jdk,
+               dh-exec,
                dh-php (>= 0.20),
-	       dh-exec,
-	       python,
-	       dh-python,
+               dh-python,
                dh-systemd (>= 1.3),
                gradle (>= 2),
                gradle-ice-builder-plugin,
@@ -24,7 +23,8 @@ Build-Depends: debhelper (>= 9),
                maven-repo-helper (>= 1.8),
                openjfx,
                php-all-dev,
-               php-cli
+               php-cli,
+               python
 Standards-Version: 3.9.8
 Homepage: https://zeroc.com
 Vcs-Git: https://anonscm.debian.org/git/collab-maint/zeroc-ice.git
@@ -84,9 +84,9 @@ Section: java
 Replaces: ice35-translators,
           libice-java-dev,
           libzeroc-ice3.6-java
-Depends: libdb5.3-java (>= 5.3.28),
+Depends: default-jdk | openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer,
+         libdb5.3-java (>= 5.3.28),
          libzeroc-ice3.6 (>= ${source:Version}),
-         default-jdk | openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer,
          zeroc-ice-compilers (>= ${source:Version}),
          zeroc-ice-slice (= ${source:Version}),
          ${misc:Depends},
@@ -199,7 +199,7 @@ Depends: libzeroc-ice-dev (>= ${source:Version}),
          libzeroc-ice-java (= ${source:Version}),
          zeroc-ice-compilers (>= ${source:Version}),
          zeroc-ice-slice (= ${source:Version}),
-	 ${misc:Depends}
+         ${misc:Depends}
 Replaces: libzeroc-ice-java (<=3.5.1)
 Description: Ice development packages (dependency package)
  Internet Communications Engins (Ice) is a comprehensive RPC framework
@@ -228,7 +228,7 @@ Depends: libzeroc-freeze3.6 (>= ${source:Version}),
          zeroc-icebox (>= ${source:Version}),
          zeroc-icegrid (>= ${source:Version}),
          zeroc-icepatch2 (>= ${source:Version}),
-	 ${misc:Depends}
+         ${misc:Depends}
 Replaces: icebox
 Provides: icebox
 Description: Ice (Internet Communications Engine) (dependency package)
@@ -363,9 +363,9 @@ Replaces: ice35-services,
 Depends: libzeroc-freeze3.6 (= ${binary:Version}),
          libzeroc-ice3.6 (= ${binary:Version}),
          libzeroc-icestorm3.6 (= ${binary:Version}),
-	 python,
-	 ${python:Depends},
+         python,
          ${misc:Depends},
+         ${python:Depends},
          ${shlibs:Depends}
 Description: IceGrid - the server deployment and monitoring for Ice
  Internet Communications Engins (Ice) is a comprehensive RPC framework
