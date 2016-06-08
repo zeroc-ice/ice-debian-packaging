@@ -15,6 +15,9 @@ export DH_OPTIONS
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/default.mk
 
+export DEB_HOST_MULTIARCH
+export DEB_VERSION_UPSTREAM
+
 GRADLEHOME	:= $(CURDIR)/debian/.gradle
 GRADLEOPTS	:= -g $(GRADLEHOME) \
 		   --offline -PicegridguiProguard=false \
@@ -22,11 +25,6 @@ GRADLEOPTS	:= -g $(GRADLEHOME) \
 		   -PjgoodiesFormsVersion=debian
 
 PHP_VERSIONS := $(shell /usr/sbin/phpquery -V)
-
-#CPPFLAGS	:= $(shell dpkg-buildflags --get CPPFLAGS)
-#CFLAGS		:= $(shell dpkg-buildflags --get CFLAGS)
-#CXXFLAGS 	:= $(shell dpkg-buildflags --get CXXFLAGS)
-#LDFLAGS 	:= $(shell dpkg-buildflags --get LDFLAGS)
 
 PACKAGE_NAMES =	\
 	libzeroc-freeze3.6 \
@@ -46,24 +44,7 @@ PACKAGE_NAMES =	\
 	zeroc-icegrid \
 	zeroc-icepatch2 \
 
-CPP11_DESTDIR = $(CURDIR)/debian/tmp-cpp11
-
-CPP11_LIB_NAMES = \
-	libFreeze \
-	libGlacier2 \
-	libIce \
-	libIceBox \
-	libIceDiscovery \
-	libIceGrid \
-	libIceLocatorDiscovery \
-	libIcePatch2 \
-	libIceSSL \
-	libIceStorm \
-	libIceStormService \
-	libIceUtil
-
-VERSION = 3.6.2
-SOVERSION = 36
+SOVERSION = $(shell echo $(DEB_VERSION_UPSTREAM) | sed -e 's,\([0-9]\)\.\([0-9]\)\.[0-9],\1\2,')
 
 ARTIFACT_NAMES = \
 	glacier2 \
@@ -75,8 +56,6 @@ ARTIFACT_NAMES = \
 	icepatch2 \
 	icestorm \
 	freeze
-
-export DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
 ifeq ($(DEB_HOST_MULTIARCH),i386-linux-gnu)
 ICEBOX = icebox32
@@ -114,22 +93,22 @@ icebox_install:
 
 override_dh_auto_build-arch:
 	if [ ! -d cpp11 ]; then cp -r cpp cpp11; fi
+	$(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
 	$(MAKE) $(MAKEOPTS) -C cpp/src
 	for v in $(PHP_VERSIONS); do \
 	  cp -a php php-$${v}; \
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v}/src; \
 	done
-	$(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
 
 override_dh_auto_build-indep:
 	gradle $(GRADLEOPTS) -pjava dist
 
 override_dh_auto_install-arch:
+	$(MAKE) $(MAKEOPTS) -C cpp11 DESTDIR=$(DESTDIR) CPP11=yes install
 	$(MAKE) $(MAKEOPTS) -C cpp DESTDIR=$(DESTDIR) install
 	for v in $(PHP_VERSIONS); do \
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v} DESTDIR=$(DESTDIR) install; \
 	done
-	$(MAKE) $(MAKEOPTS) -C cpp11 DESTDIR=$(CPP11_DESTDIR) CPP11=yes install
 
 override_dh_auto_install-indep:
 	gradle $(GRADLEOPTS) -pjava -Pprefix=$(prefix) -PDESTDIR=$(DESTDIR) install
@@ -139,9 +118,7 @@ override_dh_auto_clean-arch:
 	for v in $(PHP_VERSIONS); do \
 	  rm -rf php-$${v}; \
 	done
-	if [ -d cpp11 ]; then $(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes clean; fi
 	rm -rf cpp11
-	rm -rf debian/tmp-cpp11
 
 override_dh_auto_clean-indep:
 	gradle $(GRADLEOPTS) -pjava clean
@@ -159,35 +136,16 @@ override_dh_installinit:
 	dh_installinit --noscripts --name glacier2router
 
 override_dh_install: icebox_install
-	#
-	# Move C++11 libraries and binaries to their locations
-	#
-	mkdir -p $(DESTDIR)$(prefix)/lib/$(DEB_HOST_MULTIARCH)/c++11
-	for name in $(CPP11_LIB_NAMES) ; \
-	do \
-		cp $(CPP11_DESTDIR)$(prefix)/lib/$(DEB_HOST_MULTIARCH)/$$name++11*.so.$(VERSION) $(DESTDIR)$(prefix)/lib/$(DEB_HOST_MULTIARCH) ; \
-		cd $(DESTDIR)$(prefix)/lib/$(DEB_HOST_MULTIARCH) && ln -s $$name++11.so.$(VERSION) $$name++11.so.$(SOVERSION) ; \
-		cd $(DESTDIR)$(prefix)/lib/$(DEB_HOST_MULTIARCH)/c++11 && ln -s ../$$name++11.so.$(SOVERSION) $$name.so ; \
-	done ;
+	install -d -m 0755 $(DESTDIR)$(prefix)/bin
+	install -m 0755 debian/zeroc-ice-utils-java.icegridgui $(DESTDIR)$(prefix)/bin/icegridgui
 
-	cp $(CPP11_DESTDIR)$(prefix)/bin/$(ICEBOX)++11 $(DESTDIR)$(prefix)/bin/$(ICEBOX)++11
+	install -d -m 0755 $(DESTDIR)/etc/
 
-	mkdir -p $(DESTDIR)$(prefix)/bin
-	cp debian/zeroc-ice-utils-java.icegridgui $(DESTDIR)$(prefix)/bin/icegridgui && \
-	chmod 755 $(DESTDIR)$(prefix)/bin/icegridgui
+	install -m 0644 debian/zeroc-glacier2.glacier2router.conf $(DESTDIR)/etc/glacier2router.conf
+	install -m 0644 debian/zeroc-icegrid.icegridnode.conf $(DESTDIR)/etc/icegridnode.conf
+	install -m 0644 debian/zeroc-icegrid.icegridregistry.conf $(DESTDIR)/etc/icegridregistry.conf
 
-	mkdir -p $(DESTDIR)/etc
-	cp debian/zeroc-glacier2.glacier2router.conf $(DESTDIR)/etc/glacier2router.conf
-	cp debian/zeroc-icegrid.icegridnode.conf $(DESTDIR)/etc/icegridnode.conf
-	cp debian/zeroc-icegrid.icegridregistry.conf $(DESTDIR)/etc/icegridregistry.conf
-
-	mkdir -p $(DESTDIR)/var/lib/ice/icegrid/registry
-	mkdir -p $(DESTDIR)/var/lib/ice/icegrid/node1
-
-	#
-	# Continue with regular dh_install
-	#
-	dh_install --list-missing
+	dh_install --list-missing -X*.pom -XICE_LICENSE -XLICENSE
 
 dh_installdocs:
 	dh_installdocs debian/README

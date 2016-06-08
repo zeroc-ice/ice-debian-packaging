@@ -1,26 +1,10 @@
-usr/share/java/freeze-3.6.2.jar usr/share/java/freeze.jar
-usr/share/java/freeze-3.6.2-source.jar usr/share/java/freeze-source.jar
-
-usr/share/java/glacier2-3.6.2.jar usr/share/java/glacier2.jar
-usr/share/java/glacier2-3.6.2-source.jar usr/share/java/glacier2-source.jar
-
-usr/share/java/ice-3.6.2.jar usr/share/java/ice.jar
-usr/share/java/ice-3.6.2-source.jar usr/share/java/ice-source.jar
-
-usr/share/java/icebox-3.6.2.jar usr/share/java/icebox.jar
-usr/share/java/icebox-3.6.2-source.jar usr/share/java/icebox-source.jar
-
-usr/share/java/icediscovery-3.6.2.jar usr/share/java/icediscovery.jar
-usr/share/java/icediscovery-3.6.2-source.jar usr/share/java/icediscovery-source.jar
-
-usr/share/java/icelocatordiscovery-3.6.2.jar usr/share/java/icelocatordiscovery.jar
-usr/share/java/icelocatordiscovery-3.6.2-source.jar usr/share/java/icelocatordiscovery-source.jar
-
-usr/share/java/icegrid-3.6.2.jar usr/share/java/icegrid.jar
-usr/share/java/icegrid-3.6.2-source.jar usr/share/java/icegrid-source.jar
-
-usr/share/java/icepatch2-3.6.2.jar usr/share/java/icepatch2.jar
-usr/share/java/icepatch2-3.6.2-source.jar usr/share/java/icepatch2-source.jar
-
-usr/share/java/icestorm-3.6.2.jar usr/share/java/icestorm.jar
-usr/share/java/icestorm-3.6.2-source.jar usr/share/java/icestorm-source.jar
+#!/usr/bin/dh-exec
+usr/share/java/freeze-${DEB_VERSION_UPSTREAM}.jar usr/share/java/freeze.jar
+usr/share/java/glacier2-${DEB_VERSION_UPSTREAM}.jar usr/share/java/glacier2.jar
+usr/share/java/ice-${DEB_VERSION_UPSTREAM}.jar usr/share/java/ice.jar
+usr/share/java/icebox-${DEB_VERSION_UPSTREAM}.jar usr/share/java/icebox.jar
+usr/share/java/icediscovery-${DEB_VERSION_UPSTREAM}.jar usr/share/java/icediscovery.jar
+usr/share/java/icelocatordiscovery-${DEB_VERSION_UPSTREAM}.jar usr/share/java/icelocatordiscovery.jar
+usr/share/java/icegrid-${DEB_VERSION_UPSTREAM}.jar usr/share/java/icegrid.jar
+usr/share/java/icepatch2-${DEB_VERSION_UPSTREAM}.jar usr/share/java/icepatch2.jar
+usr/share/java/icestorm-${DEB_VERSION_UPSTREAM}.jar usr/share/java/icestorm.jar
