@@ -29,12 +29,6 @@ PHP_VERSIONS := $(shell /usr/sbin/phpquery -V)
 
 export VERSION   := $(shell echo $(DEB_VERSION_UPSTREAM) | sed -e 's,^\([.0-9]*\).*,\1,')
 
-ifeq ($(DEB_HOST_MULTIARCH),i386-linux-gnu)
-export ICEBOX := icebox32
-else
-export ICEBOX := icebox
-endif
-
 DESTDIR=$(CURDIR)/debian/tmp
 ifeq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	OPTIMIZE=yes
