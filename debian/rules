@@ -146,7 +146,7 @@ override_dh_install:
 	  gzip -9 -n $${slice%.gz}; \
 	done
 
-	dh_install --list-missing -X*.pom -XICE_LICENSE -XLICENSE
+	dh_install --list-missing -X.pom -XICE_LICENSE -XLICENSE
 
 dh_installdocs:
 	dh_installdocs debian/README
