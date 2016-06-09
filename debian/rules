@@ -19,11 +19,16 @@ export DEB_HOST_MULTIARCH
 
 export JAVA_HOME=/usr/lib/jvm/default-java
 
-GRADLEHOME	:= $(CURDIR)/debian/.gradle
-GRADLEOPTS	:= -g $(GRADLEHOME) \
-		   --offline -PicegridguiProguard=false \
-		   -PjgoodiesLooksVersion=debian \
-		   -PjgoodiesFormsVersion=debian
+GRADLE_OPTS	= --gradle-user-home $(CURDIR)/.gradle \
+		  --info \
+		  --console plain \
+		  --offline \
+		  --stacktrace \
+		  --no-daemon \
+		  --refresh-dependencies \
+		  -PicegridguiProguard=false \
+		  -PjgoodiesLooksVersion=debian \
+		  -PjgoodiesFormsVersion=debian
 
 PHP_VERSIONS := $(shell /usr/sbin/phpquery -V)
 
@@ -67,7 +72,7 @@ override_dh_auto_build-arch:
 	done
 
 override_dh_auto_build-indep:
-	gradle $(GRADLEOPTS) -pjava dist
+	gradle $(GRADLE_OPTS) -pjava dist
 
 override_dh_auto_install-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp11 DESTDIR=$(DESTDIR) CPP11=yes install
@@ -77,7 +82,7 @@ override_dh_auto_install-arch:
 	done
 
 override_dh_auto_install-indep:
-	gradle $(GRADLEOPTS) -pjava -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
+	gradle $(GRADLE_OPTS) -pjava -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
 
 override_dh_auto_clean-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp/src clean
@@ -87,9 +92,9 @@ override_dh_auto_clean-arch:
 	rm -rf cpp11
 
 override_dh_auto_clean-indep:
-	gradle $(GRADLEOPTS) -pjava clean
+	gradle $(GRADLE_OPTS) -pjava clean
 	rm -rf java/.gradle
-	rm -rf $(GRADLEHOME)
+	rm -rf $(CURDIR)/.gradle
 
 get-orig-source:
 	uscan --download-current-version --rename --force-download
