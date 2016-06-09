@@ -252,6 +252,8 @@ Depends: libzeroc-ice3.6 (= ${binary:Version}),
          zeroc-ice-slice (= ${source:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
+Conflicts: ice35-translators
+Replaces: ice35-translators
 Description: Slice compilers for developing Ice applications
  Internet Communications Engins (Ice) is a comprehensive RPC framework
  that helps you build distributed applications with minimal

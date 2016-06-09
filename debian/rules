@@ -19,7 +19,7 @@ export DEB_HOST_MULTIARCH
 
 export JAVA_HOME=/usr/lib/jvm/default-java
 
-GRADLE_OPTS	= --gradle-user-home $(CURDIR)/.gradle \
+GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
 		  --info \
 		  --console plain \
 		  --offline \
@@ -54,27 +54,34 @@ else
 	endif
 endif
 
-
 DHARGS	= --parallel --with maven_repo_helper --with systemd --with php --with python2
 
 MAKEOPTS = prefix=/usr OPTIMIZE=$(OPTIMIZE)
+
+ifneq ($(filter notest nocheck,$(DEB_BUILD_OPTIONS)),)
+MAKEOPTS += NOTEST=yes
+endif
 
 %:
 	dh $@ $(DHARGS)
 
 override_dh_auto_build-arch:
 	if [ ! -d cpp11 ]; then cp -r cpp cpp11; fi
-	$(MAKE) $(MAKEOPTS) -C cpp11/src CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
-	$(MAKE) $(MAKEOPTS) -C cpp/src
+	$(MAKE) $(MAKEOPTS) -C cpp11 CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
+	$(MAKE) $(MAKEOPTS) -C cpp
 	for v in $(PHP_VERSIONS); do \
 	  cp -a php php-$${v}; \
-	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v}/src; \
+	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v}; \
 	done
 
 override_dh_auto_build-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp/src
 	$(MAKE) $(MAKEOPTS) -C cpp/config
-	gradle $(GRADLE_OPTS) -pjava dist
+ifeq ($(filter notest nocheck,$(DEB_BUILD_OPTIONS)),)
+	gradle $(GRADLEOPTS) -pjava build
+else
+	gradle $(GRADLEOPTS) -pjava dist
+endif
 
 override_dh_auto_install-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp11 DESTDIR=$(DESTDIR) CPP11=yes install
@@ -85,7 +92,8 @@ override_dh_auto_install-arch:
 
 override_dh_auto_install-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp DESTDIR=$(DESTDIR) install
-	gradle $(GRADLE_OPTS) -pjava -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
+	gradle $(GRADLEOPTS) -pjava -PjarsClassPath=true -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
+	rm -rf $(DESTDIR)/usr/share/java/*-sources.jar
 
 override_dh_auto_clean-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp/src clean
@@ -96,7 +104,7 @@ override_dh_auto_clean-arch:
 
 override_dh_auto_clean-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp/src clean
-	gradle $(GRADLE_OPTS) -pjava clean
+	gradle $(GRADLEOPTS) -pjava clean
 	rm -rf java/.gradle
 	rm -rf $(CURDIR)/.gradle
 
@@ -104,6 +112,14 @@ get-orig-source:
 	uscan --download-current-version --rename --force-download
 
 override_dh_auto_test:
+ifeq ($(filter nocheck notest,$(DEB_BUILD_OPTIONS)),)
+	$(MAKE) $(MAKEOPTS) -C cpp test
+	$(MAKE) $(MAKEOPTS) -C java test
+endif
+
+override_dh_clean:
+	find . -iname "*.pyc" -exec rm -rf {} \;
+	dh_clean
 
 override_dh_installinit:
 	dh_installinit --noscripts --name icegridregistry
@@ -113,7 +129,7 @@ override_dh_installinit:
 override_dh_install:
 	install -d -m 0755 $(DESTDIR)/usr/bin
 	install -m 0755 debian/zeroc-ice-utils-java.icegridgui $(DESTDIR)/usr/bin/icegridgui
-
+	install -m 0644 debian/zeroc-ice-utils-java.icegridgui.1 $(DESTDIR)/usr/share/man/man1/icegridgui.1
 	install -d -m 0755 $(DESTDIR)/etc/
 
 	install -m 0644 debian/zeroc-glacier2.glacier2router.conf $(DESTDIR)/etc/glacier2router.conf
