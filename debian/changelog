@@ -1,3 +1,10 @@
+zeroc-ice (3.6.2+php7-38-gf819903-1) unstable; urgency=medium
+
+  * Revert "Simplify icebox installation by using wildcards"
+  * Imported Upstream version 3.6.2+php7-38-gf819903
+
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 09 Jun 2016 08:18:49 +0200
+
 zeroc-ice (3.6.2-stretch+git1+6f49504-2) unstable; urgency=medium
 
   * Remove unused variables from d/rules
