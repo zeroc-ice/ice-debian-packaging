@@ -2,8 +2,14 @@ zeroc-ice (3.6.2+php7-38-gf819903-1) unstable; urgency=medium
 
   * Revert "Simplify icebox installation by using wildcards"
   * Imported Upstream version 3.6.2+php7-38-gf819903
+  * Model gradle options after gradle-debian-helper
+  * We need to compile cpp/src/slice2java in -indep to have slice2java
+    program available and run install from src/config
+  * Add /usr/share/slice symlink to /usr/share/Ice-$(VERSION)/slice
+  * Create /usr/share/Ice-$(VERSION) dir before installing cpp/config
+    files
 
- -- Ondřej Surý <ondrej@debian.org>  Thu, 09 Jun 2016 08:18:49 +0200
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 09 Jun 2016 16:24:43 +0200
 
 zeroc-ice (3.6.2-stretch+git1+6f49504-2) unstable; urgency=medium
 
