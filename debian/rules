@@ -72,6 +72,8 @@ override_dh_auto_build-arch:
 	done
 
 override_dh_auto_build-indep:
+	$(MAKE) $(MAKEOPTS) -C cpp/src
+	$(MAKE) $(MAKEOPTS) -C cpp/config
 	gradle $(GRADLE_OPTS) -pjava dist
 
 override_dh_auto_install-arch:
@@ -82,6 +84,7 @@ override_dh_auto_install-arch:
 	done
 
 override_dh_auto_install-indep:
+	$(MAKE) $(MAKEOPTS) -C cpp DESTDIR=$(DESTDIR) install
 	gradle $(GRADLE_OPTS) -pjava -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
 
 override_dh_auto_clean-arch:
@@ -92,6 +95,7 @@ override_dh_auto_clean-arch:
 	rm -rf cpp11
 
 override_dh_auto_clean-indep:
+	$(MAKE) $(MAKEOPTS) -C cpp/src clean
 	gradle $(GRADLE_OPTS) -pjava clean
 	rm -rf java/.gradle
 	rm -rf $(CURDIR)/.gradle
