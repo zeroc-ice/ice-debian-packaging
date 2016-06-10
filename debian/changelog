@@ -1,3 +1,12 @@
+zeroc-ice (3.6.2-stretch-41-g0d8b495-2) unstable; urgency=medium
+
+  * Make debian/zeroc-ice-slice.links executable
+  * Source-only uploads now works (Closes: #806880)
+  * No conflicting files anymore (Closes: #826800, #826801)
+  * Add ${php:Depends} and ${php:Provides} to php-zeroc-ice (Closes: #826904)
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 10 Jun 2016 13:39:06 +0200
+
 zeroc-ice (3.6.2-stretch-41-g0d8b495-1) unstable; urgency=medium
 
   [ Ondřej Surý ]
