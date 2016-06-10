@@ -110,11 +110,13 @@ override_dh_auto_clean-indep:
 get-orig-source:
 	uscan --download-current-version --rename --force-download
 
-override_dh_auto_test:
+override_dh_auto_test-arch:
 ifeq ($(filter nocheck notest,$(DEB_BUILD_OPTIONS)),)
 	$(MAKE) $(MAKEOPTS) -C cpp test
 	$(MAKE) $(MAKEOPTS) -C java test
 endif
+
+override_dh_auto_test-indep:
 
 override_dh_clean:
 	find . -iname "*.pyc" -exec rm -rf {} \;
