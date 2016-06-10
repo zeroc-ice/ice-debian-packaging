@@ -1,7 +1,7 @@
 Source: zeroc-ice
 Section: devel
 Priority: extra
-Maintainer: ZeroC, Inc. <support@zeroc.com>
+Maintainer: José Gutiérrez de la Concha <jose@zeroc.com>
 Uploaders: Ondřej Surý <ondrej@debian.org>
 Build-Depends: debhelper (>= 9),
                default-jdk,
