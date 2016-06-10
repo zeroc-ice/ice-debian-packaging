@@ -91,7 +91,8 @@ override_dh_auto_install-arch:
 
 override_dh_auto_install-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp DESTDIR=$(DESTDIR) install
-	gradle $(GRADLEOPTS) -pjava -PjarsClassPath=true -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
+#	gradle $(GRADLEOPTS) -pjava -PjarsClassPath=true -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
+	gradle $(GRADLEOPTS) -pjava -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
 	rm -rf $(DESTDIR)/usr/share/java/*-sources.jar
 
 override_dh_auto_clean-arch:
