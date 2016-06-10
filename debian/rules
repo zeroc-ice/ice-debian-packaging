@@ -147,3 +147,8 @@ override_dh_install:
 
 dh_installdocs:
 	dh_installdocs debian/README
+
+override_mh_install-arch:
+
+override_mh_install-indep:
+	mh_install
