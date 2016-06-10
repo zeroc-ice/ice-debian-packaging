@@ -12,7 +12,15 @@ zeroc-ice (3.6.2-stretch-41-g0d8b495-1) unstable; urgency=medium
   [ José Gutiérrez de la Concha ]
   * Update to upstream version 3.6.2-stretch+git2+0d8b495
 
- -- Ondřej Surý <ondrej@debian.org>  Fri, 10 Jun 2016 07:43:29 +0200
+  [ Ondřej Surý ]
+  * Disable tests for indep build
+  * Test without -PjarsClassPath=true as it seems to break the build
+  * mh_install thinks that '-i' is its own --ignore-rules=true and it
+    breaks -A build, so we need to override it
+  * Add LD_LIBRARY_PATH to the tests
+  * Change locale to en_US.UTF-8 and don't fail on failed tests
+
+ -- Ondřej Surý <ondrej@debian.org>  Fri, 10 Jun 2016 12:32:08 +0200
 
 zeroc-ice (3.6.2-stretch+git1+6f49504-2) unstable; urgency=medium
 
