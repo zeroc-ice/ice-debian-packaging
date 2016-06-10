@@ -155,8 +155,8 @@ Section: php
 Replaces: libice3.5-php
 Depends: libzeroc-ice3.6 (= ${binary:Version}),
          ${misc:Depends},
-         ${shlibs:Depends},
-	 ${php:Depends}
+         ${php:Depends},
+         ${shlibs:Depends}
 Provides: ${php:Provides}
 Description: PHP extension for Ice
  Internet Communications Engins (Ice) is a comprehensive RPC framework
