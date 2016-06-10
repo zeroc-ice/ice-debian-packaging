@@ -113,8 +113,9 @@ get-orig-source:
 
 override_dh_auto_test-arch:
 ifeq ($(filter nocheck notest,$(DEB_BUILD_OPTIONS)),)
-	$(MAKE) $(MAKEOPTS) -C cpp test
-	$(MAKE) $(MAKEOPTS) -C java test
+	$(MAKE) $(MAKEOPTS) -C cpp11 test LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
+	$(MAKE) $(MAKEOPTS) -C cpp test LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH)
+	$(MAKE) $(MAKEOPTS) -C java test LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH)
 endif
 
 override_dh_auto_test-indep:
