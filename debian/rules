@@ -75,8 +75,7 @@ override_dh_auto_build-arch:
 	done
 
 override_dh_auto_build-indep:
-	$(MAKE) $(MAKEOPTS) -C cpp/src
-	$(MAKE) $(MAKEOPTS) -C cpp/config
+	$(MAKE) $(MAKEOPTS) -C cpp
 ifeq ($(filter notest nocheck,$(DEB_BUILD_OPTIONS)),)
 	gradle $(GRADLEOPTS) -pjava build
 else
@@ -96,14 +95,14 @@ override_dh_auto_install-indep:
 	rm -rf $(DESTDIR)/usr/share/java/*-sources.jar
 
 override_dh_auto_clean-arch:
-	$(MAKE) $(MAKEOPTS) -C cpp/src clean
+	$(MAKE) $(MAKEOPTS) -C cpp clean
 	for v in $(PHP_VERSIONS); do \
 	  rm -rf php-$${v}; \
 	done
 	rm -rf cpp11
 
 override_dh_auto_clean-indep:
-	$(MAKE) $(MAKEOPTS) -C cpp/src clean
+	$(MAKE) $(MAKEOPTS) -C cpp clean
 	gradle $(GRADLEOPTS) -pjava clean
 	rm -rf java/.gradle
 	rm -rf $(CURDIR)/.gradle
