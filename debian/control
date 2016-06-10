@@ -152,11 +152,12 @@ Description: IceStorm publish–subscribe event distribution service for Ice
 Package: php-zeroc-ice
 Architecture: any
 Section: php
-Replaces: libice3.5-php,
-          php-zeroc-ice
+Replaces: libice3.5-php
 Depends: libzeroc-ice3.6 (= ${binary:Version}),
          ${misc:Depends},
-         ${shlibs:Depends}
+         ${shlibs:Depends},
+	 ${php:Depends}
+Provides: ${php:Provides}
 Description: PHP extension for Ice
  Internet Communications Engins (Ice) is a comprehensive RPC framework
  that helps you build distributed applications with minimal
