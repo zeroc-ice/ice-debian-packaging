@@ -1,3 +1,12 @@
+zeroc-ice (3.6.2-stretch-46-g4a14f75-1) unstable; urgency=medium
+
+  * Change Maintainer email to 'José Gutiérrez de la Concha'
+  * Move java dependencies to Build-Depends-Indep to allow binary only
+    builds on archs without java dependencies
+  * Imported Upstream version 3.6.2-stretch-46-g4a14f75
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 13 Jun 2016 09:12:29 +0200
+
 zeroc-ice (3.6.2-stretch-41-g0d8b495-2) unstable; urgency=medium
 
   * Make debian/zeroc-ice-slice.links executable
