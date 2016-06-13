@@ -1,3 +1,10 @@
+zeroc-ice (3.6.2-stretch-46-g4a14f75-2) unstable; urgency=medium
+
+  * Use DEB_HOST_MULTIARCH instead of guessing the triplet value
+  * Add more LD_LIBRARY_PATHs for the java builds
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 13 Jun 2016 10:34:14 +0200
+
 zeroc-ice (3.6.2-stretch-46-g4a14f75-1) unstable; urgency=medium
 
   * Change Maintainer email to 'José Gutiérrez de la Concha'
