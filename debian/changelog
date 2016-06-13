@@ -1,3 +1,10 @@
+zeroc-ice (3.6.2-stretch-46-g4a14f75-4) unstable; urgency=medium
+
+  * Move libdb-java to Build-Depends-Indep to allow even more builds to be
+    tried
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 13 Jun 2016 13:20:39 +0200
+
 zeroc-ice (3.6.2-stretch-46-g4a14f75-3) unstable; urgency=medium
 
   * We need maven-repo-helper in Build-Depends(-Arch)
