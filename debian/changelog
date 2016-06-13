@@ -1,3 +1,9 @@
+zeroc-ice (3.6.2-stretch-46-g4a14f75-5) unstable; urgency=medium
+
+  * Don't fail override_dh_auto_clean-indep on missing gradle
+
+ -- Ondřej Surý <ondrej@debian.org>  Mon, 13 Jun 2016 14:40:43 +0200
+
 zeroc-ice (3.6.2-stretch-46-g4a14f75-4) unstable; urgency=medium
 
   * Move libdb-java to Build-Depends-Indep to allow even more builds to be
