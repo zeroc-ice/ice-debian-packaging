@@ -1,0 +1,41 @@
+From: =?utf-8?q?Ond=C5=99ej_Sur=C3=BD?= <ondrej@sury.org>
+Date: Mon, 13 Jun 2016 09:48:29 +0200
+Subject: Just use DEB_HOST_MULTIARCH instead of guessing the triplet value
+
+---
+ config/Make.common.rules | 22 +++-------------------
+ 1 file changed, 3 insertions(+), 19 deletions(-)
+
+diff --git a/config/Make.common.rules b/config/Make.common.rules
+index 2daf4de..0377a09 100644
+--- a/config/Make.common.rules
++++ b/config/Make.common.rules
+@@ -139,25 +139,9 @@ endif
+ # Debian
+ #
+ ifneq ($(wildcard /etc/debian_version),)
+-    ifeq ($(filter x86_64 i386,$(MACHINE_TYPE)),$(MACHINE_TYPE))
+-        ifeq ($(UNAME),GNU/kFreeBSD)
+-            lp64suffix	:= /x86_64-kfreebsd-gnu
+-            lp32suffix	:= /i386-kfreebsd-gnu
+-        else
+-            lp64suffix	:= /x86_64-linux-gnu
+-            lp32suffix	:= /i386-linux-gnu
+-        endif
+-    endif
+-    
+-    ifeq ($(filter armel armhf,$(MACHINE_TYPE)),$(MACHINE_TYPE))
+-        lp64suffix	:= /arm-linux-gnueabi
+-        lp32suffix	:= /arm-linux-gnueabi
+-    endif
+-    
+-    ifeq ($(filter armel armhf x86_64 i386,$(MACHINE_TYPE)),)
+-        lp64suffix	:= /$(MACHINE_TYPE)-linux-gnu
+-        lp32suffix	:= /$(MACHINE_TYPE)-linux-gnu
+-    endif
++    DEB_HOST_MULTIARCH ?= $(shell dpkg-query -qDEB_HOST_MULTIARCH)
++    lp64suffix := /$(DEB_HOST_MULTIARCH)
++    lp32suffix := /$(DEB_HOST_MULTIARCH)
+ endif
+ 
+ 
