@@ -104,7 +104,7 @@ override_dh_auto_clean-arch:
 
 override_dh_auto_clean-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp clean
-	gradle $(GRADLEOPTS) -pjava clean
+	-gradle $(GRADLEOPTS) -pjava clean
 	rm -rf java/.gradle
 	rm -rf $(CURDIR)/.gradle
 
