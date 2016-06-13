@@ -68,18 +68,18 @@ endif
 override_dh_auto_build-arch:
 	if [ ! -d cpp11 ]; then cp -r cpp cpp11; fi
 	$(MAKE) $(MAKEOPTS) -C cpp11 CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
-	$(MAKE) $(MAKEOPTS) -C cpp
+	$(MAKE) $(MAKEOPTS) -C cpp LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH)
 	for v in $(PHP_VERSIONS); do \
 	  cp -a php php-$${v}; \
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v}; \
 	done
 
 override_dh_auto_build-indep:
-	$(MAKE) $(MAKEOPTS) -C cpp
+	$(MAKE) $(MAKEOPTS) -C cpp LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH)
 ifeq ($(filter notest nocheck,$(DEB_BUILD_OPTIONS)),)
-	gradle $(GRADLEOPTS) -pjava build
+	LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH) gradle $(GRADLEOPTS) -pjava build
 else
-	gradle $(GRADLEOPTS) -pjava dist
+	LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH) gradle $(GRADLEOPTS) -pjava dist
 endif
 
 override_dh_auto_install-arch:
