@@ -15,8 +15,6 @@ export DH_OPTIONS
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/default.mk
 
-export DEB_HOST_MULTIARCH
-
 export JAVA_HOME=/usr/lib/jvm/default-java
 
 GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
@@ -67,15 +65,15 @@ endif
 
 override_dh_auto_build-arch:
 	if [ ! -d cpp11 ]; then cp -r cpp cpp11; fi
-	$(MAKE) $(MAKEOPTS) -C cpp11 CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
-	$(MAKE) $(MAKEOPTS) -C cpp LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH)
+	$(MAKE) $(MAKEOPTS) -C cpp11 CPP11=yes
+	$(MAKE) $(MAKEOPTS) -C cpp
 	for v in $(PHP_VERSIONS); do \
 	  cp -a php php-$${v}; \
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v}; \
 	done
 
 override_dh_auto_build-indep:
-	$(MAKE) $(MAKEOPTS) -C cpp LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH)
+	$(MAKE) $(MAKEOPTS) -C cpp
 ifeq ($(filter notest nocheck,$(DEB_BUILD_OPTIONS)),)
 	LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH) gradle $(GRADLEOPTS) -pjava build
 else
@@ -108,14 +106,10 @@ override_dh_auto_clean-indep:
 	rm -rf java/.gradle
 	rm -rf $(CURDIR)/.gradle
 
-get-orig-source:
-	uscan --download-current-version --rename --force-download
-
 override_dh_auto_test-arch:
 ifeq ($(filter nocheck notest,$(DEB_BUILD_OPTIONS)),)
-	-$(MAKE) $(MAKEOPTS) -C cpp11 test LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
-	-$(MAKE) $(MAKEOPTS) -C cpp test LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH)
-	-$(MAKE) $(MAKEOPTS) -C java test LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH)
+	-$(MAKE) $(MAKEOPTS) -C cpp test
+	-$(MAKE) $(MAKEOPTS) -C java test
 endif
 
 override_dh_auto_test-indep:
@@ -146,10 +140,13 @@ override_dh_install:
 
 	dh_install --list-missing -X.pom -XICE_LICENSE -XLICENSE
 
-dh_installdocs:
-	dh_installdocs debian/README
+override_dh_installdocs:
+	dh_installdocs -A debian/README
 
 override_mh_install-arch:
 
 override_mh_install-indep:
 	mh_install
+
+get-orig-source:
+	uscan --download-current-version --rename --force-download
