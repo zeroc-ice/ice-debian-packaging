@@ -65,7 +65,7 @@ endif
 
 override_dh_auto_build-arch:
 	if [ ! -d cpp11 ]; then cp -r cpp cpp11; fi
-	$(MAKE) $(MAKEOPTS) -C cpp11 CPP11=yes
+	$(MAKE) $(MAKEOPTS) -C cpp11 CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
 	$(MAKE) $(MAKEOPTS) -C cpp
 	for v in $(PHP_VERSIONS); do \
 	  cp -a php php-$${v}; \
