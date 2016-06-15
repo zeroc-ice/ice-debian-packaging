@@ -1,3 +1,17 @@
+zeroc-ice (3.6.2-stretch-51-gba6baa6-1) unstable; urgency=medium
+
+  [ Ondřej Surý ]
+  * Imported Upstream version 3.6.2-stretch-51-gba6baa6
+
+  [ Jose Gutierrez de la Concha ]
+  * Move Java testing to override_dh_auto_test-indep
+  * Adapt the packaging to the new upstream git version
+
+  [ Ondřej Surý ]
+  * Re-add missing LD_LIBRARY_PATH to cpp11 builds
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 15 Jun 2016 17:18:35 +0200
+
 zeroc-ice (3.6.2-stretch-46-g4a14f75-5) unstable; urgency=medium
 
   * Don't fail override_dh_auto_clean-indep on missing gradle
