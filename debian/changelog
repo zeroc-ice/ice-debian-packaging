@@ -1,3 +1,9 @@
+zeroc-ice (3.6.2-stretch-51-gba6baa6-2) unstable; urgency=medium
+
+  * Fix FTBFS on kfreebsd-i386: icebox is called icebox32 there as well
+
+ -- Ondřej Surý <ondrej@debian.org>  Thu, 16 Jun 2016 09:28:35 +0200
+
 zeroc-ice (3.6.2-stretch-51-gba6baa6-1) unstable; urgency=medium
 
   [ Ondřej Surý ]
