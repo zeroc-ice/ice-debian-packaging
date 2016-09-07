@@ -1,3 +1,9 @@
+zeroc-ice (3.6.3-1000) UNRELEASED; urgency=medium
+
+  * Bumped version to 3.6.3
+
+ -- Benoit Foucher <benoit@zeroc.com>  Wed, 07 Sep 2016 08:28:28 +0000
+
 zeroc-ice (3.6.2-stretch-51-gba6baa6-2) unstable; urgency=medium
 
   * Fix FTBFS on kfreebsd-i386: icebox is called icebox32 there as well
