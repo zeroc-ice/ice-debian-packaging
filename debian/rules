@@ -26,7 +26,9 @@ GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
 		  --refresh-dependencies \
 		  -PicegridguiProguard=false \
 		  -PjgoodiesLooksVersion=debian \
-		  -PjgoodiesFormsVersion=debian
+		  -PjgoodiesFormsVersion=debian \
+		  -PiceBuilderVersion=debian
+
 
 PHP_VERSIONS := $(shell /usr/sbin/phpquery -V)
 
