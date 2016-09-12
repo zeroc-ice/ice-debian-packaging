@@ -7,11 +7,10 @@ tmp/*
 .mh/*
 debhelper-build-stamp
 files
-libzeroc-freeze3.6/*
 libzeroc-ice-dev/*
 libzeroc-ice-java/*
-libzeroc-ice3.6/*
-libzeroc-icestorm3.6/*
+libzeroc-ice3.7/*
+libzeroc-icestorm3.7/*
 php-zeroc-ice/*
 zeroc-glacier2/*
 zeroc-ice-all-dev/*
@@ -22,5 +21,6 @@ zeroc-ice-utils-java/*
 zeroc-ice-utils/*
 zeroc-icebox/*
 zeroc-icegrid/*
+zeroc-icegridgui/*
 zeroc-icepatch2/*
 

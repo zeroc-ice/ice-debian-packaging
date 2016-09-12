@@ -1,9 +1,8 @@
-java/lib/ice-3.6.2.pom --artifact=java/lib/ice-3.6.2.jar
-java/lib/icebox-3.6.2.pom --artifact=java/lib/icebox-3.6.2.jar
-java/lib/icediscovery-3.6.2.pom --artifact=java/lib/icediscovery-3.6.2.jar
-java/lib/icelocatordiscovery-3.6.2.pom --artifact=java/lib/icelocatordiscovery-3.6.2.jar
-java/lib/icegrid-3.6.2.pom --artifact=java/lib/icegrid-3.6.2.jar
-java/lib/icestorm-3.6.2.pom --artifact=java/lib/icestorm-3.6.2.jar
-java/lib/icepatch2-3.6.2.pom --artifact=java/lib/icepatch2-3.6.2.jar
-java/lib/glacier2-3.6.2.pom --artifact=java/lib/glacier2-3.6.2.jar
-java/lib/freeze-3.6.2.pom --artifact=java/lib/freeze-3.6.2.jar
+java/lib/ice-3.7.0-alpha3.pom --artifact=java/lib/ice-3.7.0-alpha3.jar
+java/lib/icebox-3.7.0-alpha3.pom --artifact=java/lib/icebox-3.7.0-alpha3.jar
+java/lib/icediscovery-3.7.0-alpha3.pom --artifact=java/lib/icediscovery-3.7.0-alpha3.jar
+java/lib/icelocatordiscovery-3.7.0-alpha3.pom --artifact=java/lib/icelocatordiscovery-3.7.0-alpha3.jar
+java/lib/icegrid-3.7.0-alpha3.pom --artifact=java/lib/icegrid-3.7.0-alpha3.jar
+java/lib/icestorm-3.7.0-alpha3.pom --artifact=java/lib/icestorm-3.7.0-alpha3.jar
+java/lib/icepatch2-3.7.0-alpha3.pom --artifact=java/lib/icepatch2-3.7.0-alpha3.jar
+java/lib/glacier2-3.7.0-alpha3.pom --artifact=java/lib/glacier2-3.7.0-alpha3.jar

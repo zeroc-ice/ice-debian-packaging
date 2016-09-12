@@ -1,3 +1,9 @@
+zeroc-ice (3.7a3-1) UNRELEASED; urgency=medium
+
+  * Updates to support Ice 3.7
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Mon, 12 Sep 2016 15:58:00 +0000
+
 zeroc-ice (3.6.2-stretch-51-gba6baa6-2) unstable; urgency=medium
 
   * Fix FTBFS on kfreebsd-i386: icebox is called icebox32 there as well
