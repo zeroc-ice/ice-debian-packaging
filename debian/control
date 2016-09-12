@@ -77,9 +77,6 @@ Replaces: ice35-translators,
           libzeroc-ice3.6-java
 Depends: default-jdk | openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer,
          libdb5.3-java (>= 5.3.28),
-         libzeroc-ice3.6 (>= ${source:Version}),
-         zeroc-ice-compilers (>= ${source:Version}),
-         zeroc-ice-slice (= ${source:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Description: tools for developing Ice applications in Java
@@ -163,11 +160,9 @@ Package: zeroc-ice-all-dev
 Architecture: all
 Section: devel
 Depends: libzeroc-ice-dev (>= ${source:Version}),
-         libzeroc-ice-java (= ${source:Version}),
          zeroc-ice-compilers (>= ${source:Version}),
          zeroc-ice-slice (= ${source:Version}),
          ${misc:Depends}
-Replaces: libzeroc-ice-java (<=3.5.1)
 Description: Ice development packages (dependency package)
  This is a metapackage that depends on all development packages for Ice.
  .
@@ -182,16 +177,17 @@ Section: net
 Depends: libzeroc-freeze3.6 (>= ${source:Version}),
          libzeroc-ice3.6 (>= ${source:Version}),
          libzeroc-icestorm3.6 (>= ${source:Version}),
+         libzeroc-ice-java (= ${source:Version}),
          php-zeroc-ice (>= ${source:Version}),
          zeroc-glacier2 (>= ${source:Version}),
          zeroc-ice-slice (>= ${source:Version}),
          zeroc-ice-utils (>= ${source:Version}),
-         zeroc-ice-utils-java (>= ${source:Version}),
+         zeroc-icegridgui (>= ${source:Version}),
          zeroc-icebox (>= ${source:Version}),
          zeroc-icegrid (>= ${source:Version}),
          zeroc-icepatch2 (>= ${source:Version}),
          ${misc:Depends}
-Replaces: icebox
+Replaces: icebox, libzeroc-ice-java (<=3.5.1)
 Provides: icebox
 Description: Ice run-time packages (dependency package)
  This is a metapackage that depends on all run-time packages for Ice.
@@ -252,14 +248,14 @@ Description: Ice utilities and admin tools
  network programming interfaces and allows you to focus your efforts on
  your application logic.
 
-Package: zeroc-ice-utils-java
+Package: zeroc-icegridgui
 Architecture: all
 Multi-Arch: foreign
 Section: admin
 Replaces: ice-utils,
           icegrid-gui
 Depends: default-jre | default-jdk | openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer | openjdk-7-jre | openjdk-8-jre,
-         zeroc-ice-utils (>= ${source:Version}),
+         libzeroc-ice-java (>= ${source:Version}),
          ${java:Depends},
          ${misc:Depends}
 Description: IceGrid Admin graphical client
