@@ -1,5 +1,5 @@
 #!/bin/sh
-# postrm script for libzeroc-ice3.6
+# postrm script for libzeroc-ice3.7
 set -e
 
 if [ "$1" = "purge" ]; then

@@ -1,0 +1,2 @@
+libzeroc-ice3.7: package-name-doesnt-match-sonames *
+libzeroc-ice3.7: dev-pkg-without-shlib-symlink usr/lib/*/lib*++11.so.* usr/lib/*/lib*++11.so
