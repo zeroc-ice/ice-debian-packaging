@@ -2,8 +2,6 @@ etc/icegridnode.conf
 etc/icegridregistry.conf
 usr/bin/icegridnode
 usr/bin/icegridregistry
-usr/share/Ice-*/icegrid-slice.*.ice.gz
 usr/share/Ice-*/templates.xml
-usr/share/Ice-*/upgradeicegrid*.py
 usr/share/man/man1/icegridnode.1
 usr/share/man/man1/icegridregistry.1

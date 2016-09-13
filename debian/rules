@@ -142,10 +142,6 @@ override_dh_install:
 	install -m 0644 debian/zeroc-icegrid.icegridnode.conf $(DESTDIR)/etc/icegridnode.conf
 	install -m 0644 debian/zeroc-icegrid.icegridregistry.conf $(DESTDIR)/etc/icegridregistry.conf
 
-	for slice in $(DESTDIR)/usr/share/Ice-$(VERSION)/icegrid-slice.*.ice.gz; do \
-	  gzip -d $${slice}; \
-	  gzip -9 -n $${slice%.gz}; \
-	done
 	dh_install --list-missing -X.pom -XICE_LICENSE -XLICENSE
 	jh_depends -pzeroc-icegridgui
 
