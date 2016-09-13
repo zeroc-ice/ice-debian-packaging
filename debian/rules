@@ -28,9 +28,7 @@ export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
 			  -PicegridguiProguard=false \
 			  -PjgoodiesLooksVersion=debian \
 			  -PjgoodiesFormsVersion=debian \
-			  -PiceBuilderVersion=debian \
-			  -Pprefix=/usr \
-			  -PDESTDIR=$(DESTDIR)
+			  -PiceBuilderVersion=debian
 
 #
 # These files are not installed with any debian package.
@@ -70,7 +68,7 @@ endif
 
 DHARGS	= --parallel --with maven_repo_helper --with systemd --with php --with python2
 
-MAKEOPTS = prefix=/usr OPTIMIZE=$(OPTIMIZE) V=1 DESTDIR=$(DESTDIR)
+MAKEOPTS = OPTIMIZE=$(OPTIMIZE) V=1 prefix=/usr DESTDIR=$(DESTDIR)
 
 ifneq ($(filter notest nocheck,$(DEB_BUILD_OPTIONS)),)
 BUILDTARGET = srcs
@@ -93,7 +91,7 @@ override_dh_auto_build-indep:
 override_dh_auto_install-arch:
 	$(MAKE) $(MAKEOPTS) LANGUAGES=cpp CONFIGS="shared cpp11-shared" install
 	for v in $(PHP_VERSIONS); do \
-	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v} DESTDIR=$(DESTDIR) install; \
+	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v} install; \
 	done
 	rm -rf $(addprefix $(DESTDIR)/,$(INSTALL_EXCLUDE))
 
