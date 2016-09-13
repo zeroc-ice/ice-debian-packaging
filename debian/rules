@@ -85,7 +85,7 @@ override_dh_auto_build-arch:
 	done
 
 override_dh_auto_build-indep:
-	$(MAKE) $(MAKEOPTS) LANGUAGES=cpp CONFIGS="cpp11-shared" cpp/src/slice2java
+	$(MAKE) $(MAKEOPTS) -C cpp slice2java
 	$(MAKE) $(MAKEOPTS) LANGUAGES="java java-compat" $(BUILDTARGET)
 
 override_dh_auto_install-arch:
@@ -106,7 +106,10 @@ override_dh_auto_clean-arch:
 	done
 
 override_dh_auto_clean-indep:
-	$(MAKE) $(MAKEOPTS) LANGUAGES=cpp CONFIGS="cpp11-shared" distclean
+	$(MAKE) $(MAKEOPTS) LANGUAGES=cpp distclean
+	#
+	# Don't fail if gradle is missing
+	#
 	-$(MAKE) $(MAKEOPTS) LANGUAGES="java java-compat" clean
 	rm -rf java/.gradle
 	rm -rf java-compat/.gradle
