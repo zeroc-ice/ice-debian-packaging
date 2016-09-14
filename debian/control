@@ -14,7 +14,6 @@ Build-Depends-Indep: default-jdk,
 Build-Depends: debhelper (>= 9),
                dh-exec,
                dh-php (>= 0.20),
-               dh-python,
                dh-systemd (>= 1.3),
                libbluetooth-dev,
                libbz2-dev,
@@ -260,7 +259,6 @@ Section: net
 Replaces: ice35-services, icegrid
 Depends: libzeroc-ice3.7 (= ${binary:Version}),
          libzeroc-icestorm3.7 (= ${binary:Version}),
-         python,
          ${misc:Depends},
          ${shlibs:Depends}
 Description: IceGrid deployment and monitoring service
