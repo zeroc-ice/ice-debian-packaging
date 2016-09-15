@@ -3,9 +3,12 @@
 set -e
 
 if [ "$1" = "configure" ]; then
-    if ! dpkg-statoverride --list /var/lib/ice/icegrid >/dev/null; then
-	dpkg-statoverride --update --add ice adm 0770 /var/lib/ice/icegrid >/dev/null 2>/dev/null || true
-    fi
+    for i in icegrid icegrid/node1 icegrid/registry
+    do
+        if ! dpkg-statoverride --list /var/lib/ice/$i >/dev/null; then
+    	   dpkg-statoverride --update --add ice adm 0770 /var/lib/ice/$i >/dev/null 2>/dev/null || true
+        fi
+    done
 fi
 
 #DEBHELPER#

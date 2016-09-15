@@ -129,10 +129,13 @@ override_dh_clean:
 	find . -iname "*.pyc" -exec rm -rf {} \;
 	dh_clean
 
-override_dh_installinit:
-	dh_installinit --noscripts --name icegridregistry
-	dh_installinit --noscripts --name icegridnode
-	dh_installinit --noscripts --name glacier2router
+override_dh_systemd_start:
+	dh_systemd_start --no-start
+
+override_dh_systemd_enable:
+	dh_systemd_enable --name icegridregistry
+	dh_systemd_enable --name icegridnode
+	dh_systemd_enable --name glacier2router
 
 override_dh_install:
 	@echo VERSION $(VERSION)
