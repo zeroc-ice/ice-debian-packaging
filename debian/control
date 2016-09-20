@@ -43,9 +43,8 @@ Description: C++ run-time for the Freeze persistence service
  This package contains the C++ run-time for the Freeze persistence service.
  .
  The Freeze persistence service allows you to store Ice objects in Oracle
- Berkeley DB, with all the features you expect from a robust database - 
+ Berkeley DB, with all the features you expect from a robust database -
  transactions, hot backups, indexing, and more.
-
  .
  Ice is a comprehensive RPC framework that helps you network your software
  with minimal effort. Ice takes care of all interactions with low-level
@@ -273,7 +272,7 @@ Description: IceGrid Admin graphical client
  The IceGrid service helps you locate, deploy and manage Ice servers.
  .
  The IceGrid GUI give you complete control over your deployed applications.
- Activities such as starting a server or modifying a configuration setting are 
+ Activities such as starting a server or modifying a configuration setting are
  just a mouse click away.
  .
  Ice is a comprehensive RPC framework that helps you network your software
