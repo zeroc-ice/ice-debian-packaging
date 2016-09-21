@@ -25,8 +25,11 @@ Build-Depends: debhelper (>= 9),
                maven-repo-helper (>= 1.8),
                php-all-dev,
                php-cli,
-               python
+               python,
+               python-dev,
+               python-setuptools
 Standards-Version: 3.9.8
+X-Python3-Version: >= 3.4
 Homepage: https://zeroc.com
 Vcs-Git: https://github.com/zeroc-ice/ice-debian-packaging.git
 Vcs-Browser: https://github.com/zeroc-ice/ice-debian-packaging.git
@@ -140,6 +143,21 @@ Depends: libzeroc-ice3.6 (= ${binary:Version}),
 Provides: ${php:Provides}
 Description: PHP extension for Ice
  This package contains a PHP extension for communicating with Ice.
+ .
+ Ice is a comprehensive RPC framework that helps you network your software
+ with minimal effort. Ice takes care of all interactions with low-level
+ network programming interfaces and allows you to focus your efforts on
+ your application logic.
+
+Package: python3-zeroc-ice
+Architecture: any
+Section: python
+Depends: libzeroc-ice3.6 (= ${binary:Version}),
+         ${misc:Depends},
+         ${python3:Depends},
+         ${shlibs:Depends}
+Description: Python 3 extension for Ice
+ This package contains a Python 3 extension for communication with Ice.
  .
  Ice is a comprehensive RPC framework that helps you network your software
  with minimal effort. Ice takes care of all interactions with low-level

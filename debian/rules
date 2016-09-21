@@ -30,6 +30,8 @@ GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
 		  -PiceBuilderVersion=debian
 
 
+export PYTHONDIR := $(shell python3 -c "import sys;print('python{0}.{1}'.format(sys.version_info.major, sys.version_info.minor))")
+
 PHP_VERSIONS := $(shell /usr/sbin/phpquery -V)
 
 export VERSION   := $(shell echo $(DEB_VERSION_UPSTREAM) | sed -e 's,^\([.0-9]*\).*,\1,')
@@ -40,7 +42,6 @@ else
 export ICEBOX := icebox
 endif
 
-DESTDIR=$(CURDIR)/debian/tmp
 ifeq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	OPTIMIZE=yes
 endif
@@ -54,9 +55,10 @@ else
 	endif
 endif
 
-DHARGS	= --parallel --with maven_repo_helper --with systemd --with php --with python2
+DHARGS	= --parallel --with maven_repo_helper --with systemd --with php --with python3
 
-MAKEOPTS = prefix=/usr OPTIMIZE=$(OPTIMIZE)
+DESTDIR = $(CURDIR)/debian/tmp
+MAKEOPTS = DESTDIR=$(DESTDIR) prefix=/usr OPTIMIZE=$(OPTIMIZE)
 
 ifneq ($(filter notest nocheck,$(DEB_BUILD_OPTIONS)),)
 MAKEOPTS += NOTEST=yes
@@ -66,13 +68,12 @@ endif
 	dh $@ $(DHARGS)
 
 override_dh_auto_build-arch:
-	if [ ! -d cpp11 ]; then cp -r cpp cpp11; fi
-	$(MAKE) $(MAKEOPTS) -C cpp11 CPP11=yes LD_LIBRARY_PATH=$(CURDIR)/cpp11/lib/$(DEB_HOST_MULTIARCH)
 	$(MAKE) $(MAKEOPTS) -C cpp
 	for v in $(PHP_VERSIONS); do \
 	  cp -a php php-$${v}; \
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v}; \
 	done
+	PYTHON=python3 $(MAKE) $(MAKEOPTS) -C python
 
 override_dh_auto_build-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp
@@ -83,14 +84,14 @@ else
 endif
 
 override_dh_auto_install-arch:
-	$(MAKE) $(MAKEOPTS) -C cpp11 DESTDIR=$(DESTDIR) CPP11=yes install
-	$(MAKE) $(MAKEOPTS) -C cpp DESTDIR=$(DESTDIR) install
+	$(MAKE) $(MAKEOPTS) -C cpp install
 	for v in $(PHP_VERSIONS); do \
-	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v} DESTDIR=$(DESTDIR) install; \
+	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v} install; \
 	done
+	PYTHON=python3 $(MAKE) $(MAKEOPTS) -C python install
 
 override_dh_auto_install-indep:
-	$(MAKE) $(MAKEOPTS) -C cpp DESTDIR=$(DESTDIR) install
+	$(MAKE) $(MAKEOPTS) -C cpp install
 #	gradle $(GRADLEOPTS) -pjava -PjarsClassPath=true -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
 	gradle $(GRADLEOPTS) -pjava -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
 	rm -rf $(DESTDIR)/usr/share/java/*-sources.jar
@@ -100,7 +101,7 @@ override_dh_auto_clean-arch:
 	for v in $(PHP_VERSIONS); do \
 	  rm -rf php-$${v}; \
 	done
-	rm -rf cpp11
+	PYTHON=python3 $(MAKE) $(MAKEOPTS) -C python clean
 
 override_dh_auto_clean-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp clean

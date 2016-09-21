@@ -1,3 +1,2 @@
 usr/include/*
 usr/lib/*/*.so
-usr/lib/*/c++11/*.so
