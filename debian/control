@@ -75,7 +75,7 @@ Description: libraries and headers for developing Ice applications in C++
  network programming interfaces and allows you to focus your efforts on
  your application logic.
 
-Package: libzeroc-ice-java
+Package: libzeroc-ice3.6-java
 Architecture: all
 Multi-Arch: foreign
 Section: java
@@ -206,7 +206,7 @@ Section: net
 Depends: libzeroc-freeze3.6 (>= ${source:Version}),
          libzeroc-ice3.6 (>= ${source:Version}),
          libzeroc-icestorm3.6 (>= ${source:Version}),
-         libzeroc-ice-java (= ${source:Version}),
+         libzeroc-ice3.6-java (= ${source:Version}),
          php-zeroc-ice (>= ${source:Version}),
          python3-zeroc-ice (>= ${source:Version}),
          zeroc-glacier2 (>= ${source:Version}),
@@ -284,7 +284,7 @@ Section: admin
 Replaces: ice-utils,
           icegrid-gui
 Depends: default-jre | default-jdk | openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer | openjdk-7-jre | openjdk-8-jre,
-         libzeroc-ice-java (>= ${source:Version}),
+         libzeroc-ice3.6-java (>= ${source:Version}),
          ${java:Depends},
          ${misc:Depends}
 Description: IceGrid Admin graphical client
