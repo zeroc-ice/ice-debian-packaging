@@ -15,19 +15,20 @@ export DH_OPTIONS
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/default.mk
 
+export LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH)
 export JAVA_HOME=/usr/lib/jvm/default-java
-
-GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
-		  --info \
-		  --console plain \
-		  --offline \
-		  --stacktrace \
-		  --no-daemon \
-		  --refresh-dependencies \
-		  -PicegridguiProguard=false \
-		  -PjgoodiesLooksVersion=debian \
-		  -PjgoodiesFormsVersion=debian \
-		  -PiceBuilderVersion=debian
+export GRADLE		= gradle
+export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
+			  --info \
+			  --console plain \
+			  --offline \
+			  --stacktrace \
+			  --no-daemon \
+			  --refresh-dependencies \
+			  -PicegridguiProguard=false \
+			  -PjgoodiesLooksVersion=debian \
+			  -PjgoodiesFormsVersion=debian \
+			  -PiceBuilderVersion=debian
 
 
 export PYTHONDIR := $(shell python3 -c "import sys;print('python{0}.{1}'.format(sys.version_info.major, sys.version_info.minor))")
@@ -78,9 +79,9 @@ override_dh_auto_build-arch:
 override_dh_auto_build-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp
 ifeq ($(filter notest nocheck,$(DEB_BUILD_OPTIONS)),)
-	LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH) gradle $(GRADLEOPTS) -pjava build
+	$(MAKE) $(MAKEOPTS) -C java
 else
-	LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH) gradle $(GRADLEOPTS) -pjava dist
+	$(MAKE) $(MAKEOPTS) -C java dist
 endif
 
 override_dh_auto_install-arch:
@@ -92,8 +93,7 @@ override_dh_auto_install-arch:
 
 override_dh_auto_install-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp install
-#	gradle $(GRADLEOPTS) -pjava -PjarsClassPath=true -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
-	gradle $(GRADLEOPTS) -pjava -Pprefix=/usr -PDESTDIR=$(DESTDIR) install
+	$(MAKE) $(MAKEOPTS) -C java install
 	rm -rf $(DESTDIR)/usr/share/java/*-sources.jar
 
 override_dh_auto_clean-arch:
@@ -105,7 +105,8 @@ override_dh_auto_clean-arch:
 
 override_dh_auto_clean-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp clean
-	-gradle $(GRADLEOPTS) -pjava clean
+        # Don't fail if gradle is not installed
+	-$(MAKE) $(MAKEOPTS) -pjava clean
 	rm -rf java/.gradle
 	rm -rf $(CURDIR)/.gradle
 
