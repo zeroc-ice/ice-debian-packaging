@@ -106,7 +106,7 @@ override_dh_auto_clean-arch:
 override_dh_auto_clean-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp clean
         # Don't fail if gradle is not installed
-	-$(MAKE) $(MAKEOPTS) -pjava clean
+	-$(MAKE) $(MAKEOPTS) -C java clean
 	rm -rf java/.gradle
 	rm -rf $(CURDIR)/.gradle
 
