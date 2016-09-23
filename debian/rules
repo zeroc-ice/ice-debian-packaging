@@ -15,7 +15,7 @@ export DH_OPTIONS
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/default.mk
 
-export LD_LIBRARY_PATH=$(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH)
+export LD_LIBRARY_PATH  := $(CURDIR)/cpp/lib/$(DEB_HOST_MULTIARCH):$(LD_LIBRARY_PATH)
 export JAVA_HOME=/usr/lib/jvm/default-java
 export GRADLE		= gradle
 export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
