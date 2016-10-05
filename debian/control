@@ -9,8 +9,7 @@ Build-Depends-Indep: default-jdk,
                      javahelper,
                      libdb-java,
                      libjgoodies-forms-java (>= 1.6.0),
-                     libjgoodies-looks-java (>= 2.5.2),
-                     openjfx
+                     libjgoodies-looks-java (>= 2.5.2)
 Build-Depends: debhelper (>= 9),
                dh-exec,
                dh-php (>= 0.20),
