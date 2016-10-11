@@ -34,14 +34,14 @@ if os.environ.get("USE_BIN_DIST", "no") == "yes":
         slice2py = sys.executable + " /usr/local/bin/slice2py"
     elif TestUtil.isWin32():
         pythonHome = os.path.dirname(sys.executable)
-        slice2py = sys.executable + " " + os.path.join(pythonHome, "Scripts", "slice2py.exe")
-    elif TestUtil.isDebian() or TestUtil.isYocto():
+        slice2py = os.path.join(pythonHome, "Scripts", "slice2py.exe")
+    elif os.path.isfile(os.path.join(TestUtil.getCppBinDir(), "slice2py")):
         slice2py = os.path.join(TestUtil.getCppBinDir(), "slice2py")
     else:
         import slice2py
         slice2py = sys.executable + " " + os.path.normpath(os.path.join(slice2py.__file__, "..", "..", "..", "..", "bin", "slice2py"))
 else:
-    if TestUtil.isDebian() or TestUtil.isYocto():
+    if TestUtil.isYocto():
         slice2py = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", "..", "cpp", "bin", "slice2py")
     else:
         slice2py = sys.executable + " " + os.path.join(path[0], "python", "config", "s2py.py")

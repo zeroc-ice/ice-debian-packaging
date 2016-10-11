@@ -501,8 +501,11 @@ public class Coordinator
 
             helpMenu.add(_helpContents);
 
-            helpMenu.addSeparator();
-            helpMenu.add(_about);
+            if(!System.getProperty("os.name").startsWith("Mac OS"))
+            {
+                helpMenu.addSeparator();
+                helpMenu.add(_about);
+            }
         }
     }
 
@@ -3340,14 +3343,19 @@ public class Coordinator
 
     private void helpContents()
     {
-        int pos = Ice.Util.stringVersion().indexOf('b');
+        String version = Ice.Util.stringVersion();
+
+        int pos = version.indexOf('a');
         if(pos == -1)
         {
-            pos = Ice.Util.stringVersion().lastIndexOf('.');
-            assert(pos != -1);
+            pos = version.indexOf('b');
         }
 
-        String version = Ice.Util.stringVersion().substring(0, pos);
+        if(pos != -1)
+        {
+            // 3.7a3 or 3.7b1 becomes simply 3.7
+            version = version.substring(0, pos);
+        }
 
         Desktop desktop = Desktop.isDesktopSupported() ? Desktop.getDesktop() : null;
         if(desktop != null && desktop.isSupported(Desktop.Action.BROWSE))
@@ -3393,11 +3401,8 @@ public class Coordinator
 
     void showMainFrame()
     {
-        if(!loadWindowPrefs())
-        {
-            _mainFrame.setLocation(100, 100);
-            _mainFrame.pack();
-        }
+        _mainFrame.pack();
+        Utils.restoreWindowBounds(_mainFrame, _prefs, "Window", null);
         _mainFrame.setVisible(true);
     }
 
@@ -3429,7 +3434,7 @@ public class Coordinator
             }
         }
 
-        storeWindowPrefs();
+        Utils.storeWindowBounds(_mainFrame, _prefs.node("Window"));
 
         _sessionKeeper.logout(true);
 
@@ -3460,44 +3465,6 @@ public class Coordinator
             }
             _communicator = null;
         }
-    }
-
-    private boolean loadWindowPrefs()
-    {
-        try
-        {
-            if(!_prefs.nodeExists("Window"))
-            {
-                return false;
-            }
-        }
-        catch(BackingStoreException e)
-        {
-            return false;
-        }
-
-        Preferences windowPrefs = _prefs.node("Window");
-        int x = windowPrefs.getInt("x", 0);
-        int y = windowPrefs.getInt("y", 0);
-        int width = windowPrefs.getInt("width", 0);
-        int height = windowPrefs.getInt("height", 0);
-        _mainFrame.setBounds(new Rectangle(x, y, width, height));
-        if(windowPrefs.getBoolean("maximized", false))
-        {
-            _mainFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
-        }
-        return true;
-    }
-
-    private void storeWindowPrefs()
-    {
-        Preferences windowPrefs = _prefs.node("Window");
-        Rectangle rect = _mainFrame.getBounds();
-        windowPrefs.putInt("x", rect.x);
-        windowPrefs.putInt("y", rect.y);
-        windowPrefs.putInt("width", rect.width);
-        windowPrefs.putInt("height", rect.height);
-        windowPrefs.putBoolean("maximized", _mainFrame.getExtendedState() == Frame.MAXIMIZED_BOTH);
     }
 
     public AdminSessionPrx getSession()

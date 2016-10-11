@@ -183,6 +183,22 @@ var WSTransceiver = Ice.Class({
         }
         Debug.assert(this._fd);
 
+        var transceiver = this;
+        var cb = function()
+        {
+            if(transceiver._fd)
+            {
+                if(transceiver._fd.bufferedAmount + packetSize <= transceiver._maxSendPacketSize)
+                {
+                    transceiver._bytesWrittenCallback(0, 0);
+                }
+                else
+                {
+                    Timer.setTimeout(cb, transceiver.writeReadyTimeout());
+                }
+            }
+        };
+
         var i = byteBuffer.position;
         while(true)
         {
@@ -195,15 +211,7 @@ var WSTransceiver = Ice.Class({
             Debug.assert(packetSize > 0);
             if(this._fd.bufferedAmount + packetSize > this._maxSendPacketSize)
             {
-                var transceiver = this;
-                Timer.setTimeout(function()
-                    {
-                        if(transceiver._fd && transceiver._fd.bufferedAmount + packetSize <= transceiver._maxSendPacketSize)
-                        {
-                            transceiver._bytesWrittenCallback(0, 0);
-                        }
-                    },
-                    this.writeReadyTimeout());
+                Timer.setTimeout(cb, this.writeReadyTimeout());
                 return false;
             }
             this._writeReadyTimeout = 0;

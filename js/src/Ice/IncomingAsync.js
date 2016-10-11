@@ -141,11 +141,18 @@ var IncomingAsync = Ice.Class({
         s.push("\noperation: " + this._current.operation);
         if(this._connection !== null)
         {
-            var connInfo = this._connection.getInfo();
-            if(connInfo instanceof Ice.IPConnectionInfo)
+            try
             {
-                var ipConnInfo = connInfo;
-                s.push("\nremote host: " + ipConnInfo.remoteAddress + " remote port: " + ipConnInfo.remotePort);
+                var connInfo = this._connection.getInfo();
+                if(connInfo instanceof Ice.IPConnectionInfo)
+                {
+                    var ipConnInfo = connInfo;
+                    s.push("\nremote host: " + ipConnInfo.remoteAddress + " remote port: " + ipConnInfo.remotePort);
+                }
+            }
+            catch(exc)
+            {
+                // Ignore.
             }
         }
         if(ex.stack)
@@ -577,8 +584,7 @@ var IncomingAsync = Ice.Class({
     },
     readEmptyParams: function()
     {
-        this._current.encoding = new Ice.EncodingVersion();
-        this._is.skipEmptyEncaps(this._current.encoding);
+        this._current.encoding = this._is.skipEmptyEncaps();
     },
     readParamEncaps: function()
     {

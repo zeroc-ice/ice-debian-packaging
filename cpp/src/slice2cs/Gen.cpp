@@ -11,13 +11,13 @@
 #include <IceUtil/Functional.h>
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/InputUtil.h>
+#include <IceUtil/FileUtil.h>
 #include <Gen.h>
 #include <limits>
-#include <sys/stat.h>
 #ifndef _WIN32
-#include <unistd.h>
+#  include <unistd.h>
 #else
-#include <direct.h>
+#  include <direct.h>
 #endif
 #include <IceUtil/Iterator.h>
 #include <IceUtil/UUID.h>
@@ -714,18 +714,7 @@ Slice::CsVisitor::writeDispatchAndMarshalling(const ClassDefPtr& p, bool stream)
     StringList ids;
     ClassList bases = p->bases();
     bool hasBaseClass = !bases.empty() && !bases.front()->isInterface();
-
-#if defined(__IBMCPP__) && defined(NDEBUG)
-    //
-    // VisualAge C++ 6.0 does not see that ClassDef is a Contained,
-    // when inlining is on. The code below issues a warning: better
-    // than an error!
-    //
-    transform(allBases.begin(), allBases.end(), back_inserter(ids), constMemFun<string,ClassDef>(&Contained::scoped));
-#else
     transform(allBases.begin(), allBases.end(), back_inserter(ids), constMemFun(&Contained::scoped));
-#endif
-
     StringList other;
     other.push_back(p->scoped());
     other.push_back("::Ice::Object");
@@ -1130,14 +1119,7 @@ Slice::CsVisitor::writeDispatchAndMarshalling(const ClassDefPtr& p, bool stream)
     if(!allOps.empty() || (!p->isInterface() && !hasBaseClass))
     {
         StringList allOpNames;
-#if defined(__IBMCPP__) && defined(NDEBUG)
-        //
-        // See comment for transform above
-        //
-        transform(allOps.begin(), allOps.end(), back_inserter(allOpNames), constMemFun<string,Operation>(&Contained::name));
-#else
         transform(allOps.begin(), allOps.end(), back_inserter(allOpNames), constMemFun(&Contained::name));
-#endif
         allOpNames.push_back("ice_id");
         allOpNames.push_back("ice_ids");
         allOpNames.push_back("ice_isA");
@@ -2939,8 +2921,8 @@ Slice::Gen::Gen(const string& base, const vector<string>& includePaths, const st
 
     if(impl || implTie)
     {
-        struct stat st;
-        if(stat(fileImpl.c_str(), &st) == 0)
+        IceUtilInternal::structstat st;
+        if(!IceUtilInternal::stat(fileImpl, &st))
         {
             ostringstream os;
             os << "`" << fileImpl << "' already exists - will not overwrite";
@@ -6061,16 +6043,7 @@ Slice::Gen::HelperVisitor::visitClassDefStart(const ClassDefPtr& p)
     string scoped = p->scoped();
     ClassList allBases = p->allBases();
     StringList ids;
-#if defined(__IBMCPP__) && defined(NDEBUG)
-    //
-    // VisualAge C++ 6.0 does not see that ClassDef is a Contained,
-    // when inlining is on. The code below issues a warning: better
-    // than an error!
-    //
-    transform(allBases.begin(), allBases.end(), back_inserter(ids), ::IceUtil::constMemFun<string,ClassDef>(&Contained::scoped));
-#else
     transform(allBases.begin(), allBases.end(), back_inserter(ids), ::IceUtil::constMemFun(&Contained::scoped));
-#endif
     StringList other;
     other.push_back(p->scoped());
     other.push_back("::Ice::Object");
@@ -7096,7 +7069,7 @@ Slice::Gen::ImplVisitor::visitClassDefStart(const ClassDefPtr& p)
 
     string name = p->name();
 
-    _out << sp << nl << "public sealed class " << name << 'I';
+    _out << sp << nl << "public class " << name << 'I';
     if(p->isInterface())
     {
         if(p->isLocal())

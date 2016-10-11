@@ -9,11 +9,11 @@
 
 #include <IceUtil/Time.h>
 #include <Ice/LoggerI.h>
+#include <IceUtil/StringUtil.h>
 #include <IceUtil/Mutex.h>
 #include <IceUtil/MutexPtrLock.h>
 
 #ifdef _WIN32
-#  include <IceUtil/StringUtil.h>
 #  include <IceUtil/ScopedArray.h>
 #endif
 
@@ -46,17 +46,24 @@ public:
 
 Init init;
 
+//
+// Timeout in milliseconds after which rename will be attempted
+// in case of failures renaming files. That is set to 5 minutes.
+//
+const IceUtil::Time retryTimeout = IceUtil::Time::seconds(5 * 60);
+
 }
 
 Ice::LoggerI::LoggerI(const string& prefix, const string& file,
-                      bool convert, const IceUtil::StringConverterPtr& converter) :
+                      bool convert, const IceUtil::StringConverterPtr& converter,
+                      size_t sizeMax) :
     _prefix(prefix),
     _convert(convert),
-    _converter(converter)
+    _converter(converter),
+    _sizeMax(sizeMax)
 #if defined(_WIN32) && !defined(ICE_OS_WINRT)
-    , _consoleConverter(new IceUtil::WindowsStringConverter(GetConsoleOutputCP()))
+    ,_consoleConverter(new IceUtil::WindowsStringConverter(GetConsoleOutputCP()))
 #endif
-
 {
     if(!prefix.empty())
     {
@@ -70,6 +77,11 @@ Ice::LoggerI::LoggerI(const string& prefix, const string& file,
         if(!_out.is_open())
         {
             throw InitializationException(__FILE__, __LINE__, "FileLogger: cannot open " + _file);
+        }
+
+        if(_sizeMax > 0)
+        {
+            _out.seekp(0, _out.end);
         }
     }
 }
@@ -144,6 +156,83 @@ Ice::LoggerI::write(const string& message, bool indent)
 
     if(_out.is_open())
     {
+        if(_sizeMax > 0)
+        {
+            //
+            // If file size + message size exceeds max size we archive the log file,
+            // but we do not archive empty files or truncate messages.
+            //
+            size_t sz = static_cast<size_t>(_out.tellp());
+            if(sz > 0 && sz + message.size() >= _sizeMax && _nextRetry <= IceUtil::Time::now())
+            {
+                string basename = _file;
+                string ext;
+
+                size_t i = basename.rfind(".");
+                if(i != string::npos && i + 1 < basename.size())
+                {
+                    ext = basename.substr(i + 1);
+                    basename = basename.substr(0, i);
+                }
+                _out.close();
+
+                int id = 0;
+                string archive;
+                string date = IceUtil::Time::now().toString("%Y%m%d-%H%M%S");
+                while(true)
+                {
+                    ostringstream s;
+                    s << basename << "-" << date;
+                    if(id > 0)
+                    {
+                        s << "-" << id;
+                    }
+                    if(!ext.empty())
+                    {
+                        s << "." << ext;
+                    }
+                    if(IceUtilInternal::fileExists(s.str()))
+                    {
+                        id++;
+                        continue;
+                    }
+                    archive = s.str();
+                    break;
+                }
+
+                int err = IceUtilInternal::rename(_file, archive);
+
+                _out.open(_file, fstream::out | fstream::app);
+
+                if(err)
+                {
+                    _nextRetry = IceUtil::Time::now() + retryTimeout;
+
+                    //
+                    // We temporarily set the maximum size to 0 to ensure there isn't more rename attempts
+                    // in the nested error call.
+                    //
+                    size_t sizeMax = _sizeMax;
+                    _sizeMax = 0;
+                    sync.release();
+                    error("FileLogger: cannot rename `" + _file + "'\n" + IceUtilInternal::lastErrorToString());
+                    sync.acquire();
+                    _sizeMax = sizeMax;
+                }
+                else
+                {
+                    _nextRetry = IceUtil::Time();
+                }
+
+                if(!_out.is_open())
+                {
+                    sync.release();
+                    error("FileLogger: cannot open `" + _file + "':\nlog messages will be sent to stderr");
+                    write(message, indent);
+                    return;
+                }
+            }
+        }
         _out << s << endl;
     }
     else

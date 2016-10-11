@@ -64,31 +64,37 @@
 
 #endif
 
-         
-//
-// Use system headers as preferred way to detect 32 or 64 bit mode and
-// fallback to architecture based checks
-//
-#include <stdint.h>         
-         
-#if defined(__WORDSIZE) && (__WORDSIZE == 64)
-#   define ICE_64
-#elif defined(__WORDSIZE) && (__WORDSIZE == 32)
-#   define ICE_32
-#elif defined(__sun) && (defined(__sparcv9) || defined(__x86_64))  || \
-      defined(__linux) && defined(__x86_64)                        || \
-      defined(__APPLE__) && defined(__x86_64)                      || \
-      defined(__hppa) && defined(__LP64__)                         || \
-      defined(_ARCH_COM) && defined(__64BIT__)                     || \
-      defined(__alpha__)                                           || \
-      defined(_WIN64)
+#ifdef _MSC_VER
 
-#   define ICE_64
+#   ifdef _WIN64
+#      define ICE_64
+#   else
+#      define ICE_32
+#   endif
 
 #else
 
-#   define ICE_32
+    //
+    // Use system headers as preferred way to detect 32 or 64 bit mode and
+    // fallback to architecture based checks
+    //
+#   include <stdint.h>
 
+#   if defined(__WORDSIZE) && (__WORDSIZE == 64)
+#      define ICE_64
+#   elif defined(__WORDSIZE) && (__WORDSIZE == 32)
+#      define ICE_32
+#   elif defined(__sun) && (defined(__sparcv9) || defined(__x86_64))  || \
+         defined(__linux) && defined(__x86_64)                        || \
+         defined(__APPLE__) && defined(__x86_64)                      || \
+         defined(__hppa) && defined(__LP64__)                         || \
+         defined(_ARCH_COM) && defined(__64BIT__)                     || \
+         defined(__alpha__)                                           || \
+         defined(_WIN64)
+#      define ICE_64
+#   else
+#      define ICE_32
+#   endif
 #endif
 
 //
@@ -218,6 +224,17 @@
 #   include <TargetConditionals.h>
 #endif
 
+#if defined(_AIX) && defined(_LARGE_FILES)
+    // defines macros such as open that we want to use consistently everywhere
+#   include <fcntl.h>
+#endif
+
+#ifdef __IBMCPP__
+// TODO: better fix for this warning
+#   pragma report(disable, "1540-0198") // private inheritance without private keyword
+#endif
+
+
 #if !defined(ICE_BUILDING_ICE_UTIL) && defined(ICE_UTIL_API_EXPORTS)
 #   define ICE_BUILDING_ICE_UTIL
 #endif
@@ -282,7 +299,7 @@ typedef long long Int64;
 //
 // The Ice version.
 //
-#define ICE_STRING_VERSION "3.6.2" // "A.B.C", with A=major, B=minor, C=patch
-#define ICE_INT_VERSION 30602      // AABBCC, with AA=major, BB=minor, CC=patch
+#define ICE_STRING_VERSION "3.6.3" // "A.B.C", with A=major, B=minor, C=patch
+#define ICE_INT_VERSION 30603      // AABBCC, with AA=major, BB=minor, CC=patch
 
 #endif

@@ -8,20 +8,17 @@
 #
 # **********************************************************************
 
-import sys, getopt, passlib.hash, getpass
+import sys, getopt, passlib.hash, passlib.hosts, getpass
 
-usePBKDF2 = any(sys.platform == p for p in ["win32", "darwin"])
+usePBKDF2 = any(sys.platform == p for p in ["win32", "darwin", "cygwin"])
 useCryptExt = any(sys.platform.startswith(p) for p in ["linux", "freebsd", "gnukfreebsd"])
 
-
-if not usePBKDF2 and not useCryptExt:
-    print("platform not supported")
-    sys.exit(1)
 
 def usage():
     print("Usage: icehashpassword [options]")
     print("")
     print("OPTIONS")
+
     if usePBKDF2:
         print("")
         print("  -d MESSAGE_DIGEST_ALGORITHM, --digest=MESSAGE_DIGEST_ALGORITHM")
@@ -104,6 +101,11 @@ def main():
         passScheme = passlib.hash.sha512_crypt
         if digest == "sha256":
             passScheme = passlib.hash.sha256_crypt
+    else:
+        #
+        # Fallback is the OS crypt function
+        #
+        passScheme = passlib.hosts.host_context
 
     if rounds:
         if not passScheme.min_rounds <= rounds <= passScheme.max_rounds:

@@ -64,13 +64,11 @@ installed in a different directory:
 ### Gradle
 
 Ice for Java uses the [Gradle][3] build system, and includes the Gradle wrapper
-version 2.4 in the distribution. You cannot build the Ice for Java source
-distribution without an Internet connection. Except for Berkeley DB, Gradle will
+version 2.4 in the distribution. Except for Berkeley DB, Gradle will
 download all required packages automatically. These packages are listed below.
-Gradle will automatically download any necessary build artifacts from ZeroC's
-Maven repository located at
+Gradle will automatically download any necessary build artifacts from Maven central
+repository.
 
-    http://repo.zeroc.com/nexus/content/repositories/thirdparty
 
 ### Bzip2 Compression
 
@@ -91,18 +89,16 @@ therefore add significant latency to Ice requests.*
 
 ### JGoodies
 
-The graphical IceGrid administrative tool uses the JGoodies libraries Common,
-Forms, and Looks. The following versions were tested:
+The graphical IceGrid administrative tool uses the JGoodies libraries Forms,
+and Looks. The following versions were tested:
 
-    JGoodies Common 1.8.0
-    JGoodies Forms 1.8.0
-    JGoodies Looks 2.6.0
+    JGoodies Forms 1.9.0
+    JGoodies Looks 2.7.0
 
 The Maven package ids for the JGoodies packages are as follows:
 
-    groupId=com.jgoodies, version=1.8.0, artifactId=jgoodies-common
-    groupId=com.jgoodies, version=1.8.0, artifactId=jgoodies-forms
-    groupId=com.jgoodies, version=2.6.0, artifactId=jgoodies-looks
+    groupId=com.jgoodies, version=1.9.0, artifactId=jgoodies-forms
+    groupId=com.jgoodies, version=2.7.0, artifactId=jgoodies-looks
 
 ### ProGuard
 
@@ -111,7 +107,7 @@ IceGrid administrative tool.
 
 The Maven package id for the ProGuard package is as follows:
 
-    groupId=net.sourceforge, version=5.0, artifactId=proguard
+    groupId='net.sf.proguard', artifactId='proguard-gradle', version='5.2.1'
 
 ### Java Application Bundler
 
@@ -141,12 +137,12 @@ have not built Ice for C++ in this source distribution, you must set the
 `ICE_HOME` environment variable with the path name of your Ice installation.
 For example, on Unix:
 
-    $ export ICE_HOME=/opt/Ice-3.6.2 (For local build)
+    $ export ICE_HOME=/opt/Ice-3.6.3 (For local build)
     $ export ICE_HOME=/usr (For RPM installation)
 
 On Windows:
 
-    > set ICE_HOME=C:\Program Files (x86)\ZeroC\Ice-3.6.2
+    > set ICE_HOME=C:\Program Files (x86)\ZeroC\Ice-3.6.3
 
 Before building Ice for Java, review the settings in the file
 `gradle.properties` and edit as necessary.
@@ -174,16 +170,16 @@ To install Ice for Java in the directory specified by the `prefix` variable in
 
 The installation installs the following JAR files to `<prefix>/lib`.
 
-    freeze-3.6.2.jar
-    glacier2-3.6.2.jar
-    ice-3.6.2.jar
-    icebox-3.6.2.jar
-    icediscovery-3.6.2.jar
-    icegrid-3.6.2.jar
+    freeze-3.6.3.jar
+    glacier2-3.6.3.jar
+    ice-3.6.3.jar
+    icebox-3.6.3.jar
+    icediscovery-3.6.3.jar
+    icegrid-3.6.3.jar
     icegridgui.jar
-    icelocatordiscovery-3.6.2.jar
-    icepatch2-3.6.2.jar
-    icestorm-3.6.2.jar
+    icelocatordiscovery-3.6.3.jar
+    icepatch2-3.6.3.jar
+    icestorm-3.6.3.jar
 
 POM files are also installed for ease of deployment to a maven-based
 distribution system.
@@ -195,12 +191,12 @@ C++ distribution. If you have not built Ice for C++ in this source distribution
 then you must set the `ICE_HOME` environment variable with the path name of your
 Ice installation. On Unix:
 
-    $ export ICE_HOME=/opt/Ice-3.6.2 (For local build)
+    $ export ICE_HOME=/opt/Ice-3.6.3 (For local build)
     $ export ICE_HOME=/usr (For RPM installation)
 
 On Windows:
 
-    > set ICE_HOME=c:\Program Files (x86)\ZeroC\Ice-3.6.2
+    > set ICE_HOME=c:\Program Files (x86)\ZeroC\Ice-3.6.3
 
 Python is required to run the test suite. To run the tests, open a command
 window and change to the top-level directory. At the command prompt, execute:
@@ -238,6 +234,6 @@ and WinRT test suites to start the required servers.
 
 
 [1]: https://zeroc.com/download.html
-[2]: https://doc.zeroc.com/display/Ice36/Supported+Platforms+for+Ice+3.6.2
+[2]: https://doc.zeroc.com/display/Ice36/Supported+Platforms+for+Ice+3.6.3
 [3]: http://gradle.org
 [4]: http://proguard.sourceforge.net
