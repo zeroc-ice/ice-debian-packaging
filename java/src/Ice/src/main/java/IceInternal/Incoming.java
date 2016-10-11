@@ -268,6 +268,11 @@ final public class Incoming extends IncomingBase implements Ice.Request
         }
         catch(java.lang.Error ex)
         {
+            if(_responseHandler == null)
+            {
+                throw ex;
+            }
+
             if(_servant != null && _locator != null && !__servantLocatorFinished(false))
             {
                 return;
@@ -383,8 +388,7 @@ final public class Incoming extends IncomingBase implements Ice.Request
     public final void
     readEmptyParams()
     {
-        _current.encoding = new Ice.EncodingVersion();
-        _is.skipEmptyEncaps(_current.encoding);
+        _current.encoding = _is.skipEmptyEncaps();
     }
 
     public final byte[]

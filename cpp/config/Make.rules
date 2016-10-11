@@ -213,7 +213,7 @@ endif
 
 ifneq ($(UNAME),MINGW)
 ifneq ($(BZIP2_HOME),)
-    BZIP2_FLAGS         = -I$(BZIP2_HOME)/include)
+    BZIP2_FLAGS         = -I$(BZIP2_HOME)/include
 endif
 ifeq ($(BZIP2_LIBS),)
     BZIP2_LIBS          = $(if $(BZIP2_HOME),-L$(BZIP2_HOME)/$(libsubdir)) -lbz2
@@ -290,6 +290,10 @@ else
     endif
 endif
 
+ifeq ($(MAKEDEPENDFLAGS),)
+    MAKEDEPENDFLAGS := -MMD
+endif
+
 ifeq ($(FLEX_NOLINE),yes)
     FLEXFLAGS := -L
 else
@@ -323,9 +327,9 @@ endif
     SLICE2CPP	= $(bindir)/slice2cpp
     SLICE2FREEZE	= $(bindir)/slice2freeze
 else
-    SLICEPARSERLIB  = $(ice_dir)/$(libsubdir)/$(subst $(cpp11libsuffix),,$(call mklibfilename,Slice,$(VERSION)))
+    SLICEPARSERLIB  = $(ice_dir)/$(libsubdir)/$(subst $(cpp11libsuffix),,$(call mksoname,Slice))
     ifeq ($(wildcard $(SLICEPARSERLIB)),)
-	SLICEPARSERLIB  = $(ice_dir)/$(lib64subdir)/$(subst $(cpp11libsuffix),,$(call mklibfilename,Slice,$(VERSION)))
+	SLICEPARSERLIB  = $(ice_dir)/$(lib64subdir)/$(subst $(cpp11libsuffix),,$(call mksoname,Slice))
     endif
     SLICE2CPP	= $(ice_dir)/$(binsubdir)/slice2cpp
     SLICE2FREEZE	= $(ice_dir)/$(binsubdir)/slice2freeze
@@ -380,9 +384,8 @@ endif
 all:: $(TARGETS)
 
 .cpp.o:
-	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $<
 	@mkdir -p .depend
-	@$(CXX) -DMAKEDEPEND -MM $(CPPFLAGS) $< > .depend/$(*F).d
+	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $(MAKEDEPENDFLAGS) $< -MF .depend/$(*F).d
 
 .c.o:
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $<
@@ -403,9 +406,7 @@ $(HDIR)/%.h %.cpp: $(SDIR)/%.ice $(SLICE2CPP) $(SLICEPARSERLIB)
 	@mkdir -p .depend
 	@$(SLICE2CPP) $(SLICE2CPPFLAGS) --depend $< | sed 's/\(.*: \\\)/\$$(HDIR)\/\1/' > .depend/$(*F).ice.d
 
-#%.h %.cpp: %.ice $(SLICE2CPP) $(SLICEPARSERLIB)
-
-%.h %.cpp: %.ice $(SLICE2CPP)
+%.h %.cpp: %.ice $(SLICE2CPP) $(SLICEPARSERLIB)
 	rm -f $(*F).h $(*F).cpp
 	$(SLICE2CPP) $(SLICE2CPPFLAGS) $(*F).ice
 	@touch $(*F).cpp

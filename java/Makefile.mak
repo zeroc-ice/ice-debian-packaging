@@ -11,22 +11,28 @@
 GRADLE = gradlew.bat
 !endif
 
+!if "$(GRADLE)" == ""
+GRADLE = ./gradlew
+!endif
+
+!if "$(PREFIX)" != ""
+GRADLEOPTS = $(GRADLEOPTS) -Pprefix=$(PREFIX)
+!endif
+
 all:
-	$(GRADLE) build
+	$(GRADLE) $(GRADLEOPTS) build
 
 dist:
-	$(GRADLE) :Ice:assemble :Freeze:assemble :Glacier2:assemble :IceGrid:assemble :ant:assemble \
-		:IceBox:assemble :IceDiscovery:assemble :IcePatch2:assemble :IceStorm:assemble :IceGridGUI:assemble
+	$(GRADLE) $(GRADLEOPTS) dist
 
 clean:
-	$(GRADLE) clean
+	$(GRADLE) $(GRADLEOPTS) clean
+
+tests:
+        $(GRADLE) $(GRADLEOPTS) :test:assemble
 
 install::
-!if "$(PREFIX)" != ""
-	$(GRADLE) -Dorg.gradle.project.prefix="$(PREFIX)" install
-!else
-	$(GRADLE) install
-!endif
+	$(GRADLE) $(GRADLEOPTS) install
 
 test:
 	@python .\allTests.py

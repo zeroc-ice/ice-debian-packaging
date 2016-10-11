@@ -136,10 +136,13 @@ class InitialI(Test.Initial):
         pass
 
     def returnOptionalClass(self, req, current=None):
-        return Test.OneOptional(5)
-    
+        return Test.OneOptional(53)
+
     def opG(self, g, current=None):
         return g
+
+    def opVoid(self, current=None):
+        pass
 
     def supportsRequiredParams(self, current=None):
         return False
@@ -149,6 +152,9 @@ class InitialI(Test.Initial):
 
     def supportsCsharpSerializable(self, current=None):
         return True
+
+    def supportsCppStringView(self, current=None):
+        return False
 
 def run(args, communicator):
     communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010:udp")

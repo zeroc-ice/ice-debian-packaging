@@ -196,6 +196,44 @@ private:
 }
 }
 
+string
+u32CodePoint(unsigned int value)
+{
+    ostringstream s;
+    s << "\\U";
+    s << hex;
+    s.width(8);
+    s.fill('0');
+    s << value;
+    return s.str();
+}
+
+void
+writeU8Buffer(const vector<unsigned char>& u8buffer, ostringstream& out)
+{
+    vector<unsigned int> u32buffer;
+    IceUtilInternal::ConversionResult result = convertUTF8ToUTF32(u8buffer, u32buffer, IceUtil::lenientConversion);
+    switch(result)
+    {
+        case conversionOK:
+            break;
+        case sourceExhausted:
+            throw IceUtil::IllegalConversionException(__FILE__, __LINE__, "string source exhausted");
+        case sourceIllegal:
+            throw IceUtil::IllegalConversionException(__FILE__, __LINE__, "string source illegal");
+        default:
+        {
+            assert(0);
+            throw IceUtil::IllegalConversionException(__FILE__, __LINE__);
+        }
+    }
+
+    for(vector<unsigned int>::const_iterator c = u32buffer.begin(); c != u32buffer.end(); ++c)
+    {
+        out << u32CodePoint(*c);
+    }
+}
+
 static string
 lookupKwd(const string& name)
 {
@@ -518,17 +556,7 @@ Slice::Python::CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
         //
         ClassList allBases = p->allBases();
         StringList ids;
-#if defined(__IBMCPP__) && defined(NDEBUG)
-//
-// VisualAge C++ 6.0 does not see that ClassDef is a Contained,
-// when inlining is on. The code below issues a warning: better
-// than an error!
-//
-        transform(allBases.begin(), allBases.end(), back_inserter(ids),
-                  IceUtil::constMemFun<string,ClassDef>(&Contained::scoped));
-#else
         transform(allBases.begin(), allBases.end(), back_inserter(ids), IceUtil::constMemFun(&Contained::scoped));
-#endif
         StringList other;
         other.push_back(scoped);
         other.push_back("::Ice::Object");
@@ -1847,6 +1875,9 @@ Slice::Python::CodeVisitor::writeConstantValue(const TypePtr& type, const Syntax
             }
             case Slice::Builtin::KindString:
             {
+                ostringstream sv2;
+                ostringstream sv3;
+                
                 //
                 // Expand strings into the basic source character set. We can't use isalpha() and the like
                 // here because they are sensitive to the current locale.
@@ -1857,8 +1888,6 @@ Slice::Python::CodeVisitor::writeConstantValue(const TypePtr& type, const Syntax
                                                        "_{}[]#()<>%:;.?*+-/^&|~!=, '";
                 static const set<char> charSet(basicSourceChars.begin(), basicSourceChars.end());
 
-                _out << "\"";                                       // Opening "
-
                 for(size_t i = 0; i < value.size();)
                 {
                     char c = value[i];
@@ -1866,7 +1895,7 @@ Slice::Python::CodeVisitor::writeConstantValue(const TypePtr& type, const Syntax
                     {
                         case '"':
                         {
-                            _out << "\\\"";
+                            sv2 << "\\\"";
                             break;
                         }
                         case '\\':
@@ -1894,7 +1923,7 @@ Slice::Python::CodeVisitor::writeConstantValue(const TypePtr& type, const Syntax
                                 //
                                 // Convert codepoint to UTF8 bytes and write the escaped bytes
                                 //
-                                _out << s.substr(0, s.size() - 1);
+                                sv2 << s.substr(0, s.size() - 1);
 
                                 size_t sz = value[j] == 'U' ? 8 : 4;
                                 string codepoint = value.substr(j + 1, sz);
@@ -1931,40 +1960,40 @@ Slice::Python::CodeVisitor::writeConstantValue(const TypePtr& type, const Syntax
                                     s << oct;
                                     s << static_cast<unsigned int>(*q);
                                 }
-                                _out << s.str();
+                                sv2 << s.str();
 
                                 i = j + 1 + sz;
                             }
                             else
                             {
-                                _out << s;
+                                sv2 << s;
                                 i = j;
                             }
                             continue;
                         }
                         case '\r':
                         {
-                            _out << "\\r";
+                            sv2 << "\\r";
                             break;
                         }
                         case '\n':
                         {
-                            _out << "\\n";
+                            sv2 << "\\n";
                             break;
                         }
                         case '\t':
                         {
-                            _out << "\\t";
+                            sv2 << "\\t";
                             break;
                         }
                         case '\b':
                         {
-                            _out << "\\b";
+                            sv2 << "\\b";
                             break;
                         }
                         case '\f':
                         {
-                            _out << "\\f";
+                            sv2 << "\\f";
                             break;
                         }
                         default:
@@ -1978,19 +2007,140 @@ Slice::Python::CodeVisitor::writeConstantValue(const TypePtr& type, const Syntax
                                 s.width(3);
                                 s.fill('0');
                                 s << static_cast<unsigned>(uc);
-                                _out << s.str();
+                                sv2 << s.str();
                             }
                             else
                             {
-                                _out << c;                          // Print normally if in basic source character set.
+                                sv2 << c;                          // Print normally if in basic source character set.
                             }
                             break;
                         }
                     }
                     ++i;
                 }
+                
+                vector<unsigned char> u8buffer;                     // Buffer to convert multibyte characters
 
-                _out << "\"";                                       // Closing "
+                for(size_t i = 0; i < value.size();)
+                {
+                    if(charSet.find(value[i]) == charSet.end())
+                    {
+                        char c = value[i];
+                        if(static_cast<unsigned char>(c) < 128) // Single byte character
+                        {
+                            //
+                            // Print as unicode if not in basic source character set
+                            //
+                            switch(c)
+                            {
+                                //
+                                // Don't encode this special characters as universal characters
+                                //
+                                case '\r':
+                                {
+                                    sv3 << "\\r";
+                                    break;
+                                }
+                                case '\n':
+                                {
+                                    sv3 << "\\n";
+                                    break;
+                                }
+                                case  '\\':
+                                {
+                                    sv3 << "\\";
+                                    break;
+                                }
+                                default:
+                                {
+                                    sv3 << u32CodePoint(c);
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            u8buffer.push_back(value[i]);
+                        }
+                    }
+                    else
+                    {
+                        //
+                        // Write any pedding characters in the utf8 buffer
+                        //
+                        if(!u8buffer.empty())
+                        {
+                            writeU8Buffer(u8buffer, sv3);
+                            u8buffer.clear();
+                        }
+                        switch(value[i])
+                        {
+                            case '\\':
+                            {
+                                string s = "\\";
+                                size_t j = i + 1;
+                                for(; j < value.size(); ++j)
+                                {
+                                    if(value[j] != '\\')
+                                    {
+                                        break;
+                                    }
+                                    s += "\\";
+                                }
+
+                                //
+                                // An even number of slash \ will escape the backslash and
+                                // the codepoint will be interpreted as its charaters
+                                //
+                                // \\U00000041  - ['\\', 'U', '0', '0', '0', '0', '0', '0', '4', '1']
+                                // \\\U00000041 - ['\\', 'A'] (41 is the codepoint for 'A')
+                                //
+                                if(s.size() % 2 != 0 && (value[j] == 'U' || value[j] == 'u'))
+                                {
+                                    size_t sz = value[j] == 'U' ? 8 : 4;
+                                    sv3 << s.substr(0, s.size() - 1);
+                                    i = j + 1;
+
+                                    string codepoint = value.substr(j + 1, sz);
+                                    assert(codepoint.size() ==  sz);
+
+                                    IceUtil::Int64 v = IceUtilInternal::strToInt64(codepoint.c_str(), 0, 16);
+                                    sv3 << u32CodePoint(static_cast<unsigned int>(v));
+                                    i = j + 1 + sz;
+                                }
+                                else
+                                {
+                                    sv3 << s;
+                                    i = j;
+                                }
+                                continue;
+                            }
+                            case '"':
+                            {
+                                sv3 << "\\";
+                                break;
+                            }
+                        }
+                        sv3 << value[i];                        // Print normally if in basic source character set
+                    }
+                    i++;
+                }
+
+                //
+                // Write any pedding characters in the utf8 buffer
+                //
+                if(!u8buffer.empty())
+                {
+                    writeU8Buffer(u8buffer, sv3);
+                    u8buffer.clear();
+                }
+                
+
+                _out << "\"" << sv2.str() << "\"";
+                if(sv2.str() != sv3.str())
+                {
+                    _out << " if _version_info_[0] < 3 else \"" << sv3.str() << "\"";
+                }
                 break;
             }
             case Slice::Builtin::KindObject:
@@ -2291,14 +2441,10 @@ Slice::Python::CodeVisitor::writeDocstring(const string& comment, const string& 
 
     for(StringVec::const_iterator q = lines.begin(); q != lines.end(); ++q)
     {
-        if(q != lines.begin())
-        {
-            _out << nl;
-        }
-        _out << *q;
+        _out << nl << *q;
     }
 
-    _out << "\"\"\"";
+    _out << nl << "\"\"\"";
 }
 
 void
@@ -2314,11 +2460,7 @@ Slice::Python::CodeVisitor::writeDocstring(const string& comment, const DataMemb
 
     for(StringVec::const_iterator q = lines.begin(); q != lines.end(); ++q)
     {
-        if(q != lines.begin())
-        {
-            _out << nl;
-        }
-        _out << *q;
+        _out << nl << *q;
     }
 
     if(!members.empty())
@@ -2360,7 +2502,7 @@ Slice::Python::CodeVisitor::writeDocstring(const string& comment, const DataMemb
         }
     }
 
-    _out << "\"\"\"";
+    _out << nl << "\"\"\"";
 }
 
 void
@@ -2376,11 +2518,7 @@ Slice::Python::CodeVisitor::writeDocstring(const string& comment, const Enumerat
 
     for(StringVec::const_iterator q = lines.begin(); q != lines.end(); ++q)
     {
-        if(q != lines.begin())
-        {
-            _out << nl;
-        }
-        _out << *q;
+        _out << nl << *q;
     }
 
     if(!enums.empty())
@@ -2422,7 +2560,7 @@ Slice::Python::CodeVisitor::writeDocstring(const string& comment, const Enumerat
         }
     }
 
-    _out << "\"\"\"";
+    _out << nl << "\"\"\"";
 }
 
 bool
@@ -2665,11 +2803,7 @@ Slice::Python::CodeVisitor::writeDocstring(const OperationPtr& op, DocstringMode
     {
         for(StringVec::const_iterator q = comment.description.begin(); q != comment.description.end(); ++q)
         {
-            if(q != comment.description.begin())
-            {
-                _out << nl;
-            }
-            _out << *q;
+            _out << nl << *q;
         }
     }
 
@@ -2798,7 +2932,7 @@ Slice::Python::CodeVisitor::writeDocstring(const OperationPtr& op, DocstringMode
             _out << nl << r->first << " -- " << r->second;
         }
     }
-    _out << "\"\"\"";
+    _out << nl << "\"\"\"";
 }
 
 void
@@ -2807,6 +2941,7 @@ Slice::Python::generate(const UnitPtr& un, bool all, bool checksum, const vector
     Slice::Python::MetaDataVisitor visitor;
     un->visit(&visitor, false);
 
+    out << nl << "from sys import version_info as _version_info_";
     out << nl << "import Ice, IcePy";
 
     if(!all)

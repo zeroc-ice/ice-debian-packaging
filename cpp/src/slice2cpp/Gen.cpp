@@ -17,10 +17,9 @@
 #include <IceUtil/Unicode.h>
 #include <Slice/Checksum.h>
 #include <Slice/FileTracker.h>
+#include <IceUtil/FileUtil.h>
 
 #include <limits>
-
-#include <sys/stat.h>
 #include <string.h>
 
 using namespace std;
@@ -509,14 +508,14 @@ Slice::Gen::generate(const UnitPtr& p)
             fileImplC = _dir + '/' + fileImplC;
         }
 
-        struct stat st;
-        if(stat(fileImplH.c_str(), &st) == 0)
+        IceUtilInternal::structstat st;
+        if(!IceUtilInternal::stat(fileImplH, &st))
         {
             ostringstream os;
             os << fileImplH << "' already exists - will not overwrite";
             throw FileException(__FILE__, __LINE__, os.str());
         }
-        if(stat(fileImplC.c_str(), &st) == 0)
+        if(!IceUtilInternal::stat(fileImplC, &st))
         {
             ostringstream os;
             os << fileImplC << "' already exists - will not overwrite";
@@ -3088,16 +3087,7 @@ Slice::Gen::ObjectVisitor::visitClassDefStart(const ClassDefPtr& p)
 
         ClassList allBases = p->allBases();
         StringList ids;
-#if defined(__IBMCPP__) && defined(NDEBUG)
-//
-// VisualAge C++ 6.0 does not see that ClassDef is a Contained,
-// when inlining is on. The code below issues a warning: better
-// than an error!
-//
-        transform(allBases.begin(), allBases.end(), back_inserter(ids), ::IceUtil::constMemFun<string,ClassDef>(&Contained::scoped));
-#else
         transform(allBases.begin(), allBases.end(), back_inserter(ids), ::IceUtil::constMemFun(&Contained::scoped));
-#endif
         StringList other;
         other.push_back(p->scoped());
         other.push_back("::Ice::Object");
@@ -3211,16 +3201,9 @@ Slice::Gen::ObjectVisitor::visitClassDefEnd(const ClassDefPtr& p)
         if(!allOps.empty())
         {
             StringList allOpNames;
-#if defined(__IBMCPP__) && defined(NDEBUG)
-//
-// See comment for transform above
-//
-            transform(allOps.begin(), allOps.end(), back_inserter(allOpNames),
-                      ::IceUtil::constMemFun<string,Operation>(&Contained::name));
-#else
             transform(allOps.begin(), allOps.end(), back_inserter(allOpNames),
                       ::IceUtil::constMemFun(&Contained::name));
-#endif
+
             allOpNames.push_back("ice_id");
             allOpNames.push_back("ice_ids");
             allOpNames.push_back("ice_isA");

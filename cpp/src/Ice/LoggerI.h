@@ -22,7 +22,7 @@ class LoggerI : public Logger
 public:
 
     LoggerI(const std::string&, const std::string&, bool convert = true,
-            const IceUtil::StringConverterPtr& converter = 0);
+            const IceUtil::StringConverterPtr& converter = 0, std::size_t sizeMax = 0);
     ~LoggerI();
 
     virtual void print(const std::string&);
@@ -43,7 +43,13 @@ private:
     IceUtilInternal::ofstream _out;
 
     std::string _file;
+    std::size_t _sizeMax;
 
+    //
+    // In case of a log file rename failure is set to the time in milliseconds
+    // after which rename could be attempted again. Otherwise is set to zero.
+    //
+    IceUtil::Time _nextRetry;
 #if defined(_WIN32) && !defined(ICE_OS_WINRT)
     const IceUtil::StringConverterPtr _consoleConverter;
 #endif

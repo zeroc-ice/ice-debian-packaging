@@ -119,7 +119,7 @@ def isI686():
     return x86 or any(platform.machine() == p for p in ["i386", "i686"])
 
 def isAIX():
-    return sys.platform in ['aix4', 'aix5']
+    return sys.platform.startswith("aix")
 
 def isDarwin():
     return sys.platform == "darwin"
@@ -331,6 +331,9 @@ toplevel = path[0]
 if isWin32():
     if os.environ.get("PLATFORM", "").upper() == "X64":
         x64 = True
+elif isAIX():
+    if os.environ.get("OBJECT_MODE", "") == "64":
+        x64 = True
 else:
     p = subprocess.Popen("uname -m", shell = True, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
     if(p.wait() != 0):
@@ -502,15 +505,16 @@ def run(tests, root = False):
         elif o in ("-l", "--loop"):
             loop = True
         elif o in ("-r", "-R", "--filter", '--rfilter'):
-            testFilter = re.compile(a)
+            testFilter = re.compile(re.escape(os.path.normpath(a)))
             if o in ("--rfilter", "-R"):
                 filters.append((testFilter, True))
             else:
                 filters.append((testFilter, False))
         elif o == "--cross":
             global cross
-            if a not in ["cpp", "csharp", "java", "js", "python", "ruby", "objective-c" ]:
-                print("cross must be one of cpp, csharp, java, js, python, ruby or objective-c")
+            crossLang = ["cpp", "csharp", "java", "js", "php", "python", "ruby", "objective-c"]
+            if a not in crossLang:
+                print("cross must be one of %s" % ', '.join(crossLang))
                 sys.exit(1)
             cross.append(a)
         elif o == "--all" :
@@ -556,7 +560,7 @@ def run(tests, root = False):
                 arg += " " + a
 
     if not root:
-        tests = [ (os.path.join(getDefaultMapping(), "test", x), y) for x, y in tests ]
+        tests = [ (os.path.join(getDefaultMappingDir(), "test", os.path.normpath(x)), y) for x, y in tests ]
 
     # Expand all the tests and argument combinations.
     expanded = []
@@ -588,13 +592,13 @@ def run(tests, root = False):
 
     if allCross:
         if len(cross) == 0:
-            cross = ["cpp", "java", "js"]
+            cross = ["cpp", "java", "js", "php", "python", "ruby"]
             if isWin32():
                 cross.append("csharp")
             if isDarwin():
                 cross.append("objective-c")
         if root:
-            allLang = ["cpp", "java", "js"]
+            allLang = ["cpp", "java", "js", "python"]
             if isWin32():
                 allLang.append("csharp")
             if isDarwin():
@@ -605,21 +609,31 @@ def run(tests, root = False):
             # js test user server for other language so we can ignore this
             if lang == "js":
                 continue
+
+            # Run each crossLang through the remove filters. Does not support filter.
+            # We do this so that we can filter out cross language tests if necessary.
+            def langFiltered(lang):
+                for testFilter, removeFilter in filters:
+                    if removeFilter and testFilter.search(lang):
+                        return True
+                return False
+
             # This is all other languages than the current mapping.
-            crossLang = [ l for l in cross if lang != l ]
+            crossLang = [ l for l in cross if lang != l and langFiltered(l) == False]
+
             # This is all eligible cross tests for the current mapping.
             # Now expand out the tests. We run only tcp for most cross tests.
             for c in crossLang:
                 a = "--cross=%s --protocol=tcp %s" % (c, arg)
                 for test in crossTests:
-                    name = "%s/test/%s" % (lang, test)
+                    name = os.path.join(lang, "test", test)
                     expanded.append([(name, a, testConfig(name, tests))])
 
                 # Add ssl & compress for the operations test.
                 if ((compact or mono) and c == "csharp") or (c == "js"): # Don't add the ssl tests.
                     continue
                 a = "--cross=%s --protocol=ssl --compress %s" % (c, arg)
-                expanded.append([("%s/test/Ice/operations" % lang, a, [])])
+                expanded.append([(os.path.join(lang, "test", "Ice", "operations"), a, [])])
 
     # Apply filters after expanding.
     if len(filters) > 0:
@@ -694,25 +708,35 @@ def getSliceDir():
         return os.path.join(toplevel, "slice")
 
 def phpCleanup():
-    if os.path.exists("tmp.ini"):
-        os.remove("tmp.ini")
     if os.path.exists("ice.profiles"):
         os.remove("ice.profiles")
 
-def phpSetup(clientConfig = False, iceOptions = None, iceProfile = None):
+def phpProfileSetup(clientConfig = False, iceOptions = None, iceProfile = None):
+    interpreterOptions = []
+    if iceProfile != None:
+        atexit.register(phpCleanup)
+        interpreterOptions.append("-d ice.profiles='ice.profiles'")
+        tmpProfiles = open("ice.profiles", "w")
+        tmpProfiles.write("[%s]\n" % iceProfile)
+        if clientConfig:
+            tmpProfiles.write("ice.config=\"config.client\"\n")
+        if iceOptions != None:
+            tmpProfiles.write("ice.options=\"%s\"\n" % iceOptions)
+        tmpProfiles.close()
+    else:
+        if clientConfig:
+            interpreterOptions.append("-d ice.config='config.client'")
+        if iceOptions != None:
+            interpreterOptions.append("-d ice.options='%s'" % iceOptions)
+
+    return ' '.join(interpreterOptions)
+
+def phpFlags():
+    flags = []
     extDir = None
     ext = None
     incDir = None
 
-    #
-    # TODO
-    #
-    # When we no longer support PHP 5.1.x, we can use the following PHP
-    # command-line options:
-    #
-    # -d extension_dir=...
-    # -d extension=[php_ice.dll|IcePHP.so]
-    #
     if isWin32():
         ext = "php_ice.dll"
         if not iceHome:
@@ -728,7 +752,8 @@ def phpSetup(clientConfig = False, iceOptions = None, iceProfile = None):
         else:
             ext += ".so"
         if not iceHome:
-            extDir = os.path.abspath(os.path.join(toplevel, "php", "lib"))
+            phpDir = lambda langDir: langDir if "php" in langDir else "php"
+            extDir = os.path.abspath(os.path.join(toplevel, phpDir(getDefaultMappingDir()), "lib"))
             incDir = extDir
         else:
             #
@@ -765,29 +790,17 @@ def phpSetup(clientConfig = False, iceOptions = None, iceProfile = None):
                     print("unable to find IcePHP extension!")
                     sys.exit(1)
 
-    atexit.register(phpCleanup)
-    tmpini = open("tmp.ini", "w")
-    tmpini.write("; Automatically generated by Ice test driver.\n")
     if extDir:
-        tmpini.write("extension_dir=\"%s\"\n" % extDir)
-    tmpini.write("extension=%s\n" % ext)
+        if extDir.find(" ") != -1:
+            extDir = "\"{0}\"".format(extDir)
+        flags.append("-d extension_dir='%s'" % extDir)
+    flags.append("-d extension='%s'" % ext)
     if incDir:
-        tmpini.write("include_path=\"%s\"\n" % incDir)
-    if iceProfile != None:
-        tmpini.write("ice.profiles=\"ice.profiles\"\n")
-        tmpProfiles = open("ice.profiles", "w")
-        tmpProfiles.write("[%s]\n" % iceProfile)
-        if clientConfig:
-            tmpProfiles.write("ice.config=\"config.client\"\n")
-        if iceOptions != None:
-            tmpProfiles.write("ice.options=\"%s\"\n" % iceOptions)
-        tmpProfiles.close()
-    else:
-        if clientConfig:
-            tmpini.write("ice.config=\"config.client\"\n")
-        if iceOptions != None:
-            tmpini.write("ice.options=\"%s\"\n" % iceOptions)
-    tmpini.close()
+        if incDir.find(" ") != -1:
+            incDir = "\"{0}\"".format(incDir)
+        flags.append("-d include_path='%s'" % incDir)
+
+    return ' '.join(flags)
 
 def getIceBox():
     global cpp11
@@ -866,7 +879,8 @@ def hashPasswords(filePath, entries):
       os.remove(filePath)
     passwords = open(filePath, "a")
 
-    command = "%s %s" % (sys.executable, os.path.abspath(os.path.join(os.path.dirname(__file__), "icehashpassword.py")))
+    command = '%s "%s"' % (sys.executable,
+                           os.path.abspath(os.path.join(os.path.dirname(__file__), "icehashpassword.py")))
 
     #
     # For Linux ARM default rounds makes test slower (Usually runs on embbeded boards)
@@ -937,9 +951,26 @@ def getDefaultMapping():
     """Try and guess the language mapping out of the current path"""
     here = os.getcwd().split(os.sep)
     here.reverse()
+    mappings = ["cpp", "csharp", "java", "js", "php", "python", "ruby", "objective-c", "icetouch", "tmp"]
     for i in range(0, len(here)):
-        if here[i] in ["cpp", "csharp", "java", "js", "php", "python", "ruby", "objective-c", "icetouch", "tmp"]:
+        if here[i] in mappings:
             return here[i]
+        for mapping in mappings:
+            if here[i].find(mapping) == 0:
+                return mapping
+    raise RuntimeError("cannot determine mapping")
+
+def getDefaultMappingDir():
+    """Try and guess the language mapping out of the current path"""
+    here = os.getcwd().split(os.sep)
+    here.reverse()
+    mappings = ["cpp", "csharp", "java", "js", "php", "python", "ruby", "objective-c", "icetouch", "tmp"]
+    for i in range(0, len(here)):
+        if here[i] in mappings:
+            return here[i]
+        for mapping in mappings:
+            if here[i].find(mapping) == 0:
+                return here[i]
     raise RuntimeError("cannot determine mapping")
 
 def getStringIO():
@@ -1161,7 +1192,7 @@ def getCommandLine(exe, config, options = "", interpreterOptions = ""):
             output.write(" " + interpreterOptions)
         output.write(' "%s" ' % exe)
     elif config.lang == "php" and config.type == "client":
-        output.write(phpCmd + " -n -c tmp.ini")
+        output.write(phpCmd + " -n %s" % phpFlags())
         if interpreterOptions:
             output.write(" " + interpreterOptions)
         output.write(" -f \""+ exe +"\" -- ")
@@ -1393,7 +1424,7 @@ def getMirrorDir(base, mapping):
     while len(before) > 0:
         current = os.path.basename(before)
         before = os.path.dirname(before)
-        if current == lang:
+        if current.find(lang) == 0:
             # Deal with Java's different directory structure
             if lang == "java":
                 while len(before) > 0:
@@ -1495,6 +1526,11 @@ def clientServerTest(additionalServerOptions = "", additionalClientOptions = "",
                 clientdir = getMirrorDir(getClientCrossTestDir(testdir), clientLang)
             else:
                 clientdir = getMirrorDir(testdir, clientLang)
+
+            client = getDefaultClientFile(clientLang)
+            clientDesc = os.path.basename(client)
+            clientCfg.lang = clientLang
+
             if not os.path.exists(clientdir):
                 print("** no matching test for %s" % clientLang)
                 return
@@ -1512,9 +1548,6 @@ def clientServerTest(additionalServerOptions = "", additionalClientOptions = "",
 
         if clientenv is None:
             clientenv = getTestEnv(clientLang, clientdir)
-
-        if lang == "php":
-            phpSetup()
 
         clientExe = client
         serverExe = server
@@ -1645,9 +1678,6 @@ def clientEchoTest(additionalServerOptions = "", additionalClientOptions = "",
         if clientenv is None:
             clientenv = getTestEnv(clientLang, clientdir)
 
-        if lang == "php":
-            phpSetup()
-
         clientExe = client
         serverExe = server
 
@@ -1698,9 +1728,13 @@ def startClient(exe, args = "", config=None, env=None, echo = True, startReader 
         config = DriverConfig("client")
     if env is None:
         env = getTestEnv(getDefaultMapping(), os.getcwd())
-    cmd = getCommandLine(exe, config, args)
+
+    interpreterOptions = ""
     if config.lang == "php":
-        phpSetup(clientConfig, iceOptions, iceProfile)
+        interpreterOptions = phpProfileSetup(clientConfig, iceOptions, iceProfile)
+
+    cmd = getCommandLine(exe, config, args, interpreterOptions)
+
     return spawnClient(cmd, env = env, echo = echo, startReader = startReader, lang=config.lang)
 
 def startServer(exe, args = "", config = None, env = None, adapter = None, count = 1, echo = True, timeout = 60,
@@ -1710,7 +1744,8 @@ def startServer(exe, args = "", config = None, env = None, adapter = None, count
     if env is None:
         env = getTestEnv(getDefaultMapping(), os.getcwd())
     cmd = getCommandLine(exe, config, args, interpreterOptions)
-    return spawnServer(cmd, env = env, adapter = adapter, count = count, echo = echo, lang = config.lang, mx = config.mx, timeout = timeout)
+    return spawnServer(cmd, env = env, adapter = adapter, count = count, echo = echo, lang = config.lang,
+                       mx = config.mx, timeout = timeout)
 
 def startColloc(exe, args, config=None, env=None, interpreterOptions = ""):
     exe = quoteArgument(exe)
@@ -1743,7 +1778,7 @@ def simpleTest(exe = None, options = "", interpreterOptions = ""):
     if appverifier:
         appVerifierAfterTestEnd([exe])
 
-def createConfig(path, lines, enc=None):
+def createFile(path, lines, enc=None):
     if sys.version_info[0] > 2 and enc:
         config = open(path, "w", encoding=enc)
     else:
@@ -1775,10 +1810,14 @@ def getCppBinDir(lang = None):
     return binDir
 
 def getSliceTranslator(lang = "cpp"):
+    compiler = ""
     if iceHome:
-        return os.path.join(iceHome, "bin", "slice2%s" % lang)
+        compiler = os.path.join(iceHome, "bin", "slice2%s" % lang)
     else:
-        return os.path.join(getCppBinDir(), ("slice2%s" % lang))
+        compiler = os.path.join(getCppBinDir(), ("slice2%s" % lang))
+    if isWin32():
+        compiler += ".exe"
+    return compiler
 
 def getCppLibDir(lang = None):
     if isWin32():
@@ -1806,10 +1845,10 @@ def getJavaLibraryPath():
             return ("-Djava.library.path=\"%s\" " % os.path.join(getIceDir("cpp"), "third-party-packages",
                     "berkeley.db.java7", "build", "native", "bin", "x64" if x64 else "Win32"))
     elif isDarwin():
-        if os.path.exists('/usr/local/opt/ice/libexec/lib'):
-            return "-Djava.library.path=/usr/local/opt/ice/libexec/lib "
-        else:
+        if os.path.exists('/usr/local/opt/berkeley-db53/lib'):
             return "-Djava.library.path=/usr/local/opt/berkeley-db53/lib "
+        elif os.path.exists('/usr/local/opt/ice/libexec/lib'):
+            return "-Djava.library.path=/usr/local/opt/ice/libexec/lib "
     elif isRhel() or isSles():
         libpath = ("/usr/lib64" if x64 else "/usr/lib")
         if "LD_LIBRARY_PATH" in os.environ:
@@ -1902,7 +1941,7 @@ def getTestEnv(lang, testdir):
     # DB CLASSPATH, in Windows db.jar come from Ice home or
     # from Third Party Home
     #
-    if lang in ["cpp", "java", "csharp", "python", "ruby", "js"]:
+    if lang in ["cpp", "java", "csharp", "python", "ruby", "js", "php"]:
         if isWin32():
             if iceHome:
                 addClasspath(os.path.join(getIceDir("java", testdir), "lib", "db.jar"), env)
@@ -1945,10 +1984,10 @@ def getTestEnv(lang, testdir):
                       addClasspath(os.path.join(pkgdir, "berkeley.db.java7", "build", "native", "lib", "db.jar"), env)
 
         elif isDarwin():
-            if os.path.exists('/usr/local/opt/ice/libexec/lib'):
+            if os.path.exists('/usr/local/opt/berkeley-db53/lib'):
+                addClasspath(os.path.join("/", "usr", "local", "opt", "berkeley-db53", "lib", "db.jar"), env)
+            elif os.path.exists('/usr/local/opt/ice/libexec/lib'):
                 addClasspath(os.path.join("/", "usr", "local", "opt", "ice", "libexec", "lib", "db.jar"), env)
-            else:
-                addClasspath(os.path.join("/", "usr", "local", "opt", "berkeley-db53", "db.jar"), env)
         else:
             addClasspath(os.path.join("/", "usr", "share", "java", "db.jar"), env)
 
@@ -1972,7 +2011,10 @@ def getTestEnv(lang, testdir):
         if lang == "java":
             addLdPath(os.path.join(getIceDir("cpp"), "bin", "x64" if x64 else ""), env) # Add bin for db53_vc100.dll
         addLdPath(getCppLibDir(lang), env)
+    elif isAIX():
+        addLdPath(getCppLibDir(lang), env)
     elif lang in ["python", "ruby", "php", "js", "objective-c"]:
+        # C++ binaries use rpath $ORIGIN or similar to find the Ice libraries
         addLdPath(getCppLibDir(lang), env)
 
     if lang == "java":
@@ -2132,8 +2174,9 @@ def processCmdLine():
         elif o == "--cross":
             global cross
             cross.append(a)
-            if not a in ["cpp", "csharp", "java", "js", "python", "ruby", "objective-c" ]:
-                print("cross must be one of cpp, csharp, java, js, python, ruby or objective-c")
+            crossLang = ["cpp", "csharp", "java", "js", "php", "python", "ruby", "objective-c"]
+            if not a in crossLang:
+                print("cross must be one of %s" % ', '.join(crossLang))
                 sys.exit(1)
             if getTestName() not in crossTests:
                 print("*** This test does not support cross language testing")
@@ -2389,6 +2432,11 @@ def runTests(start, expanded, num = 0, script = False):
             # Skip tests not supported by appverifier
             if args.find("appverifier") != -1 and ("noappverifier" in config):
                 print("%s*** test not supported with appverifier%s" % (prefix, suffix))
+                continue
+
+            # Skip tests that no not exist for this language mapping
+            if not os.path.exists(dir):
+                print("%s*** test does not exist for this language mapping%s" % (prefix, suffix))
                 continue
 
             if script:

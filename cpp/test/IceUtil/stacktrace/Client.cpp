@@ -113,7 +113,7 @@ getIceHome()
 void
 standardizeVersion(string& str)
 {
-    string v1("3.6.2");
+    string v1("3.6.3");
     string v2("36");
     size_t pos = 0;
     while((pos = str.find(v1, pos)) != string::npos)
@@ -200,7 +200,9 @@ int main(int argc, char* argv[])
     {
         filename += "release";
 #if defined(_MSC_VER)
-#   if(_MSC_VER == 1800)
+#   if(_MSC_VER == 1700)
+        filename += "-vc110";
+#   elif(_MSC_VER == 1800)
         filename += "-vc120";
 #   elif(_MSC_VER == 1900)
         filename += "-vc140";

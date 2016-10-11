@@ -14,8 +14,8 @@
 SHELL		= /bin/sh
 VERSION_MAJOR   = 3
 VERSION_MINOR   = 6
-VERSION_PATCH   = 2
-VERSION         = 3.6.2
+VERSION_PATCH   = 3
+VERSION         = 3.6.3
 SHORT_VERSION   = 3.6
 SOVERSION	= 36
 
@@ -90,6 +90,7 @@ endif
 
 ifeq ($(UNAME),Linux)
    ifeq ($(MACHINE_TYPE),x86_64)
+      HOST_ARCH		= amd64
       #
       # Rhel/SLES
       #
@@ -143,7 +144,8 @@ endif
 # Debian
 #
 ifneq ($(wildcard /etc/debian_version),)
-    DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+    HOST_ARCH          	= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+    DEB_HOST_MULTIARCH 	?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
     lp64suffix		?= /$(DEB_HOST_MULTIARCH)
     lp32suffix		?= /$(DEB_HOST_MULTIARCH)
 endif
@@ -354,7 +356,7 @@ ifneq ($(ice_dir), $(usr_dir))
 
     #
     # We always set library path because the build needs to work
-    # whe slice compiler was built without RPATH
+    # when slice compiler was built without RPATH
     #
     ifeq ($(UNAME),Linux)
         export LD_LIBRARY_PATH := $(ice_lib_dir):$(LD_LIBRARY_PATH)
@@ -472,28 +474,45 @@ endif
 install-common::
 	@if test ! -d $(DESTDIR)$(prefix) ; \
 	then \
-	    echo "Creating $(prefix)..." ; \
-	    $(call mkdir,$(DESTDIR)$(prefix), -p) ; \
+		echo "Creating $(DESTDIR)$(prefix)..." ; \
+		$(call mkdir,$(DESTDIR)$(prefix), -p) ; \
 	fi
 
 	@if test ! -d $(DESTDIR)$(install_slicedir) ; \
 	then \
-	    echo "Creating $(DESTDIR)$(install_slicedir)..." ; \
-	    $(call mkdir, $(DESTDIR)$(install_slicedir), -p) ; \
-	    cd $(top_srcdir)/../slice ; \
-	    for subdir in * ; \
-	    do \
-	        echo "Copying slice/$$subdir to $(DESTDIR)$(install_slicedir)..." ; \
-	        cp -fpr $$subdir $(DESTDIR)$(install_slicedir) ; \
-	    done ; \
-	    fi
+		echo "Creating $(DESTDIR)$(install_slicedir)..." ; \
+		$(call mkdir, $(DESTDIR)$(install_slicedir), -p) ; \
+		if test ! -z "$(usr_dir_install)" ; \
+		then \
+			if test "$(SLICE_DIR_SYMLINK)" = "yes" ; \
+			then \
+				ln -s Ice-$(VERSION)/slice $(DESTDIR)/$(prefix)/share/slice ; \
+			else \
+				$(call mkdir,$(DESTDIR)/$(prefix)/share/slice) ; \
+			fi; \
+		fi ; \
+		cd $(top_srcdir)/../slice ; \
+		for subdir in * ; \
+		do \
+			echo "Copying slice/$$subdir to $(DESTDIR)$(install_slicedir)..." ; \
+			cp -fpr $$subdir $(DESTDIR)$(install_slicedir) ; \
+		done ; \
+		if test ! -z "$(usr_dir_install)" -a "$(SLICE_DIR_SYMLINK)" != "yes" ; \
+		then \
+			cd $(top_srcdir)/../slice ; \
+			for subdir in * ; \
+			do \
+				cd $(DESTDIR)/$(prefix)/share/slice && ln -s ../Ice-$(VERSION)/slice/$$subdir . ; \
+			done ; \
+		fi ; \
+	fi
 
 	@if test ! -f $(DESTDIR)$(install_docdir)/ICE_LICENSE$(TEXT_EXTENSION) ; \
 	then \
-	    $(call installdata,$(top_srcdir)/../ICE_LICENSE$(TEXT_EXTENSION),$(DESTDIR)$(install_docdir)) ; \
+		$(call installdata,$(top_srcdir)/../ICE_LICENSE$(TEXT_EXTENSION),$(DESTDIR)$(install_docdir)) ; \
 	fi
 
 	@if test ! -f $(DESTDIR)$(install_docdir)/LICENSE$(TEXT_EXTENSION) ; \
 	then \
-	    $(call installdata,$(top_srcdir)/../LICENSE$(TEXT_EXTENSION),$(DESTDIR)$(install_docdir)) ; \
+		$(call installdata,$(top_srcdir)/../LICENSE$(TEXT_EXTENSION),$(DESTDIR)$(install_docdir)) ; \
 	fi
