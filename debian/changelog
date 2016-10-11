@@ -1,8 +1,11 @@
-zeroc-ice (3.6.3-1) UNRELEASED; urgency=medium
+zeroc-ice (3.6.3-1) unstable; urgency=medium
 
-  * Bumped version to 3.6.3
+  * Ice-3.6.3 release
+  * Added Ice for Python package python3-zeroc-ice
+  * Remove javafx dependency
+  * Fix service packaging
 
- -- Benoit Foucher <benoit@zeroc.com>  Wed, 07 Sep 2016 08:28:28 +0000
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Tue, 11 Oct 2016 13:21:56 +0200
 
 zeroc-ice (3.6.2-stretch-51-gba6baa6-2) unstable; urgency=medium
 
