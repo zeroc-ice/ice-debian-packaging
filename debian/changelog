@@ -1,3 +1,9 @@
+zeroc-ice (3.6.3-2) unstable; urgency=medium
+
+  * Fix package upgrade from stretch
+
+ -- Jose <jose@zeroc.com>  Fri, 14 Oct 2016 17:26:35 +0000
+
 zeroc-ice (3.6.3-1) unstable; urgency=medium
 
   * Ice-3.6.3 release
