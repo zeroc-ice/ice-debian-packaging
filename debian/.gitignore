@@ -9,7 +9,7 @@ debhelper-build-stamp
 files
 libzeroc-freeze3.6/*
 libzeroc-ice-dev/*
-libzeroc-ice-java/*
+libzeroc-ice3.6-java/*
 libzeroc-ice3.6/*
 libzeroc-icestorm3.6/*
 php-zeroc-ice/*
