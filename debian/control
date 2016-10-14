@@ -167,6 +167,8 @@ Package: zeroc-glacier2
 Architecture: any
 Multi-Arch: foreign
 Section: net
+Conflicts: libzeroc-freeze3.6 (< 3.6.3-1)
+Breaks: libzeroc-freeze3.6 (< 3.6.3-1)
 Replaces: glacier2,
           ice35-services
 Depends: libzeroc-ice3.6 (= ${binary:Version}),
@@ -281,7 +283,10 @@ Architecture: all
 Multi-Arch: foreign
 Section: admin
 Replaces: ice-utils,
-          icegrid-gui
+          icegrid-gui,
+          ice-utils-java
+Conflicts: zeroc-ice-utils-java (< 3.6.3-1)
+Breaks: zeroc-ice-utils-java (< 3.6.3-1)
 Depends: default-jre | default-jdk | openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer | openjdk-7-jre | openjdk-8-jre,
          libzeroc-ice3.6-java (>= ${source:Version}),
          ${java:Depends},
@@ -322,6 +327,8 @@ Multi-Arch: foreign
 Section: net
 Replaces: ice35-services,
           icegrid
+Conflicts: libzeroc-freeze3.6 (< 3.6.3-1)
+Breaks: libzeroc-freeze3.6 (< 3.6.3-1)
 Depends: libzeroc-freeze3.6 (= ${binary:Version}),
          libzeroc-ice3.6 (= ${binary:Version}),
          libzeroc-icestorm3.6 (= ${binary:Version}),
