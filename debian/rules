@@ -56,7 +56,7 @@ else
 	endif
 endif
 
-DHARGS	= --parallel --with maven_repo_helper --with systemd --with php --with python3
+DHARGS	= --parallel --with maven_repo_helper --with systemd --with php --with python3 --with javahelper
 
 DESTDIR = $(CURDIR)/debian/tmp
 MAKEOPTS = DESTDIR=$(DESTDIR) prefix=/usr OPTIMIZE=$(OPTIMIZE)
