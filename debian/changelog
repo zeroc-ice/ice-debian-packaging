@@ -1,3 +1,13 @@
+zeroc-ice (3.6.3-3) unstable; urgency=medium
+
+  [ Jose ]
+  * Missing Jgoodies dependencies in zeroc-icegridgui
+  * Do not use JGoodies PlasticLookAndFeel. We avoid using
+    JGoodies PlasticLookAndFeel as it is triggering a
+    bug in JFileChooser that causes an application crash
+
+ -- Jose <jose@zeroc.com>  Thu, 01 Dec 2016 22:39:10 +0100
+
 zeroc-ice (3.6.3-2) unstable; urgency=medium
 
   * Fix package upgrade from stretch
