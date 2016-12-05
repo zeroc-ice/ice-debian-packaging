@@ -1,3 +1,12 @@
+zeroc-ice (3.6.3-4) unstable; urgency=medium
+
+  [ Jose ]
+  * Move javahelper to Build-Depends to fix Bug#847010
+
+  [ jose ]
+
+ -- Jose <jose@zeroc.com>  Mon, 05 Dec 2016 09:37:57 +0100
+
 zeroc-ice (3.6.3-3) unstable; urgency=medium
 
   [ Jose ]
@@ -5,6 +14,8 @@ zeroc-ice (3.6.3-3) unstable; urgency=medium
   * Do not use JGoodies PlasticLookAndFeel. We avoid using
     JGoodies PlasticLookAndFeel as it is triggering a
     bug in JFileChooser that causes an application crash
+
+  [ jose ]
 
  -- Jose <jose@zeroc.com>  Thu, 01 Dec 2016 22:39:10 +0100
 
