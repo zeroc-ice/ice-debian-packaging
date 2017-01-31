@@ -5,6 +5,7 @@ usr/bin/icepatch2calc
 usr/bin/icepatch2client
 usr/bin/icestormadmin
 usr/bin/icestormdb
+usr/bin/icebridge
 usr/share/man/man1/iceboxadmin.1
 usr/share/man/man1/icegridadmin.1
 usr/share/man/man1/icegriddb.1
