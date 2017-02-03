@@ -10,14 +10,14 @@
 using System;
 using System.Collections.Generic;
 
-public class InitialI : Test.Initial
+public class InitialI : Test.InitialDisp_
 {
     public override void shutdown(Ice.Current current)
     {
         current.adapter.getCommunicator().shutdown();
     }
 
-    public override Ice.Object pingPong(Ice.Object obj, Ice.Current current)
+    public override Ice.Value pingPong(Ice.Value obj, Ice.Current current)
     {
         return obj;
     }
@@ -141,9 +141,8 @@ public class InitialI : Test.Initial
         return p1;
     }
 
-    public override Ice.Optional<Test.OneOptionalPrx> opOneOptionalProxy(Ice.Optional<Test.OneOptionalPrx> p1,
-                                                                         out Ice.Optional<Test.OneOptionalPrx> p3,
-                                                                         Ice.Current current)
+    public override Ice.Optional<Ice.ObjectPrx>
+    opOneOptionalProxy(Ice.Optional<Ice.ObjectPrx> p1, out Ice.Optional<Ice.ObjectPrx> p3, Ice.Current current)
     {
         p3 = p1;
         return p1;
@@ -246,14 +245,6 @@ public class InitialI : Test.Initial
         return p1;
     }
 
-#if COMPACT || SILVERLIGHT
-    public override Ice.Optional<byte[]> opSerializable(Ice.Optional<byte[]> p1, out Ice.Optional<byte[]> p3,
-                                                        Ice.Current current)
-    {
-        p3 = p1;
-        return p1;
-    }
-#else
     public override Ice.Optional<Test.SerializableClass> opSerializable(Ice.Optional<Test.SerializableClass> p1,
                                                                         out Ice.Optional<Test.SerializableClass> p3,
                                                                         Ice.Current current)
@@ -261,7 +252,6 @@ public class InitialI : Test.Initial
         p3 = p1;
         return p1;
     }
-#endif
 
     public override Ice.Optional<Dictionary<int, int>> opIntIntDict(Ice.Optional<Dictionary<int, int>> p1,
                                                                     out Ice.Optional<Dictionary<int, int>> p3,
@@ -279,6 +269,15 @@ public class InitialI : Test.Initial
         return p1;
     }
 
+    public override Ice.Optional<Dictionary<int, Test.OneOptional>> opIntOneOptionalDict(
+        Ice.Optional<Dictionary<int, Test.OneOptional>> p1,
+        out Ice.Optional<Dictionary<int, Test.OneOptional>> p3,
+        Ice.Current current)
+    {
+        p3 = p1;
+        return p1;
+    }
+
     public override void opClassAndUnknownOptional(Test.A p, Ice.Current current)
     {
     }
@@ -291,10 +290,62 @@ public class InitialI : Test.Initial
     {
         o = new Test.OneOptional(53);
     }
-    
+
     public override Test.G opG(Test.G g, Ice.Current current)
     {
         return g;
+    }
+
+    public override void opVoid(Ice.Current current)
+    {
+    }
+
+    public override Test.Initial_OpMStruct1MarshaledResult
+    opMStruct1(Ice.Current current)
+    {
+        return new Test.Initial_OpMStruct1MarshaledResult(new Test.SmallStruct(), current);
+    }
+
+    public override Test.Initial_OpMStruct2MarshaledResult
+    opMStruct2(Ice.Optional<Test.SmallStruct> p1, Ice.Current current)
+    {
+        return new Test.Initial_OpMStruct2MarshaledResult(p1, p1, current);
+    }
+
+    public override Test.Initial_OpMSeq1MarshaledResult
+    opMSeq1(Ice.Current current)
+    {
+        return new Test.Initial_OpMSeq1MarshaledResult(new string[0], current);
+    }
+
+    public override Test.Initial_OpMSeq2MarshaledResult
+    opMSeq2(Ice.Optional<string[]> p1, Ice.Current current)
+    {
+        return new Test.Initial_OpMSeq2MarshaledResult(p1, p1, current);
+    }
+
+    public override Test.Initial_OpMDict1MarshaledResult
+    opMDict1(Ice.Current current)
+    {
+        return new Test.Initial_OpMDict1MarshaledResult(new Dictionary<string, int>(), current);
+    }
+
+    public override Test.Initial_OpMDict2MarshaledResult
+    opMDict2(Ice.Optional<Dictionary<string, int>> p1, Ice.Current current)
+    {
+        return new Test.Initial_OpMDict2MarshaledResult(p1, p1, current);
+    }
+
+    public override Test.Initial_OpMG1MarshaledResult
+    opMG1(Ice.Current current)
+    {
+        return new Test.Initial_OpMG1MarshaledResult(new Test.G(), current);
+    }
+
+    public override Test.Initial_OpMG2MarshaledResult
+    opMG2(Ice.Optional<Test.G> p1, Ice.Current current)
+    {
+        return new Test.Initial_OpMG2MarshaledResult(p1, p1, current);
     }
 
     public override bool supportsRequiredParams(Ice.Current current)
@@ -309,15 +360,16 @@ public class InitialI : Test.Initial
 
     public override bool supportsCsharpSerializable(Ice.Current current)
     {
-#if COMPACT || SILVERLIGHT
-        return false;
-#else
         return true;
-#endif
     }
 
     public override bool supportsCppStringView(Ice.Current current)
     {
         return false;
+    }
+
+    public override bool supportsNullOptional(Ice.Current current)
+    {
+        return true;
     }
 }

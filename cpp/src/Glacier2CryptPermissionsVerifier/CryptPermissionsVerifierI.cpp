@@ -10,12 +10,16 @@
 #include <Glacier2/PermissionsVerifier.h>
 #include <IceUtil/IceUtil.h>
 #include <Ice/Ice.h>
+#include <Ice/UniqueRef.h>
 
 #include <IceUtil/FileUtil.h>
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/InputUtil.h>
+#include <IceUtil/Mutex.h>
 
-#if defined(__GLIBC__)
+#include <fstream>
+
+#if defined(__GLIBC__) || defined(_AIX)
 #   include <crypt.h>
 #elif defined(__FreeBSD__)
 #   include <unistd.h>
@@ -30,13 +34,14 @@
 
 using namespace std;
 using namespace Ice;
+using namespace IceInternal;
 using namespace Glacier2;
 
 namespace
 {
-    
+
 #if defined(__FreeBSD__) && !defined(__GLIBC__)
-    
+
 //
 // FreeBSD crypt is no reentrat we use this global mutex
 // to serialize access.
@@ -60,6 +65,78 @@ public:
 };
 
 Init init;
+
+#elif defined(__APPLE__)
+
+// UniqueRef helper class for CoreFoundation classes, comparable to std::unique_ptr
+
+template<typename R>
+class UniqueRef
+{
+public:
+
+    explicit UniqueRef(R ref = 0) :
+        _ref(ref)
+    {
+    }
+
+    ~UniqueRef()
+    {
+        if(_ref != 0)
+        {
+            CFRelease(_ref);
+        }
+    }
+
+    R release()
+    {
+        R r = _ref;
+        _ref = 0;
+        return r;
+    }
+
+    void reset(R ref = 0)
+    {
+        assert(ref == 0 || ref != _ref);
+
+        if(_ref != 0)
+        {
+            CFRelease(_ref);
+        }
+        _ref = ref;
+    }
+
+    R& get()
+    {
+        return _ref;
+    }
+
+    R get() const
+    {
+        return _ref;
+    }
+
+    operator bool() const
+    {
+        return _ref != 0;
+    }
+
+    void swap(UniqueRef& a)
+    {
+        R tmp = a._ref;
+        a._ref = _ref;
+        _ref = tmp;
+    }
+
+private:
+
+    UniqueRef(UniqueRef&);
+    UniqueRef& operator=(UniqueRef&);
+
+    R _ref;
+};
+
+
 #endif
 
 
@@ -74,6 +151,7 @@ public:
 private:
 
     const map<string, string> _passwords;
+    IceUtil::Mutex _cryptMutex; // for old thread-unsafe crypt()
 };
 
 class CryptPermissionsVerifierPlugin : public Ice::Plugin
@@ -81,12 +159,12 @@ class CryptPermissionsVerifierPlugin : public Ice::Plugin
 public:
 
     CryptPermissionsVerifierPlugin(const CommunicatorPtr&);
-    
+
     virtual void initialize();
     virtual void destroy();
 
 private:
-    
+
     CommunicatorPtr _communicator;
 };
 
@@ -94,7 +172,7 @@ private:
 map<string, string>
 retrievePasswordMap(const string& file)
 {
-    IceUtilInternal::ifstream passwordFile(file);
+    ifstream passwordFile(IceUtilInternal::streamFilename(file).c_str());
     if(!passwordFile)
     {
         string err = IceUtilInternal::lastErrorToString();
@@ -193,15 +271,14 @@ CryptPermissionsVerifierI::checkPermissions(const string& userId, const string& 
         }
     }
 #   if defined(__GLIBC__)
-
     struct crypt_data data;
     data.initialized = 0;
     return p->second == crypt_r(password.c_str(), salt.c_str(), &data);
 #   else
     IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(_staticMutex);
-    return p->second == crypt(password.c_str(), salt.c_str())
+    return p->second == crypt(password.c_str(), salt.c_str());
 #   endif
-#elif defined(__APPLE__) || defined(_WIN32)    
+#elif defined(__APPLE__) || defined(_WIN32)
     //
     // Pbkdf2 string format:
     //
@@ -210,7 +287,7 @@ CryptPermissionsVerifierI::checkPermissions(const string& userId, const string& 
     //
     size_t beg = 0;
     size_t end = 0;
-    
+
     //
     // Determine the digest algorithm
     //
@@ -319,75 +396,59 @@ CryptPermissionsVerifierI::checkPermissions(const string& userId, const string& 
     std::replace(checksum.begin(), checksum.end(), '.', '+');
     checksum += paddingBytes(checksum.size());
 #   if defined(__APPLE__)
-    CFErrorRef error = 0;
-    SecTransformRef decoder = SecDecodeTransformCreate(kSecBase64Encoding, &error);
+    UniqueRef<CFErrorRef> error;
+    UniqueRef<SecTransformRef> decoder(SecDecodeTransformCreate(kSecBase64Encoding, &error.get()));
     if(error)
     {
-        CFRelease(error);
         return false;
     }
 
-    CFDataRef data = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
-                                                 reinterpret_cast<const uint8_t*>(salt.c_str()),
-                                                 salt.size(), kCFAllocatorNull);
+    UniqueRef<CFDataRef> data(CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
+                                                          reinterpret_cast<const uint8_t*>(salt.c_str()),
+                                                          salt.size(), kCFAllocatorNull));
 
-    SecTransformSetAttribute(decoder, kSecTransformInputAttributeName, data, &error);
+    SecTransformSetAttribute(decoder.get(), kSecTransformInputAttributeName, data.get(), &error.get());
     if(error)
     {
-        CFRelease(error);
-        CFRelease(decoder);
         return false;
     }
 
-    CFDataRef saltBuffer = static_cast<CFDataRef>(SecTransformExecute(decoder, &error));
-    CFRelease(decoder);
-
+    UniqueRef<CFDataRef> saltBuffer(static_cast<CFDataRef>(SecTransformExecute(decoder.get(), &error.get())));
     if(error)
     {
-        CFRelease(error);
         return false;
     }
 
     vector<uint8_t> checksumBuffer1(checksumLength);
     OSStatus status = CCKeyDerivationPBKDF(kCCPBKDF2, password.c_str(), password.size(),
-                                           CFDataGetBytePtr(saltBuffer), CFDataGetLength(saltBuffer),
+                                           CFDataGetBytePtr(saltBuffer.get()), CFDataGetLength(saltBuffer.get()),
                                            algorithmId, rounds, &checksumBuffer1[0], checksumLength);
-    CFRelease(saltBuffer);
     if(status != errSecSuccess)
     {
         return false;
     }
 
-    decoder = SecDecodeTransformCreate(kSecBase64Encoding, &error);
+    decoder.reset(SecDecodeTransformCreate(kSecBase64Encoding, &error.get()));
     if(error)
     {
-        CFRelease(error);
         return false;
     }
-    data = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
-                                       reinterpret_cast<const uint8_t*>(checksum.c_str()),
-                                       checksum.size(), kCFAllocatorNull);
-    SecTransformSetAttribute(decoder, kSecTransformInputAttributeName, data, &error);
+    data.reset(CFDataCreateWithBytesNoCopy(kCFAllocatorDefault,
+                                           reinterpret_cast<const uint8_t*>(checksum.c_str()),
+                                           checksum.size(), kCFAllocatorNull));
+    SecTransformSetAttribute(decoder.get(), kSecTransformInputAttributeName, data.get(), &error.get());
     if(error)
     {
-        CFRelease(error);
-        CFRelease(decoder);
         return false;
     }
 
-    data = static_cast<CFDataRef>(SecTransformExecute(decoder, &error));
-    CFRelease(decoder);
-    decoder = 0;
-
+    data.reset(static_cast<CFDataRef>(SecTransformExecute(decoder.get(), &error.get())));
     if(error)
     {
-        CFRelease(error);
         return false;
     }
 
-    vector<uint8_t> checksumBuffer2(CFDataGetBytePtr(data), CFDataGetBytePtr(data) + CFDataGetLength(data));
-    CFRelease(data);
-
+    vector<uint8_t> checksumBuffer2(CFDataGetBytePtr(data.get()), CFDataGetBytePtr(data.get()) + CFDataGetLength(data.get()));
     return checksumBuffer1 == checksumBuffer2;
 #   else
     DWORD saltLength = static_cast<DWORD>(salt.size());
@@ -409,7 +470,7 @@ CryptPermissionsVerifierI::checkPermissions(const string& userId, const string& 
 
     vector<BYTE> passwordBuffer(password.begin(), password.end());
 
-    DWORD status = BCryptDeriveKeyPBKDF2(algorithmHandle, &passwordBuffer[0], 
+    DWORD status = BCryptDeriveKeyPBKDF2(algorithmHandle, &passwordBuffer[0],
                                          static_cast<DWORD>(passwordBuffer.size()),
                                          &saltBuffer[0], saltLength, rounds,
                                          &checksumBuffer1[0], static_cast<DWORD>(checksumLength), 0);
@@ -424,7 +485,7 @@ CryptPermissionsVerifierI::checkPermissions(const string& userId, const string& 
     DWORD checksumBuffer2Length = checksumLength;
     vector<BYTE> checksumBuffer2(checksumLength);
 
-    if(!CryptStringToBinary(checksum.c_str(), static_cast<DWORD>(checksum.size()), 
+    if(!CryptStringToBinary(checksum.c_str(), static_cast<DWORD>(checksum.size()),
                             CRYPT_STRING_BASE64, &checksumBuffer2[0],
                             &checksumBuffer2Length, 0, 0))
     {
@@ -433,7 +494,17 @@ CryptPermissionsVerifierI::checkPermissions(const string& userId, const string& 
     return checksumBuffer1 == checksumBuffer2;
 #   endif
 #else
-#   error Password hashing not implemented
+    // Fallback to plain crypt() - DES-style
+
+    if(p->second.size() != 13)
+    {
+        return false;
+    }
+    string salt = p->second.substr(0, 2);
+
+    IceUtil::Mutex::Lock lock(_cryptMutex);
+    return p->second == crypt(password.c_str(), salt.c_str());
+
 #endif
 }
 
@@ -448,23 +519,23 @@ CryptPermissionsVerifierPlugin::initialize()
 {
     const string prefix = "Glacier2CryptPermissionsVerifier.";
     const PropertyDict props = _communicator->getProperties()->getPropertiesForPrefix(prefix);
-  
+
     if(!props.empty())
     {
         ObjectAdapterPtr adapter = _communicator->createObjectAdapter(""); // colloc-only adapter
-        
+
         // Each prop represents a property to set + the associated password file
-        
+
         for(PropertyDict::const_iterator p = props.begin(); p != props.end(); ++p)
         {
             string name = p->first.substr(prefix.size());
             Identity id;
-            id.name = IceUtil::generateUUID();
+            id.name = Ice::generateUUID();
             id.category = "Glacier2CryptPermissionsVerifier";
             ObjectPrx prx = adapter->add(new CryptPermissionsVerifierI(retrievePasswordMap(p->second)), id);
-            _communicator->getProperties()->setProperty(name, _communicator->proxyToString(prx));  
+            _communicator->getProperties()->setProperty(name, _communicator->proxyToString(prx));
         }
-        
+
         adapter->activate();
     }
 }
@@ -499,7 +570,7 @@ createCryptPermissionsVerifier(const CommunicatorPtr& communicator, const string
         out << "Plugin " << name << ": too many arguments";
         return 0;
     }
-    
+
     return new CryptPermissionsVerifierPlugin(communicator);
 }
 

@@ -11,11 +11,7 @@ using System;
 using Test;
 using Ice;
 
-#if SILVERLIGHT
-using System.Windows.Controls;
-#endif
-
-public class AllTests : TestCommon.TestApp
+public class AllTests : TestCommon.AllTests
 {
     public static void testExceptions(TestIntfPrx obj)
     {
@@ -102,7 +98,8 @@ public class AllTests : TestCommon.TestApp
         }
         catch(UnknownLocalException ex)
         {
-            test(ex.unknown.IndexOf("Ice::SocketException") >= 0);
+            test(ex.unknown.IndexOf("Ice::SocketException") >= 0 ||
+                 ex.unknown.IndexOf("Ice.SocketException") >= 0);
         }
         catch(System.Exception)
         {
@@ -198,28 +195,16 @@ public class AllTests : TestCommon.TestApp
         }
     }
 
-#if SILVERLIGHT
-    public override Ice.InitializationData initData()
+    public static TestIntfPrx allTests(TestCommon.Application app)
     {
-        Ice.InitializationData initData = new Ice.InitializationData();
-        initData.properties = Ice.Util.createProperties();
-        initData.properties.setProperty("Ice.FactoryAssemblies", "servantLocator,version=1.0.0.0");
-        return initData;
-    }
-
-    override
-    public void run(Ice.Communicator communicator)
-#else
-    public static TestIntfPrx allTests(Ice.Communicator communicator)
-#endif
-    {
+        Ice.Communicator communicator = app.communicator();
         Write("testing stringToProxy... ");
         Flush();
-        string @ref = "asm:default -p 12010";
+        string @ref = "asm:" + app.getTestEndpoint(0);
         Ice.ObjectPrx @base = communicator.stringToProxy(@ref);
         test(@base != null);
         WriteLine("ok");
-        
+
         Write("testing checked cast... ");
         Flush();
         TestIntfPrx obj = TestIntfPrxHelper.checkedCast(@base);
@@ -231,13 +216,13 @@ public class AllTests : TestCommon.TestApp
         Flush();
         try
         {
-            Ice.ObjectPrx o = communicator.stringToProxy("category/locate:default -p 12010");
+            Ice.ObjectPrx o = communicator.stringToProxy("category/locate:" + app.getTestEndpoint(0));
             o.ice_ids();
             test(false);
         }
         catch(UnknownUserException ex)
         {
-            test(ex.unknown.Equals("Test::TestIntfUserException"));
+            test(ex.unknown.Equals("::Test::TestIntfUserException"));
         }
         catch(System.Exception)
         {
@@ -246,13 +231,13 @@ public class AllTests : TestCommon.TestApp
 
         try
         {
-            Ice.ObjectPrx o = communicator.stringToProxy("category/finished:default -p 12010");
+            Ice.ObjectPrx o = communicator.stringToProxy("category/finished:" + app.getTestEndpoint(0));
             o.ice_ids();
             test(false);
         }
         catch(UnknownUserException ex)
         {
-            test(ex.unknown.Equals("Test::TestIntfUserException"));
+            test(ex.unknown.Equals("::Test::TestIntfUserException"));
         }
         catch(System.Exception)
         {
@@ -262,11 +247,11 @@ public class AllTests : TestCommon.TestApp
 
         Write("testing servant locator...");
         Flush();
-        @base = communicator.stringToProxy("category/locate:default -p 12010");
+        @base = communicator.stringToProxy("category/locate:" + app.getTestEndpoint(0));
         obj = TestIntfPrxHelper.checkedCast(@base);
         try
         {
-            TestIntfPrxHelper.checkedCast(communicator.stringToProxy("category/unknown:default -p 12010"));
+            TestIntfPrxHelper.checkedCast(communicator.stringToProxy("category/unknown:" + app.getTestEndpoint(0)));
         }
         catch(ObjectNotExistException)
         {
@@ -275,20 +260,20 @@ public class AllTests : TestCommon.TestApp
 
         Write("testing default servant locator...");
         Flush();
-        @base = communicator.stringToProxy("anothercat/locate:default -p 12010");
+        @base = communicator.stringToProxy("anothercat/locate:" + app.getTestEndpoint(0));
         obj = TestIntfPrxHelper.checkedCast(@base);
-        @base = communicator.stringToProxy("locate:default -p 12010");
+        @base = communicator.stringToProxy("locate:" + app.getTestEndpoint(0));
         obj = TestIntfPrxHelper.checkedCast(@base);
         try
         {
-            TestIntfPrxHelper.checkedCast(communicator.stringToProxy("anothercat/unknown:default -p 12010"));
+            TestIntfPrxHelper.checkedCast(communicator.stringToProxy("anothercat/unknown:" + app.getTestEndpoint(0)));
         }
         catch(ObjectNotExistException)
         {
         }
         try
         {
-            TestIntfPrxHelper.checkedCast(communicator.stringToProxy("unknown:default -p 12010"));
+            TestIntfPrxHelper.checkedCast(communicator.stringToProxy("unknown:" + app.getTestEndpoint(0)));
         }
         catch(ObjectNotExistException)
         {
@@ -297,14 +282,14 @@ public class AllTests : TestCommon.TestApp
 
         Write("testing locate exceptions... ");
         Flush();
-        @base = communicator.stringToProxy("category/locate:default -p 12010");
+        @base = communicator.stringToProxy("category/locate:" + app.getTestEndpoint(0));
         obj = TestIntfPrxHelper.checkedCast(@base);
         testExceptions(obj);
         WriteLine("ok");
 
         Write("testing finished exceptions... ");
         Flush();
-        @base = communicator.stringToProxy("category/finished:default -p 12010");
+        @base = communicator.stringToProxy("category/finished:" + app.getTestEndpoint(0));
         obj = TestIntfPrxHelper.checkedCast(@base);
         testExceptions(obj);
 
@@ -348,7 +333,7 @@ public class AllTests : TestCommon.TestApp
 
         Write("testing servant locator removal... ");
         Flush();
-        @base = communicator.stringToProxy("test/activation:default -p 12010");
+        @base = communicator.stringToProxy("test/activation:" + app.getTestEndpoint(0));
         TestActivationPrx activation = TestActivationPrxHelper.checkedCast(@base);
         activation.activateServantLocator(false);
         try
@@ -372,10 +357,6 @@ public class AllTests : TestCommon.TestApp
         {
             test(false);
         }
-#if SILVERLIGHT
-        obj.shutdown();
-#else
         return obj;
-#endif
     }
 }

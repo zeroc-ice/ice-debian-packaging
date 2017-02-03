@@ -8,19 +8,11 @@ supported platforms.
 
 To build Ice for JavaScript you must have the following:
 
-- Ice 3.6 development kit for C++
-- Node.js 0.10 or later
+- The `slice2js` compiler from Ice for C++. If you have not built Ice for C++
+  in this source distribution, refer to [C++ build instructions](../cpp/BuildInstructions.md).
+- Node.js 4.6 or later
 
 ## Building the JavaScript libraries and NodeJS packages
-
-If you have not built Ice for C++ in the `cpp` subdirectory, set `ICE_HOME` to
-the directory of your Ice for C++ installation. For example, on Unix:
-
-    $ export ICE_HOME=/opt/Ice
-
-On Windows:
-
-    > set ICE_HOME=C:\Ice
 
 Change to the Ice for JavaScript source subdirectory:
 
@@ -136,9 +128,9 @@ following command:
 
     > npm pack
 
-This will generate the file `ice-3.6.2.tgz`, which can be installed by running:
+This will generate the file `ice-3.7a4.tgz`, which can be installed by running:
 
-    > npm install <path_to_file>/ice-3.6.2.tgz
+    > npm install <path_to_file>/ice-3.7a4.tgz
 
 To use Ice for JavaScript with a browser, copy the appropriate JavaScript
 library files located in the `lib` directory to your web server.

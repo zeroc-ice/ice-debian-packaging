@@ -7,7 +7,7 @@
 //
 // **********************************************************************
 
-#include <IceUtil/UUID.h>
+#include <Ice/UUID.h>
 #include <Ice/ObjectAdapterI.h>
 #include <Ice/ObjectAdapterFactory.h>
 #include <Ice/Instance.h>
@@ -31,6 +31,7 @@
 #include <Ice/DefaultsAndOverrides.h>
 #include <Ice/TraceLevels.h>
 #include <Ice/PropertyNames.h>
+#include <Ice/ConsoleUtil.h>
 
 #ifdef _WIN32
 #   include <sys/timeb.h>
@@ -95,8 +96,16 @@ Ice::ObjectAdapterI::activate()
         //
         if(_state != StateUninitialized)
         {
+#ifdef ICE_CPP11_MAPPING
+            for_each(_incomingConnectionFactories.begin(), _incomingConnectionFactories.end(),
+                [](const IncomingConnectionFactoryPtr& factory)
+                {
+                    factory->activate();
+                });
+#else
             for_each(_incomingConnectionFactories.begin(), _incomingConnectionFactories.end(),
                      Ice::voidMemFun(&IncomingConnectionFactory::activate));
+#endif
             return;
         }
 
@@ -141,16 +150,23 @@ Ice::ObjectAdapterI::activate()
 
     if(printAdapterReady)
     {
-        cout << _name << " ready" << endl;
+        consoleOut << _name << " ready" << endl;
     }
 
     {
         IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
         assert(_state == StateActivating);
 
+#ifdef ICE_CPP11_MAPPING
+            for_each(_incomingConnectionFactories.begin(), _incomingConnectionFactories.end(),
+                [](const IncomingConnectionFactoryPtr& factory)
+                {
+                    factory->activate();
+                });
+#else
         for_each(_incomingConnectionFactories.begin(), _incomingConnectionFactories.end(),
                  Ice::voidMemFun(&IncomingConnectionFactory::activate));
-
+#endif
         _state = StateActive;
         notifyAll();
     }
@@ -164,8 +180,16 @@ Ice::ObjectAdapterI::hold()
     checkForDeactivation();
     _state = StateHeld;
 
+#ifdef ICE_CPP11_MAPPING
+    for_each(_incomingConnectionFactories.begin(), _incomingConnectionFactories.end(),
+        [](const IncomingConnectionFactoryPtr& factory)
+        {
+            factory->hold();
+        });
+#else
     for_each(_incomingConnectionFactories.begin(), _incomingConnectionFactories.end(),
              Ice::voidMemFun(&IncomingConnectionFactory::hold));
+#endif
 }
 
 void
@@ -180,8 +204,16 @@ Ice::ObjectAdapterI::waitForHold()
         incomingConnectionFactories = _incomingConnectionFactories;
     }
 
+#ifdef ICE_CPP11_MAPPING
+    for_each(incomingConnectionFactories.begin(), incomingConnectionFactories.end(),
+        [](const IncomingConnectionFactoryPtr& factory)
+        {
+            factory->waitUntilHolding();
+        });
+#else
     for_each(incomingConnectionFactories.begin(), incomingConnectionFactories.end(),
              Ice::constVoidMemFun(&IncomingConnectionFactory::waitUntilHolding));
+#endif
 }
 
 void
@@ -240,15 +272,23 @@ Ice::ObjectAdapterI::deactivate()
     // Connection::destroy() might block when sending a CloseConnection
     // message.
     //
+#ifdef ICE_CPP11_MAPPING
+    for_each(_incomingConnectionFactories.begin(), _incomingConnectionFactories.end(),
+        [](const IncomingConnectionFactoryPtr& factory)
+        {
+            factory->destroy();
+        });
+#else
     for_each(_incomingConnectionFactories.begin(), _incomingConnectionFactories.end(),
              Ice::voidMemFun(&IncomingConnectionFactory::destroy));
+#endif
 
     //
     // Must be called outside the thread synchronization, because
     // changing the object adapter might block if there are still
     // requests being dispatched.
     //
-    _instance->outgoingConnectionFactory()->removeAdapter(this);
+    _instance->outgoingConnectionFactory()->removeAdapter(ICE_SHARED_FROM_THIS);
 
     {
         IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
@@ -285,8 +325,16 @@ Ice::ObjectAdapterI::waitForDeactivate()
     // Now we wait until all incoming connection factories are
     // finished.
     //
+#ifdef ICE_CPP11_MAPPING
+    for_each(incomingConnectionFactories.begin(), incomingConnectionFactories.end(),
+        [](const IncomingConnectionFactoryPtr& factory)
+        {
+            factory->waitUntilFinished();
+        });
+#else
     for_each(incomingConnectionFactories.begin(), incomingConnectionFactories.end(),
              Ice::voidMemFun(&IncomingConnectionFactory::waitUntilFinished));
+#endif
 }
 
 bool
@@ -298,7 +346,7 @@ Ice::ObjectAdapterI::isDeactivated() const
 }
 
 void
-Ice::ObjectAdapterI::destroy()
+Ice::ObjectAdapterI::destroy() ICE_NOEXCEPT
 {
     //
     // Deactivate and wait for completion.
@@ -343,7 +391,7 @@ Ice::ObjectAdapterI::destroy()
 
     if(_objectAdapterFactory)
     {
-        _objectAdapterFactory->removeObjectAdapter(this);
+        _objectAdapterFactory->removeObjectAdapter(ICE_SHARED_FROM_THIS);
     }
 
     {
@@ -372,13 +420,13 @@ Ice::ObjectAdapterI::destroy()
     }
 }
 
-ObjectPrx
+ObjectPrxPtr
 Ice::ObjectAdapterI::add(const ObjectPtr& object, const Identity& ident)
 {
     return addFacet(object, ident, "");
 }
 
-ObjectPrx
+ObjectPrxPtr
 Ice::ObjectAdapterI::addFacet(const ObjectPtr& object, const Identity& ident, const string& facet)
 {
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
@@ -392,17 +440,17 @@ Ice::ObjectAdapterI::addFacet(const ObjectPtr& object, const Identity& ident, co
     return newProxy(ident, facet);
 }
 
-ObjectPrx
+ObjectPrxPtr
 Ice::ObjectAdapterI::addWithUUID(const ObjectPtr& object)
 {
     return addFacetWithUUID(object, "");
 }
 
-ObjectPrx
+ObjectPrxPtr
 Ice::ObjectAdapterI::addFacetWithUUID(const ObjectPtr& object, const string& facet)
 {
     Identity ident;
-    ident.name = IceUtil::generateUUID();
+    ident.name = Ice::generateUUID();
     return addFacet(object, ident, facet);
 }
 
@@ -484,13 +532,13 @@ Ice::ObjectAdapterI::findAllFacets(const Identity& ident) const
 }
 
 ObjectPtr
-Ice::ObjectAdapterI::findByProxy(const ObjectPrx& proxy) const
+Ice::ObjectAdapterI::findByProxy(const ObjectPrxPtr& proxy) const
 {
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
 
     checkForDeactivation();
 
-    ReferencePtr ref = proxy->__reference();
+    ReferencePtr ref = proxy->_getReference();
     return findFacet(ref->getIdentity(), ref->getFacet());
 }
 
@@ -534,7 +582,7 @@ Ice::ObjectAdapterI::findServantLocator(const string& prefix) const
     return _servantManager->findServantLocator(prefix);
 }
 
-ObjectPrx
+ObjectPrxPtr
 Ice::ObjectAdapterI::createProxy(const Identity& ident) const
 {
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
@@ -545,7 +593,7 @@ Ice::ObjectAdapterI::createProxy(const Identity& ident) const
     return newProxy(ident, "");
 }
 
-ObjectPrx
+ObjectPrxPtr
 Ice::ObjectAdapterI::createDirectProxy(const Identity& ident) const
 {
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
@@ -556,7 +604,7 @@ Ice::ObjectAdapterI::createDirectProxy(const Identity& ident) const
     return newDirectProxy(ident, "");
 }
 
-ObjectPrx
+ObjectPrxPtr
 Ice::ObjectAdapterI::createIndirectProxy(const Identity& ident) const
 {
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
@@ -568,7 +616,7 @@ Ice::ObjectAdapterI::createIndirectProxy(const Identity& ident) const
 }
 
 void
-Ice::ObjectAdapterI::setLocator(const LocatorPrx& locator)
+Ice::ObjectAdapterI::setLocator(const LocatorPrxPtr& locator)
 {
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
 
@@ -577,7 +625,7 @@ Ice::ObjectAdapterI::setLocator(const LocatorPrx& locator)
     _locatorInfo = _instance->locatorManager()->get(locator);
 }
 
-LocatorPrx
+LocatorPrxPtr
 Ice::ObjectAdapterI::getLocator() const
 {
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
@@ -635,7 +683,15 @@ Ice::ObjectAdapterI::getEndpoints() const
 
     EndpointSeq endpoints;
     transform(_incomingConnectionFactories.begin(), _incomingConnectionFactories.end(),
-              back_inserter(endpoints), Ice::constMemFun(&IncomingConnectionFactory::endpoint));
+            back_inserter(endpoints),
+#ifdef ICE_CPP11_MAPPING
+            [](const IncomingConnectionFactoryPtr& factory)
+            {
+                return factory->endpoint();
+            });
+#else
+            Ice::constMemFun(&IncomingConnectionFactory::endpoint));
+#endif
     return endpoints;
 }
 
@@ -650,14 +706,14 @@ Ice::ObjectAdapterI::getPublishedEndpoints() const
 }
 
 bool
-Ice::ObjectAdapterI::isLocal(const ObjectPrx& proxy) const
+Ice::ObjectAdapterI::isLocal(const ObjectPrxPtr& proxy) const
 {
     //
     // NOTE: it's important that isLocal() doesn't perform any blocking operations as
     // it can be called for AMI invocations if the proxy has no delegate set yet.
     //
 
-    ReferencePtr ref = proxy->__reference();
+    ReferencePtr ref = proxy->_getReference();
     if(ref->isWellKnown())
     {
         //
@@ -752,7 +808,15 @@ Ice::ObjectAdapterI::updateConnectionObservers()
         IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
         f = _incomingConnectionFactories;
     }
+#ifdef ICE_CPP11_MAPPING
+    for_each(f.begin(), f.end(),
+        [](const IncomingConnectionFactoryPtr& factory)
+        {
+            factory->updateConnectionObservers();
+        });
+#else
     for_each(f.begin(), f.end(), Ice::voidMemFun(&IncomingConnectionFactory::updateConnectionObservers));
+#endif
 }
 
 void
@@ -842,7 +906,7 @@ Ice::ObjectAdapterI::getACM() const
 //
 Ice::ObjectAdapterI::ObjectAdapterI(const InstancePtr& instance, const CommunicatorPtr& communicator,
                                     const ObjectAdapterFactoryPtr& objectAdapterFactory, const string& name,
-                                    /*const RouterPrx& router,*/ bool noConfig) :
+                                    /*const RouterPrxPtr& router,*/ bool noConfig) :
     _state(StateUninitialized),
     _instance(instance),
     _communicator(communicator),
@@ -856,7 +920,7 @@ Ice::ObjectAdapterI::ObjectAdapterI(const InstancePtr& instance, const Communica
 }
 
 void
-Ice::ObjectAdapterI::initialize(const RouterPrx& router)
+Ice::ObjectAdapterI::initialize(const RouterPrxPtr& router)
 {
     if(_noConfig)
     {
@@ -944,8 +1008,8 @@ Ice::ObjectAdapterI::initialize(const RouterPrx& router)
 
         if(!router)
         {
-            const_cast<RouterPrx&>(router) = RouterPrx::uncheckedCast(
-                _instance->proxyFactory()->propertyToProxy(_name + ".Router"));
+            const_cast<RouterPrxPtr&>(router) = ICE_UNCHECKED_CAST(RouterPrx,
+                                _instance->proxyFactory()->propertyToProxy(_name + ".Router"));
         }
         if(router)
         {
@@ -957,8 +1021,9 @@ Ice::ObjectAdapterI::initialize(const RouterPrx& router)
                 //
                 if(_routerInfo->getAdapter())
                 {
-                    throw AlreadyRegisteredException(__FILE__, __LINE__, "object adapter with router",
-                                                     _instance->identityToString(router->ice_getIdentity()));
+                    throw AlreadyRegisteredException(__FILE__, __LINE__,
+                                                     "object adapter with router",
+                                                     _communicator->identityToString(router->ice_getIdentity()));
                 }
 
                 //
@@ -976,7 +1041,7 @@ Ice::ObjectAdapterI::initialize(const RouterPrx& router)
                 // new outgoing connections to the router's client proxy will
                 // use this object adapter for callbacks.
                 //
-                _routerInfo->setAdapter(this);
+                _routerInfo->setAdapter(ICE_SHARED_FROM_THIS);
 
                 //
                 // Also modify all existing outgoing connections to the
@@ -996,7 +1061,7 @@ Ice::ObjectAdapterI::initialize(const RouterPrx& router)
             vector<EndpointIPtr> endpoints = parseEndpoints(properties->getProperty(_name + ".Endpoints"), true);
             for(vector<EndpointIPtr>::iterator p = endpoints.begin(); p != endpoints.end(); ++p)
             {
-                IncomingConnectionFactoryPtr factory = new IncomingConnectionFactory(_instance, *p, this);
+                IncomingConnectionFactoryPtr factory = ICE_MAKE_SHARED(IncomingConnectionFactory, _instance, *p, ICE_SHARED_FROM_THIS);
                  factory->initialize();
                 _incomingConnectionFactories.push_back(factory);
             }
@@ -1019,7 +1084,7 @@ Ice::ObjectAdapterI::initialize(const RouterPrx& router)
 
         if(!properties->getProperty(_name + ".Locator").empty())
         {
-            setLocator(LocatorPrx::uncheckedCast(_instance->proxyFactory()->propertyToProxy(_name + ".Locator")));
+            setLocator(ICE_UNCHECKED_CAST(LocatorPrx, _instance->proxyFactory()->propertyToProxy(_name + ".Locator")));
         }
         else
         {
@@ -1054,7 +1119,7 @@ Ice::ObjectAdapterI::~ObjectAdapterI()
     }
 }
 
-ObjectPrx
+ObjectPrxPtr
 Ice::ObjectAdapterI::newProxy(const Identity& ident, const string& facet) const
 {
     if(_id.empty())
@@ -1071,7 +1136,7 @@ Ice::ObjectAdapterI::newProxy(const Identity& ident, const string& facet) const
     }
 }
 
-ObjectPrx
+ObjectPrxPtr
 Ice::ObjectAdapterI::newDirectProxy(const Identity& ident, const string& facet) const
 {
     vector<EndpointIPtr> endpoints = _publishedEndpoints;
@@ -1090,7 +1155,7 @@ Ice::ObjectAdapterI::newDirectProxy(const Identity& ident, const string& facet) 
     return _instance->proxyFactory()->referenceToProxy(ref);
 }
 
-ObjectPrx
+ObjectPrxPtr
 Ice::ObjectAdapterI::newIndirectProxy(const Identity& ident, const string& facet, const string& id) const
 {
     //
@@ -1129,6 +1194,10 @@ Ice::ObjectAdapterI::parseEndpoints(const string& endpts, bool oaEndpoints) cons
         beg = endpts.find_first_not_of(delim, end);
         if(beg == string::npos)
         {
+            if(!endpoints.empty())
+            {
+                throw EndpointParseException(__FILE__, __LINE__, "invalid empty object adapter endpoint");
+            }
             break;
         }
 
@@ -1177,17 +1246,14 @@ Ice::ObjectAdapterI::parseEndpoints(const string& endpts, bool oaEndpoints) cons
 
         if(end == beg)
         {
-            ++end;
-            continue;
+            throw EndpointParseException(__FILE__, __LINE__, "invalid empty object adapter endpoint");
         }
 
         string s = endpts.substr(beg, end - beg);
         EndpointIPtr endp = _instance->endpointFactoryManager()->create(s, oaEndpoints);
         if(endp == 0)
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "invalid object adapter endpoint `" + s + "'";
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__, "invalid object adapter endpoint `" + s + "'");
         }
         endpoints.push_back(endp);
 
@@ -1238,14 +1304,14 @@ ObjectAdapterI::parsePublishedEndpoints()
 }
 
 void
-ObjectAdapterI::updateLocatorRegistry(const IceInternal::LocatorInfoPtr& locatorInfo, const Ice::ObjectPrx& proxy)
+ObjectAdapterI::updateLocatorRegistry(const IceInternal::LocatorInfoPtr& locatorInfo, const Ice::ObjectPrxPtr& proxy)
 {
     if(_id.empty() || !locatorInfo)
     {
         return; // Nothing to update.
     }
 
-    LocatorRegistryPrx locatorRegistry = locatorInfo->getLocatorRegistry();
+    LocatorRegistryPrxPtr locatorRegistry = locatorInfo->getLocatorRegistry();
     if(!locatorRegistry)
     {
         return;

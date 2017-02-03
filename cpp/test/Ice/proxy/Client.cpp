@@ -16,10 +16,10 @@ DEFINE_TEST("client")
 using namespace std;
 
 int
-run(int, char**, const Ice::CommunicatorPtr& communicator, const Ice::InitializationData&)
+run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    Test::MyClassPrx allTests(const Ice::CommunicatorPtr&);
-    Test::MyClassPrx myClass = allTests(communicator);
+    Test::MyClassPrxPtr allTests(const Ice::CommunicatorPtr&);
+    Test::MyClassPrxPtr myClass = allTests(communicator);
 
     myClass->shutdown();
 
@@ -31,36 +31,20 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL();
+#   if defined(__linux)
+    Ice::registerIceBT();
+#   endif
 #endif
-
-    int status;
-    Ice::CommunicatorPtr communicator;
 
     try
     {
-        Ice::InitializationData initData;
-        initData.properties = Ice::createProperties(argc, argv);
-        communicator = Ice::initialize(argc, argv, initData);
-        status = run(argc, argv, communicator, initData);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        return run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
-        status = EXIT_FAILURE;
+        return EXIT_FAILURE;
     }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
-    }
-
-    return status;
 }

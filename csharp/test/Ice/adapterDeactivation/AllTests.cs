@@ -10,31 +10,14 @@
 using System;
 using Test;
 
-#if SILVERLIGHT
-using System.Net;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Windows.Ink;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
-using System.Windows.Shapes;
-#endif
-
-public class AllTests : TestCommon.TestApp
+public class AllTests : TestCommon.AllTests
 {
-
-#if SILVERLIGHT
-    override
-    public void run(Ice.Communicator communicator)
-#else
-    public static TestIntfPrx allTests(Ice.Communicator communicator)
-#endif
+    public static TestIntfPrx allTests(TestCommon.Application app)
     {
+        Ice.Communicator communicator = app.communicator();
         Write("testing stringToProxy... ");
         Flush();
-        string @ref = "test:default -p 12010";
+        string @ref = "test:" + app.getTestEndpoint(0);
         Ice.ObjectPrx @base = communicator.stringToProxy(@ref);
         test(@base != null);
         WriteLine("ok");
@@ -46,7 +29,6 @@ public class AllTests : TestCommon.TestApp
         test(obj.Equals(@base));
         WriteLine("ok");
 
-#if !SILVERLIGHT
         {
             Write("creating/destroying/recreating object adapter... ");
             Flush();
@@ -69,7 +51,7 @@ public class AllTests : TestCommon.TestApp
             adapter.destroy();
             Console.Out.WriteLine("ok");
         }
-#endif
+
         Write("creating/activating/deactivating object adapter in one operation... ");
         Flush();
         obj.transient();
@@ -84,7 +66,7 @@ public class AllTests : TestCommon.TestApp
                 Ice.InitializationData initData = new Ice.InitializationData();
                 initData.properties = communicator.getProperties().ice_clone_();
                 Ice.Communicator comm = Ice.Util.initialize(initData);
-                comm.stringToProxy("test:default -p 12010").begin_ice_ping();
+                comm.stringToProxy("test:" + app.getTestEndpoint(0)).begin_ice_ping();
                 comm.destroy();
             }
             WriteLine("ok");
@@ -99,7 +81,7 @@ public class AllTests : TestCommon.TestApp
         Flush();
         try
         {
-            obj.ice_ping();
+            obj.ice_timeout(100).ice_ping(); // Use timeout to speed up testing on Windows
             test(false);
         }
         catch(Ice.LocalException)
@@ -107,8 +89,6 @@ public class AllTests : TestCommon.TestApp
             WriteLine("ok");
         }
 
-#if !SILVERLIGHT
         return obj;
-#endif
     }
 }

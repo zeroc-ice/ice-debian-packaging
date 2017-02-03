@@ -11,13 +11,16 @@
 #define ICE_NETWORK_PROXY_H
 
 #include <Ice/Network.h>
+#include <Ice/Buffer.h>
 
 namespace IceInternal
 {
 
-class ICE_API NetworkProxy : virtual public IceUtil::Shared
+class ICE_API NetworkProxy : public virtual IceUtil::Shared
 {
 public:
+
+    virtual ~NetworkProxy();
 
     //
     // Write the connection request on the connection established

@@ -25,7 +25,9 @@ public:
     UdpEndpointI(const ProtocolInstancePtr&, const std::string&, Ice::Int, const Address&, const std::string&,
                  Ice::Int, bool, const std::string&, bool);
     UdpEndpointI(const ProtocolInstancePtr&);
-    UdpEndpointI(const ProtocolInstancePtr&, BasicStream*);
+    UdpEndpointI(const ProtocolInstancePtr&, Ice::InputStream*);
+
+    virtual void streamWriteImpl(Ice::OutputStream*) const;
 
     virtual Ice::EndpointInfoPtr getInfo() const;
 
@@ -39,16 +41,22 @@ public:
     virtual AcceptorPtr acceptor(const std::string&) const;
     virtual std::string options() const;
 
+#ifdef ICE_CPP11_MAPPING
+    virtual bool operator==(const Ice::Endpoint&) const;
+    virtual bool operator<(const Ice::Endpoint&) const;
+#else
     virtual bool operator==(const Ice::LocalObject&) const;
     virtual bool operator<(const Ice::LocalObject&) const;
+#endif
 
     UdpEndpointIPtr endpoint(const UdpTransceiverPtr&) const;
 
     using IPEndpointI::connectionId;
 
+    virtual void initWithOptions(std::vector<std::string>&, bool);
+
 protected:
 
-    virtual void streamWriteImpl(BasicStream*) const;
     virtual void hashInit(Ice::Int&) const;
     virtual void fillEndpointInfo(Ice::IPEndpointInfo*) const;
     virtual bool checkOption(const std::string&, const std::string&, const std::string&);
@@ -77,10 +85,10 @@ public:
     virtual Ice::Short type() const;
     virtual std::string protocol() const;
     virtual EndpointIPtr create(std::vector<std::string>&, bool) const;
-    virtual EndpointIPtr read(BasicStream*) const;
+    virtual EndpointIPtr read(Ice::InputStream*) const;
     virtual void destroy();
 
-    virtual EndpointFactoryPtr clone(const ProtocolInstancePtr&) const;
+    virtual EndpointFactoryPtr clone(const ProtocolInstancePtr&, const EndpointFactoryPtr&) const;
 
 private:
 

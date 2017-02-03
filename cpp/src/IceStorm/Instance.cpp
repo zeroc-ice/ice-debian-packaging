@@ -17,10 +17,17 @@
 #include <Ice/InstrumentationI.h>
 #include <Ice/Communicator.h>
 #include <Ice/Properties.h>
+#include <Ice/TraceUtil.h>
 
 using namespace std;
 using namespace IceStorm;
 using namespace IceStormElection;
+using namespace IceStormInternal;
+
+namespace IceStormInternal
+{
+extern IceDB::IceContext dbContext;
+}
 
 void
 TopicReaper::add(const string& name)
@@ -36,6 +43,50 @@ TopicReaper::consumeReapedTopics()
     vector<string> reaped;
     reaped.swap(_topics);
     return reaped;
+}
+
+PersistentInstance::PersistentInstance(
+    const string& instanceName,
+    const string& name,
+    const Ice::CommunicatorPtr& communicator,
+    const Ice::ObjectAdapterPtr& publishAdapter,
+    const Ice::ObjectAdapterPtr& topicAdapter,
+    const Ice::ObjectAdapterPtr& nodeAdapter,
+    const NodePrx& nodeProxy) :
+    Instance(instanceName, name, communicator, publishAdapter, topicAdapter, nodeAdapter, nodeProxy),
+    _dbLock(communicator->getProperties()->getPropertyWithDefault(name + ".LMDB.Path", name) + "/icedb.lock"),
+    _dbEnv(communicator->getProperties()->getPropertyWithDefault(name + ".LMDB.Path", name), 2,
+           IceDB::getMapSize(communicator->getProperties()->getPropertyAsInt(name + ".LMDB.MapSize")))
+{
+    try
+    {
+        dbContext.communicator = communicator;
+        dbContext.encoding.minor = 1;
+        dbContext.encoding.major = 1;
+
+        IceDB::ReadWriteTxn txn(_dbEnv);
+
+        _lluMap = LLUMap(txn, "llu", dbContext, MDB_CREATE);
+        _subscriberMap = SubscriberMap(txn, "subscribers", dbContext, MDB_CREATE, compareSubscriberRecordKey);
+
+        txn.commit();
+    }
+    catch(...)
+    {
+        shutdown();
+        destroy();
+
+        throw;
+    }
+}
+
+void
+PersistentInstance::destroy()
+{
+    _dbEnv.close();
+    dbContext.communicator = 0;
+
+    Instance::destroy();
 }
 
 Instance::Instance(
@@ -60,6 +111,8 @@ Instance::Instance(
                                                    name + ".Flush.Timeout", 1000))), // default one second.
     // default one minute.
     _sendTimeout(communicator->getProperties()->getPropertyAsIntWithDefault(name + ".Send.Timeout", 60 * 1000)),
+    _sendQueueSizeMax(communicator->getProperties()->getPropertyAsIntWithDefault(name + ".Send.QueueSizeMax", -1)),
+    _sendQueueSizeMaxPolicy(RemoveSubscriber),
     _topicReaper(new TopicReaper())
 {
     try
@@ -84,6 +137,21 @@ Instance::Instance(
         _batchFlusher = new IceUtil::Timer();
         _timer = new IceUtil::Timer();
 
+        string policy = properties->getProperty(name + ".Send.QueueSizeMaxPolicy");
+        if(policy == "RemoveSubscriber")
+        {
+            const_cast<SendQueueSizeMaxPolicy&>(_sendQueueSizeMaxPolicy) = RemoveSubscriber;
+        }
+        else if(policy == "DropEvents")
+        {
+            const_cast<SendQueueSizeMaxPolicy&>(_sendQueueSizeMaxPolicy) = DropEvents;
+        }
+        else if(!policy.empty())
+        {
+            Ice::Warning warn(_traceLevels->logger);
+            warn << "invalid value `" << policy << "' for `" << name << ".Send.QueueSizeMaxPolicy'";
+        }
+
         //
         // If an Ice metrics observer is setup on the communicator, also
         // enable metrics for IceStorm.
@@ -104,11 +172,6 @@ Instance::Instance(
         throw;
     }
     __setNoDelete(false);
-}
-
-Instance::~Instance()
-{
-    //cout << "~Instance" << endl;
 }
 
 void
@@ -237,6 +300,18 @@ Instance::sendTimeout() const
     return _sendTimeout;
 }
 
+int
+Instance::sendQueueSizeMax() const
+{
+    return _sendQueueSizeMax;
+}
+
+Instance::SendQueueSizeMaxPolicy
+Instance::sendQueueSizeMaxPolicy() const
+{
+    return _sendQueueSizeMaxPolicy;
+}
+
 void
 Instance::shutdown()
 {
@@ -268,4 +343,10 @@ Instance::destroy()
     // replica (TopicManager) which holds the instance causing a
     // cyclic reference.
     _node = 0;
+    //
+    // The observer instance must be cleared as it holds the
+    // TopicManagerImpl which hodlds the instance causing a
+    // cyclic reference.
+    //
+    _observer = 0;
 }

@@ -20,14 +20,15 @@ namespace IceInternal
 class ICE_API Connector : public ::IceUtil::Shared
 {
 public:
-    
+
+    virtual ~Connector();
+
     virtual TransceiverPtr connect() = 0;
 
     virtual Ice::Short type() const = 0;
     virtual std::string toString() const = 0;
 
     virtual bool operator==(const Connector&) const = 0;
-    virtual bool operator!=(const Connector&) const = 0;
     virtual bool operator<(const Connector&) const = 0;
 };
 

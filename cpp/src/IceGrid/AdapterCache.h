@@ -13,7 +13,7 @@
 #include <IceUtil/Mutex.h>
 #include <IceUtil/Shared.h>
 #include <IceGrid/Cache.h>
-#include <IceGrid/Query.h>
+#include <IceGrid/Registry.h>
 #include <IceGrid/Internal.h>
 
 #include <set>
@@ -42,7 +42,7 @@ struct LocatorAdapterInfo
 };
 typedef std::vector<LocatorAdapterInfo> LocatorAdapterInfoSeq;
 
-class AdapterEntry : virtual public IceUtil::Shared
+class AdapterEntry : public virtual IceUtil::Shared
 {
 public:
     

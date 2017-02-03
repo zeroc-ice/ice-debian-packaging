@@ -44,7 +44,7 @@ namespace IceUtil
 
 typedef void (*CtrlCHandlerCallback)(int);
 
-class ICE_UTIL_API CtrlCHandler
+class ICE_API CtrlCHandler
 {
 public:
 
@@ -55,14 +55,16 @@ public:
     CtrlCHandlerCallback getCallback() const;
 };
 
-class ICE_UTIL_API CtrlCHandlerException : public Exception
+class ICE_API CtrlCHandlerException : public ExceptionHelper<CtrlCHandlerException>
 { 
 public:
  
     CtrlCHandlerException(const char*, int);
-    virtual std::string ice_name() const;
+    virtual std::string ice_id() const;
+
+#ifndef ICE_CPP11_MAPPING
     virtual CtrlCHandlerException* ice_clone() const;
-    virtual void ice_throw() const;
+#endif
 };
 
 }

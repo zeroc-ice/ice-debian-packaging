@@ -14,11 +14,11 @@ public sealed class UnexpectedObjectExceptionTestI : Ice.Blobject
     public override bool ice_invoke(byte[] inParams, out byte[] outParams, Ice.Current current)
     {
         Ice.Communicator communicator = current.adapter.getCommunicator();
-        Ice.OutputStream @out = Ice.Util.createOutputStream(communicator);
+        Ice.OutputStream @out = new Ice.OutputStream(communicator);
         @out.startEncapsulation(current.encoding, Ice.FormatType.DefaultFormat);
         AlsoEmpty ae = new AlsoEmpty();
-        Test.AlsoEmptyHelper.write(@out, ae);
-        @out.writePendingObjects();
+        @out.writeValue(ae);
+        @out.writePendingValues();
         @out.endEncapsulation();
         outParams = @out.finished();
         return true;

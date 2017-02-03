@@ -30,12 +30,10 @@ internal class EndpointI : IceInternal.EndpointI
         return _endpoint.getInfo();
     }
 
-    public override void streamWrite(IceInternal.BasicStream s)
+    public override void streamWriteImpl(Ice.OutputStream s)
     {
-        s.startWriteEncaps();
         s.writeShort(_endpoint.type());
         _endpoint.streamWrite(s);
-        s.endWriteEncaps();
     }
 
     public override short type()

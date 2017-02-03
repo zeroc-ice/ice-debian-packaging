@@ -15,99 +15,106 @@
 #include <Ice/Format.h>
 #include <Ice/Handle.h>
 #include <Ice/ObjectF.h>
-#include <Ice/StreamF.h>
-
-namespace IceInternal
-{
-
-class BasicStream;
-
-namespace Ex
-{
-
-ICE_API void throwUOE(const ::std::string&, const ::Ice::ObjectPtr&);
-ICE_API void throwMemoryLimitException(const char*, int, size_t, size_t);
-ICE_API void throwMarshalException(const char*, int, const std::string&);
-
-}
-
-}
+#include <Ice/ValueF.h>
 
 namespace Ice
 {
 
+class OutputStream;
+class InputStream;
+
 typedef IceUtil::Exception Exception;
 
+//
+// Base class for all Ice run-time exceptions
+//
 class ICE_API LocalException : public IceUtil::Exception
 {
 public:
 
     LocalException(const char*, int);
+
+#ifdef ICE_CPP11_COMPILER
+    LocalException(const LocalException&) = default;
+    virtual ~LocalException();
+#else
     virtual ~LocalException() throw();
-    virtual std::string ice_name() const = 0;
+#endif
+
+#ifdef ICE_CPP11_MAPPING
+    std::unique_ptr<LocalException> ice_clone() const;
+#else
     virtual LocalException* ice_clone() const = 0;
-    virtual void ice_throw() const = 0;
+#endif
+
+    static const std::string& ice_staticId();
 };
 
+
+//
+// Base class for all Ice user exceptions
+//
 class ICE_API UserException : public IceUtil::Exception
 {
 public:
 
-    virtual std::string ice_name() const = 0;
+    virtual void _write(::Ice::OutputStream*) const;
+    virtual void _read(::Ice::InputStream*);
+
+    virtual bool _usesClasses() const;
+
+#ifdef ICE_CPP11_MAPPING
+    std::unique_ptr<UserException> ice_clone() const;
+#else
     virtual UserException* ice_clone() const = 0;
-    virtual void ice_throw() const = 0;
+#endif
 
-    virtual void __write(::IceInternal::BasicStream*) const;
-    virtual void __read(::IceInternal::BasicStream*);
-
-    virtual void __write(const OutputStreamPtr&) const;
-    virtual void __read(const InputStreamPtr&);
-
-    virtual bool __usesClasses() const;
+    static const std::string& ice_staticId();
 
 protected:
 
-    virtual void __writeImpl(::IceInternal::BasicStream*) const = 0;
-    virtual void __readImpl(::IceInternal::BasicStream*) = 0;
-
-    virtual void __writeImpl(const OutputStreamPtr&) const;
-    virtual void __readImpl(const InputStreamPtr&);
+    virtual void _writeImpl(::Ice::OutputStream*) const {}
+    virtual void _readImpl(::Ice::InputStream*) {}
 };
 
-typedef ::IceInternal::Handle<UserException> UserExceptionPtr;
 
+//
+// Base class for all Ice system exceptions
+//
 class ICE_API SystemException : public IceUtil::Exception
 {
 public:
 
     SystemException(const char*, int);
+#ifdef ICE_CPP11_COMPILER
+    SystemException(const SystemException&) = default;
+    virtual ~SystemException();
+#else
     virtual ~SystemException() throw();
-    virtual std::string ice_name() const = 0;
+#endif
+
+#ifdef ICE_CPP11_MAPPING
+    std::unique_ptr<SystemException> ice_clone() const;
+#else
     virtual SystemException* ice_clone() const = 0;
-    virtual void ice_throw() const = 0;
+#endif
+
+    static const std::string& ice_staticId();
 };
 
-typedef ::IceInternal::Handle<SystemException> SystemExceptionPtr;
+}
 
-#if defined(__SUNPRO_CC)
-//
-// COMPILERFIX: With Sun CC the presence of the overloaded operator
-// in ProxyHandle.h
-//
-//   template<class OStream, class Y>
-//   OStream& operator<<(OStream& os, ::IceInternal::ProxyHandle<Y> p)
-//
-// prevents the compiler from using the overloaded operator for
-// Exception in IceUtil/Exception.h
-//
-//   std::ostream& operator<<(std::ostream&, const Exception&);
-//
-// thus causing a compile error and making these overloads necessary.
-//
-ICE_API std::ostream& operator<<(std::ostream&, const LocalException&);
-ICE_API std::ostream& operator<<(std::ostream&, const UserException&);
-ICE_API std::ostream& operator<<(std::ostream&, const SystemException&);
-#endif
+namespace IceInternal
+{
+
+namespace Ex
+{
+
+ICE_API void throwUOE(const ::std::string&, const ::Ice::ValuePtr&);
+ICE_API void throwMemoryLimitException(const char*, int, size_t, size_t);
+ICE_API void throwMarshalException(const char*, int, const std::string&);
+
+}
 
 }
 

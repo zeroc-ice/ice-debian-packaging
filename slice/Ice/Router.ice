@@ -9,9 +9,13 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build"]]
 
 #include <Ice/BuiltinSequences.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:ICE"]
 module Ice
@@ -30,6 +34,9 @@ interface Router
      *
      * Get the router's client proxy, i.e., the proxy to use for
      * forwarding requests from the client to the router.
+     *
+     * If a null proxy is returned, the client will forward requests
+     * to the router's endpoints.
      *
      * @return The router's client proxy.
      *
@@ -81,4 +88,3 @@ interface RouterFinder
 };
 
 };
-

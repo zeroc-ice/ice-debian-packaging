@@ -8,7 +8,6 @@
 // **********************************************************************
 
 using System;
-using System.Diagnostics;
 using System.Reflection;
 using System.Collections.Generic;
 
@@ -20,11 +19,12 @@ using System.Collections.Generic;
 
 public class Client
 {
-    private static void test(bool b)
+    private static void
+    test(bool b)
     {
-        if(!b)
+        if (!b)
         {
-            throw new System.Exception();
+            throw new Exception();
         }
     }
 
@@ -35,8 +35,8 @@ public class Client
 
         try
         {
-            System.Console.Error.Write("testing proxy & endpoint hash algorithm collisions... ");
-            System.Console.Error.Flush();
+            Console.Error.Write("testing proxy & endpoint hash algorithm collisions... ");
+            Console.Error.Flush();
             Dictionary<int, Ice.ObjectPrx> seenProxy = new Dictionary<int, Ice.ObjectPrx>();
             Dictionary<int, Ice.Endpoint> seenEndpoint = new Dictionary<int, Ice.Endpoint>();
             int proxyCollisions = 0;
@@ -50,9 +50,9 @@ public class Client
             //initData.properties.setProperty("Ice.Plugin.IceSSL", "IceSSL:IceSSL.PluginFactory");
             communicator = Ice.Util.initialize(ref args, initData);
             {
-                System.Random rand = new System.Random();
-                for(i = 0; proxyCollisions < maxCollisions && 
-                        endpointCollisions < maxCollisions  && 
+                Random rand = new Random();
+                for(i = 0; proxyCollisions < maxCollisions &&
+                        endpointCollisions < maxCollisions  &&
                         i < maxIterations; ++i)
                 {
                     System.IO.StringWriter sw = new System.IO.StringWriter();
@@ -68,7 +68,7 @@ public class Client
 
                     Ice.ObjectPrx obj = communicator.stringToProxy(sw.ToString());
                     List<Ice.Endpoint> endpoints = new List<Ice.Endpoint>(obj.ice_getEndpoints());
-                    
+
 
                     if(seenProxy.ContainsKey(obj.GetHashCode()))
                     {
@@ -82,7 +82,7 @@ public class Client
                     {
                         seenProxy[obj.GetHashCode()] = obj;
                     }
-                    
+
                     foreach(Ice.Endpoint endpoint in endpoints)
                     {
                         if(seenEndpoint.ContainsKey(endpoint.GetHashCode()))
@@ -146,7 +146,7 @@ public class Client
             }
 
             {
-                System.Random rand = new System.Random();
+                Random rand = new Random();
                 Ice.ProxyIdentityFacetKey comparer = new Ice.ProxyIdentityFacetKey();
                 proxyCollisions = 0;
                 seenProxy = new Dictionary<int, Ice.ObjectPrx>();
@@ -236,16 +236,16 @@ public class Client
             test(iComparer.GetHashCode(prx9) == iComparer.GetHashCode(prx9));
             test(ifComparer.GetHashCode(prx9) == ifComparer.GetHashCode(prx9));
 
-            System.Console.Error.WriteLine("ok");
+            Console.Error.WriteLine("ok");
 
-            System.Console.Error.Write("testing exceptions hash algorithm collisions... ");
+            Console.Error.Write("testing exceptions hash algorithm collisions... ");
 
             {
                 Dictionary<int,Test.OtherException> seenException = new Dictionary<int, Test.OtherException>();
-                System.Random rand = new System.Random();
+                Random rand = new Random();
 
                 int exceptionCollisions = 0;
-                for(i = 0; i < maxIterations && 
+                for(i = 0; i < maxIterations &&
                         exceptionCollisions < maxCollisions; ++i)
                 {
                     Test.OtherException ex = new Test.OtherException(rand.Next(100), rand.Next(100), 0, false);
@@ -274,10 +274,10 @@ public class Client
             //
             {
                 Dictionary<int,Test.OtherException> seenException = new Dictionary<int, Test.OtherException>();
-                System.Random rand = new System.Random();
+                Random rand = new Random();
 
                 int exceptionCollisions = 0;
-                for(i = 0; i < maxIterations && 
+                for(i = 0; i < maxIterations &&
                         exceptionCollisions < maxCollisions; ++i)
                 {
                     Test.OtherException ex = new Test.OtherException(rand.Next(100) * 2^30, rand.Next(100) * 2^30, rand.Next(100) * 2^30, false);
@@ -303,10 +303,10 @@ public class Client
 
             {
                 Dictionary<int,Test.BaseException> seenException = new Dictionary<int, Test.BaseException>();
-                System.Random rand = new System.Random();
+                Random rand = new Random();
 
                 int exceptionCollisions = 0;
-                for(i = 0; i < maxIterations && 
+                for(i = 0; i < maxIterations &&
                         exceptionCollisions < maxCollisions; ++i)
                 {
                     int v = rand.Next(1000);
@@ -350,16 +350,16 @@ public class Client
                 }
                 test(exceptionCollisions < maxCollisions);
             }
-            System.Console.Error.WriteLine("ok");
+            Console.Error.WriteLine("ok");
 
-            System.Console.Error.Write("testing struct hash algorithm collisions... ");
+            Console.Error.Write("testing struct hash algorithm collisions... ");
             {
                 Dictionary<int,Test.PointF> seenPointF = new Dictionary<int, Test.PointF>();
-                System.Random rand = new System.Random();
+                Random rand = new Random();
                 int structCollisions = 0;
                 for(i = 0; i < maxIterations && structCollisions < maxCollisions; ++i)
                 {
-                    Test.PointF pf = new Test.PointF((float)rand.NextDouble(), (float)rand.NextDouble(), 
+                    Test.PointF pf = new Test.PointF((float)rand.NextDouble(), (float)rand.NextDouble(),
                                                      (float)rand.NextDouble());
                     if(seenPointF.ContainsKey(pf.GetHashCode()))
                     {
@@ -384,7 +384,7 @@ public class Client
                 structCollisions = 0;
                 for(i = 0; i < maxIterations && structCollisions < maxCollisions; ++i)
                 {
-                    Test.PointD pd = new Test.PointD(rand.NextDouble(), rand.NextDouble(), 
+                    Test.PointD pd = new Test.PointD(rand.NextDouble(), rand.NextDouble(),
                                                      rand.NextDouble());
                     if(seenPointD.ContainsKey(pd.GetHashCode()))
                     {
@@ -497,7 +497,7 @@ public class Client
                 {
                     Test.Draw draw =  new Test.Draw(
                         new Test.Color(rand.Next(255), rand.Next(255), rand.Next(255), rand.Next(255)),
-                        new Test.Pen(rand.Next(10), 
+                        new Test.Pen(rand.Next(10),
                                      new Test.Color(rand.Next(255), rand.Next(255), rand.Next(255), rand.Next(255))),
                         false);
 
@@ -520,19 +520,11 @@ public class Client
                 }
                 test(structCollisions < maxCollisions);
             }
-            System.Console.Error.WriteLine("ok");
+            Console.Error.WriteLine("ok");
 
             if(communicator != null)
             {
-                try
-                {
-                    communicator.destroy();
-                }
-                catch(Ice.LocalException ex)
-                {
-                    System.Console.Error.WriteLine(ex);
-                    status = 1;
-                }
+                communicator.destroy();
             }
         }
         catch(Exception ex)

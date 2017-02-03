@@ -7,22 +7,22 @@
 //
 // **********************************************************************
 
-var Ice = require("../Ice/ModuleRegistry").Ice;
-Ice.__M.require(module,
+const Ice = require("../Ice/ModuleRegistry").Ice;
+Ice._ModuleRegistry.require(module,
     [
         "../Ice/HashUtil",
         "../Ice/ArrayUtil",
         "../Ice/StreamHelpers"
     ]);
 
-var ArrayUtil = Ice.ArrayUtil;
+const ArrayUtil = Ice.ArrayUtil;
 
 //
 // Use generic equality test from ArrayUtil.
 //
-var eq = ArrayUtil.eq;
+const eq = ArrayUtil.eq;
 
-var equals = function(other)
+function equals(other)
 {
     if(this === other)
     {
@@ -39,11 +39,10 @@ var equals = function(other)
         return false;
     }
 
-    var e1, e2;
-    for(var key in this)
+    for(let key in this)
     {
-        e1 = this[key];
-        e2 = other[key];
+        let e1 = this[key];
+        let e2 = other[key];
         if(typeof e1 == "function")
         {
             continue; // Don't need to compare functions
@@ -54,15 +53,14 @@ var equals = function(other)
         }
     }
     return true;
-};
+}
 
-var clone = function()
+function clone()
 {
-    var other = new this.constructor();
-    var e;
-    for(var key in this)
+    const other = new this.constructor();
+    for(let key in this)
     {
-        e = this[key];
+        let e = this[key];
         if(e === undefined || e === null)
         {
             other[key] = e;
@@ -85,9 +83,9 @@ var clone = function()
         }
     }
     return other;
-};
+}
 
-var memberHashCode = function(h, e)
+function memberHashCode(h, e)
 {
     if(typeof e.hashCode == "function")
     {
@@ -99,7 +97,7 @@ var memberHashCode = function(h, e)
     }
     else
     {
-        var t = typeof(e);
+        const t = typeof(e);
         if(e instanceof String || t == "string")
         {
             return Ice.HashUtil.addString(h, e);
@@ -113,28 +111,25 @@ var memberHashCode = function(h, e)
             return Ice.HashUtil.addBoolean(h, e);
         }
     }
-};
+}
 
-var hashCode = function()
+function hashCode()
 {
-    var __h = 5381;
-    var e;
-    for(var key in this)
+    let h = 5381;
+    for(let key in this)
     {
-        e = this[key];
+        let e = this[key];
         if(e === undefined || e === null || typeof e == "function")
         {
             continue;
         }
-        __h = memberHashCode(__h, e);
+        h = memberHashCode(h, e);
     }
-    return __h;
-};
+    return h;
+}
 
-Ice.Slice.defineStruct = function(constructor, legalKeyType, writeImpl, readImpl, minWireSize, fixed)
+Ice.Slice.defineStruct = function(obj, legalKeyType, variableLength)
 {
-    var obj = constructor;
-
     obj.prototype.clone = clone;
 
     obj.prototype.equals = equals;
@@ -147,10 +142,8 @@ Ice.Slice.defineStruct = function(constructor, legalKeyType, writeImpl, readImpl
         obj.prototype.hashCode = hashCode;
     }
 
-    if(readImpl && writeImpl)
+    if(obj.prototype._write && obj.prototype._read)
     {
-        obj.prototype.__write = writeImpl;
-        obj.prototype.__read = readImpl;
         obj.write = function(os, v)
         {
             if(!v)
@@ -161,27 +154,26 @@ Ice.Slice.defineStruct = function(constructor, legalKeyType, writeImpl, readImpl
                 }
                 v = obj.prototype._nullMarshalValue;
             }
-            v.__write(os);
+            v._write(os);
         };
+
         obj.read = function(is, v)
         {
             if(!v || !(v instanceof this))
             {
                 v = new this();
             }
-            v.__read(is);
+            v._read(is);
             return v;
         };
-        Object.defineProperty(obj, "minWireSize", {
-            get: function() { return minWireSize; }
-        });
-        if(fixed)
+     
+        if(variableLength)
         {
-            Ice.StreamHelpers.VSizeOptHelper.call(obj);
+            Ice.StreamHelpers.FSizeOptHelper.call(obj);
         }
         else
         {
-            Ice.StreamHelpers.FSizeOptHelper.call(obj);
+            Ice.StreamHelpers.VSizeOptHelper.call(obj);
         }
     }
     return obj;

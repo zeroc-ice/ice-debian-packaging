@@ -17,16 +17,25 @@
 #include <Ice/ConnectorF.h>
 #include <Ice/AcceptorF.h>
 
+namespace Ice
+{
+
+class OutputStream;
+class InputStream;
+
+}
+
 namespace IceInternal
 {
 
-class BasicStream;
-
-class ICE_API EndpointI_connectors : public virtual IceUtil::Shared
+class ICE_API EndpointI_connectors
+#ifndef ICE_CPP11_MAPPING
+    : public virtual IceUtil::Shared
+#endif
 {
 public:
 
-    virtual ~EndpointI_connectors() { }
+    virtual ~EndpointI_connectors();
 
     virtual void connectors(const std::vector<ConnectorPtr>&) = 0;
     virtual void exception(const Ice::LocalException&) = 0;
@@ -39,7 +48,8 @@ public:
     //
     // Marshal the endpoint.
     //
-    virtual void streamWrite(BasicStream*) const = 0;
+    virtual void streamWrite(Ice::OutputStream*) const;
+    virtual void streamWriteImpl(Ice::OutputStream*) const = 0;
 
     //
     // Return the endpoint type.
@@ -131,8 +141,10 @@ public:
     //
     // Compare endpoints for sorting purposes.
     //
+#ifndef ICE_CPP11_MAPPING
     virtual bool operator==(const Ice::LocalObject&) const = 0;
     virtual bool operator<(const Ice::LocalObject&) const = 0;
+#endif
 
     virtual ::Ice::Int hash() const = 0;
 
@@ -150,6 +162,7 @@ protected:
 
 };
 
+#ifndef ICE_CPP11_MAPPING
 inline bool operator==(const EndpointI& l, const EndpointI& r)
 {
     return static_cast<const ::Ice::LocalObject&>(l) == static_cast<const ::Ice::LocalObject&>(r);
@@ -159,6 +172,7 @@ inline bool operator<(const EndpointI& l, const EndpointI& r)
 {
     return static_cast<const ::Ice::LocalObject&>(l) < static_cast<const ::Ice::LocalObject&>(r);
 }
+#endif
 
 template<typename T> class InfoI : public T
 {
@@ -166,6 +180,8 @@ public:
 
     InfoI(const EndpointIPtr& endpoint) : _endpoint(endpoint)
     {
+        T::compress = _endpoint->compress();
+        T::timeout = _endpoint->timeout();
     }
 
     virtual Ice::Short

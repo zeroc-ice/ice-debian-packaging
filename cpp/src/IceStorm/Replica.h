@@ -34,11 +34,9 @@ struct GroupNodeInfo
     const Ice::ObjectPrx observer;
 };
 
-class Replica : virtual public IceUtil::Shared
+class Replica : public virtual IceUtil::Shared
 {
 public:
-
-    ~Replica();
 
     virtual LogUpdate getLastLogUpdate() const = 0;
     virtual void sync(const Ice::ObjectPrx&) = 0;

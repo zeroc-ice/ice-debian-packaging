@@ -24,7 +24,8 @@ run(int argc, char* argv[], const Ice::CommunicatorPtr& communicator)
 
     {
         ostringstream os;
-        os << "default -p " << (12010 + num);
+        os << getTestEndpoint(communicator, num);
+        cerr << os.str() << endl;
         properties->setProperty("ControlAdapter.Endpoints", os.str());
     }
     {
@@ -37,7 +38,7 @@ run(int argc, char* argv[], const Ice::CommunicatorPtr& communicator)
     {
         ostringstream os;
         os << "controller" << num;
-        adapter->add(new ControllerI, communicator->stringToIdentity(os.str()));
+        adapter->add(ICE_MAKE_SHARED(ControllerI), Ice::stringToIdentity(os.str()));
     }
     adapter->activate();
 
@@ -60,7 +61,8 @@ main(int argc, char* argv[])
 
     try
     {
-        communicator = Ice::initialize(argc, argv);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator);
     }
     catch(const Ice::Exception& ex)
@@ -71,15 +73,7 @@ main(int argc, char* argv[])
 
     if(communicator)
     {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
+        communicator->destroy();
     }
 
     return status;

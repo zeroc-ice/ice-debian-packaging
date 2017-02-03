@@ -7,10 +7,9 @@
 //
 // **********************************************************************
 
-var Ice = require("../Ice/ModuleRegistry").Ice;
-Ice.__M.require(module,
+const Ice = require("../Ice/ModuleRegistry").Ice;
+Ice._ModuleRegistry.require(module,
     [
-        "../Ice/Class",
         "../Ice/Debug",
         "../Ice/ExUtil",
         "../Ice/Network",
@@ -21,7 +20,7 @@ Ice.__M.require(module,
         "../Ice/Timer",
         "../Ice/ConnectionInfo"
     ]);
-var IceSSL = Ice.__M.module("IceSSL");
+const IceSSL = Ice._ModuleRegistry.module("IceSSL");
 
 //
 // With Chrome we don't want to close the socket while connection is in progress,
@@ -29,49 +28,51 @@ var IceSSL = Ice.__M.module("IceSSL");
 //
 // We need to check for Edge browser as it might include Chrome in its user agent.
 //
-var IsChrome = navigator.userAgent.indexOf("Edge/") === -1 &&
-               navigator.userAgent.indexOf("Chrome/") !== -1;
+const IsChrome = navigator.userAgent.indexOf("Edge/") === -1 &&
+                 navigator.userAgent.indexOf("Chrome/") !== -1;
 
-var Debug = Ice.Debug;
-var ExUtil = Ice.ExUtil;
-var Network = Ice.Network;
-var SocketOperation = Ice.SocketOperation;
-var Conn = Ice.Connection;
-var LocalException = Ice.LocalException;
-var SocketException = Ice.SocketException;
-var Timer = Ice.Timer;
+const Debug = Ice.Debug;
+const ExUtil = Ice.ExUtil;
+const Network = Ice.Network;
+const SocketOperation = Ice.SocketOperation;
+const Conn = Ice.Connection;
+const LocalException = Ice.LocalException;
+const SocketException = Ice.SocketException;
+const Timer = Ice.Timer;
 
-var StateNeedConnect = 0;
-var StateConnectPending = 1;
-var StateConnected = 2;
-var StateClosePending = 3;
-var StateClosed = 4;
+const StateNeedConnect = 0;
+const StateConnectPending = 1;
+const StateConnected = 2;
+const StateClosePending = 3;
+const StateClosed = 4;
 
-var WSTransceiver = Ice.Class({
-    __init__: function(instance)
+class WSTransceiver
+{
+    constructor(instance)
     {
-        this._logger = instance.logger();
         this._readBuffers = [];
         this._readPosition = 0;
         this._maxSendPacketSize = instance.properties().getPropertyAsIntWithDefault("Ice.TCP.SndSize", 512 * 1024);
         this._writeReadyTimeout = 0;
-    },
-    writeReadyTimeout: function()
+    }
+
+    writeReadyTimeout()
     {
         var t = Math.round(this._writeReadyTimeout);
         this._writeReadyTimeout +=  (this._writeReadyTimeout >= 5 ? 5 : 0.2);
         return Math.min(t, 25);
-    },
-    setCallbacks: function(connectedCallback, bytesAvailableCallback, bytesWrittenCallback)
+    }
+
+    setCallbacks(connectedCallback, bytesAvailableCallback, bytesWrittenCallback)
     {
         this._connectedCallback = connectedCallback;
         this._bytesAvailableCallback = bytesAvailableCallback;
         this._bytesWrittenCallback = bytesWrittenCallback;
-    },
+    }
     //
     // Returns SocketOperation.None when initialization is complete.
     //
-    initialize: function(readBuffer, writeBuffer)
+    initialize(readBuffer, writeBuffer)
     {
         try
         {
@@ -85,10 +86,9 @@ var WSTransceiver = Ice.Class({
                 this._state = StateConnectPending;
                 this._fd = new WebSocket(this._url, "ice.zeroc.com");
                 this._fd.binaryType = "arraybuffer";
-                var self = this;
-                this._fd.onopen = function(e) { self.socketConnected(e); };
-                this._fd.onmessage = function(e) { self.socketBytesAvailable(e.data); };
-                this._fd.onclose = function(e) { self.socketClosed(e); };
+                this._fd.onopen = e => this.socketConnected(e);
+                this._fd.onmessage = e => this.socketBytesAvailable(e.data);
+                this._fd.onclose = e => this.socketClosed(e);
                 return SocketOperation.Connect; // Waiting for connect to complete.
             }
             else if(this._state === StateConnectPending)
@@ -111,8 +111,9 @@ var WSTransceiver = Ice.Class({
 
         Debug.assert(this._state === StateConnected);
         return SocketOperation.None;
-    },
-    register: function()
+    }
+
+    register()
     {
         //
         // Register the socket data listener.
@@ -123,15 +124,17 @@ var WSTransceiver = Ice.Class({
             this._bytesAvailableCallback();
             this._hasBytesAvailable = false;
         }
-    },
-    unregister: function()
+    }
+
+    unregister()
     {
         //
         // Unregister the socket data listener.
         //
         this._registered = false;
-    },
-    close: function()
+    }
+
+    close()
     {
         if(this._fd === null)
         {
@@ -167,11 +170,12 @@ var WSTransceiver = Ice.Class({
         {
             this._fd = null;
         }
-    },
+    }
+
     //
     // Returns true if all of the data was flushed to the kernel buffer.
     //
-    write: function(byteBuffer)
+    write(byteBuffer)
     {
         if(this._exception)
         {
@@ -182,6 +186,22 @@ var WSTransceiver = Ice.Class({
             return true;
         }
         Debug.assert(this._fd);
+
+        var transceiver = this;
+        var cb = function()
+        {
+            if(transceiver._fd)
+            {
+                if(transceiver._fd.bufferedAmount + packetSize <= transceiver._maxSendPacketSize)
+                {
+                    transceiver._bytesWrittenCallback(0, 0);
+                }
+                else
+                {
+                    Timer.setTimeout(cb, transceiver.writeReadyTimeout());
+                }
+            }
+        };
 
         var i = byteBuffer.position;
         while(true)
@@ -195,15 +215,7 @@ var WSTransceiver = Ice.Class({
             Debug.assert(packetSize > 0);
             if(this._fd.bufferedAmount + packetSize > this._maxSendPacketSize)
             {
-                var transceiver = this;
-                Timer.setTimeout(function()
-                    {
-                        if(transceiver._fd && transceiver._fd.bufferedAmount + packetSize <= transceiver._maxSendPacketSize)
-                        {
-                            transceiver._bytesWrittenCallback(0, 0);
-                        }
-                    },
-                    this.writeReadyTimeout());
+                Timer.setTimeout(cb, this.writeReadyTimeout());
                 return false;
             }
             this._writeReadyTimeout = 0;
@@ -212,8 +224,9 @@ var WSTransceiver = Ice.Class({
             byteBuffer.position = byteBuffer.position + packetSize;
         }
         return true;
-    },
-    read: function(byteBuffer, moreData)
+    }
+
+    read(byteBuffer, moreData)
     {
         if(this._exception)
         {
@@ -264,40 +277,44 @@ var WSTransceiver = Ice.Class({
         moreData.value = this._readBuffers.byteLength > 0;
 
         return byteBuffer.remaining === 0;
-    },
-    type: function()
+    }
+
+    type()
     {
         return this._secure ? "wss" : "ws";
-    },
-    getInfo: function()
+    }
+
+    getInfo()
     {
         Debug.assert(this._fd !== null);
-        var info = this._secure ? new IceSSL.WSSConnectionInfo() : new Ice.WSConnectionInfo();
-
-        //
-        // The WebSocket API doens't provide this info
-        //
-        info.localAddress = "";
-        info.localPort = -1;
-        info.remoteAddress = this._addr.host;
-        info.remotePort = this._addr.port;
+        var info = new Ice.WSConnectionInfo();
+        var tcpinfo = new Ice.TCPConnectionInfo();
+        tcpinfo.localAddress = "";
+        tcpinfo.localPort = -1;
+        tcpinfo.remoteAddress = this._addr.host;
+        tcpinfo.remotePort = this._addr.port;
+        info.underlying = this._secure ? new IceSSL.ConnectionInfo(tcpinfo, tcpinfo.timeout, tcpinfo.compress) : tcpinfo;
         info.rcvSize = -1;
         info.sndSize = this._maxSendPacketSize;
         info.headers = {};
         return info;
-    },
-    checkSendSize: function(stream)
+    }
+
+    checkSendSize(stream)
     {
-    },
-    setBufferSize: function(rcvSize, sndSize)
+    }
+
+    setBufferSize(rcvSize, sndSize)
     {
         this._maxSendPacketSize = sndSize;
-    },
-    toString: function()
+    }
+
+    toString()
     {
         return this._desc;
-    },
-    socketConnected: function(e)
+    }
+
+    socketConnected(e)
     {
         if(this._state == StateClosePending)
         {
@@ -307,8 +324,9 @@ var WSTransceiver = Ice.Class({
 
         Debug.assert(this._connectedCallback !== null);
         this._connectedCallback();
-    },
-    socketBytesAvailable: function(buf)
+    }
+
+    socketBytesAvailable(buf)
     {
         Debug.assert(this._bytesAvailableCallback !== null);
         if(buf.byteLength > 0)
@@ -323,8 +341,9 @@ var WSTransceiver = Ice.Class({
                 this._hasBytesAvailable = true;
             }
         }
-    },
-    socketClosed: function(err)
+    }
+
+    socketClosed(err)
     {
         if(this._state == StateClosePending)
         {
@@ -341,8 +360,30 @@ var WSTransceiver = Ice.Class({
         {
             this._bytesAvailableCallback();
         }
-    },
-});
+    }
+
+    static createOutgoing(instance, secure, addr, resource)
+    {
+        var transceiver = new WSTransceiver(instance);
+
+        var url = secure ? "wss" : "ws";
+        url += "://" + addr.host;
+        if(addr.port !== 80)
+        {
+            url += ":" + addr.port;
+        }
+        url += resource ? resource : "/";
+        transceiver._url = url;
+        transceiver._fd = null;
+        transceiver._addr = addr;
+        transceiver._desc = "local address = <not available>\nremote address = " + addr.host + ":" + addr.port;
+        transceiver._state = StateNeedConnect;
+        transceiver._secure = secure;
+        transceiver._exception = null;
+
+        return transceiver;
+    }
+}
 
 function fdToString(address)
 {
@@ -364,27 +405,5 @@ function translateError(state, err)
         return new Ice.SocketException(err.code, err);
     }
 }
-
-WSTransceiver.createOutgoing = function(instance, secure, addr, resource)
-{
-    var transceiver = new WSTransceiver(instance);
-
-    var url = secure ? "wss" : "ws";
-    url += "://" + addr.host;
-    if(addr.port !== 80)
-    {
-        url += ":" + addr.port;
-    }
-    url += resource ? resource : "/";
-    transceiver._url = url;
-    transceiver._fd = null;
-    transceiver._addr = addr;
-    transceiver._desc = "local address = <not available>\nremote address = " + addr.host + ":" + addr.port;
-    transceiver._state = StateNeedConnect;
-    transceiver._secure = secure;
-    transceiver._exception = null;
-
-    return transceiver;
-};
 
 Ice.WSTransceiver = WSTransceiver;

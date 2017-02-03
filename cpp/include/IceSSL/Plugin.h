@@ -10,34 +10,43 @@
 #ifndef ICE_SSL_PLUGIN_H
 #define ICE_SSL_PLUGIN_H
 
-#include <IceUtil/Time.h>
 #include <Ice/Plugin.h>
+#include <Ice/UniqueRef.h>
 #include <IceSSL/Config.h>
 #include <IceSSL/ConnectionInfo.h>
+
+#ifdef ICE_CPP11_MAPPING
+#   include <chrono>
+#else
+#   include <IceUtil/Time.h>
+#endif
 
 #include <vector>
 #include <list>
 
 // For struct sockaddr_storage
 #ifdef _WIN32
+#ifndef ICE_OS_UWP
 #   include <winsock2.h>
+#endif
 #else
 #   include <sys/socket.h>
 #endif
 
 #if defined(ICE_USE_SECURE_TRANSPORT)
 #   include <CoreFoundation/CFError.h>
+#   include <Security/Security.h>
 #elif defined(ICE_USE_SCHANNEL)
 #   include <wincrypt.h>
 #endif
 
-#ifndef ICE_SSL_API
-#   ifdef ICE_SSL_API_EXPORTS
-#       define ICE_SSL_API ICE_DECLSPEC_EXPORT
-#   elif defined(ICE_STATIC_LIBS)
-#       define ICE_SSL_API /**/
+#ifndef ICESSL_API
+#   if defined(ICE_STATIC_LIBS)
+#       define ICESSL_API /**/
+#   elif defined(ICESSL_API_EXPORTS)
+#       define ICESSL_API ICE_DECLSPEC_EXPORT
 #   else
-#       define ICE_SSL_API ICE_DECLSPEC_IMPORT
+#       define ICESSL_API ICE_DECLSPEC_IMPORT
 #   endif
 #endif
 
@@ -49,48 +58,25 @@
 // connections.
 //
 typedef struct ssl_ctx_st SSL_CTX;
-
-//
-// Pointer to an opaque certificate object. X509_st is the OpenSSL
-// type that represents a certificate.
-//
-typedef struct x509_st* X509CertificateRef;
-
-//
-// EVP_PKEY is the OpenSSL type that represents a public key.
-//
-typedef struct evp_pkey_st* KeyRef;
-
-//
-// Type that represents an X509 distinguished name
-//
 typedef struct X509_name_st X509NAME;
+
+typedef struct x509_st* X509CertificateRef;
+typedef struct evp_pkey_st* KeyRef;
 
 #elif defined(ICE_USE_SECURE_TRANSPORT)
 
-//
-// Pointer to an opaque certificate object.
-//
-struct OpaqueSecCertificateRef;
-typedef struct OpaqueSecCertificateRef* X509CertificateRef;
-
-//
-// Pointer to an opaque key object.
-//
-struct OpaqueSecKeyRef;
-typedef struct OpaqueSecKeyRef* KeyRef;
+typedef SecCertificateRef X509CertificateRef;
+typedef SecKeyRef KeyRef;
 
 #elif defined(ICE_USE_SCHANNEL)
 
-//
-// Pointer to an opaque certificate object.
-//
 typedef CERT_SIGNED_CONTENT_INFO* X509CertificateRef;
-
-//
-// Pointer to an opaque key object.
-//
 typedef CERT_PUBLIC_KEY_INFO* KeyRef;
+
+#elif defined(ICE_OS_UWP)
+
+typedef Windows::Security::Cryptography::Certificates::Certificate^ X509CertificateRef;
+typedef Windows::Security::Cryptography::Core::CryptographicKey^ KeyRef;
 
 #endif
 
@@ -100,15 +86,18 @@ namespace IceSSL
 //
 // This exception is thrown if the certificate cannot be read.
 //
-class ICE_SSL_API CertificateReadException : public IceUtil::Exception
+class ICESSL_API CertificateReadException : public IceUtil::ExceptionHelper<CertificateReadException>
 {
 public:
 
     CertificateReadException(const char*, int, const std::string&);
+#ifndef ICE_CPP11_COMPILER
     virtual ~CertificateReadException() throw();
-    virtual std::string ice_name() const;
+#endif
+    virtual std::string ice_id() const;
+#ifndef ICE_CPP11_MAPPING
     virtual CertificateReadException* ice_clone() const;
-    virtual void ice_throw() const;
+#endif
 
     std::string reason;
 
@@ -120,7 +109,7 @@ private:
 //
 // This exception is thrown if the certificate cannot be encoded.
 //
-class ICE_SSL_API CertificateEncodingException : public IceUtil::Exception
+class ICESSL_API CertificateEncodingException : public IceUtil::ExceptionHelper<CertificateEncodingException>
 {
 public:
 
@@ -128,10 +117,13 @@ public:
 #ifdef ICE_USE_SECURE_TRANSPORT
     CertificateEncodingException(const char*, int, CFErrorRef);
 #endif
+#ifndef ICE_CPP11_COMPILER
     virtual ~CertificateEncodingException() throw();
-    virtual std::string ice_name() const;
+#endif
+    virtual std::string ice_id() const;
+#ifndef ICE_CPP11_MAPPING
     virtual CertificateEncodingException* ice_clone() const;
-    virtual void ice_throw() const;
+#endif
 
     std::string reason;
 
@@ -143,15 +135,18 @@ private:
 //
 // This exception is thrown if a distinguished name cannot be parsed.
 //
-class ICE_SSL_API ParseException : public IceUtil::Exception
+class ICESSL_API ParseException : public IceUtil::ExceptionHelper<ParseException>
 {
 public:
 
     ParseException(const char*, int, const std::string&);
+#ifndef ICE_CPP11_COMPILER
     virtual ~ParseException() throw();
-    virtual std::string ice_name() const;
+#endif
+    virtual std::string ice_id() const;
+#ifndef ICE_CPP11_MAPPING
     virtual ParseException* ice_clone() const;
-    virtual void ice_throw() const;
+#endif
 
     std::string reason;
 
@@ -164,17 +159,23 @@ private:
 // Forward declaration.
 //
 class Certificate;
-typedef IceUtil::Handle<Certificate> CertificatePtr;
+ICE_DEFINE_PTR(CertificatePtr, Certificate);
 
 //
 // A representation of a PublicKey.
 //
-class ICE_SSL_API PublicKey : public IceUtil::Shared
+class ICESSL_API PublicKey
+#ifndef ICE_CPP11_MAPPING
+    : public virtual IceUtil::Shared
+#endif
 {
 public:
 
-    ~PublicKey();
+    PublicKey(const CertificatePtr&, KeyRef);
 
+#ifdef ICE_USE_OPENSSL
+    ~PublicKey();
+#endif
     //
     // Retrieve the native public key value wrapped by this object.
     //
@@ -186,14 +187,17 @@ public:
 
 private:
 
-    PublicKey(const CertificatePtr&, KeyRef);
     friend class Certificate;
 
     CertificatePtr _cert;
+#ifdef __APPLE__
+    IceInternal::UniqueRef<KeyRef> _key;
+#else
     KeyRef _key;
+#endif
 
 };
-typedef IceUtil::Handle<PublicKey> PublicKeyPtr;
+ICE_DEFINE_PTR(PublicKeyPtr, PublicKey);
 
 //
 // This class represents a DistinguishedName, similar to the Java
@@ -207,7 +211,7 @@ typedef IceUtil::Handle<PublicKey> PublicKeyPtr;
 // provided in the constructor (i.e., "ZeroC, Inc." will not turn
 // into ZeroC\, Inc.).
 //
-class ICE_SSL_API DistinguishedName
+class ICESSL_API DistinguishedName
 {
 public:
 
@@ -215,7 +219,11 @@ public:
     //
     // Create a DistinguishedName using an OpenSSL value.
     //
-    DistinguishedName(X509NAME*);
+    explicit DistinguishedName(X509NAME*);
+#endif
+
+#if defined(__APPLE__) && TARGET_OS_IPHONE != 0
+    explicit DistinguishedName(CFDataRef);
 #endif
 
     //
@@ -224,7 +232,7 @@ public:
     //
     // Throws ParseException if parsing fails.
     //
-    DistinguishedName(const std::string&);
+    explicit DistinguishedName(const std::string&);
 
     //
     // Create a DistinguishedName from a list of RDN pairs,
@@ -232,15 +240,14 @@ public:
     // For example, the RDN "O=ZeroC" is represented by the
     // pair ("O", "ZeroC").
     //
-    DistinguishedName(const std::list<std::pair<std::string, std::string> >&);
+    explicit DistinguishedName(const std::list<std::pair<std::string, std::string> >&);
 
     //
     // This is an exact match. The order of the RDN components is
     // important.
     //
-    bool operator==(const DistinguishedName&) const;
-    bool operator!=(const DistinguishedName&) const;
-    bool operator<(const DistinguishedName&) const;
+    friend ICESSL_API bool operator==(const DistinguishedName&, const DistinguishedName&);
+    friend ICESSL_API bool operator<(const DistinguishedName&, const DistinguishedName&);
 
     //
     // Perform a partial match with another DistinguishedName. The function
@@ -248,6 +255,7 @@ public:
     // DistinguishedName and they have the same values.
     //
     bool match(const DistinguishedName&) const;
+    bool match(const std::string&) const;
 
     //
     // Encode the DN in RFC2253 format.
@@ -262,11 +270,40 @@ private:
     std::list<std::pair<std::string, std::string> > _unescaped;
 };
 
+inline bool
+operator>(const DistinguishedName& lhs, const DistinguishedName& rhs)
+{
+    return rhs < lhs;
+}
+
+inline bool
+operator<=(const DistinguishedName& lhs, const DistinguishedName& rhs)
+{
+    return !(lhs > rhs);
+}
+
+inline bool
+operator>=(const DistinguishedName& lhs, const DistinguishedName& rhs)
+{
+    return !(lhs < rhs);
+}
+
+inline bool
+operator!=(const DistinguishedName& lhs, const DistinguishedName& rhs)
+{
+    return !(lhs == rhs);
+}
+
 //
 // This convenience class is a wrapper around a native certificate.
 // The interface is inspired by java.security.cert.X509Certificate.
 //
-class ICE_SSL_API Certificate : public IceUtil::Shared
+class ICESSL_API Certificate :
+#ifdef ICE_CPP11_MAPPING
+        public std::enable_shared_from_this<Certificate>
+#else
+        public virtual IceUtil::Shared
+#endif
 {
 public:
 
@@ -274,9 +311,9 @@ public:
     // Construct a certificate using a native certificate.
     //
     // The Certificate class assumes ownership of the given native
-    // certificate.
     //
-    Certificate(X509CertificateRef);
+    // certificate.
+    explicit Certificate(X509CertificateRef);
     ~Certificate();
 
     //
@@ -294,7 +331,7 @@ public:
     static CertificatePtr decode(const std::string&);
 
     //
-    // Those operators compare the certificates for equality using the
+    // Compare the certificates for equality using the
     // native certificate comparison method.
     //
     bool operator==(const Certificate&) const;
@@ -330,6 +367,8 @@ public:
     //
     std::string encode() const;
 
+#if !defined(__APPLE__) || TARGET_OS_IPHONE == 0
+
     //
     // Checks that the certificate is currently valid, that is, the current
     // date falls between the validity period given in the certificate.
@@ -339,17 +378,31 @@ public:
     //
     // Checks that the certificate is valid at the given time.
     //
+#   ifdef ICE_CPP11_MAPPING
+    bool checkValidity(const std::chrono::system_clock::time_point&) const;
+#   else
     bool checkValidity(const IceUtil::Time&) const;
+#   endif
 
     //
     // Get the not-after validity time.
     //
+#   ifdef ICE_CPP11_MAPPING
+    std::chrono::system_clock::time_point getNotAfter() const;
+#   else
     IceUtil::Time getNotAfter() const;
+#   endif
 
     //
     // Get the not-before validity time.
     //
+#   ifdef ICE_CPP11_MAPPING
+    std::chrono::system_clock::time_point getNotBefore() const;
+#   else
     IceUtil::Time getNotBefore() const;
+#   endif
+
+#endif
 
     //
     // Get the serial number. This is an arbitrarily large number.
@@ -371,6 +424,7 @@ public:
     //
     DistinguishedName getIssuerDN() const;
 
+#if !defined(__APPLE__) || TARGET_OS_IPHONE == 0
     //
     // Get the values in the issuer's alternative names extension.
     //
@@ -398,16 +452,19 @@ public:
     // X509* certificate to obtain these values.
     //
     std::vector<std::pair<int, std::string> > getIssuerAlternativeNames();
+#endif
 
     //
     // Get the subject's distinguished name (DN).
     //
     DistinguishedName getSubjectDN() const;
 
+#if !defined(__APPLE__) || TARGET_OS_IPHONE == 0
     //
     // See the comment for getIssuerAlternativeNames.
     //
     std::vector<std::pair<int, std::string> > getSubjectAlternativeNames();
+#endif
 
     //
     // Retrieve the certificate version number.
@@ -434,10 +491,22 @@ public:
 
 private:
 
+#if defined(__APPLE__)
+    IceInternal::UniqueRef<X509CertificateRef> _cert;
+#else
     X509CertificateRef _cert;
+#endif
 
 #ifdef ICE_USE_SCHANNEL
     CERT_INFO* _certInfo;
+#endif
+
+#if defined(__APPLE__) && TARGET_OS_IPHONE != 0
+    void initializeAttributes() const;
+    mutable IceInternal::UniqueRef<CFDataRef> _subject;
+    mutable IceInternal::UniqueRef<CFDataRef> _issuer;
+    mutable std::string _serial;
+    mutable int _version;
 #endif
 };
 
@@ -445,9 +514,11 @@ private:
 // NativeConnectionInfo is an extension of IceSSL::ConnectionInfo that
 // provides access to native certificates.
 //
-class ICE_SSL_API NativeConnectionInfo : public ConnectionInfo
+class ICESSL_API NativeConnectionInfo : public ConnectionInfo
 {
 public:
+
+    virtual ~NativeConnectionInfo();
 
     //
     // The certificate chain. This may be empty if the peer did not
@@ -456,32 +527,20 @@ public:
     //
     std::vector<CertificatePtr> nativeCerts;
 };
-typedef IceUtil::Handle<NativeConnectionInfo> NativeConnectionInfoPtr;
+ICE_DEFINE_PTR(NativeConnectionInfoPtr, NativeConnectionInfo);
 
-//
-// WSSNativeConnectionInfo is an extension of IceSSL::WSSConnectionInfo
-// that provides access to native certificates.
-//
-class ICE_SSL_API WSSNativeConnectionInfo : public WSSConnectionInfo
-{
-public:
 
-    //
-    // The certificate chain. This may be empty if the peer did not
-    // supply a certificate. The peer's certificate (if any) is the
-    // first one in the chain.
-    //
-    std::vector<CertificatePtr> nativeCerts;
-};
-typedef IceUtil::Handle<WSSNativeConnectionInfo> WSSNativeConnectionInfoPtr;
-
+#ifndef ICE_CPP11_MAPPING // C++98 mapping
 //
 // An application can customize the certificate verification process
 // by implementing the CertificateVerifier interface.
 //
-class ICE_SSL_API CertificateVerifier : public IceUtil::Shared
+
+class ICESSL_API CertificateVerifier : public IceUtil::Shared
 {
 public:
+
+    virtual ~CertificateVerifier();
 
     //
     // Return false if the connection should be rejected, or true to
@@ -506,9 +565,11 @@ typedef IceUtil::Handle<CertificateVerifier> CertificateVerifierPtr;
 // IceSSL.DelayInit=1), configure the PasswordPrompt, then manually
 // initialize the plug-in.
 //
-class ICE_SSL_API PasswordPrompt : public IceUtil::Shared
+class ICESSL_API PasswordPrompt : public IceUtil::Shared
 {
 public:
+
+    virtual ~PasswordPrompt();
 
     //
     // The getPassword method may be invoked repeatedly, such as when
@@ -518,22 +579,37 @@ public:
     virtual std::string getPassword() = 0;
 };
 typedef IceUtil::Handle<PasswordPrompt> PasswordPromptPtr;
+#endif
 
-class ICE_SSL_API Plugin : public Ice::Plugin
+
+class ICESSL_API Plugin : public Ice::Plugin
 {
 public:
+
+    virtual ~Plugin();
+    
+    virtual std::string getEngineName() const = 0;
+    virtual Ice::Long getEngineVersion() const = 0;
 
     //
     // Establish the certificate verifier object. This should be done
     // before any connections are established.
     //
+#ifdef ICE_CPP11_MAPPING
+    virtual void setCertificateVerifier(std::function<bool(const std::shared_ptr<NativeConnectionInfo>&)>) = 0;
+#else
     virtual void setCertificateVerifier(const CertificateVerifierPtr&) = 0;
+#endif
 
     //
     // Establish the password prompt object. This must be done before
     // the plug-in is initialized.
     //
+#ifdef ICE_CPP11_MAPPING
+    virtual void setPasswordPrompt(std::function<std::string()>) = 0;
+#else
     virtual void setPasswordPrompt(const PasswordPromptPtr&) = 0;
+#endif
 
 #ifdef ICE_USE_OPENSSL
     //
@@ -557,7 +633,7 @@ public:
     virtual SSL_CTX* getContext() = 0;
 #endif
 };
-typedef IceUtil::Handle<Plugin> PluginPtr;
+ICE_DEFINE_PTR(PluginPtr, Plugin);
 
 }
 

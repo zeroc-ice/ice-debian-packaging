@@ -36,7 +36,7 @@ using namespace IceSSL;
 //
 // See: http://cvs.openssl.org/chngview?cn=22569
 //
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL && !defined(LIBRESSL_VERSION_NUMBER)
 namespace
 {
 
@@ -79,16 +79,20 @@ IceSSL_opensslVerifyCallback(int ok, X509_STORE_CTX* ctx)
 IceInternal::NativeInfoPtr
 IceSSL::TransceiverI::getNativeInfo()
 {
-    return _stream;
+    return _delegate->getNativeInfo();
 }
 
 IceInternal::SocketOperation
-IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::Buffer& writeBuffer, bool&)
+IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::Buffer& writeBuffer)
 {
-    IceInternal::SocketOperation status = _stream->connect(readBuffer, writeBuffer);
-    if(status != IceInternal::SocketOperationNone)
+    if(!_connected)
     {
-        return status;
+        IceInternal::SocketOperation status = _delegate->initialize(readBuffer, writeBuffer);
+        if(status != IceInternal::SocketOperationNone)
+        {
+            return status;
+        }
+        _connected = true;
     }
 
     if(!_ssl)
@@ -96,7 +100,17 @@ IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::B
         //
         // This static_cast is necessary due to 64bit windows. There SOCKET is a non-int type.
         //
-        BIO* bio = BIO_new_socket(static_cast<int>(_stream->fd()), 0);
+        SOCKET fd = _delegate->getNativeInfo()->fd();
+        if(fd == INVALID_SOCKET)
+        {
+            //
+            // The delegate has finished its initialization but may not have a file descriptor yet (e.g., Bluetooth).
+            // The underlying transport must (eventually) be socket-based.
+            //
+            return IceInternal::SocketOperationRead;
+        }
+
+        BIO* bio = BIO_new_socket(static_cast<int>(fd), 0);
         if(!bio)
         {
             SecurityException ex(__FILE__, __LINE__);
@@ -156,13 +170,13 @@ IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::B
         //
         // See: http://cvs.openssl.org/chngview?cn=22569
         //
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL && !defined(LIBRESSL_VERSION_NUMBER)
         IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(sslMutex);
 #endif
 
         int ret = _incoming ? SSL_accept(_ssl) : SSL_connect(_ssl);
 
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL && !defined(LIBRESSL_VERSION_NUMBER)
         sync.release();
 #endif
         if(ret <= 0)
@@ -190,56 +204,43 @@ IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::B
             }
             case SSL_ERROR_SYSCALL:
             {
-                if(ret == 0)
+                if(IceInternal::interrupted())
+                {
+                    break;
+                }
+
+                if(IceInternal::wouldBlock())
+                {
+                    if(SSL_want_read(_ssl))
+                    {
+                        return IceInternal::SocketOperationRead;
+                    }
+                    else if(SSL_want_write(_ssl))
+                    {
+                        return IceInternal::SocketOperationWrite;
+                    }
+
+                    break;
+                }
+
+                if(IceInternal::connectionLost() || IceInternal::getSocketErrno() == 0)
                 {
                     ConnectionLostException ex(__FILE__, __LINE__);
-                    ex.error = 0;
+                    ex.error = IceInternal::getSocketErrno();
                     throw ex;
                 }
-
-                if(ret == -1)
+                else
                 {
-                    if(IceInternal::interrupted())
-                    {
-                        break;
-                    }
-
-                    if(IceInternal::wouldBlock())
-                    {
-                        if(SSL_want_read(_ssl))
-                        {
-                            return IceInternal::SocketOperationRead;
-                        }
-                        else if(SSL_want_write(_ssl))
-                        {
-                            return IceInternal::SocketOperationWrite;
-                        }
-
-                        break;
-                    }
-
-                    if(IceInternal::connectionLost())
-                    {
-                        ConnectionLostException ex(__FILE__, __LINE__);
-                        ex.error = IceInternal::getSocketErrno();
-                        throw ex;
-                    }
+                    SocketException ex(__FILE__, __LINE__);
+                    ex.error = IceInternal::getSocketErrno();
+                    throw ex;
                 }
-                SocketException ex(__FILE__, __LINE__);
-                ex.error = IceInternal::getSocketErrno();
-                throw ex;
             }
             case SSL_ERROR_SSL:
             {
-                IceInternal::Address remoteAddr;
-                string desc = "<not available>";
-                if(IceInternal::fdToRemoteAddress(_stream->fd(), remoteAddr))
-                {
-                    desc = IceInternal::addrToString(remoteAddr);
-                }
                 ostringstream ostr;
                 ostr << "SSL error occurred for new " << (_incoming ? "incoming" : "outgoing")
-                     << " connection:\nremote address = " << desc << "\n" << _engine->sslErrors();
+                     << " connection:\nremote address = " << _delegate->toString() << "\n" << _engine->sslErrors();
                 ProtocolException ex(__FILE__, __LINE__);
                 ex.reason = ostr.str();
                 throw ex;
@@ -278,8 +279,7 @@ IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::B
     {
         _verified = true;
     }
-
-    _engine->verifyPeer(_stream->fd(), _host, NativeConnectionInfoPtr::dynamicCast(getInfo()));
+    _engine->verifyPeer(_host, ICE_DYNAMIC_CAST(NativeConnectionInfo, getInfo()), toString());
 
     if(_engine->securityTraceLevel() >= 1)
     {
@@ -334,15 +334,15 @@ IceSSL::TransceiverI::close()
         _ssl = 0;
     }
 
-    _stream->close();
+    _delegate->close();
 }
 
 IceInternal::SocketOperation
 IceSSL::TransceiverI::write(IceInternal::Buffer& buf)
 {
-    if(!_stream->isConnected())
+    if(!_connected)
     {
-        return _stream->write(buf);
+        return _delegate->write(buf);
     }
 
     if(buf.i == buf.b.end())
@@ -382,42 +382,35 @@ IceSSL::TransceiverI::write(IceInternal::Buffer& buf)
             }
             case SSL_ERROR_SYSCALL:
             {
-                if(ret == -1)
+                if(IceInternal::interrupted())
                 {
-                    if(IceInternal::interrupted())
-                    {
-                        continue;
-                    }
-
-                    if(IceInternal::noBuffers() && packetSize > 1024)
-                    {
-                        packetSize /= 2;
-                        continue;
-                    }
-
-                    if(IceInternal::wouldBlock())
-                    {
-                        assert(SSL_want_write(_ssl));
-                        return IceInternal::SocketOperationWrite;
-                    }
-
-                    if(IceInternal::connectionLost())
-                    {
-                        ConnectionLostException ex(__FILE__, __LINE__);
-                        ex.error = IceInternal::getSocketErrno();
-                        throw ex;
-                    }
+                    continue;
                 }
-                if(ret == 0)
+
+                if(IceInternal::noBuffers() && packetSize > 1024)
+                {
+                    packetSize /= 2;
+                    continue;
+                }
+
+                if(IceInternal::wouldBlock())
+                {
+                    assert(SSL_want_write(_ssl));
+                    return IceInternal::SocketOperationWrite;
+                }
+
+                if(IceInternal::connectionLost() || IceInternal::getSocketErrno() == 0)
                 {
                     ConnectionLostException ex(__FILE__, __LINE__);
-                    ex.error = 0;
+                    ex.error = IceInternal::getSocketErrno();
                     throw ex;
                 }
-
-                SocketException ex(__FILE__, __LINE__);
-                ex.error = IceInternal::getSocketErrno();
-                throw ex;
+                else
+                {
+                    SocketException ex(__FILE__, __LINE__);
+                    ex.error = IceInternal::getSocketErrno();
+                    throw ex;
+                }
             }
             case SSL_ERROR_SSL:
             {
@@ -440,16 +433,15 @@ IceSSL::TransceiverI::write(IceInternal::Buffer& buf)
 }
 
 IceInternal::SocketOperation
-IceSSL::TransceiverI::read(IceInternal::Buffer& buf, bool& hasMoreData)
+IceSSL::TransceiverI::read(IceInternal::Buffer& buf)
 {
-    if(!_stream->isConnected())
+    if(!_connected)
     {
-        return _stream->read(buf);
+        return _delegate->read(buf);
     }
 
     //
-    // Note: we don't set the hasMoreData flag in this implementation.
-    // We assume that OpenSSL doesn't read more SSL records than
+    // Note: We assume that OpenSSL doesn't read more SSL records than
     // necessary to fill the requested data and that the sender sends
     // Ice messages in individual SSL records.
     //
@@ -458,6 +450,8 @@ IceSSL::TransceiverI::read(IceInternal::Buffer& buf, bool& hasMoreData)
     {
         return IceInternal::SocketOperationNone;
     }
+
+    _delegate->getNativeInfo()->ready(IceInternal::SocketOperationRead, false);
 
     //
     // It's impossible for packetSize to be more than an Int.
@@ -493,43 +487,35 @@ IceSSL::TransceiverI::read(IceInternal::Buffer& buf, bool& hasMoreData)
             }
             case SSL_ERROR_SYSCALL:
             {
-                if(ret == -1)
+                if(IceInternal::interrupted())
                 {
-                    if(IceInternal::interrupted())
-                    {
-                        continue;
-                    }
-
-                    if(IceInternal::noBuffers() && packetSize > 1024)
-                    {
-                        packetSize /= 2;
-                        continue;
-                    }
-
-                    if(IceInternal::wouldBlock())
-                    {
-                        assert(SSL_want_read(_ssl));
-                        return IceInternal::SocketOperationRead;
-                    }
-
-                    if(IceInternal::connectionLost())
-                    {
-                        ConnectionLostException ex(__FILE__, __LINE__);
-                        ex.error = IceInternal::getSocketErrno();
-                        throw ex;
-                    }
+                    continue;
                 }
 
-                if(ret == 0)
+                if(IceInternal::noBuffers() && packetSize > 1024)
+                {
+                    packetSize /= 2;
+                    continue;
+                }
+
+                if(IceInternal::wouldBlock())
+                {
+                    assert(SSL_want_read(_ssl));
+                    return IceInternal::SocketOperationRead;
+                }
+
+                if(IceInternal::connectionLost() || IceInternal::getSocketErrno() == 0)
                 {
                     ConnectionLostException ex(__FILE__, __LINE__);
-                    ex.error = 0;
+                    ex.error = IceInternal::getSocketErrno();
                     throw ex;
                 }
-
-                SocketException ex(__FILE__, __LINE__);
-                ex.error = IceInternal::getSocketErrno();
-                throw ex;
+                else
+                {
+                    SocketException ex(__FILE__, __LINE__);
+                    ex.error = IceInternal::getSocketErrno();
+                    throw ex;
+                }
             }
             case SSL_ERROR_SSL:
             {
@@ -549,9 +535,9 @@ IceSSL::TransceiverI::read(IceInternal::Buffer& buf, bool& hasMoreData)
     }
 
     //
-    // Check if there's still buffered data to read. In this case, set hasMoreData to true.
+    // Check if there's still buffered data to read, set the read ready status.
     //
-    hasMoreData = SSL_pending(_ssl) > 0;
+    _delegate->getNativeInfo()->ready(IceInternal::SocketOperationRead, SSL_pending(_ssl) > 0);
 
     return IceInternal::SocketOperationNone;
 }
@@ -565,7 +551,7 @@ IceSSL::TransceiverI::protocol() const
 string
 IceSSL::TransceiverI::toString() const
 {
-    return _stream->toString();
+    return _delegate->toString();
 }
 
 string
@@ -577,17 +563,20 @@ IceSSL::TransceiverI::toDetailedString() const
 Ice::ConnectionInfoPtr
 IceSSL::TransceiverI::getInfo() const
 {
-    NativeConnectionInfoPtr info = new NativeConnectionInfo();
-    fillConnectionInfo(info, info->nativeCerts);
-    return info;
-}
-
-Ice::ConnectionInfoPtr
-IceSSL::TransceiverI::getWSInfo(const Ice::HeaderDict& headers) const
-{
-    WSSNativeConnectionInfoPtr info = new WSSNativeConnectionInfo();
-    fillConnectionInfo(info, info->nativeCerts);
-    info->headers = headers;
+    NativeConnectionInfoPtr info = ICE_MAKE_SHARED(NativeConnectionInfo);
+    info->underlying = _delegate->getInfo();
+    info->incoming = _incoming;
+    info->adapterName = _adapterName;
+    info->verified = _verified;
+    info->nativeCerts = _nativeCerts;
+    for(vector<CertificatePtr>::const_iterator p = _nativeCerts.begin(); p != _nativeCerts.end(); ++p)
+    {
+        info->certs.push_back((*p)->encode());
+    }
+    if(_ssl != 0)
+    {
+        info->cipher = SSL_get_cipher_name(_ssl); // Nothing needs to be free'd.
+    }
     return info;
 }
 
@@ -599,7 +588,7 @@ IceSSL::TransceiverI::checkSendSize(const IceInternal::Buffer&)
 void
 IceSSL::TransceiverI::setBufferSize(int rcvSize, int sndSize)
 {
-    _stream->setBufferSize(rcvSize, sndSize);
+    _delegate->setBufferSize(rcvSize, sndSize);
 }
 
 int
@@ -633,7 +622,7 @@ IceSSL::TransceiverI::verifyCallback(int ok, X509_STORE_CTX* c)
         _nativeCerts.clear();
         for(int i = 0; i < sk_X509_num(chain); ++i)
         {
-            _nativeCerts.push_back(new Certificate(X509_dup(sk_X509_value(chain, i))));
+            _nativeCerts.push_back(ICE_MAKE_SHARED(Certificate, X509_dup(sk_X509_value(chain, i))));
         }
         sk_X509_pop_free(chain, X509_free);
     }
@@ -647,14 +636,15 @@ IceSSL::TransceiverI::verifyCallback(int ok, X509_STORE_CTX* c)
     return 1;
 }
 
-IceSSL::TransceiverI::TransceiverI(const InstancePtr& instance, const IceInternal::StreamSocketPtr& stream,
+IceSSL::TransceiverI::TransceiverI(const InstancePtr& instance, const IceInternal::TransceiverPtr& delegate,
                                    const string& hostOrAdapterName, bool incoming) :
     _instance(instance),
     _engine(OpenSSLEnginePtr::dynamicCast(instance->engine())),
     _host(incoming ? "" : hostOrAdapterName),
     _adapterName(incoming ? hostOrAdapterName : ""),
     _incoming(incoming),
-    _stream(stream),
+    _delegate(delegate),
+    _connected(false),
     _verified(false),
     _ssl(0)
 {
@@ -662,32 +652,6 @@ IceSSL::TransceiverI::TransceiverI(const InstancePtr& instance, const IceInterna
 
 IceSSL::TransceiverI::~TransceiverI()
 {
-}
-
-void
-IceSSL::TransceiverI::fillConnectionInfo(const ConnectionInfoPtr& info, std::vector<CertificatePtr>& nativeCerts) const
-{
-    IceInternal::fdToAddressAndPort(_stream->fd(), info->localAddress, info->localPort, info->remoteAddress,
-                                    info->remotePort);
-    if(_stream->fd() != INVALID_SOCKET)
-    {
-        info->rcvSize = IceInternal::getRecvBufferSize(_stream->fd());
-        info->sndSize = IceInternal::getSendBufferSize(_stream->fd());
-    }
-    info->adapterName = _adapterName;
-    info->incoming = _incoming;
-    info->verified = _verified;
-    nativeCerts = _nativeCerts;
-    for(vector<CertificatePtr>::const_iterator p = _nativeCerts.begin(); p != _nativeCerts.end(); ++p)
-    {
-        info->certs.push_back((*p)->encode());
-    }
-    if(_ssl != 0)
-    {
-        info->cipher = SSL_get_cipher_name(_ssl); // Nothing needs to be free'd.
-    }
-    info->adapterName = _adapterName;
-    info->incoming = _incoming;
 }
 
 #endif

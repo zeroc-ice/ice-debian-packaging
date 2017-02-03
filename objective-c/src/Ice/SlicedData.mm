@@ -21,25 +21,25 @@
     {
         return nil;
     }
-    self->slicedData__ = slicedData;
-    self->slicedData__->__incRef();
+    self->slicedData_ = slicedData;
+    self->slicedData_->__incRef();
     return self;
 }
 
 -(void) dealloc
 {
-    self->slicedData__->__decRef();
+    self->slicedData_->__decRef();
     [super dealloc];
 }
 
 -(Ice::SlicedData*) slicedData
 {
-    return slicedData__;
+    return slicedData_;
 }
 
 @end
 
-@implementation ICEUnknownSlicedObject
+@implementation ICEUnknownSlicedValue
 
 -(id) init
 {
@@ -70,16 +70,16 @@
     return [[slicedData_ retain] autorelease];
 }
 
--(void) write__:(id<ICEOutputStream>)os
+-(void) iceWrite:(id<ICEOutputStream>)os
 {
-    [os startObject:slicedData_];
-    [os endObject];
+    [os startValue:slicedData_];
+    [os endValue];
 }
 
--(void) read__:(id<ICEInputStream>)is
+-(void) iceRead:(id<ICEInputStream>)is
 {
-    [is startObject];
-    slicedData_ = [is endObject:YES];
+    [is startValue];
+    slicedData_ = [is endValue:YES];
 
     // Initialize unknown type ID to type ID of first slice.
     Ice::SlicedData* slicedData = [((ICESlicedData*)slicedData_) slicedData];

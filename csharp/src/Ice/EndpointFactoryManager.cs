@@ -9,16 +9,14 @@
 
 namespace IceInternal
 {
-
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.Text.RegularExpressions;
 
     public sealed class EndpointFactoryManager
     {
         internal EndpointFactoryManager(Instance instance)
         {
-            instance_ = instance;
+            _instance = instance;
             _factories = new List<EndpointFactory>();
         }
 
@@ -28,7 +26,7 @@ namespace IceInternal
             {
                 for(int i = 0; i < _factories.Count; i++)
                 {
-                    EndpointFactory f = (EndpointFactory)_factories[i];
+                    EndpointFactory f = _factories[i];
                     if(f.type() == factory.type())
                     {
                         Debug.Assert(false);
@@ -44,7 +42,7 @@ namespace IceInternal
             {
                 for(int i = 0; i < _factories.Count; i++)
                 {
-                    EndpointFactory f = (EndpointFactory)_factories[i];
+                    EndpointFactory f = _factories[i];
                     if(f.type() == type)
                     {
                         return f;
@@ -77,7 +75,7 @@ namespace IceInternal
 
             if(protocol.Equals("default"))
             {
-                protocol = instance_.defaultsAndOverrides().defaultProtocol;
+                protocol = _instance.defaultsAndOverrides().defaultProtocol;
             }
 
             EndpointFactory factory = null;
@@ -109,7 +107,7 @@ namespace IceInternal
 
                 /*
                 EndpointI e = f.create(s.Substring(m.Index + m.Length), oaEndpoint);
-                BasicStream bs = new BasicStream(instance_, true);
+                BasicStream bs = new BasicStream(_instance, true);
                 e.streamWrite(bs);
                 Buffer buf = bs.getBuffer();
                 buf.b.position(0);
@@ -142,16 +140,16 @@ namespace IceInternal
                     // and ask the factory to read the endpoint data from that stream to create
                     // the actual endpoint.
                     //
-                    BasicStream bs = new BasicStream(instance_, Ice.Util.currentProtocolEncoding);
-                    bs.writeShort(ue.type());
-                    ue.streamWrite(bs);
-                    Buffer buf = bs.getBuffer();
-                    buf.b.position(0);
-                    buf.b.limit(buf.size());
-                    bs.readShort(); // type
-                    bs.startReadEncaps();
-                    EndpointI e = factory.read(bs);
-                    bs.endReadEncaps();
+                    Ice.OutputStream os = new Ice.OutputStream(_instance, Ice.Util.currentProtocolEncoding);
+                    os.writeShort(ue.type());
+                    ue.streamWrite(os);
+                    Ice.InputStream iss =
+                        new Ice.InputStream(_instance, Ice.Util.currentProtocolEncoding, os.getBuffer(), true);
+                    iss.pos(0);
+                    iss.readShort(); // type
+                    iss.startEncapsulation();
+                    EndpointI e = factory.read(iss);
+                    iss.endEncapsulation();
                     return e;
                 }
                 return ue; // Endpoint is opaque, but we don't have a factory for its type.
@@ -160,7 +158,7 @@ namespace IceInternal
             return null;
         }
 
-        public EndpointI read(BasicStream s)
+        public EndpointI read(Ice.InputStream s)
         {
             lock(this)
             {
@@ -169,7 +167,7 @@ namespace IceInternal
                 EndpointFactory factory = get(type);
                 EndpointI e = null;
 
-                s.startReadEncaps();
+                s.startEncapsulation();
 
                 if(factory != null)
                 {
@@ -180,7 +178,7 @@ namespace IceInternal
                     e = new OpaqueEndpointI(type, s);
                 }
 
-                s.endReadEncaps();
+                s.endEncapsulation();
 
                 return e;
             }
@@ -196,7 +194,7 @@ namespace IceInternal
             _factories.Clear();
         }
 
-        private readonly Instance instance_;
+        private readonly Instance _instance;
         private readonly List<EndpointFactory> _factories;
     }
 

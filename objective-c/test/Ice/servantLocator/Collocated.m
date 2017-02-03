@@ -12,10 +12,10 @@
 #import <servantLocator/ServantLocatorI.h>
 #import <TestCommon.h>
 
-@interface ServantLocatorI : TestServantLocatorI
+@interface SLServantLocatorI : TestServantLocatorI
 @end
 
-@implementation ServantLocatorI
+@implementation SLServantLocatorI
 -(ICEObject*) newServantAndCookie:(id*)cookie
 {
     *cookie = ICE_AUTORELEASE([[TestServantLocatorCookieI alloc] init]);
@@ -34,16 +34,16 @@
 }
 @end
 
-@interface TestActivationI : TestServantLocatorTestActivation<TestServantLocatorTestActivation>
+@interface SLTestActivationI : TestServantLocatorTestActivation<TestServantLocatorTestActivation>
 @end
 
-@implementation TestActivationI
+@implementation SLTestActivationI
 -(void) activateServantLocator:(BOOL)activate current:(ICECurrent *)current
 {
     if(activate)
     {
-        [current.adapter addServantLocator:ICE_AUTORELEASE([[ServantLocatorI alloc] init:@""]) category:@""];
-        [current.adapter addServantLocator:ICE_AUTORELEASE([[ServantLocatorI alloc] init:@"category"])
+        [current.adapter addServantLocator:ICE_AUTORELEASE([[SLServantLocatorI alloc] init:@""]) category:@""];
+        [current.adapter addServantLocator:ICE_AUTORELEASE([[SLServantLocatorI alloc] init:@"category"])
                                   category:@"category"];
     }
     else
@@ -64,10 +64,10 @@ run(id<ICECommunicator> communicator)
 
     id<ICEObjectAdapter> adapter = [communicator createObjectAdapter:@"TestAdapter"];
 
-    [adapter addServantLocator:ICE_AUTORELEASE([[ServantLocatorI alloc] init:@""]) category:@""];
-    [adapter addServantLocator:ICE_AUTORELEASE([[ServantLocatorI alloc] init:@"category"]) category:@"category"];
-    [adapter add:[TestServantLocatorTestIntfI testIntf] identity:[communicator stringToIdentity:@"asm"]];
-    [adapter add:[TestActivationI testActivation] identity:[communicator stringToIdentity:@"test/activation"]];
+    [adapter addServantLocator:ICE_AUTORELEASE([[SLServantLocatorI alloc] init:@""]) category:@""];
+    [adapter addServantLocator:ICE_AUTORELEASE([[SLServantLocatorI alloc] init:@"category"]) category:@"category"];
+    [adapter add:[TestServantLocatorTestIntfI testIntf] identity:[ICEUtil stringToIdentity:@"asm"]];
+    [adapter add:[SLTestActivationI testActivation] identity:[ICEUtil stringToIdentity:@"test/activation"]];
 
     TestServantLocatorTestIntfPrx* servantLocatorAllTests(id<ICECommunicator>);
     servantLocatorAllTests(communicator);
@@ -82,6 +82,13 @@ run(id<ICECommunicator> communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    ICEregisterIceSSL(YES);
+#if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+    ICEregisterIceIAP(YES);
+#endif
+#endif
+
     @autoreleasepool
     {
         int status;
@@ -92,7 +99,7 @@ main(int argc, char* argv[])
             ICEInitializationData* initData = [ICEInitializationData initializationData];
             initData.properties = defaultServerProperties(&argc, argv);
 #if TARGET_OS_IPHONE
-            initData.prefixTable__ = [NSDictionary dictionaryWithObjectsAndKeys:
+            initData.prefixTable_ = [NSDictionary dictionaryWithObjectsAndKeys:
                                       @"TestServantLocator", @"::Test",
                                       nil];
 #endif
@@ -107,15 +114,7 @@ main(int argc, char* argv[])
 
         if(communicator)
         {
-            @try
-            {
-                [communicator destroy];
-            }
-            @catch(ICEException* ex)
-            {
-            tprintf("%@\n", ex);
-                status = EXIT_FAILURE;
-            }
+            [communicator destroy];
         }
         return status;
     }

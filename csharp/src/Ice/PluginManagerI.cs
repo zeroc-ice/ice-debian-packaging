@@ -7,7 +7,6 @@
 //
 // **********************************************************************
 
-#if !SILVERLIGHT
 namespace Ice
 {
     using System;
@@ -57,15 +56,13 @@ namespace Ice
                     {
                         p.plugin.initialize();
                     }
-                    catch(PluginInitializationException ex)
+                    catch(PluginInitializationException)
                     {
-                        throw ex;
+                        throw;
                     }
                     catch(System.Exception ex)
                     {
-                        PluginInitializationException e = new PluginInitializationException(ex);
-                        e.reason = "plugin `" + p.name + "' initialization failed";
-                        throw e;
+                        throw new PluginInitializationException(String.Format("plugin `{0}' initialization failed", p.name), ex);
                     }
                     initializedPlugins.Add(p.plugin);
                 }
@@ -171,8 +168,8 @@ namespace Ice
                             }
                             catch(System.Exception ex)
                             {
-                                Ice.Util.getProcessLogger().warning("unexpected exception raised by plug-in `" +
-                                                                    p.name + "' destruction:\n" + ex.ToString());
+                                Util.getProcessLogger().warning("unexpected exception raised by plug-in `" +
+                                                                p.name + "' destruction:\n" + ex.ToString());
                             }
                         }
                     }
@@ -357,7 +354,7 @@ namespace Ice
             //
             string err = "unable to load plug-in `" + entryPoint + "': ";
             int sepPos = entryPoint.IndexOf(':');
-            if(sepPos != -1 && IceInternal.AssemblyUtil.platform_ == IceInternal.AssemblyUtil.Platform.Windows)
+            if(sepPos != -1)
             {
                 const string driveLetters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
                 if(entryPoint.Length > 3 &&
@@ -405,37 +402,6 @@ namespace Ice
             }
             catch(System.Exception ex)
             {
-#if COMPACT
-                //
-                // IceSSL is not supported with the Compact Framework.
-                //
-                if(name == "IceSSL")
-                {
-                    if(!_sslWarnOnce)
-                    {
-                        _communicator.getLogger().warning(
-                            "IceSSL plug-in not loaded: IceSSL is not supported with the .NET Compact Framework");
-                        _sslWarnOnce = true;
-                    }
-                    return;
-                }
-#else
-                //
-                // IceSSL is not yet supported with Mono. We avoid throwing an exception in that case,
-                // so the same configuration can be used with Mono or Visual C#.
-                //
-                if(IceInternal.AssemblyUtil.runtime_ == IceInternal.AssemblyUtil.Runtime.Mono && name == "IceSSL")
-                {
-                    if(!_sslWarnOnce)
-                    {
-                        _communicator.getLogger().warning(
-                            "IceSSL plug-in not loaded: IceSSL is not supported with Mono");
-                        _sslWarnOnce = true;
-                    }
-                    return;
-                }
-#endif
-
                 PluginInitializationException e = new PluginInitializationException();
                 e.reason = err + "unable to load assembly: `" + assemblyName + "': " + ex.ToString();
                 throw e;
@@ -467,13 +433,13 @@ namespace Ice
                     throw e;
                 }
             }
-            catch(System.InvalidCastException ex)
+            catch(InvalidCastException ex)
             {
                 PluginInitializationException e = new PluginInitializationException(ex);
                 e.reason = err + "InvalidCastException to Ice.PluginFactory";
                 throw e;
             }
-            catch(System.UnauthorizedAccessException ex)
+            catch(UnauthorizedAccessException ex)
             {
                 PluginInitializationException e = new PluginInitializationException(ex);
                 e.reason = err + "UnauthorizedAccessException: " + ex.ToString();
@@ -494,7 +460,7 @@ namespace Ice
             catch(PluginInitializationException ex)
             {
                 ex.reason = err + ex.reason;
-                throw ex;
+                throw;
             }
             catch(System.Exception ex)
             {
@@ -537,7 +503,5 @@ namespace Ice
         private Communicator _communicator;
         private ArrayList _plugins;
         private bool _initialized;
-        private static bool _sslWarnOnce = false;
     }
 }
-#endif

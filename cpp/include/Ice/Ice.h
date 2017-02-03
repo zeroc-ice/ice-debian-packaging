@@ -12,8 +12,9 @@
 
 #include <IceUtil/PushDisableWarnings.h>
 #include <Ice/Config.h>
-#include <Ice/DeprecatedStringConverter.h>
+#include <Ice/Comparable.h>
 #include <Ice/Initialize.h>
+#include <Ice/Optional.h>
 #include <Ice/LocalException.h>
 #include <Ice/PropertiesAdmin.h>
 #include <Ice/Properties.h>
@@ -31,13 +32,12 @@
 #include <Ice/OutgoingAsync.h>
 #include <Ice/IncomingAsync.h>
 #include <Ice/Process.h>
-#if !defined(ICE_OS_WINRT) && (!defined(__APPLE__) || TARGET_OS_IPHONE == 0)
+#if !defined(ICE_OS_UWP) && (!defined(__APPLE__) || TARGET_OS_IPHONE == 0)
 #   include <Ice/Application.h>
 #endif
 #include <Ice/Connection.h>
 #include <Ice/ConnectionAsync.h>
 #include <Ice/Functional.h>
-#include <Ice/Stream.h>
 #include <Ice/ImplicitContext.h>
 #include <Ice/Locator.h>
 #include <Ice/Router.h>
@@ -47,10 +47,14 @@
 #include <Ice/Instrumentation.h>
 #include <Ice/Metrics.h>
 #include <Ice/SliceChecksums.h>
-#if !defined(ICE_OS_WINRT) && (!defined(__APPLE__) || TARGET_OS_IPHONE == 0)
+#if !defined(ICE_OS_UWP) && (!defined(__APPLE__) || TARGET_OS_IPHONE == 0)
 #   include <Ice/Service.h>
 #endif
 #include <Ice/RegisterPlugins.h>
+#include <Ice/InterfaceByValue.h>
+#include <Ice/StringConverter.h>
+#include <Ice/IconvStringConverter.h>
+#include <Ice/UUID.h>
 #include <IceUtil/PopDisableWarnings.h>
 
 #endif

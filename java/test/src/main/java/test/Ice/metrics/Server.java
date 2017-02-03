@@ -14,26 +14,25 @@ public class Server extends test.Util.Application
     @Override
     public int run(String[] args)
     {
-        Ice.Communicator communicator = communicator();
-        Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
-        adapter.add(new MetricsI(), communicator.stringToIdentity("metrics"));
+        com.zeroc.Ice.Communicator communicator = communicator();
+        com.zeroc.Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
+        adapter.add(new MetricsI(), com.zeroc.Ice.Util.stringToIdentity("metrics"));
         adapter.activate();
 
-        communicator.getProperties().setProperty("ControllerAdapter.Endpoints", "default -p 12011");
-        Ice.ObjectAdapter controllerAdapter = communicator.createObjectAdapter("ControllerAdapter");
-        controllerAdapter.add(new ControllerI(adapter), communicator.stringToIdentity("controller"));
+        communicator.getProperties().setProperty("ControllerAdapter.Endpoints", getTestEndpoint(1));
+        com.zeroc.Ice.ObjectAdapter controllerAdapter = communicator.createObjectAdapter("ControllerAdapter");
+        controllerAdapter.add(new ControllerI(adapter), com.zeroc.Ice.Util.stringToIdentity("controller"));
         controllerAdapter.activate();
 
         return WAIT;
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.retry");
-        initData.properties.setProperty("TestAdapter.Endpoints", "default -p 12010");
+        initData.properties.setProperty("TestAdapter.Endpoints", getTestEndpoint(initData.properties, 0));
         initData.properties.setProperty("Ice.Admin.Endpoints", "tcp");
         initData.properties.setProperty("Ice.Admin.InstanceName", "server");
         initData.properties.setProperty("Ice.Warn.Connections", "0");

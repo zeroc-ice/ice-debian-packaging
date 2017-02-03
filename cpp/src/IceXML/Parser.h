@@ -18,48 +18,45 @@
 #include <map>
 
 #ifndef ICE_XML_API
-#   ifdef ICE_XML_API_EXPORTS
-#       define ICE_XML_API ICE_DECLSPEC_EXPORT
-#    elif defined(ICE_STATIC_LIBS)
+#    if defined(ICE_STATIC_LIBS)
 #       define ICE_XML_API /**/
+#    elif defined(ICE_XML_API_EXPORTS)
+#       define ICE_XML_API ICE_DECLSPEC_EXPORT
 #    else
 #       define ICE_XML_API ICE_DECLSPEC_IMPORT
 #    endif
 #endif
 
 //
-// Automatically link IceXML[D].lib with Visual C++
+// Automatically link IceXML[D|++11|++11D].lib with Visual C++
 //
 
 #if !defined(ICE_BUILDING_ICE_XML) && defined(ICE_XML_API_EXPORTS)
 #   define ICE_BUILDING_ICE_XML
 #endif
 
-#ifdef _MSC_VER
-#   if !defined(ICE_BUILDING_ICE_XML)
-#      if defined(_DEBUG) && !defined(ICE_OS_WINRT)
-#          pragma comment(lib, "IceXMLD.lib")
-#      else
-#          pragma comment(lib, "IceXML.lib")
-#      endif
-#   endif
+#if defined(_MSC_VER) && !defined(ICE_BUILDING_ICE_XML)
+#   pragma comment(lib, ICE_LIBNAME("IceXML"))
 #endif
 
 namespace IceXML
 {
 
-class ICE_XML_API ParserException : public IceUtil::Exception
+class ICE_XML_API ParserException : public IceUtil::ExceptionHelper<ParserException>
 {
 public:
 
     ParserException(const std::string&);
     ParserException(const char*, int, const std::string&);
+#ifndef ICE_CPP11_COMPILER
     virtual ~ParserException() throw();
+#endif
 
-    virtual std::string ice_name() const;
+    virtual std::string ice_id() const;
     virtual void ice_print(std::ostream&) const;
+#ifndef ICE_CPP11_MAPPING
     virtual ParserException* ice_clone() const;
-    virtual void ice_throw() const;
+#endif
 
     std::string reason() const;
 
@@ -88,6 +85,7 @@ typedef std::map<std::string, std::string> Attributes;
 class ICE_XML_API Node : public IceUtil::Shared
 {
 public:
+
     virtual ~Node();
 
     virtual NodePtr getParent() const;
@@ -99,10 +97,13 @@ public:
 
     virtual bool addChild(const NodePtr&);
 
+    virtual void destroy();
+
     int getLine() const;
     int getColumn() const;
 
 protected:
+
     Node(const NodePtr&, const std::string&, const std::string&, int, int);
 
     NodePtr _parent;
@@ -115,6 +116,7 @@ protected:
 class ICE_XML_API Element : public Node
 {
 public:
+
     Element(const NodePtr&, const std::string&, const Attributes&, int, int);
     virtual ~Element();
 
@@ -124,7 +126,10 @@ public:
 
     virtual bool addChild(const NodePtr&);
 
+    virtual void destroy();
+
 private:
+
     NodeList _children;
     Attributes _attributes;
 };
@@ -132,6 +137,7 @@ private:
 class ICE_XML_API Text : public Node
 {
 public:
+
     Text(const NodePtr&, const std::string&, int, int);
     virtual ~Text();
 };
@@ -139,6 +145,7 @@ public:
 class ICE_XML_API Document : public Node
 {
 public:
+
     Document();
     virtual ~Document();
 
@@ -146,13 +153,17 @@ public:
 
     virtual bool addChild(const NodePtr&);
 
+    virtual void destroy();
+
 private:
+
     NodeList _children;
 };
 
 class ICE_XML_API Handler
 {
 public:
+
     virtual ~Handler();
 
     virtual void startElement(const std::string&, const Attributes&, int, int) = 0;

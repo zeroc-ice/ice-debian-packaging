@@ -17,7 +17,7 @@ run(id<ICECommunicator> communicator)
     [[communicator getProperties] setProperty:@"TestOperationsAdapter.Endpoints" value:@"default -p 12010"];
     id<ICEObjectAdapter> adapter = [communicator createObjectAdapter:@"TestOperationsAdapter"];
     id<ICEObjectPrx> prx = [adapter add:[TestOperationsMyDerivedClassI myDerivedClass]
-             		       identity:[communicator stringToIdentity:@"test"]];
+                           identity:[ICEUtil stringToIdentity:@"test"]];
     //[adapter activate]; // Don't activate OA to ensure collocation is used.
 
     test(![prx ice_getConnection]);
@@ -35,6 +35,13 @@ run(id<ICECommunicator> communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    ICEregisterIceSSL(YES);
+#if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+    ICEregisterIceIAP(YES);
+#endif
+#endif
+
     int status;
     @autoreleasepool
     {
@@ -47,7 +54,7 @@ main(int argc, char* argv[])
 
             [initData.properties setProperty:@"Ice.BatchAutoFlushSize" value:@"100"];
 #if TARGET_OS_IPHONE
-            initData.prefixTable__ = [NSDictionary dictionaryWithObjectsAndKeys:
+            initData.prefixTable_ = [NSDictionary dictionaryWithObjectsAndKeys:
                                       @"TestOperations", @"::Test",
                                       nil];
 #endif
@@ -62,15 +69,7 @@ main(int argc, char* argv[])
 
         if(communicator)
         {
-            @try
-            {
-                [communicator destroy];
-            }
-            @catch(ICEException* ex)
-            {
-                tprintf("%@\n", ex);
-                status = EXIT_FAILURE;
-            }
+            [communicator destroy];
         }
     }
 

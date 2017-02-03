@@ -40,28 +40,22 @@ IceInternal::RetryTask::runTimerTask()
     // (we still need the client thread pool at this point to call
     // exception callbacks with CommunicatorDestroyedException).
     //
-    _queue->remove(this);
-}
-
-void
-IceInternal::RetryTask::requestCanceled(OutgoingBase*, const Ice::LocalException&)
-{
-    assert(false);
+    _queue->remove(ICE_SHARED_FROM_THIS);
 }
 
 void
 IceInternal::RetryTask::asyncRequestCanceled(const OutgoingAsyncBasePtr& outAsync, const Ice::LocalException& ex)
 {
-    if(_queue->cancel(this))
+    if(_queue->cancel(ICE_SHARED_FROM_THIS))
     {
         if(_instance->traceLevels()->retry >= 1)
         {
             Trace out(_instance->initializationData().logger, _instance->traceLevels()->retryCat);
             out << "operation retry canceled\n" << ex;
         }
-        if(_outAsync->completed(ex))
+        if(_outAsync->exception(ex))
         {
-            _outAsync->invokeCompletedAsync();
+            _outAsync->invokeExceptionAsync();
         }
     }
 }
@@ -97,7 +91,7 @@ IceInternal::RetryQueue::add(const ProxyOutgoingAsyncBasePtr& out, int interval)
     {
         throw CommunicatorDestroyedException(__FILE__, __LINE__);
     }
-    RetryTaskPtr task = new RetryTask(_instance, this, out);
+    RetryTaskPtr task = ICE_MAKE_SHARED(RetryTask, _instance, this, out);
     out->cancelable(task); // This will throw if the request is canceled.
     try
     {
@@ -116,7 +110,7 @@ IceInternal::RetryQueue::destroy()
     Lock sync(*this);
     assert(_instance);
 
-    set<RetryTaskPtr>::const_iterator p = _requests.begin();
+    set<RetryTaskPtr>::iterator p = _requests.begin();
     while(p != _requests.end())
     {
         if(_instance->timer()->cancel(*p))

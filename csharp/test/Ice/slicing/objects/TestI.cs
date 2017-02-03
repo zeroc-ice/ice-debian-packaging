@@ -9,6 +9,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Test;
 
 public sealed class TestI : TestIntfDisp_
@@ -17,7 +18,7 @@ public sealed class TestI : TestIntfDisp_
     {
         if(!b)
         {
-            throw new System.Exception();
+            throw new Exception();
         }
     }
 
@@ -26,7 +27,7 @@ public sealed class TestI : TestIntfDisp_
         current.adapter.getCommunicator().shutdown();
     }
 
-    public override Ice.Object SBaseAsObject(Ice.Current current)
+    public override Ice.Value SBaseAsObject(Ice.Current current)
     {
         SBase sb = new SBase();
         sb.sb = "SBase.sb";
@@ -72,14 +73,14 @@ public sealed class TestI : TestIntfDisp_
         return sbsud;
     }
 
-    public override Ice.Object SUnknownAsObject(Ice.Current current)
+    public override Ice.Value SUnknownAsObject(Ice.Current current)
     {
         SUnknown su = new SUnknown();
         su.su = "SUnknown.su";
         return su;
     }
 
-    public override void checkSUnknown(Ice.Object obj, Ice.Current current)
+    public override void checkSUnknown(Ice.Value obj, Ice.Current current)
     {
         if(current.encoding.Equals(Ice.Util.Encoding_1_0))
         {
@@ -317,10 +318,10 @@ public sealed class TestI : TestIntfDisp_
         }
     }
 
-    public override void PBSUnknownAsPreservedWithGraph_async(AMD_TestIntf_PBSUnknownAsPreservedWithGraph cb,
-                                                              Ice.Current current)
+    public override Task<Preserved>
+    PBSUnknownAsPreservedWithGraphAsync(Ice.Current current)
     {
-        PSUnknown r = new PSUnknown();
+        var r = new PSUnknown();
         r.pi = 5;
         r.ps = "preserved";
         r.psu = "unknown";
@@ -328,8 +329,7 @@ public sealed class TestI : TestIntfDisp_
         r.graph.next = new PNode();
         r.graph.next.next = new PNode();
         r.graph.next.next.next = r.graph;
-        cb.ice_response(r);
-        r.graph.next.next.next = null; // Break the cycle.
+        return Task.FromResult<Preserved>(r);
     }
 
     public override void checkPBSUnknownWithGraph(Preserved p, Ice.Current current)
@@ -349,19 +349,17 @@ public sealed class TestI : TestIntfDisp_
             test(pu.graph != pu.graph.next);
             test(pu.graph.next != pu.graph.next.next);
             test(pu.graph.next.next.next == pu.graph);
-            pu.graph.next.next.next = null;          // Break the cycle.
         }
     }
 
-    public override void PBSUnknown2AsPreservedWithGraph_async(AMD_TestIntf_PBSUnknown2AsPreservedWithGraph cb,
-                                                               Ice.Current current)
+    public override Task<Preserved>
+    PBSUnknown2AsPreservedWithGraphAsync( Ice.Current current)
     {
-        PSUnknown2 r = new PSUnknown2();
+        var r = new PSUnknown2();
         r.pi = 5;
         r.ps = "preserved";
         r.pb = r;
-        cb.ice_response(r);
-        r.pb = null; // Break the cycle.
+        return Task.FromResult<Preserved>(r);
     }
 
     public override void checkPBSUnknown2WithGraph(Preserved p, Ice.Current current)
@@ -378,7 +376,6 @@ public sealed class TestI : TestIntfDisp_
             test(pu.pi == 5);
             test(pu.ps.Equals("preserved"));
             test(pu.pb == pu);
-            pu.pb = null;          // Break the cycle.
         }
     }
 
@@ -445,15 +442,15 @@ public sealed class TestI : TestIntfDisp_
         throw ude;
     }
 
-    public override void throwPreservedException_async(AMD_TestIntf_throwPreservedException cb, Ice.Current current)
+    public override Task
+    throwPreservedExceptionAsync( Ice.Current current)
     {
-        PSUnknownException ue = new PSUnknownException();
+        var ue = new PSUnknownException();
         ue.p = new PSUnknown2();
         ue.p.pi = 5;
         ue.p.ps = "preserved";
         ue.p.pb = ue.p;
-        cb.ice_exception(ue);
-        ue.p.pb = null; // Break the cycle.
+        throw ue;
     }
 
     public override void useForward(out Forward f, Ice.Current current)

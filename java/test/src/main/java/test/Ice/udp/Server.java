@@ -14,33 +14,34 @@ public class Server extends test.Util.Application
     @Override
     public int run(String[] args)
     {
-        Ice.Properties properties = communicator().getProperties();
+        com.zeroc.Ice.Properties properties = communicator().getProperties();
 
-        int port = 12010;
+        int num = 0;
         try
         {
-            port += args.length == 1 ? Integer.parseInt(args[0]) : 0;
+            num = args.length == 1 ? Integer.parseInt(args[0]) : 0;
         }
         catch(NumberFormatException ex)
         {
+            assert(false);
         }
-        properties.setProperty("ControlAdapter.Endpoints", "tcp -p " + port);
-        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("ControlAdapter");
-        adapter.add(new TestIntfI(), communicator().stringToIdentity("control"));
+        properties.setProperty("ControlAdapter.Endpoints", getTestEndpoint(num, "tcp"));
+        com.zeroc.Ice.ObjectAdapter adapter = communicator().createObjectAdapter("ControlAdapter");
+        adapter.add(new TestIntfI(), com.zeroc.Ice.Util.stringToIdentity("control"));
         adapter.activate();
 
-        if(port == 12010)
+        if(num == 0)
         {
-            properties.setProperty("TestAdapter.Endpoints", "udp -p 12010");
-            Ice.ObjectAdapter adapter2 = communicator().createObjectAdapter("TestAdapter");
-            adapter2.add(new TestIntfI(), communicator().stringToIdentity("test"));
+            properties.setProperty("TestAdapter.Endpoints", getTestEndpoint(num, "udp"));
+            com.zeroc.Ice.ObjectAdapter adapter2 = communicator().createObjectAdapter("TestAdapter");
+            adapter2.add(new TestIntfI(), com.zeroc.Ice.Util.stringToIdentity("test"));
             adapter2.activate();
         }
 
         if(!isAndroid())
         {
-            Ice.ObjectAdapter mcastAdapter = communicator().createObjectAdapter("McastTestAdapter");
-            mcastAdapter.add(new TestIntfI(), communicator().stringToIdentity("test"));
+            com.zeroc.Ice.ObjectAdapter mcastAdapter = communicator().createObjectAdapter("McastTestAdapter");
+            mcastAdapter.add(new TestIntfI(), com.zeroc.Ice.Util.stringToIdentity("test"));
             mcastAdapter.activate();
         }
 
@@ -48,10 +49,9 @@ public class Server extends test.Util.Application
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.udp");
         initData.properties.setProperty("Ice.Warn.Connections", "0");
         initData.properties.setProperty("Ice.UDP.RcvSize", "16384");

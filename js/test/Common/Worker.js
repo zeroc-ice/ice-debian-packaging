@@ -11,7 +11,7 @@
     self : false,
     runTest : false
 */
- 
+
 var Output =
 {
     write: function(msg)
@@ -26,20 +26,52 @@ var Output =
 
 self.onmessage = function(e)
 {
-    if(e.data.type == "RunTest")
+    try
     {
         var test = e.data.test;
-        self.importScripts("/lib/Ice.js");
-        self.importScripts("/test/Common/Controller.js");
+        if(test.es5)
+        {
+            self.importScripts("/node_modules/babel-polyfill/dist/polyfill.js");
+            self.importScripts("/node_modules/regenerator-runtime/runtime.js");
+            self.importScripts("/lib/es5/Ice.js");
+            self.importScripts("/test/es5/Common/Controller.js");
+        }
+        else
+        {
+            self.importScripts("/lib/Ice.js");
+            self.importScripts("/test/Common/Controller.js");
+        }
         self.importScripts("/test/Common/TestRunner.js");
         for(var i = 0; i < test.files.length; ++i)
         {
-            self.importScripts("/test/" + test.name + "/" + test.files[i]);
+            var f = test.files[i]
+            if(f.indexOf("/") === -1)
+            {
+                f = "/test/" + test.name + "/" + f;
+                if(test.es5)
+                {
+                    f = f.replace("/test/", "/test/es5/");
+                }
+            }
+            self.importScripts(f);
         }
-        runTest(test.name, test.language, test.defaultHost, test.protocol, test.configurations, Output).then(
+
+
+        runTest(test.name, test.language, test.defaultHost, test.protocol, test.testcases, Output).then(
             function(r)
             {
                 self.postMessage({type:"TestFinished", success:r});
+            }
+        ).catch(
+            function(ex)
+            {
+                Output.writeLine(ex.toString());
+                self.postMessage({type:"TestFinished", success:false});
             });
+    }
+    catch(ex)
+    {
+        Output.writeLine(ex.toString());
+        self.postMessage({type:"TestFinished", success:false});
     }
 };

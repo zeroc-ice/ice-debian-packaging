@@ -9,6 +9,8 @@
 
 #include <Ice/GCObject.h>
 
+#ifndef ICE_CPP11_MAPPING
+
 #include <set>
 #include <stack>
 
@@ -140,10 +142,10 @@ DecreaseRefCounts::visit(GCObject* obj)
     GCCountMap::iterator p = _counts.find(obj);
     if(p == _counts.end())
     {
-        _counts.insert(make_pair(obj, obj->__getRefUnsafe() - 1));
+        _counts.insert(make_pair(obj, obj->_iceGetRefUnsafe() - 1));
         if(obj->__hasFlag(GCObject::Collectable))
         {
-            obj->__gcVisitMembers(*this);
+            obj->_iceGcVisitMembers(*this);
         }
     }
     else
@@ -177,7 +179,7 @@ RestoreRefCountsIfReachable::visit(GCObject* obj)
         // reachable children.
         //
         _counts.erase(p);
-        obj->__gcVisitMembers(*this);
+        obj->_iceGcVisitMembers(*this);
     }
     else if(p->second == 0)
     {
@@ -187,7 +189,7 @@ RestoreRefCountsIfReachable::visit(GCObject* obj)
         // being visited again.
         //
         p->second = -1;
-        obj->__gcVisitMembers(*this);
+        obj->_iceGcVisitMembers(*this);
     }
     else if(p->second > 0)
     {
@@ -199,7 +201,7 @@ RestoreRefCountsIfReachable::visit(GCObject* obj)
         _counts.erase(p); 
             
         _reachable = true;
-        obj->__gcVisitMembers(*this);
+        obj->_iceGcVisitMembers(*this);
         _reachable = false;
     }
     return false;
@@ -232,7 +234,7 @@ MarkCollectable::visit(GCObject* obj)
     _p.push(obj);
     _s.push(obj);
 
-    obj->__gcVisitMembers(_neighborsVisitor);
+    obj->_iceGcVisitMembers(_neighborsVisitor);
 
     if(_p.top() == obj)
     {
@@ -288,7 +290,7 @@ ClearCollectable::visit(GCObject* obj)
     if(obj->__hasFlag(GCObject::Collectable))
     {
         obj->__clearFlag(GCObject::Collectable | GCObject::CycleMember);
-        obj->__gcVisitMembers(*this);
+        obj->_iceGcVisitMembers(*this);
     }
     return false;
 }
@@ -354,7 +356,7 @@ IceInternal::GCObject::__setNoDelete(bool b)
 }
 
 bool
-GCObject::__gcVisit(GCVisitor& v)
+GCObject::_iceGcVisit(GCVisitor& v)
 {
     return v.visit(this);
 }
@@ -434,7 +436,7 @@ GCObject::collect(IceUtilInternal::MutexPtrLock<IceUtil::Mutex>& lock)
     }
     for(GCCountMap::const_iterator p = counts.begin(); p != counts.end(); ++p)
     {
-        p->first->__gcVisitMembers(clearMembers);
+        p->first->_iceGcVisitMembers(clearMembers);
     }
     for(GCCountMap::const_iterator p = counts.begin(); p != counts.end(); ++p)
     {
@@ -442,3 +444,4 @@ GCObject::collect(IceUtilInternal::MutexPtrLock<IceUtil::Mutex>& lock)
     }
     return true;
 }
+#endif

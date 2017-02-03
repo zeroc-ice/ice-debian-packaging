@@ -7,18 +7,20 @@
 //
 // **********************************************************************
 
+#include <IceUtil/FileUtil.h>
 #include <IceUtil/Functional.h>
 #include <IceUtil/StringUtil.h>
+#include <IceUtil/FileUtil.h>
+#include <IceUtil/ConsoleUtil.h>
 #include <Slice/FileTracker.h>
 #include <Gen.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 
 #ifdef _WIN32
-#include <direct.h>
+#   include <direct.h>
 #else
-#include <unistd.h>
+#   include <unistd.h>
 #endif
 
 #include <iterator>
@@ -705,14 +707,10 @@ Slice::GeneratorBase::printMetaData(const ContainedPtr& p, bool isUserImplemente
     userImplementedOnly.push_back("cpp:const");
     userImplementedOnly.push_back("cpp:ice_print");
     userImplementedOnly.push_back("java:serialVersionUID");
+    userImplementedOnly.push_back("java:UserException");
     userImplementedOnly.push_back("UserException");
 
-    if (isUserImplemented)
-    {
-
-    }
-
-    if (!metaData.empty())
+    if(!metaData.empty())
     {
         string outString = "";
         StringList::const_iterator q = metaData.begin();
@@ -1227,8 +1225,8 @@ Slice::GeneratorBase::getComment(const ContainedPtr& contained, const ContainerP
             if(_warnOldCommentFiles.find(fileName) == _warnOldCommentFiles.end())
             {
                 _warnOldCommentFiles.insert(fileName);
-                cerr << fileName << ": warning: file contains old-style javadoc link syntax: `[" << literal << "]'"
-                     << endl;
+                consoleErr << fileName << ": warning: file contains old-style javadoc link syntax: `[" << literal
+                           << "]'" << endl;
             }
         }
         else if(s[i] == '{')
@@ -1270,8 +1268,8 @@ Slice::GeneratorBase::getComment(const ContainedPtr& contained, const ContainerP
 
     if(summary && _warnSummary && summarySize > _warnSummary)
     {
-        cerr << contained->file() << ": warning: summary size (" << summarySize << ") exceeds " << _warnSummary
-             << " characters: `" << comment << "'" << endl;
+        consoleErr << contained->file() << ": warning: summary size (" << summarySize << ") exceeds " << _warnSummary
+                   << " characters: `" << comment << "'" << endl;
     }
     return trim(_out.convertCommentHTML(removeNewlines(comment)));
 }
@@ -1392,14 +1390,14 @@ Slice::GeneratorBase::getLinkPath(const SyntaxTreeBasePtr& p, const ContainerPtr
     {
         // Intra-package links need package name, unlike with html dir structure
         EnumeratorPtr enumerator = EnumeratorPtr::dynamicCast(p);
-	if(enumerator)
-	{
-	    target = toStringList(enumerator->type());
-	}
-	else
-	{
-	    target = getContainer(p);
-	}
+    if(enumerator)
+    {
+        target = toStringList(enumerator->type());
+    }
+    else
+    {
+        target = getContainer(p);
+    }
         path = "";
         while (!target.empty()) {
             if (!path.empty()) {
@@ -1705,13 +1703,13 @@ Slice::GeneratorBase::warnOldStyleIdent(const string& str, const string& fileNam
             lastName = newName.substr(pos + 1);
         }
 
-        cerr << fileName << ": warning: file contains old-style javadoc identifier syntax: `" << str << "'."
-             << " Use `'" << newName << "'";
+        consoleErr << fileName << ": warning: file contains old-style javadoc identifier syntax: `" << str << "'."
+                   << " Use `'" << newName << "'";
         if(!alternateName.empty())
         {
-             cerr << " or `" << alternateName << "' if `" << lastName << "' is a member";
+             consoleErr << " or `" << alternateName << "' if `" << lastName << "' is a member";
         }
-        cerr << endl;
+        consoleErr << endl;
     }
 }
 
@@ -1780,8 +1778,7 @@ void
 Slice::GeneratorBase::makeDir(const string& dir)
 {
     struct stat st;
-    int rc = stat(dir.c_str(), &st);
-    if(rc == 0)
+    if(!IceUtilInternal::stat(dir, &st))
     {
         if(!(st.st_mode & S_IFDIR))
         {
@@ -1793,12 +1790,7 @@ Slice::GeneratorBase::makeDir(const string& dir)
         return;
     }
 
-#ifdef _WIN32
-    rc = _mkdir(dir.c_str());
-#else
-    rc = mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
-#endif
-    if(rc != 0)
+    if(IceUtilInternal::mkdir(dir, 0777) != 0)
     {
         ostringstream os;
         os << "cannot create directory `" << dir << "': " << strerror(errno);
@@ -1810,7 +1802,7 @@ Slice::GeneratorBase::makeDir(const string& dir)
 string
 Slice::GeneratorBase::readFile(const string& file)
 {
-    ifstream in(file.c_str());
+    std::ifstream in(file.c_str());
     if(!in)
     {
         ostringstream os;
@@ -1846,7 +1838,7 @@ Slice::GeneratorBase::getFooter(const string& footer)
 void
 Slice::GeneratorBase::readFile(const string& file, string& part1, string& part2)
 {
-    ifstream in(file.c_str());
+    std::ifstream in(file.c_str());
     if(!in)
     {
         ostringstream os;
@@ -1961,8 +1953,8 @@ Slice::StartPageGenerator::printHeaderFooter()
     // Do nothing
 }
 
-Slice::FileVisitor::FileVisitor(Files& files)
-    : _files(files)
+Slice::FileVisitor::FileVisitor(Files& files) :
+    _files(files)
 {
 }
 
@@ -2024,8 +2016,8 @@ Slice::FileVisitor::visitEnum(const EnumPtr& e)
     _files.insert(e->file());
 }
 
-Slice::StartPageVisitor::StartPageVisitor(const Files& files)
-    : _spg(files)
+Slice::StartPageVisitor::StartPageVisitor(const Files& files) :
+    _spg(files)
 {
 }
 
@@ -2181,8 +2173,8 @@ TOCGenerator::writeEntry(const ContainedPtr& c)
     end();
 }
 
-TOCVisitor::TOCVisitor(const Files& files, const string& header, const string& footer)
-    : _tg(files, header, footer)
+TOCVisitor::TOCVisitor(const Files& files, const string& header, const string& footer) :
+    _tg(files, header, footer)
 {
 }
 
@@ -3271,8 +3263,8 @@ Slice::EnumGenerator::generate(const EnumPtr& e)
     assert(_out.currIndent() == indent);
 }
 
-Slice::PageVisitor::PageVisitor(const Files& files)
-    : _files(files)
+Slice::PageVisitor::PageVisitor(const Files& files) :
+    _files(files)
 {
 }
 

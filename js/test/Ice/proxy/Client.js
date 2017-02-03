@@ -27,7 +27,7 @@
                 }
                 catch(err)
                 {
-                    p.fail(err);
+                    p.reject(err);
                     throw err;
                 }
             }
@@ -37,8 +37,7 @@
 
         var defaultProtocol = communicator.getProperties().getPropertyWithDefault("Ice.Default.Protocol", "tcp");
 
-        return Promise.try(
-            function()
+        return Promise.try(() =>
             {
                 out.write("testing stringToProxy... ");
                 ref = "test:default -p 12010";
@@ -278,7 +277,7 @@
                 b1 = communicator.stringToProxy("test -e 1.0");
                 test(b1.ice_getEncodingVersion().major === 1 && b1.ice_getEncodingVersion().minor === 0);
 
-                b1 = communicator.stringToProxy("test -e 6.5");
+                b1 = communicator.stringToProxy("test -e 6z.5");
                 test(b1.ice_getEncodingVersion().major === 6 && b1.ice_getEncodingVersion().minor === 5);
 
                 b1 = communicator.stringToProxy("test -p 1.0 -e 1.0");
@@ -322,15 +321,95 @@
                     }
                 }
 
+
                 //
                 // Test for bug ICE-5543: escaped escapes in stringToIdentity
                 //
+
                 var id = new Ice.Identity("test", ",X2QNUAzSBcJ_e$AV;E\\");
-                var id2 = communicator.stringToIdentity(communicator.identityToString(id));
+                var id2 = Ice.stringToIdentity(Ice.identityToString(id));
                 test(id.equals(id2));
 
                 id = new Ice.Identity("test", ",X2QNUAz\\SB\\/cJ_e$AV;E\\\\");
-                id2 = communicator.stringToIdentity(communicator.identityToString(id));
+                id2 = Ice.stringToIdentity(Ice.identityToString(id));
+                test(id.equals(id2));
+
+                id = new Ice.Identity("/test", "cat/");
+                var idStr = Ice.identityToString(id);
+                test(idStr === "cat\\//\\/test");
+                id2 = Ice.stringToIdentity(idStr);
+                test(id.equals(id2));
+
+                // Input string with various pitfalls
+                // id = Ice.stringToIdentity("\\342\\x82\\254\\60\\x9\\60\\");
+                // test(id.name === "€0\t0\\" && id.category.isEmpty());
+
+                try
+                {
+                    // Illegal character < 32
+                    id = Ice.stringToIdentity("xx\x01FooBar");
+                    test(false);
+                }
+                catch(ex)
+                {
+                    if(!(ex instanceof Ice.IdentityParseException))
+                    {
+                        test(false);
+                    }
+                }
+                try
+                {
+                    // Illegal surrogate
+                    id = Ice.stringToIdentity("xx\\ud911");
+                    test(false);
+                }
+                catch(ex)
+                {
+                    if(!(ex instanceof Ice.IdentityParseException))
+                    {
+                        test(false);
+                    }
+                }
+
+                // Testing bytes 127 (\x7F) and €
+                id = new Ice.Identity("test", "\x7F€");
+
+                idStr = Ice.identityToString(id, Ice.ToStringMode.Unicode);
+                test(idStr === "\\u007f€/test");
+                id2 = Ice.stringToIdentity(idStr);
+                test(id.equals(id2));
+                test(Ice.identityToString(id) === idStr);
+
+                idStr = Ice.identityToString(id, Ice.ToStringMode.ASCII);
+                test(idStr === "\\u007f\\u20ac/test");
+                id2 = Ice.stringToIdentity(idStr);
+                test(id.equals(id2));
+
+                idStr = Ice.identityToString(id, Ice.ToStringMode.Compat);
+                test(idStr === "\\177\\342\\202\\254/test");
+                id2 = Ice.stringToIdentity(idStr);
+                test(id.equals(id2));
+
+                id2 = Ice.stringToIdentity(communicator.identityToString(id));
+                test(id.equals(id2));
+
+                // More unicode characters
+
+                id = new Ice.Identity("banana \x0e-\ud83c\udf4c\u20ac\u00a2\u0024", "greek \ud800\udd6a");
+
+                idStr = Ice.identityToString(id, Ice.ToStringMode.Unicode);
+                test(idStr === "greek \ud800\udd6a/banana \\u000e-\ud83c\udf4c\u20ac\u00a2$");
+                id2 = Ice.stringToIdentity(idStr);
+                test(id.equals(id2));
+
+                idStr = Ice.identityToString(id, Ice.ToStringMode.ASCII);
+                test(idStr === "greek \\U0001016a/banana \\u000e-\\U0001f34c\\u20ac\\u00a2$");
+                id2 = Ice.stringToIdentity(idStr);
+                test(id.equals(id2));
+
+                idStr = Ice.identityToString(id, Ice.ToStringMode.Compat);
+                test(idStr === "greek \\360\\220\\205\\252/banana \\016-\\360\\237\\215\\214\\342\\202\\254\\302\\242$")
+                id2 = Ice.stringToIdentity(idStr);
                 test(id.equals(id2));
 
                 out.writeLine("ok");
@@ -453,7 +532,6 @@
 
                 var proxyProps = communicator.proxyToProperty(b1, "Test");
                 test(proxyProps.size === 21);
-
                 test(proxyProps.get("Test") === "test -t -e 1.0");
                 test(proxyProps.get("Test.CollocationOptimized") === "0");
                 test(proxyProps.get("Test.ConnectionCached") === "1");
@@ -488,7 +566,9 @@
 
                 out.write("testing proxy methods... ");
                 test(communicator.identityToString(
-                        base.ice_identity(communicator.stringToIdentity("other")).ice_getIdentity()) === "other");
+                        base.ice_identity(Ice.stringToIdentity("other")).ice_getIdentity()) === "other");
+                test(Ice.identityToString(
+                    base.ice_identity(Ice.stringToIdentity("other")).ice_getIdentity()) === "other");
                 test(base.ice_facet("facet").ice_getFacet() === "facet");
                 test(base.ice_adapterId("id").ice_getAdapterId() === "id");
                 test(base.ice_twoway().ice_isTwoway());
@@ -640,9 +720,9 @@
                 test(!compObj.ice_router(null).equals(compObj.ice_router(rtr2)));
                 test(!compObj.ice_router(rtr1).equals(compObj.ice_router(rtr2)));
 
-                var ctx1 = new Ice.HashMap();
+                var ctx1 = new Map();
                 ctx1.set("ctx1", "v1");
-                var ctx2 = new Ice.HashMap();
+                var ctx2 = new Map();
                 ctx2.set("ctx2", "v2");
                 test(compObj.ice_context(null).equals(compObj.ice_context(null)));
                 test(compObj.ice_context(ctx1).equals(compObj.ice_context(ctx1)));
@@ -687,15 +767,13 @@
                 out.write("testing checked cast... ");
                 return Test.MyClassPrx.checkedCast(base);
             }
-        ).then(
-            function(prx)
+        ).then(prx =>
             {
                 cl = prx;
                 test(cl !== null);
                 return Test.MyDerivedClassPrx.checkedCast(cl);
             }
-        ).then(
-            function(prx)
+        ).then(prx =>
             {
                 derived = prx;
                 test(derived !== null);
@@ -707,22 +785,16 @@
 
                 return cl.getContext();
             }
-        ).then(
-            function(c)
+        ).then(c =>
             {
                 test(c.size === 0);
-                c = new Ice.HashMap();
+                c = new Map();
                 c.set("one", "hello");
                 c.set("two", "world");
-                return Test.MyClassPrx.checkedCast(base, undefined, c).then(
-                    function(cl)
+                return Test.MyClassPrx.checkedCast(base, undefined, c).then(cl => cl.getContext()
+                ).then(c2 =>
                     {
-                        return cl.getContext();
-                    }
-                ).then(
-                    function(c2)
-                    {
-                        test(c.equals(c2));
+                        test(Ice.MapUtil.equals(c, c2));
                         out.writeLine("ok");
 
                         out.write("testing encoding versioning... ");
@@ -732,25 +804,16 @@
                         return cl20.ice_ping();
                     });
             }
-        ).then(
-            function()
-            {
-                test(false);
-            },
-            function(ex)
+        ).then(() => test(false),
+               ex =>
             {
                 test(ex instanceof Ice.UnsupportedEncodingException);
                 var ref10 = "test -e 1.0:default -p 12010";
                 cl10 = Test.MyClassPrx.uncheckedCast(communicator.stringToProxy(ref10));
                 return cl10.ice_ping();
             }
-        ).then(
-            function()
-            {
-                return cl10.ice_encodingVersion(Ice.Encoding_1_0).ice_ping();
-            }
-        ).then(
-            function()
+        ).then(() => cl10.ice_encodingVersion(Ice.Encoding_1_0).ice_ping()
+        ).then(() =>
             {
                 // 1.3 isn't supported but since a 1.3 proxy supports 1.1, the
                 // call will use the 1.1 encoding
@@ -767,20 +830,15 @@
                 cl20 = Test.MyClassPrx.uncheckedCast(communicator.stringToProxy(ref20));
                 return cl20.ice_ping();
             }
-        ).then(
-            function()
-            {
-                test(false);
-            },
-            function(ex)
+        ).then(() => test(false),
+               ex =>
             {
                 test(ex instanceof Ice.UnsupportedProtocolException);
                 var ref10 = "test -p 1.0:default -p 12010";
                 cl10 = Test.MyClassPrx.uncheckedCast(communicator.stringToProxy(ref10));
                 return cl10.ice_ping();
             }
-        ).then(
-            function()
+        ).then(() =>
             {
                 // 1.3 isn't supported but since a 1.3 proxy supports 1.1, the
                 // call will use the 1.1 encoding
@@ -788,8 +846,7 @@
                 cl13 = Test.MyClassPrx.uncheckedCast(communicator.stringToProxy(ref13));
                 return cl13.ice_ping();
             }
-        ).then(
-            function()
+        ).then(() =>
             {
                 out.writeLine("ok");
 
@@ -973,13 +1030,8 @@
                     // NoEndpointException (or ConnectFailedException when
                     // running with SSL).
                     //
-                    return p1.ice_encodingVersion(Ice.Encoding_1_0).ice_ping().then(
-                        function(r)
-                        {
-                            test(false);
-                        }
-                    ).exception(
-                        function(ex)
+                    return p1.ice_encodingVersion(Ice.Encoding_1_0).ice_ping().then(r => test(false)).catch(
+                        ex =>
                         {
                             if(ex instanceof Ice.NoEndpointException)
                             {
@@ -995,8 +1047,7 @@
                             }
                             return p1;
                         }
-                    ).then(
-                        function(p1)
+                    ).then(p1 =>
                         {
                             //
                             // Test that the proxy with an SSL endpoint and a nonsense
@@ -1009,50 +1060,38 @@
                             var derived = Test.MyDerivedClassPrx.uncheckedCast(base);
                             return derived.echo(p1);
                         }
-                    ).then(
-                        function(p2)
+                    ).then(p2 =>
                         {
                             var pstr = communicator.proxyToString(p2);
                             test(pstr === "test -t -e 1.0:ssl -h 127.0.0.1 -p 10001 -t infinite:opaque -t 99 -e 1.0 -v abch");
                         });
                 }
             }
-        ).then(
-            function()
+        ).then(() =>
             {
                 var p = communicator.stringToProxy("test:default -p 12010");
                 if(defaultProtocol === "tcp")
                 {
                     test(p.ice_getEndpoints()[0].getInfo() instanceof Ice.TCPEndpointInfo);
                 }
-                else if(defaultProtocol === "ws")
+                else if(defaultProtocol === "ws" || defaultProtocol === "wss")
                 {
                     test(p.ice_getEndpoints()[0].getInfo() instanceof Ice.WSEndpointInfo);
                 }
-                else if(defaultProtocol === "wss")
-                {
-                    test(p.ice_getEndpoints()[0].getInfo() instanceof IceSSL.WSSEndpointInfo);
-                }
                 return p.ice_getConnection();
             }
-        ).then(
-            function(con)
+        ).then(con =>
             {
                 if(defaultProtocol === "tcp")
                 {
                     test(con.getInfo() instanceof Ice.TCPConnectionInfo);
                 }
-                else if(defaultProtocol === "ws")
+                else if(defaultProtocol === "ws" || defaultProtocol === "wss")
                 {
                     test(con.getInfo() instanceof Ice.WSConnectionInfo);
                 }
-                else if(defaultProtocol === "wss")
-                {
-                    test(con.getInfo() instanceof IceSSL.WSSConnectionInfo);
-                }
             }
-        ).then(
-            function()
+        ).then(() =>
             {
                 //
                 // Ensure that non connectable endpoints are skipped.
@@ -1064,33 +1103,46 @@
                 p = p.ice_endpointSelection(Ice.EndpointSelectionType.Ordered);
                 return p.ice_ping();
             }
-        ).then(
-            function()
+        ).then(() =>
             {
                 out.writeLine("ok");
-                var derived = Test.MyDerivedClassPrx.uncheckedCast(communicator.stringToProxy("test:default -p 12010"));
-                return derived.shutdown();
-            });
+
+                out.write("testing proxyToString... ");
+                b1 = communicator.stringToProxy(ref);
+                b2 = communicator.stringToProxy(communicator.proxyToString(b1));
+                test(b1.equals(b2));
+
+                return b1.ice_getConnection();
+            }
+        ).then(con =>
+               {
+                   b2 = con.createProxy(Ice.stringToIdentity("fixed"));
+                   str = communicator.proxyToString(b2);
+                   test(b2.toString() === str);
+                   str2 = b1.ice_identity(b2.ice_getIdentity()).ice_secure(b2.ice_isSecure()).toString();
+
+                   // Verify that the stringified fixed proxy is the same as a regular stringified proxy
+                   // but without endpoints
+                   test(str2.startsWith(str));
+                   test(str2.charAt(str.length) === ':');
+
+                   out.writeLine("ok");
+               }
+        ).then(() =>
+               {
+                    var derived = Test.MyDerivedClassPrx.uncheckedCast(communicator.stringToProxy("test:default -p 12010"));
+                    return derived.shutdown();
+               });
     }
 
     var run = function(out, id)
     {
         var communicator = Ice.initialize(id);
-        return Promise.try(
-            function()
-            {
-                return allTests(communicator, out);
-            }
-        ).finally(
-            function()
-            {
-                communicator.destroy();
-            }
-        );
+        return Promise.try(() => allTests(communicator, out)).finally(() => communicator.destroy());
     };
-    exports.__test__ = run;
-    exports.__runServer__ = true;
+    exports._test = run;
+    exports._runServer = true;
 }
 (typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? module : undefined,
- typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice.__require,
+ typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice._require,
  typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? exports : this));

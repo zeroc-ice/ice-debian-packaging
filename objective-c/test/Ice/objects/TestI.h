@@ -11,19 +11,16 @@
 
 @interface TestObjectsBI : TestObjectsB<TestObjectsB>
 {
-    BOOL _postUnmarshalInvoked;
 }
 @end
 
 @interface TestObjectsCI : TestObjectsC<TestObjectsC>
 {
-    BOOL _postUnmarshalInvoked;
 }
 @end
 
 @interface TestObjectsDI : TestObjectsD<TestObjectsD>
 {
-    BOOL _postUnmarshalInvoked;
 }
 @end
 
@@ -76,4 +73,9 @@
 @end
 
 @interface UnexpectedObjectExceptionTestI : ICEBlobject<ICEBlobject>
+@end
+
+@interface TestObjectsTestIntfI : TestObjectsTestIntf<TestObjectsTestIntf>
+-(TestObjectsBase*) opDerived:(ICECurrent *)current;
+-(void) throwDerived:(ICECurrent *)current;
 @end

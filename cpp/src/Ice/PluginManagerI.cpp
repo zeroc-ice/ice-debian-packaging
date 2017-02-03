@@ -25,7 +25,7 @@ const char * const Ice::PluginManagerI::_kindOfObject = "plugin";
 namespace
 {
 
-map<string, PLUGIN_FACTORY>* factories = 0;
+map<string, PluginFactory>* factories = 0;
 vector<string>* loadOnInitialization = 0;
 
 class PluginFactoryDestroy
@@ -46,14 +46,14 @@ PluginFactoryDestroy destroy;
 }
 
 void
-Ice::PluginManagerI::registerPluginFactory(const std::string& name, PLUGIN_FACTORY factory, bool loadOnInit)
+Ice::PluginManagerI::registerPluginFactory(const std::string& name, PluginFactory factory, bool loadOnInit)
 {
     if(factories == 0)
     {
-        factories = new map<string, PLUGIN_FACTORY>();
+        factories = new map<string, PluginFactory>();
     }
 
-    map<string, PLUGIN_FACTORY>::const_iterator p = factories->find(name);
+    map<string, PluginFactory>::const_iterator p = factories->find(name);
     if(p == factories->end())
     {
         factories->insert(make_pair(name, factory));
@@ -440,8 +440,7 @@ Ice::PluginManagerI::loadPlugin(const string& name, const string& pluginSpec, St
         cmdArgs = properties->parseCommandLineOptions(name, cmdArgs);
     }
 
-    PluginPtr plugin;
-    PLUGIN_FACTORY factory = 0;
+    PluginFactory factory = 0;
     DynamicLibraryPtr library;
 
     //
@@ -451,7 +450,7 @@ Ice::PluginManagerI::loadPlugin(const string& name, const string& pluginSpec, St
     //
     if(factories)
     {
-        map<string, PLUGIN_FACTORY>::const_iterator p = factories->find(name);
+        map<string, PluginFactory>::const_iterator p = factories->find(name);
         if(p != factories->end())
         {
             factory = p->second;
@@ -480,14 +479,20 @@ Ice::PluginManagerI::loadPlugin(const string& name, const string& pluginSpec, St
             ex.reason = out.str();
             throw ex;
         }
-        factory = reinterpret_cast<PLUGIN_FACTORY>(sym);
+
+#ifdef __IBMCPP__
+    // xlC warns when casting a void* to function pointer
+#   pragma report(disable, "1540-0216")
+#endif
+
+        factory = reinterpret_cast<PluginFactory>(sym);
     }
 
     //
     // Invoke the factory function. No exceptions can be raised
     // by the factory function because it's declared extern "C".
     //
-    plugin = factory(_communicator, name, args);
+    PluginPtr plugin(factory(_communicator, name, args));
     if(!plugin)
     {
         PluginInitializationException e(__FILE__, __LINE__);

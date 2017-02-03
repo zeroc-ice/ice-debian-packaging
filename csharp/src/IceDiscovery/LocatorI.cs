@@ -9,22 +9,19 @@
 
 namespace IceDiscovery
 {
-    using System;
     using System.Collections.Generic;
+    using System.Threading.Tasks;
 
     class LocatorRegistryI : Ice.LocatorRegistryDisp_
     {
-        public 
+        public
         LocatorRegistryI(Ice.Communicator com)
         {
             _wellKnownProxy = com.stringToProxy("p").ice_locator(null).ice_router(null).ice_collocationOptimized(true);
         }
 
-        public override void 
-        setAdapterDirectProxy_async(Ice.AMD_LocatorRegistry_setAdapterDirectProxy cb, 
-                                    string adapterId, 
-                                    Ice.ObjectPrx proxy, 
-                                    Ice.Current current)
+        public override Task
+        setAdapterDirectProxyAsync(string adapterId, Ice.ObjectPrx proxy, Ice.Current current)
         {
             lock(this)
             {
@@ -36,16 +33,13 @@ namespace IceDiscovery
                 {
                     _adapters.Remove(adapterId);
                 }
-                cb.ice_response();
             }
+            return null;
         }
 
-        public override void
-        setReplicatedAdapterDirectProxy_async(Ice.AMD_LocatorRegistry_setReplicatedAdapterDirectProxy cb,
-                                              string adapterId,
-                                              string replicaGroupId,
-                                              Ice.ObjectPrx proxy, 
-                                              Ice.Current current)
+        public override Task
+        setReplicatedAdapterDirectProxyAsync(string adapterId, string replicaGroupId, Ice.ObjectPrx proxy,
+                                             Ice.Current current)
         {
             lock(this)
             {
@@ -74,16 +68,13 @@ namespace IceDiscovery
                     }
                 }
             }
-            cb.ice_response();
+            return null;
         }
 
-        public override void
-        setServerProcessProxy_async(Ice.AMD_LocatorRegistry_setServerProcessProxy cb, 
-                                    string id, 
-                                    Ice.ProcessPrx process,
-                                    Ice.Current current)
+        public override Task
+        setServerProcessProxyAsync(string id, Ice.ProcessPrx process, Ice.Current current)
         {
-            cb.ice_response();
+            return null;
         }
 
         internal Ice.ObjectPrx findObject(Ice.Identity id)
@@ -123,7 +114,7 @@ namespace IceDiscovery
                         }
                     }
                 }
-                
+
                 if(adapterIds.Count == 0)
                 {
                     return null;
@@ -143,7 +134,7 @@ namespace IceDiscovery
                     isReplicaGroup = false;
                     return result;
                 }
-                
+
                 HashSet<string> adapterIds;
                 if(_replicaGroups.TryGetValue(adapterId, out adapterIds))
                 {
@@ -155,15 +146,15 @@ namespace IceDiscovery
                         {
                             continue; // TODO: Inconsistency
                         }
-                        
+
                         if(result == null)
                         {
                             result = proxy;
                         }
-                        
+
                         endpoints.AddRange(proxy.ice_getEndpoints());
                     }
-                    
+
                     if(result != null)
                     {
                         isReplicaGroup = true;
@@ -189,21 +180,23 @@ namespace IceDiscovery
             _registry = registry;
         }
 
-        public override void findObjectById_async(Ice.AMD_Locator_findObjectById cb, Ice.Identity id, Ice.Current c)
+        public override Task<Ice.ObjectPrx>
+        findObjectByIdAsync(Ice.Identity id, Ice.Current current)
         {
-            _lookup.findObject(cb, id);
+            return _lookup.findObject(id);
         }
 
-        public override void findAdapterById_async(Ice.AMD_Locator_findAdapterById cb, string adapterId, Ice.Current c)
+        public override Task<Ice.ObjectPrx>
+        findAdapterByIdAsync(string adapterId, Ice.Current current)
         {
-            _lookup.findAdapter(cb, adapterId);
+            return _lookup.findAdapter(adapterId);
         }
 
         public override Ice.LocatorRegistryPrx getRegistry(Ice.Current current)
         {
             return _registry;
         }
- 
+
         private LookupI _lookup;
         private Ice.LocatorRegistryPrx _registry;
    };

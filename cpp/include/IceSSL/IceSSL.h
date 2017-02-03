@@ -11,10 +11,8 @@
 #define ICE_SSL_ICE_SSL_H
 
 #include <IceUtil/PushDisableWarnings.h>
-#include <IceUtil/Config.h>
-#if !defined(ICE_OS_WINRT) && (!defined(__APPLE__) || TARGET_OS_IPHONE == 0)
-#   include <IceSSL/Plugin.h>
-#endif
+#include <Ice/Config.h>
+#include <IceSSL/Plugin.h>
 #include <IceSSL/EndpointInfo.h>
 #include <IceSSL/ConnectionInfo.h>
 #include <IceUtil/PopDisableWarnings.h>

@@ -7,15 +7,16 @@
 //
 // **********************************************************************
 
-sourceCompatibility = iceSourceCompatibility
-targetCompatibility = iceTargetCompatibility
+//sourceCompatibility = iceSourceCompatibility
+//targetCompatibility = iceTargetCompatibility
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
 project.ext.displayName = "IceDiscovery"
 project.ext.description = "Allow Ice applications to discover objects and object adapters"
 
 slice {
     java {
-        args = "--ice"
         files = fileTree(dir: "$sliceDir/IceDiscovery", includes:['*.ice'], excludes:["*F.ice"])
     }
 }

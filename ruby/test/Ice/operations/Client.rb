@@ -28,7 +28,7 @@ def run(args, communicator)
     STDOUT.flush
     myClass.shutdown()
     begin
-        myClass.opVoid()
+        myClass.ice_timeout(100).ice_ping(); # Use timeout to speed up testing on Windows
         test(false)
     rescue Ice::LocalException
         puts "ok"
@@ -57,13 +57,7 @@ rescue => ex
 end
 
 if communicator
-    begin
-        communicator.destroy()
-    rescue => ex
-        puts $!
-        print ex.backtrace.join("\n")
-        status = false
-    end
+    communicator.destroy()
 end
 
 exit(status ? 0 : 1)

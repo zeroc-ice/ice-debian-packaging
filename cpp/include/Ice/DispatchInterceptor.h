@@ -19,14 +19,12 @@ class ICE_API DispatchInterceptor : public virtual Object
 {
 public:
 
-    virtual DispatchStatus
-    dispatch(Request&) = 0;
+    virtual bool dispatch(Request&) = 0;
 
-    virtual DispatchStatus
-    __dispatch(IceInternal::Incoming&, const Current&);
+    virtual bool _iceDispatch(IceInternal::Incoming&, const Current&);
 };
 
-typedef IceInternal::Handle<DispatchInterceptor> DispatchInterceptorPtr;
+ICE_DEFINE_PTR(DispatchInterceptorPtr, DispatchInterceptor);
 
 }
 

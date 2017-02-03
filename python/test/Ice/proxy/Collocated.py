@@ -22,7 +22,7 @@ import Test, TestI, AllTests
 def run(args, communicator):
     communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010")
     adapter = communicator.createObjectAdapter("TestAdapter")
-    adapter.add(TestI.MyDerivedClassI(), communicator.stringToIdentity("test"))
+    adapter.add(TestI.MyDerivedClassI(), Ice.stringToIdentity("test"))
     #adapter.activate() // Don't activate OA to ensure collocation is used.
 
     AllTests.allTests(communicator, True)
@@ -32,17 +32,10 @@ def run(args, communicator):
 try:
     initData = Ice.InitializationData()
     initData.properties = Ice.createProperties(sys.argv)
-    communicator = Ice.initialize(sys.argv, initData)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv, initData) as communicator:
+        status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

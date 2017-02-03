@@ -271,7 +271,7 @@ parseAttributeType(const string& data, size_t& pos)
     //
     // Here we must also check for "oid." and "OID." before parsing
     // according to the ALPHA KEYCHAR* rule.
-    // 
+    //
     // First the OID case.
     //
     if(IceUtilInternal::isDigit(data[pos]) ||
@@ -318,7 +318,7 @@ parseAttributeType(const string& data, size_t& pos)
         result += data[pos];
         ++pos;
         // 1* KEYCHAR
-        while(pos < data.size() && 
+        while(pos < data.size() &&
               (IceUtilInternal::isAlpha(data[pos]) || IceUtilInternal::isDigit(data[pos]) || data[pos] == '-'))
         {
             result += data[pos];
@@ -448,7 +448,7 @@ parsePair(const string& data, size_t& pos)
     }
     return parseHexPair(data, pos, false);
 }
-    
+
 //
 // RFC 2253
 // hexpair    = hexchar hexchar
@@ -501,15 +501,15 @@ print(const list< list<pair<string, string> > >& r)
 {
     if(r.size() > 1)
     {
-        cout << "result: " << r.size() << " DNs" << endl;
+        consoleOut << "result: " << r.size() << " DNs" << endl;
     }
     for(list< list<pair<string, string> > >::const_iterator q = r.begin(); q != r.end(); ++q)
     {
         list<pair<string, string> > l = *q;
-        cout << "result: " << l.size() << " RDNs" << endl;
+        consoleOut << "result: " << l.size() << " RDNs" << endl;
         for(list<pair<string, string> >::const_iterator p = l.begin(); p != l.end(); ++p)
         {
-            cout << "\t\"" << p->first << "\"=\"" << p->second << "\"" << endl;
+            consoleOut << "\t\"" << p->first << "\"=\"" << p->second << "\"" << endl;
         }
     }
 }
@@ -529,13 +529,13 @@ main()
     {
         for(int i = 0; i < sizeof(examples)/sizeof(examples[0]); ++i)
         {
-            cout << "string: " << examples[i] << endl;
+            consoleOut << "string: " << examples[i] << endl;
             print(RFC2253::parse(examples[i]));
         }
     }
     catch(const RFC2253::ParseException& e)
     {
-        cout << "error: " << e.reason << endl;
+        consoleOut << "error: " << e.reason << endl;
     }
 }
 #endif

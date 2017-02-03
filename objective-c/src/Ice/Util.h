@@ -30,17 +30,17 @@
 void cppCall(void (^fn)());
 void cppCall(void (^fn)(const Ice::Context&), ICEContext*);
 ICEAsyncResult* beginCppCall(void (^fn)(Ice::AsyncResultPtr&), ICEObjectPrx* = nil);
-ICEAsyncResult* beginCppCall(void (^fn)(Ice::AsyncResultPtr&, const Ice::CallbackPtr&), 
+ICEAsyncResult* beginCppCall(void (^fn)(Ice::AsyncResultPtr&, const Ice::CallbackPtr&),
                              void (^completed)(const Ice::AsyncResultPtr&),
                              void (^exception)(ICEException*),
                              void (^sent)(BOOL),
                              ICEObjectPrx* = nil);
 ICEAsyncResult* beginCppCall(void (^fn)(Ice::AsyncResultPtr&, const Ice::Context&), ICEContext*, ICEObjectPrx* = nil);
-ICEAsyncResult* beginCppCall(void (^fn)(Ice::AsyncResultPtr&, const Ice::Context&, const Ice::CallbackPtr&), 
+ICEAsyncResult* beginCppCall(void (^fn)(Ice::AsyncResultPtr&, const Ice::Context&, const Ice::CallbackPtr&),
                              ICEContext*,
                              void (^completed)(const Ice::AsyncResultPtr&),
                              void (^exception)(ICEException*),
-                             void (^sent)(BOOL), 
+                             void (^sent)(BOOL),
                              ICEObjectPrx* = nil);
 void endCppCall(void (^fn)(const Ice::AsyncResultPtr&), ICEAsyncResult*);
 
@@ -119,7 +119,7 @@ toNSData(const std::vector<T>& seq)
     T* target = (T*)[array bytes];
     for(typename std::vector<T>::const_iterator p = seq.begin(); p != seq.end(); ++p)
     {
-	*target++ = *p;
+        *target++ = *p;
     }
     return array;
 }
@@ -130,12 +130,12 @@ fromNSArray(NSArray* array, std::vector<T>& seq)
     if(array != nil)
     {
         seq.reserve([array count]);
-        NSEnumerator* enumerator = [array objectEnumerator]; 
-        id obj = nil; 
-        while((obj = [enumerator nextObject])) 
-        { 
+        NSEnumerator* enumerator = [array objectEnumerator];
+        id obj = nil;
+        while((obj = [enumerator nextObject]))
+        {
             T v;
-	    fromObjC(obj, v);
+            fromObjC(obj, v);
             seq.push_back(v);
         }
     }
@@ -147,13 +147,13 @@ fromNSData(NSData* array, std::vector<T>& seq)
 {
     if(array != nil)
     {
-	int len = [array length] / sizeof(T);
+        int len = [array length] / sizeof(T);
         seq.reserve(len);
-	T* src = (T*)[array bytes];
-	while(len-- > 0)
-	{
+        T* src = (T*)[array bytes];
+        while(len-- > 0)
+        {
             seq.push_back(*src++);
-	}
+        }
     }
     return seq;
 }
@@ -178,10 +178,10 @@ fromNSDictionary(NSDictionary* dictionary, std::map<K, V>& dict)
 {
     if(dictionary != nil)
     {
-        NSEnumerator* enumerator = [dictionary keyEnumerator]; 
-        id obj = nil; 
-        while((obj = [enumerator nextObject])) 
-        { 
+        NSEnumerator* enumerator = [dictionary keyEnumerator];
+        id obj = nil;
+        while((obj = [enumerator nextObject]))
+        {
             K k;
             fromObjC(obj, k);
             V v;
@@ -229,7 +229,7 @@ public:
     Exception(const Exception&);
     virtual ~Exception() throw();
 
-    virtual std::string ice_name() const;
+    virtual std::string ice_id() const;
     virtual void ice_print(std::ostream& os) const;
     virtual Exception* ice_clone() const;
     virtual void ice_throw() const;
@@ -237,7 +237,7 @@ public:
     id<NSObject> exception() const { return _ex; }
 
 private:
-    
+
     id<NSObject> _ex;
 };
 

@@ -157,7 +157,7 @@ ICEAsyncResult* beginCppCall(void (^fn)(Ice::AsyncResultPtr&), ICEObjectPrx* prx
     {
         Ice::AsyncResultPtr r;
         fn(r);
-        return [ICEAsyncResult asyncResultWithAsyncResult__:r operation:nil proxy:prx];
+        return [ICEAsyncResult asyncResultWithAsyncResult:r operation:nil proxy:prx];
     }
     catch(const std::exception& ex)
     {
@@ -179,7 +179,7 @@ ICEAsyncResult* beginCppCall(void (^fn)(Ice::AsyncResultPtr&, const Ice::Callbac
         Ice::AsyncResultPtr r;
         Ice::CallbackPtr callback = Ice::newCallback(cb, &AsyncCallback::completed, &AsyncCallback::sent);
         fn(r, callback);
-        return [ICEAsyncResult asyncResultWithAsyncResult__:r operation:nil proxy:prx];
+        return [ICEAsyncResult asyncResultWithAsyncResult:r operation:nil proxy:prx];
     }
     catch(const std::exception& ex)
     {
@@ -199,7 +199,7 @@ ICEAsyncResult* beginCppCall(void (^fn)(Ice::AsyncResultPtr&, const Ice::Context
         fromNSDictionary(context, ctx);
         Ice::AsyncResultPtr r;
         fn(r, ctx);
-        return [ICEAsyncResult asyncResultWithAsyncResult__:r operation:nil proxy:prx];
+        return [ICEAsyncResult asyncResultWithAsyncResult:r operation:nil proxy:prx];
     }
     catch(const std::exception& ex)
     {
@@ -224,7 +224,7 @@ ICEAsyncResult* beginCppCall(void (^fn)(Ice::AsyncResultPtr&, const Ice::Context
         Ice::AsyncResultPtr r;
         Ice::CallbackPtr callback = Ice::newCallback(cb, &AsyncCallback::completed, &AsyncCallback::sent);
         fn(r, ctx, callback);
-        return [ICEAsyncResult asyncResultWithAsyncResult__:r operation:nil proxy:prx];
+        return [ICEAsyncResult asyncResultWithAsyncResult:r operation:nil proxy:prx];
     }
     catch(const std::exception& ex)
     {
@@ -238,7 +238,7 @@ void endCppCall(void (^fn)(const Ice::AsyncResultPtr&), ICEAsyncResult* r)
     NSException* nsex = nil;
     try
     {
-        fn([r asyncResult__]);
+        fn([r asyncResult]);
         return;
     }
     catch(const std::exception& ex)
@@ -254,7 +254,7 @@ toObjCException(const std::exception& ex)
     const Ice::LocalException* lex = dynamic_cast<const Ice::LocalException*>(&ex);
     if(lex)
     {
-        std::string typeId = std::string("ICE") + lex->ice_name().substr(5);
+        std::string typeId = std::string("ICE") + lex->ice_id().substr(7);
         Class c = objc_getClass(typeId.c_str());
         if(c != nil)
         {
@@ -408,9 +408,9 @@ IceObjC::Exception::~Exception() throw()
 }
 
 std::string
-IceObjC::Exception::ice_name() const
+IceObjC::Exception::ice_id() const
 {
-    return "IceObjC::Exception";
+    return "::IceObjC::Exception";
 }
 
 void
@@ -455,14 +455,14 @@ toObjC(const Ice::ObjectPtr& object)
         return nil;
     }
 
-    IceObjC::ObjectWrapperPtr wrapper = IceObjC::ObjectWrapperPtr::dynamicCast(object);
+    IceObjC::ServantWrapperPtr wrapper = IceObjC::ServantWrapperPtr::dynamicCast(object);
     if(wrapper)
     {
         //
         // Given object is an Objective-C servant wrapped into a C++
         // object, return the wrapped Objective-C object.
         //
-        return [[wrapper->getObject() retain] autorelease];
+        return [[wrapper->getServant() retain] autorelease];
     }
     else if(Ice::NativePropertiesAdminPtr::dynamicCast(object))
     {
@@ -470,13 +470,13 @@ toObjC(const Ice::ObjectPtr& object)
         // Given object is a properties admin facet, return the
         // Objective-C wrapper.
         //
-        return [ICENativePropertiesAdmin objectWrapperWithCxxObject:object.get()];
+        return [ICENativePropertiesAdmin servantWrapperWithCxxObject:object.get()];
     }
     else
     {
         //
         // Given object is a C++ servant, return an Objective-C wrapper.
         //
-        return [ICEObjectWrapper objectWrapperWithCxxObject:object.get()];
+        return [ICEServantWrapper servantWrapperWithCxxObject:object.get()];
     }
 }

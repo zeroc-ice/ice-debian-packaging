@@ -7,15 +7,17 @@
 //
 // **********************************************************************
 
+using System.Threading.Tasks;
+
 public class BlobjectI : Ice.Blobject
 {
     public override bool
     ice_invoke(byte[] inParams, out byte[] outParams, Ice.Current current)
     {
         Ice.Communicator communicator = current.adapter.getCommunicator();
-        Ice.InputStream inS = Ice.Util.createInputStream(communicator, inParams);
+        Ice.InputStream inS = new Ice.InputStream(communicator, inParams);
         inS.startEncapsulation();
-        Ice.OutputStream outS = Ice.Util.createOutputStream(communicator);
+        Ice.OutputStream outS = new Ice.OutputStream(communicator);
         outS.startEncapsulation();
         if(current.operation.Equals("opOneway"))
         {
@@ -33,6 +35,10 @@ public class BlobjectI : Ice.Blobject
         }
         else if(current.operation.Equals("opException"))
         {
+            if(current.ctx.ContainsKey("raise"))
+            {
+                throw new Test.MyException();
+            }
             Test.MyException ex = new Test.MyException();
             outS.writeException(ex);
             outS.endEncapsulation();
@@ -73,17 +79,17 @@ public class BlobjectI : Ice.Blobject
 
 public class BlobjectAsyncI : Ice.BlobjectAsync
 {
-    public override void
-    ice_invoke_async(Ice.AMD_Object_ice_invoke cb, byte[] inParams, Ice.Current current)
+    public override Task<Ice.Object_Ice_invokeResult>
+    ice_invokeAsync(byte[] inParams, Ice.Current current)
     {
         Ice.Communicator communicator = current.adapter.getCommunicator();
-        Ice.InputStream inS = Ice.Util.createInputStream(communicator, inParams);
+        Ice.InputStream inS = new Ice.InputStream(communicator, inParams);
         inS.startEncapsulation();
-        Ice.OutputStream outS = Ice.Util.createOutputStream(communicator);
+        Ice.OutputStream outS = new Ice.OutputStream(communicator);
         outS.startEncapsulation();
         if(current.operation.Equals("opOneway"))
         {
-            cb.ice_response(true, new byte[0]);
+            return Task.FromResult<Ice.Object_Ice_invokeResult>(new Ice.Object_Ice_invokeResult(true, new byte[0]));
         }
         else if(current.operation.Equals("opString"))
         {
@@ -91,19 +97,19 @@ public class BlobjectAsyncI : Ice.BlobjectAsync
             outS.writeString(s);
             outS.writeString(s);
             outS.endEncapsulation();
-            cb.ice_response(true, outS.finished());
+            return Task.FromResult<Ice.Object_Ice_invokeResult>(new Ice.Object_Ice_invokeResult(true, outS.finished()));
         }
         else if(current.operation.Equals("opException"))
         {
             Test.MyException ex = new Test.MyException();
             outS.writeException(ex);
             outS.endEncapsulation();
-            cb.ice_response(false, outS.finished());
+            return Task.FromResult<Ice.Object_Ice_invokeResult>(new Ice.Object_Ice_invokeResult(false, outS.finished()));
         }
         else if(current.operation.Equals("shutdown"))
         {
             communicator.shutdown();
-            cb.ice_response(true, null);
+            return Task.FromResult<Ice.Object_Ice_invokeResult>(new Ice.Object_Ice_invokeResult(true, null));
         }
         else if(current.operation.Equals("ice_isA"))
         {
@@ -117,7 +123,7 @@ public class BlobjectAsyncI : Ice.BlobjectAsync
                 outS.writeBool(false);
             }
             outS.endEncapsulation();
-            cb.ice_response(true, outS.finished());
+            return Task.FromResult<Ice.Object_Ice_invokeResult>(new Ice.Object_Ice_invokeResult(true, outS.finished()));
         }
         else
         {

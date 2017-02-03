@@ -9,10 +9,7 @@
 
 namespace IceInternal
 {
-
-    using System.Collections;
     using System.Collections.Generic;
-    using System.Diagnostics;
 
     public sealed class ObjectAdapterFactory
     {
@@ -25,14 +22,14 @@ namespace IceInternal
                 // Ignore shutdown requests if the object adapter factory has
                 // already been shut down.
                 //
-                if(instance_ == null)
+                if(_instance == null)
                 {
                     return;
                 }
 
                 adapters = new List<Ice.ObjectAdapterI>(_adapters);
                 
-                instance_ = null;
+                _instance = null;
                 _communicator = null;
                 
                 System.Threading.Monitor.PulseAll(this);
@@ -56,7 +53,7 @@ namespace IceInternal
                 //
                 // First we wait for the shutdown of the factory itself.
                 //
-                while(instance_ != null)
+                while(_instance != null)
                 {
                     System.Threading.Monitor.Wait(this);
                 }
@@ -77,7 +74,7 @@ namespace IceInternal
         {
             lock(this)
             {
-                return instance_ == null;
+                return _instance == null;
             }
         }
 
@@ -139,7 +136,7 @@ namespace IceInternal
         {
             lock(this)
             {
-                if(instance_ == null)
+                if(_instance == null)
                 {
                     throw new Ice.CommunicatorDestroyedException();
                 }
@@ -148,7 +145,7 @@ namespace IceInternal
                 if(name.Length == 0)
                 {
                     string uuid = System.Guid.NewGuid().ToString();
-                    adapter = new Ice.ObjectAdapterI(instance_, _communicator, this, uuid, null, true);
+                    adapter = new Ice.ObjectAdapterI(_instance, _communicator, this, uuid, null, true);
                 }
                 else
                 {
@@ -159,7 +156,7 @@ namespace IceInternal
                         ex.id = name;
                         throw ex;
                     }
-                    adapter = new Ice.ObjectAdapterI(instance_, _communicator, this, name, router, false);
+                    adapter = new Ice.ObjectAdapterI(_instance, _communicator, this, name, router, false);
                     _adapterNamesInUse.Add(name);
                 }
                 _adapters.Add(adapter);
@@ -172,7 +169,7 @@ namespace IceInternal
             List<Ice.ObjectAdapterI> adapters;
             lock(this)
             {
-                if(instance_ == null)
+                if(_instance == null)
                 {
                     return null;
                 }
@@ -202,7 +199,7 @@ namespace IceInternal
         {
             lock(this)
             {
-                if(instance_ == null)
+                if(_instance == null)
                 {
                     return;
                 }
@@ -212,7 +209,7 @@ namespace IceInternal
             }
         }
 
-        public void flushAsyncBatchRequests(CommunicatorFlushBatch outAsync)
+        public void flushAsyncBatchRequests(CommunicatorFlushBatchAsync outAsync)
         {
             List<Ice.ObjectAdapterI> adapters;
             lock(this)
@@ -231,13 +228,13 @@ namespace IceInternal
         //
         internal ObjectAdapterFactory(Instance instance, Ice.Communicator communicator)
         {
-            instance_ = instance;
+            _instance = instance;
             _communicator = communicator;
             _adapterNamesInUse = new HashSet<string>();
             _adapters = new List<Ice.ObjectAdapterI>();
         }
         
-        private Instance instance_;
+        private Instance _instance;
         private Ice.Communicator _communicator;
         private HashSet<string> _adapterNamesInUse;
         private List<Ice.ObjectAdapterI> _adapters;

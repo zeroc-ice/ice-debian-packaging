@@ -9,83 +9,86 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Threading;
+
+using IceInternal;
 
 namespace Ice
 {
-
     sealed class CommunicatorI : Communicator
     {
         public void destroy()
         {
-            instance_.destroy();
+            _instance.destroy();
         }
 
         public void shutdown()
         {
-            instance_.objectAdapterFactory().shutdown();
+            _instance.objectAdapterFactory().shutdown();
         }
 
         public void waitForShutdown()
         {
-            instance_.objectAdapterFactory().waitForShutdown();
+            _instance.objectAdapterFactory().waitForShutdown();
         }
 
         public bool isShutdown()
         {
-            return instance_.objectAdapterFactory().isShutdown();
+            return _instance.objectAdapterFactory().isShutdown();
         }
 
-        public Ice.ObjectPrx stringToProxy(string s)
+        public ObjectPrx stringToProxy(string s)
         {
-            return instance_.proxyFactory().stringToProxy(s);
+            return _instance.proxyFactory().stringToProxy(s);
         }
 
-        public string proxyToString(Ice.ObjectPrx proxy)
+        public string proxyToString(ObjectPrx proxy)
         {
-            return instance_.proxyFactory().proxyToString(proxy);
+            return _instance.proxyFactory().proxyToString(proxy);
         }
 
-        public Ice.ObjectPrx propertyToProxy(string s)
+        public ObjectPrx propertyToProxy(string s)
         {
-            return instance_.proxyFactory().propertyToProxy(s);
+            return _instance.proxyFactory().propertyToProxy(s);
         }
 
-        public Dictionary<string, string> proxyToProperty(Ice.ObjectPrx proxy, string prefix)
+        public Dictionary<string, string> proxyToProperty(ObjectPrx proxy, string prefix)
         {
-            return instance_.proxyFactory().proxyToProperty(proxy, prefix);
+            return _instance.proxyFactory().proxyToProperty(proxy, prefix);
         }
 
-        public Ice.Identity stringToIdentity(string s)
+        public Identity stringToIdentity(string s)
         {
-            return instance_.stringToIdentity(s);
+            return Util.stringToIdentity(s);
         }
 
-        public string identityToString(Ice.Identity ident)
+        public string identityToString(Identity ident)
         {
-            return instance_.identityToString(ident);
+            return Util.identityToString(ident, _instance.toStringMode());
         }
 
         public ObjectAdapter createObjectAdapter(string name)
         {
-            return instance_.objectAdapterFactory().createObjectAdapter(name, null);
+            return _instance.objectAdapterFactory().createObjectAdapter(name, null);
         }
 
         public ObjectAdapter createObjectAdapterWithEndpoints(string name, string endpoints)
         {
             if(name.Length == 0)
             {
-                name = System.Guid.NewGuid().ToString();
+                name = Guid.NewGuid().ToString();
             }
 
             getProperties().setProperty(name + ".Endpoints", endpoints);
-            return instance_.objectAdapterFactory().createObjectAdapter(name, null);
+            return _instance.objectAdapterFactory().createObjectAdapter(name, null);
         }
 
         public ObjectAdapter createObjectAdapterWithRouter(string name, RouterPrx router)
         {
             if(name.Length == 0)
             {
-                name = System.Guid.NewGuid().ToString();
+                name = Guid.NewGuid().ToString();
             }
 
             //
@@ -97,68 +100,81 @@ namespace Ice
                 getProperties().setProperty(entry.Key, entry.Value);
             }
 
-            return instance_.objectAdapterFactory().createObjectAdapter(name, router);
+            return _instance.objectAdapterFactory().createObjectAdapter(name, router);
         }
 
         public void addObjectFactory(ObjectFactory factory, string id)
         {
-            instance_.servantFactoryManager().add(factory, id);
+            _instance.addObjectFactory(factory, id);
         }
 
         public ObjectFactory findObjectFactory(string id)
         {
-            return instance_.servantFactoryManager().find(id);
+            return _instance.findObjectFactory(id);
+        }
+
+        public ValueFactoryManager getValueFactoryManager()
+        {
+            return _instance.initializationData().valueFactoryManager;
         }
 
         public Properties getProperties()
         {
-            return instance_.initializationData().properties;
+            return _instance.initializationData().properties;
         }
 
         public Logger getLogger()
         {
-            return instance_.initializationData().logger;
+            return _instance.initializationData().logger;
         }
 
-        public Ice.Instrumentation.CommunicatorObserver getObserver()
+        public Instrumentation.CommunicatorObserver getObserver()
         {
-            return instance_.initializationData().observer;
+            return _instance.initializationData().observer;
         }
 
         public RouterPrx getDefaultRouter()
         {
-            return instance_.referenceFactory().getDefaultRouter();
+            return _instance.referenceFactory().getDefaultRouter();
         }
 
         public void setDefaultRouter(RouterPrx router)
         {
-            instance_.setDefaultRouter(router);
+            _instance.setDefaultRouter(router);
         }
 
         public LocatorPrx getDefaultLocator()
         {
-            return instance_.referenceFactory().getDefaultLocator();
+            return _instance.referenceFactory().getDefaultLocator();
         }
 
         public void setDefaultLocator(LocatorPrx locator)
         {
-            instance_.setDefaultLocator(locator);
+            _instance.setDefaultLocator(locator);
         }
 
         public ImplicitContext getImplicitContext()
         {
-            return instance_.getImplicitContext();
+            return _instance.getImplicitContext();
         }
 
         public PluginManager getPluginManager()
         {
-            return instance_.pluginManager();
+            return _instance.pluginManager();
         }
 
         public void flushBatchRequests()
         {
-            AsyncResult r = begin_flushBatchRequests();
-            end_flushBatchRequests(r);
+            flushBatchRequestsAsync().Wait();
+        }
+
+        public Task flushBatchRequestsAsync(IProgress<bool> progress = null,
+                                            CancellationToken cancel = new CancellationToken())
+        {
+            var completed = new FlushBatchTaskCompletionCallback(progress, cancel);
+            var outgoing = new CommunicatorFlushBatchAsync(_instance, completed);
+            outgoing.invoke(_flushBatchRequests_name);
+            return completed.Task;
         }
 
         public AsyncResult begin_flushBatchRequests()
@@ -166,73 +182,86 @@ namespace Ice
             return begin_flushBatchRequests(null, null);
         }
 
-        private const string __flushBatchRequests_name = "flushBatchRequests";
+        private const string _flushBatchRequests_name = "flushBatchRequests";
+
+        private class CommunicatorFlushBatchCompletionCallback : AsyncResultCompletionCallback
+        {
+            public CommunicatorFlushBatchCompletionCallback(Communicator communicator,
+                                                            Instance instance,
+                                                            string op,
+                                                            object cookie,
+                                                            AsyncCallback callback)
+                : base(communicator, instance, op, cookie, callback)
+            {
+            }
+
+            protected override AsyncCallback getCompletedCallback()
+            {
+                return (AsyncResult result) =>
+                {
+                    try
+                    {
+                        result.throwLocalException();
+                    }
+                    catch(Exception ex)
+                    {
+                        if(exceptionCallback_ != null)
+                        {
+                            exceptionCallback_.Invoke(ex);
+                        }
+                    }
+                };
+            }
+        };
 
         public AsyncResult begin_flushBatchRequests(AsyncCallback cb, object cookie)
         {
-            IceInternal.OutgoingConnectionFactory connectionFactory = instance_.outgoingConnectionFactory();
-            IceInternal.ObjectAdapterFactory adapterFactory = instance_.objectAdapterFactory();
-
-            //
-            // This callback object receives the results of all invocations
-            // of Connection.begin_flushBatchRequests.
-            //
-            IceInternal.CommunicatorFlushBatch result = 
-                new IceInternal.CommunicatorFlushBatch(this, instance_, __flushBatchRequests_name, cookie);
-
-            if(cb != null)
-            {
-                result.whenCompletedWithAsyncCallback(cb);
-            }
-
-            connectionFactory.flushAsyncBatchRequests(result);
-            adapterFactory.flushAsyncBatchRequests(result);
-
-            //
-            // Inform the callback that we have finished initiating all of the
-            // flush requests. If all of the requests have already completed,
-            // the callback is invoked now.
-            //
-            result.ready();
-
+            var result = new CommunicatorFlushBatchCompletionCallback(this, _instance, _flushBatchRequests_name, cookie, cb);
+            var outgoing = new CommunicatorFlushBatchAsync(_instance, result);
+            outgoing.invoke(_flushBatchRequests_name);
             return result;
         }
 
         public void end_flushBatchRequests(AsyncResult result)
         {
-            IceInternal.CommunicatorFlushBatch outAsync = 
-                IceInternal.CommunicatorFlushBatch.check(result, this, __flushBatchRequests_name);
-            outAsync.wait();
+            if(result != null && result.getCommunicator() != this)
+            {
+                const string msg = "Communicator for call to end_" + _flushBatchRequests_name +
+                                   " does not match communicator that was used to call corresponding begin_" +
+                                   _flushBatchRequests_name + " method";
+                throw new ArgumentException(msg);
+            }
+            AsyncResultI.check(result, _flushBatchRequests_name).wait();
         }
 
-        public Ice.ObjectPrx createAdmin(ObjectAdapter adminAdapter, Identity adminIdentity)
+        public ObjectPrx createAdmin(ObjectAdapter adminAdapter, Identity adminIdentity)
         {
-            return instance_.createAdmin(adminAdapter, adminIdentity);
-        }
-        
-        public Ice.ObjectPrx getAdmin()
-        {
-            return instance_.getAdmin();
+            return _instance.createAdmin(adminAdapter, adminIdentity);
         }
 
-        public void addAdminFacet(Ice.Object servant, string facet)
+        public ObjectPrx getAdmin()
         {
-            instance_.addAdminFacet(servant, facet);
+            return _instance.getAdmin();
         }
 
-        public Ice.Object removeAdminFacet(string facet)
+        public void addAdminFacet(Object servant, string facet)
         {
-            return instance_.removeAdminFacet(facet);
+            _instance.addAdminFacet(servant, facet);
         }
 
-        public Ice.Object findAdminFacet(string facet)
+        public Object removeAdminFacet(string facet)
         {
-            return instance_.findAdminFacet(facet);
+            return _instance.removeAdminFacet(facet);
         }
 
-        public Dictionary<string, Ice.Object> findAllAdminFacets()
+        public Object findAdminFacet(string facet)
         {
-            return instance_.findAllAdminFacets();
+            return _instance.findAdminFacet(facet);
+        }
+
+        public Dictionary<string, Object> findAllAdminFacets()
+        {
+            return _instance.findAllAdminFacets();
         }
 
         public void Dispose()
@@ -242,7 +271,7 @@ namespace Ice
 
         internal CommunicatorI(InitializationData initData)
         {
-            instance_ = new IceInternal.Instance(this, initData);
+            _instance = new Instance(this, initData);
         }
 
         /*
@@ -252,7 +281,7 @@ namespace Ice
             {
                 if(!System.Environment.HasShutdownStarted)
                 {
-                    instance_.initializationData().logger.warning(
+                    _instance.initializationData().logger.warning(
                             "Ice::Communicator::destroy() has not been called");
                 }
                 else
@@ -271,11 +300,11 @@ namespace Ice
         {
             try
             {
-                instance_.finishSetup(ref args, this);
+                _instance.finishSetup(ref args, this);
             }
             catch(System.Exception)
             {
-                instance_.destroy();
+                _instance.destroy();
                 throw;
             }
         }
@@ -283,12 +312,11 @@ namespace Ice
         //
         // For use by Util.getInstance()
         //
-        internal IceInternal.Instance getInstance()
+        internal Instance getInstance()
         {
-            return instance_;
+            return _instance;
         }
 
-        private IceInternal.Instance instance_;
+        private Instance _instance;
     }
-
 }

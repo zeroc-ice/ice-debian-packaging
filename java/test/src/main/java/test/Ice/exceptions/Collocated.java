@@ -12,41 +12,38 @@ package test.Ice.exceptions;
 public class Collocated extends test.Util.Application
 {
     @Override
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
-        Ice.Communicator communicator = communicator();
-        Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
-        Ice.Object object = new ThrowerI();
-        adapter.add(object, communicator.stringToIdentity("thrower"));
+        com.zeroc.Ice.Communicator communicator = communicator();
+        com.zeroc.Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
+        com.zeroc.Ice.Object object = new ThrowerI();
+        adapter.add(object, com.zeroc.Ice.Util.stringToIdentity("thrower"));
 
-        AllTests.allTests(communicator, getWriter());
+        AllTests.allTests(this);
 
         return 0;
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData();
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         //
         // For this test, we need a dummy logger, otherwise the
         // assertion test will print an error message.
         //
         initData.logger = new DummyLogger();
 
-        initData.properties = Ice.Util.createProperties(argsH);
         initData.properties.setProperty("Ice.Warn.Dispatch", "0");
         initData.properties.setProperty("Ice.Warn.Connections", "0");
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.exceptions");
         initData.properties.setProperty("Ice.MessageSizeMax", "10"); // 10KB max
-        initData.properties.setProperty("TestAdapter.Endpoints", "default -p 12010");
+        initData.properties.setProperty("TestAdapter.Endpoints", getTestEndpoint(initData.properties, 0));
 
         return initData;
     }
 
-    public static void
-    main(String[] args)
+    public static void main(String[] args)
     {
         Collocated app = new Collocated();
         int result = app.main("Collocated", args);

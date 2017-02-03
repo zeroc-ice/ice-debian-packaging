@@ -10,7 +10,7 @@
 
 import Ice, gc, sys, threading
 
-Ice.loadSlice('-I. --all Forward.ice ClientPrivate.ice')
+Ice.loadSlice('-I. --all ClientPrivate.ice')
 import Test
 
 def test(b):
@@ -23,22 +23,19 @@ class CallbackBase:
         self._cond = threading.Condition()
 
     def check(self):
-        self._cond.acquire()
-        try:
+        with self._cond:
             while not self._called:
                 self._cond.wait()
             self._called = False
-        finally:
-            self._cond.release()
 
     def called(self):
-        self._cond.acquire()
-        self._called = True
-        self._cond.notify()
-        self._cond.release()
+        with self._cond:
+            self._called = True
+            self._cond.notify()
 
 class Callback(CallbackBase):
-    def response_SBaseAsObject(self, o):
+    def response_SBaseAsObject(self, f):
+        o = f.result()
         test(o)
         test(o.ice_id() == "::Test::SBase")
         sb = o
@@ -46,54 +43,53 @@ class Callback(CallbackBase):
         test(sb.sb == "SBase.sb")
         self.called()
 
-    def response_SBaseAsSBase(self, sb):
+    def response_SBaseAsSBase(self, f):
+        sb = f.result()
         test(sb.sb == "SBase.sb")
         self.called()
 
-    def response_SBSKnownDerivedAsSBase(self, sb):
-        sbskd = sb
+    def response_SBSKnownDerivedAsSBase(self, f):
+        sbskd = f.result()
         test(isinstance(sbskd, Test.SBSKnownDerived))
         test(sbskd.sbskd == "SBSKnownDerived.sbskd")
         self.called()
 
-    def response_SBSKnownDerivedAsSBSKnownDerived(self, sbskd):
+    def response_SBSKnownDerivedAsSBSKnownDerived(self, f):
+        sbskd = f.result()
         test(sbskd.sbskd == "SBSKnownDerived.sbskd")
         self.called()
 
-    def response_SBSUnknownDerivedAsSBase(self, sb):
+    def response_SBSUnknownDerivedAsSBase(self, f):
+        sb = f.result()
         test(sb.sb == "SBSUnknownDerived.sb")
         self.called()
 
-    def response_SBSUnknownDerivedAsSBaseCompact(self, sb):
-        test(False)
-
-    def exception_SBSUnknownDerivedAsSBaseCompact(self, ex):
-        test(isinstance(ex, Ice.NoObjectFactoryException))
+    def exception_SBSUnknownDerivedAsSBaseCompact(self, f):
+        test(f.exception() is not None)
+        test(isinstance(f.exception(), Ice.NoValueFactoryException))
         self.called()
 
-    def response_SUnknownAsObject10(self, o):
-        test(False)
-
-    def exception_SUnknownAsObject10(self, exc):
-        test(exc.ice_name() == "Ice::NoObjectFactoryException")
+    def exception_SUnknownAsObject10(self, f):
+        test(f.exception() is not None)
+        test(f.exception().ice_id() == "::Ice::NoValueFactoryException")
         self.called()
 
-    def response_SUnknownAsObject11(self, o):
-        test(isinstance(o, Ice.UnknownSlicedObject))
+    def response_SUnknownAsObject11(self, f):
+        o = f.result()
+        test(isinstance(o, Ice.UnknownSlicedValue))
         test(o.unknownTypeId == "::Test::SUnknown")
         self.called()
 
-    def exception_SUnknownAsObject11(self, exc):
-        test(False)
-
-    def response_oneElementCycle(self, b):
+    def response_oneElementCycle(self, f):
+        b = f.result()
         test(b)
         test(b.ice_id() == "::Test::B")
         test(b.sb == "B1.sb")
         test(b.pb == b)
         self.called()
 
-    def response_twoElementCycle(self, b1):
+    def response_twoElementCycle(self, f):
+        b1 = f.result()
         test(b1)
         test(b1.ice_id() == "::Test::B")
         test(b1.sb == "B1.sb")
@@ -105,7 +101,8 @@ class Callback(CallbackBase):
         test(b2.pb == b1)
         self.called()
 
-    def response_D1AsB(self, b1):
+    def response_D1AsB(self, f):
+        b1 = f.result()
         test(b1)
         test(b1.ice_id() == "::Test::D1")
         test(b1.sb == "D1.sb")
@@ -125,7 +122,8 @@ class Callback(CallbackBase):
         test(b2.ice_id() == "::Test::B")
         self.called()
 
-    def response_D1AsD1(self, d1):
+    def response_D1AsD1(self, f):
+        d1 = f.result()
         test(d1)
         test(d1.ice_id() == "::Test::D1")
         test(d1.sb == "D1.sb")
@@ -139,7 +137,8 @@ class Callback(CallbackBase):
         test(b2.pb == d1)
         self.called()
 
-    def response_D2AsB(self, b2):
+    def response_D2AsB(self, f):
+        b2 = f.result()
         test(b2)
         test(b2.ice_id() == "::Test::B")
         test(b2.sb == "D2.sb")
@@ -157,7 +156,8 @@ class Callback(CallbackBase):
         test(d1.pd1 == b2)
         self.called()
 
-    def response_paramTest1(self, b1, b2):
+    def response_paramTest1(self, f):
+        (b1, b2) = f.result()
         test(b1)
         test(b1.ice_id() == "::Test::D1")
         test(b1.sb == "D1.sb")
@@ -173,19 +173,23 @@ class Callback(CallbackBase):
         test(b2.pb == b1)
         self.called()
 
-    def response_returnTest1(self, r, p1, p2):
+    def response_returnTest1(self, f):
+        (r, p1, p2) = f.result()
         test(r == p1)
         self.called()
 
-    def response_returnTest2(self, r, p1, p2):
+    def response_returnTest2(self, f):
+        (r, p1, p2) = f.result()
         test(r == p1)
         self.called()
 
-    def response_returnTest3(self, b):
+    def response_returnTest3(self, f):
+        b = f.result()
         self.r = b
         self.called()
 
-    def response_paramTest3(self, ret, p1, p2):
+    def response_paramTest3(self, f):
+        (ret, p1, p2) = f.result()
         test(p1)
         test(p1.sb == "D2.sb (p1 1)")
         test(p1.pb == None)
@@ -202,7 +206,8 @@ class Callback(CallbackBase):
         test(ret.ice_id() == "::Test::D1")
         self.called()
 
-    def response_paramTest4(self, ret, b):
+    def response_paramTest4(self, f):
+        (ret, b) = f.result()
         test(b)
         test(b.sb == "D4.sb (1)")
         test(b.pb == None)
@@ -214,17 +219,21 @@ class Callback(CallbackBase):
         test(ret.ice_id() == "::Test::B")
         self.called()
 
-    def response_sequenceTest(self, ss):
+    def response_sequenceTest(self, f):
+        ss = f.result()
         self.r = ss
         self.called()
 
-    def response_dictionaryTest(self, r, bout):
+    def response_dictionaryTest(self, f):
+        (r, bout) = f.result()
         self.r = r
         self.bout = bout
         self.called()
 
-    def exception_throwBaseAsBase(self, ex):
-        test(ex.ice_name() == "Test::BaseException")
+    def exception_throwBaseAsBase(self, f):
+        ex = f.exception()
+        test(ex is not None)
+        test(ex.ice_id() == "::Test::BaseException")
         e = ex
         test(isinstance(e, Test.BaseException))
         test(e.sbe == "sbe")
@@ -233,8 +242,10 @@ class Callback(CallbackBase):
         test(e.pb.pb == e.pb)
         self.called()
 
-    def exception_throwDerivedAsBase(self, ex):
-        test(ex.ice_name() == "Test::DerivedException")
+    def exception_throwDerivedAsBase(self, f):
+        ex = f.exception()
+        test(ex is not None)
+        test(ex.ice_id() == "::Test::DerivedException")
         e = ex
         test(isinstance(e, Test.DerivedException))
         test(e.sbe == "sbe")
@@ -249,8 +260,10 @@ class Callback(CallbackBase):
         test(e.pd1.pd1 == e.pd1)
         self.called()
 
-    def exception_throwDerivedAsDerived(self, ex):
-        test(ex.ice_name() == "Test::DerivedException")
+    def exception_throwDerivedAsDerived(self, f):
+        ex = f.exception()
+        test(ex is not None)
+        test(ex.ice_id() == "::Test::DerivedException")
         e = ex
         test(isinstance(e, Test.DerivedException))
         test(e.sbe == "sbe")
@@ -265,8 +278,10 @@ class Callback(CallbackBase):
         test(e.pd1.pd1 == e.pd1)
         self.called()
 
-    def exception_throwUnknownDerivedAsBase(self, ex):
-        test(ex.ice_name() == "Test::BaseException")
+    def exception_throwUnknownDerivedAsBase(self, f):
+        ex = f.exception()
+        test(ex is not None)
+        test(ex.ice_id() == "::Test::BaseException")
         e = ex
         test(isinstance(e, Test.BaseException))
         test(e.sbe == "sbe")
@@ -276,10 +291,12 @@ class Callback(CallbackBase):
         self.called()
 
     def response_useForward(self, f):
-        test(f)
+        fwd = f.result()
+        test(fwd)
         self.called()
 
-    def response_preserved1(self, r):
+    def response_preserved1(self, f):
+        r = f.result()
         test(r)
         test(isinstance(r, Test.PDerived))
         test(r.pi == 3)
@@ -287,30 +304,34 @@ class Callback(CallbackBase):
         test(r.pb == r)
         self.called()
 
-    def response_preserved2(self, r):
+    def response_preserved2(self, f):
+        r = f.result()
         test(r)
         test(not isinstance(r, Test.PCUnknown))
         test(r.pi == 3)
         self.called()
 
-    def response_preserved3(self, r):
+    def response_preserved3(self, f):
         #
         # Encoding 1.0
         #
+        r = f.result()
         test(not isinstance(r, Test.PCDerived))
         test(r.pi == 3)
         self.called()
 
-    def response_preserved4(self, r):
+    def response_preserved4(self, f):
         #
         # Encoding > 1.0
         #
+        r = f.result()
         test(isinstance(r, Test.PCDerived))
         test(r.pi == 3)
         test(r.pbs[0] == r)
         self.called()
 
-    def response_preserved5(self, r):
+    def response_preserved5(self, f):
+        r = f.result()
         test(isinstance(r, Test.PCDerived3))
         test(r.pi == 3)
         for i in range(0, 300):
@@ -324,31 +345,24 @@ class Callback(CallbackBase):
         test(r.pcd3 == r.pbs[10])
         self.called()
 
-    def response_compactPreserved1(self, r):
+    def response_compactPreserved1(self, f):
         #
         # Encoding 1.0
         #
+        r = f.result()
         test(not isinstance(r, Test.CompactPCDerived))
         test(r.pi == 3)
         self.called()
 
-    def response_compactPreserved2(self, r):
+    def response_compactPreserved2(self, f):
         #
         # Encoding > 1.0
         #
+        r = f.result()
         test(isinstance(r, Test.CompactPCDerived))
         test(r.pi == 3)
         test(r.pbs[0] == r)
         self.called()
-
-    def response(self):
-        test(False)
-
-    def exception(self, exc):
-        if(isinstance(exc, Ice.OperationNotExistException)):
-            self.called()
-            return
-        test(False)
 
 class PNodeI(Test.PNode):
     counter = 0
@@ -359,14 +373,10 @@ class PNodeI(Test.PNode):
     def __del__(self):
         PNodeI.counter = PNodeI.counter - 1
 
-class NodeFactoryI(Ice.ObjectFactory):
-    def create(self, id):
-        if id == Test.PNode.ice_staticId():
-            return PNodeI()
-        return None
-
-    def destroy(self):
-        pass
+def NodeFactoryI(id):
+    if id == Test.PNode.ice_staticId():
+        return PNodeI()
+    return None
 
 class PreservedI(Test.Preserved):
     counter = 0
@@ -377,14 +387,10 @@ class PreservedI(Test.Preserved):
     def __del__(self):
         PreservedI.counter = PreservedI.counter - 1
 
-class PreservedFactoryI(Ice.ObjectFactory):
-    def create(self, id):
-        if id == Test.Preserved.ice_staticId():
-            return PreservedI()
-        return None
-
-    def destroy(self):
-        pass
+def PreservedFactoryI(id):
+    if id == Test.Preserved.ice_staticId():
+        return PreservedI()
+    return None
 
 def allTests(communicator):
     obj = communicator.stringToProxy("Test:default -p 12010")
@@ -408,7 +414,7 @@ def allTests(communicator):
     sys.stdout.write("base as Object (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_SBaseAsObject(cb.response_SBaseAsObject, cb.exception)
+    t.SBaseAsObjectAsync().add_done_callback(cb.response_SBaseAsObject)
     cb.check()
     print("ok")
 
@@ -424,7 +430,7 @@ def allTests(communicator):
     sys.stdout.write("base as base (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_SBaseAsSBase(cb.response_SBaseAsSBase, cb.exception)
+    t.SBaseAsSBaseAsync().add_done_callback(cb.response_SBaseAsSBase)
     cb.check()
     print("ok")
 
@@ -444,7 +450,7 @@ def allTests(communicator):
     sys.stdout.write("base with known derived as base (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_SBSKnownDerivedAsSBase(cb.response_SBSKnownDerivedAsSBase, cb.exception)
+    t.SBSKnownDerivedAsSBaseAsync().add_done_callback(cb.response_SBSKnownDerivedAsSBase)
     cb.check()
     print("ok")
 
@@ -460,7 +466,7 @@ def allTests(communicator):
     sys.stdout.write("base with known derived as known derived (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_SBSKnownDerivedAsSBSKnownDerived(cb.response_SBSKnownDerivedAsSBSKnownDerived, cb.exception)
+    t.SBSKnownDerivedAsSBSKnownDerivedAsync().add_done_callback(cb.response_SBSKnownDerivedAsSBSKnownDerived)
     cb.check()
     print("ok")
 
@@ -492,7 +498,7 @@ def allTests(communicator):
             test(False)
         except Ice.OperationNotExistException:
             pass
-        except Ice.NoObjectFactoryException:
+        except Ice.NoValueFactoryException:
             # Expected.
             pass
         except:
@@ -502,14 +508,14 @@ def allTests(communicator):
     sys.stdout.write("base with unknown derived as base (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_SBSUnknownDerivedAsSBase(cb.response_SBSUnknownDerivedAsSBase, cb.exception)
+    t.SBSUnknownDerivedAsSBaseAsync().add_done_callback(cb.response_SBSUnknownDerivedAsSBase)
     cb.check()
     if t.ice_getEncodingVersion() == Ice.Encoding_1_0:
         #
         # This test succeeds for the 1.0 encoding.
         #
         cb = Callback()
-        t.begin_SBSUnknownDerivedAsSBaseCompact(cb.response_SBSUnknownDerivedAsSBase, cb.exception)
+        t.SBSUnknownDerivedAsSBaseCompactAsync().add_done_callback(cb.response_SBSUnknownDerivedAsSBase)
         cb.check()
     else:
         #
@@ -517,8 +523,7 @@ def allTests(communicator):
         # be sliced to a known type.
         #
         cb = Callback()
-        t.begin_SBSUnknownDerivedAsSBaseCompact(cb.response_SBSUnknownDerivedAsSBaseCompact,
-                                                cb.exception_SBSUnknownDerivedAsSBaseCompact)
+        t.SBSUnknownDerivedAsSBaseCompactAsync().add_done_callback(cb.exception_SBSUnknownDerivedAsSBaseCompact)
         cb.check()
     print("ok")
 
@@ -527,10 +532,10 @@ def allTests(communicator):
     try:
         o = t.SUnknownAsObject()
         test(t.ice_getEncodingVersion() != Ice.Encoding_1_0)
-        test(isinstance(o, Ice.UnknownSlicedObject))
+        test(isinstance(o, Ice.UnknownSlicedValue))
         test(o.unknownTypeId == "::Test::SUnknown")
         t.checkSUnknown(o)
-    except Ice.NoObjectFactoryException:
+    except Ice.NoValueFactoryException:
         test(t.ice_getEncodingVersion() == Ice.Encoding_1_0)
     except Ice.Exception:
         test(False)
@@ -541,9 +546,9 @@ def allTests(communicator):
     try:
         cb = Callback()
         if t.ice_getEncodingVersion() == Ice.Encoding_1_0:
-            t.begin_SUnknownAsObject(cb.response_SUnknownAsObject10, cb.exception_SUnknownAsObject10)
+            t.SUnknownAsObjectAsync().add_done_callback(cb.exception_SUnknownAsObject10)
         else:
-            t.begin_SUnknownAsObject(cb.response_SUnknownAsObject11, cb.exception_SUnknownAsObject11)
+            t.SUnknownAsObjectAsync().add_done_callback(cb.response_SUnknownAsObject11)
         cb.check()
     except Ice.Exception:
         test(False)
@@ -564,7 +569,7 @@ def allTests(communicator):
     sys.stdout.write("one-element cycle (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_oneElementCycle(cb.response_oneElementCycle, cb.exception)
+    t.oneElementCycleAsync().add_done_callback(cb.response_oneElementCycle)
     cb.check()
     print("ok")
 
@@ -588,7 +593,7 @@ def allTests(communicator):
     sys.stdout.write("two-element cycle (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_twoElementCycle(cb.response_twoElementCycle, cb.exception)
+    t.twoElementCycleAsync().add_done_callback(cb.response_twoElementCycle)
     cb.check()
     print("ok")
 
@@ -620,7 +625,7 @@ def allTests(communicator):
     sys.stdout.write("known derived pointer slicing as base (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_D1AsB(cb.response_D1AsB, cb.exception)
+    t.D1AsBAsync().add_done_callback(cb.response_D1AsB)
     cb.check()
     print("ok")
 
@@ -646,7 +651,7 @@ def allTests(communicator):
     sys.stdout.write("known derived pointer slicing as derived (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_D1AsD1(cb.response_D1AsD1, cb.exception)
+    t.D1AsD1Async().add_done_callback(cb.response_D1AsD1)
     cb.check()
     print("ok")
 
@@ -676,7 +681,7 @@ def allTests(communicator):
     sys.stdout.write("unknown derived pointer slicing as base (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_D2AsB(cb.response_D2AsB, cb.exception)
+    t.D2AsBAsync().add_done_callback(cb.response_D2AsB)
     cb.check()
     print("ok")
 
@@ -705,7 +710,7 @@ def allTests(communicator):
     sys.stdout.write("param ptr slicing with known first (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_paramTest1(cb.response_paramTest1, cb.exception)
+    t.paramTest1Async().add_done_callback(cb.response_paramTest1)
     cb.check()
     print("ok")
 
@@ -743,7 +748,7 @@ def allTests(communicator):
     sys.stdout.write("return value identity with known first (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_returnTest1(cb.response_returnTest1, cb.exception)
+    t.returnTest1Async().add_done_callback(cb.response_returnTest1)
     cb.check()
     print("ok")
 
@@ -759,7 +764,7 @@ def allTests(communicator):
     sys.stdout.write("return value identity with unknown first (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_returnTest2(cb.response_returnTest2, cb.exception)
+    t.returnTest2Async().add_done_callback(cb.response_returnTest2)
     cb.check()
     print("ok")
 
@@ -818,7 +823,7 @@ def allTests(communicator):
         d1.pd1 = d3
 
         cb = Callback()
-        t.begin_returnTest3(d1, d3, cb.response_returnTest3, cb.exception)
+        t.returnTest3Async(d1, d3).add_done_callback(cb.response_returnTest3)
         cb.check()
         b1 = cb.r
 
@@ -901,7 +906,7 @@ def allTests(communicator):
         d1.pd1 = d3
 
         cb = Callback()
-        t.begin_returnTest3(d3, d1, cb.response_returnTest3, cb.exception)
+        t.returnTest3Async(d3, d1).add_done_callback(cb.response_returnTest3)
         cb.check()
         b1 = cb.r
 
@@ -955,7 +960,7 @@ def allTests(communicator):
     sys.stdout.write("remainder unmarshaling (3 instances) (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_paramTest3(cb.response_paramTest3, cb.exception)
+    t.paramTest3Async().add_done_callback(cb.response_paramTest3)
     cb.check()
     print("ok")
 
@@ -980,7 +985,7 @@ def allTests(communicator):
     sys.stdout.write("remainder unmarshaling (4 instances) (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_paramTest4(cb.response_paramTest4, cb.exception)
+    t.paramTest4Async().add_done_callback(cb.response_paramTest4)
     cb.check()
     print("ok")
 
@@ -1029,7 +1034,7 @@ def allTests(communicator):
         b2.pb = b1
 
         cb = Callback()
-        t.begin_returnTest3(d3, b2, cb.response_returnTest3, cb.exception)
+        t.returnTest3Async(d3, b2).add_done_callback(cb.response_returnTest3)
         cb.check()
         r = cb.r
 
@@ -1093,7 +1098,7 @@ def allTests(communicator):
         d12.pd1 = d11
 
         cb = Callback()
-        t.begin_returnTest3(d3, d12, cb.response_returnTest3, cb.exception)
+        t.returnTest3Async(d3, d12).add_done_callback(cb.response_returnTest3)
         cb.check()
         r = cb.r
 
@@ -1226,7 +1231,7 @@ def allTests(communicator):
         ss2.s = (ss2b, ss2d1, ss2d3)
 
         cb = Callback()
-        t.begin_sequenceTest(ss1, ss2, cb.response_sequenceTest, cb.exception)
+        t.sequenceTestAsync(ss1, ss2).add_done_callback(cb.response_sequenceTest)
         cb.check()
         ss = cb.r
 
@@ -1318,7 +1323,7 @@ def allTests(communicator):
             bin[i] = d1
 
         cb = Callback()
-        t.begin_dictionaryTest(bin, cb.response_dictionaryTest, cb.exception)
+        t.dictionaryTestAsync(bin).add_done_callback(cb.response_dictionaryTest)
         cb.check()
         bout = cb.bout
         r = cb.r
@@ -1358,7 +1363,7 @@ def allTests(communicator):
         t.throwBaseAsBase()
         test(False)
     except Test.BaseException as e:
-        test(e.ice_name() == "Test::BaseException")
+        test(e.ice_id() == "::Test::BaseException")
         test(e.sbe == "sbe")
         test(e.pb)
         test(e.pb.sb == "sb")
@@ -1370,7 +1375,7 @@ def allTests(communicator):
     sys.stdout.write("base exception thrown as base exception (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_throwBaseAsBase(cb.response, cb.exception_throwBaseAsBase)
+    t.throwBaseAsBaseAsync().add_done_callback(cb.exception_throwBaseAsBase)
     cb.check()
     print("ok")
 
@@ -1380,7 +1385,7 @@ def allTests(communicator):
         t.throwDerivedAsBase()
         test(False)
     except Test.DerivedException as e:
-        test(e.ice_name() == "Test::DerivedException")
+        test(e.ice_id() == "::Test::DerivedException")
         test(e.sbe == "sbe")
         test(e.pb)
         test(e.pb.sb == "sb1")
@@ -1398,7 +1403,7 @@ def allTests(communicator):
     sys.stdout.write("derived exception thrown as base exception (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_throwDerivedAsBase(cb.response, cb.exception_throwDerivedAsBase)
+    t.throwDerivedAsBaseAsync().add_done_callback(cb.exception_throwDerivedAsBase)
     cb.check()
     print("ok")
 
@@ -1408,7 +1413,7 @@ def allTests(communicator):
         t.throwDerivedAsDerived()
         test(False)
     except Test.DerivedException as e:
-        test(e.ice_name() == "Test::DerivedException")
+        test(e.ice_id() == "::Test::DerivedException")
         test(e.sbe == "sbe")
         test(e.pb)
         test(e.pb.sb == "sb1")
@@ -1426,7 +1431,7 @@ def allTests(communicator):
     sys.stdout.write("derived exception thrown as derived exception (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_throwDerivedAsDerived(cb.response, cb.exception_throwDerivedAsDerived)
+    t.throwDerivedAsDerivedAsync().add_done_callback(cb.exception_throwDerivedAsDerived)
     cb.check()
     print("ok")
 
@@ -1436,7 +1441,7 @@ def allTests(communicator):
         t.throwUnknownDerivedAsBase()
         test(False)
     except Test.BaseException as e:
-        test(e.ice_name() == "Test::BaseException")
+        test(e.ice_id() == "::Test::BaseException")
         test(e.sbe == "sbe")
         test(e.pb)
         test(e.pb.sb == "sb d2")
@@ -1448,7 +1453,7 @@ def allTests(communicator):
     sys.stdout.write("unknown derived exception thrown as base exception (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_throwUnknownDerivedAsBase(cb.response, cb.exception_throwUnknownDerivedAsBase)
+    t.throwUnknownDerivedAsBaseAsync().add_done_callback(cb.exception_throwUnknownDerivedAsBase)
     cb.check()
     print("ok")
 
@@ -1464,7 +1469,7 @@ def allTests(communicator):
     sys.stdout.write("forward-declared class (AMI)... ")
     sys.stdout.flush()
     cb = Callback()
-    t.begin_useForward(cb.response_useForward, cb.exception)
+    t.useForwardAsync().add_done_callback(cb.response_useForward)
     cb.check()
     print("ok")
 
@@ -1579,7 +1584,7 @@ def allTests(communicator):
             t.ice_encodingVersion(Ice.Encoding_1_0).checkPBSUnknown(p)
     except Ice.OperationNotExistException:
         pass
-    
+
     print("ok")
 
     sys.stdout.write("preserved classes (AMI)... ")
@@ -1594,7 +1599,7 @@ def allTests(communicator):
     pd.pb = pd
 
     cb = Callback()
-    t.begin_exchangePBase(pd, cb.response_preserved1, cb.exception)
+    t.exchangePBaseAsync(pd).add_done_callback(cb.response_preserved1)
     cb.check()
 
     #
@@ -1605,7 +1610,7 @@ def allTests(communicator):
     pu.pu = "preserved"
 
     cb = Callback()
-    t.begin_exchangePBase(pu, cb.response_preserved2, cb.exception)
+    t.exchangePBaseAsync(pu).add_done_callback(cb.response_preserved2)
     cb.check()
 
     #
@@ -1618,9 +1623,9 @@ def allTests(communicator):
 
     cb = Callback()
     if t.ice_getEncodingVersion() == Ice.Encoding_1_0:
-        t.begin_exchangePBase(pcd, cb.response_preserved3, cb.exception)
+        t.exchangePBaseAsync(pcd).add_done_callback(cb.response_preserved3)
     else:
-        t.begin_exchangePBase(pcd, cb.response_preserved4, cb.exception)
+        t.exchangePBaseAsync(pcd).add_done_callback(cb.response_preserved4)
     cb.check()
 
     #
@@ -1633,9 +1638,9 @@ def allTests(communicator):
 
     cb = Callback()
     if t.ice_getEncodingVersion() == Ice.Encoding_1_0:
-        t.begin_exchangePBase(pcd, cb.response_compactPreserved1, cb.exception)
+        t.exchangePBaseAsync(pcd).add_done_callback(cb.response_compactPreserved1)
     else:
-        t.begin_exchangePBase(pcd, cb.response_compactPreserved2, cb.exception)
+        t.exchangePBaseAsync(pcd).add_done_callback(cb.response_compactPreserved2)
     cb.check()
 
     #
@@ -1659,9 +1664,9 @@ def allTests(communicator):
 
     cb = Callback()
     if t.ice_getEncodingVersion() == Ice.Encoding_1_0:
-        t.begin_exchangePBase(pcd, cb.response_preserved3, cb.exception)
+        t.exchangePBaseAsync(pcd).add_done_callback(cb.response_preserved3)
     else:
-        t.begin_exchangePBase(pcd, cb.response_preserved5, cb.exception)
+        t.exchangePBaseAsync(pcd).add_done_callback(cb.response_preserved5)
     cb.check()
 
     print("ok")
@@ -1674,7 +1679,7 @@ def allTests(communicator):
         # UCNode. This provides an easy way to determine how many
         # unmarshaled instances currently exist.
         #
-        communicator.addObjectFactory(NodeFactoryI(), Test.PNode.ice_staticId())
+        communicator.getValueFactoryManager().add(NodeFactoryI, Test.PNode.ice_staticId())
 
         #
         # Relay a graph through the server. This test uses a preserved class
@@ -1761,7 +1766,7 @@ def allTests(communicator):
         # Preserved. This provides an easy way to determine how many
         # unmarshaled instances currently exist.
         #
-        communicator.addObjectFactory(PreservedFactoryI(), Test.Preserved.ice_staticId())
+        communicator.getValueFactoryManager().add(PreservedFactoryI, Test.Preserved.ice_staticId())
 
         #
         # Obtain a preserved object from the server where the most-derived

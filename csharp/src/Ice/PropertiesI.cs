@@ -84,12 +84,12 @@ namespace Ice
                 pv.used = true;
                 try
                 {
-                    return System.Int32.Parse(pv.val, CultureInfo.InvariantCulture);
+                    return int.Parse(pv.val, CultureInfo.InvariantCulture);
                 }
-                catch(System.FormatException)
+                catch(FormatException)
                 {
-                    Ice.Util.getProcessLogger().warning("numeric property " + key + 
-                                                        " set to non-numeric value, defaulting to " + val);
+                    Util.getProcessLogger().warning("numeric property " + key + 
+                                                    " set to non-numeric value, defaulting to " + val);
                     return val;
                 }
             }
@@ -120,8 +120,8 @@ namespace Ice
                 string[] result = IceUtilInternal.StringUtil.splitString(pv.val, ", \t\r\n");
                 if(result == null)
                 {
-                    Ice.Util.getProcessLogger().warning("mismatched quotes in property " + key 
-                                            + "'s value, returning default value");
+                    Util.getProcessLogger().warning("mismatched quotes in property " + key 
+                                                    + "'s value, returning default value");
                     return val;
                 }
                 else
@@ -142,7 +142,7 @@ namespace Ice
                 {
                     if(prefix.Length == 0 || s.StartsWith(prefix, StringComparison.Ordinal))
                     {
-                        PropertyValue pv = (PropertyValue)_properties[s];
+                        PropertyValue pv = _properties[s];
                         pv.used = true;
                         result[s] = pv.val;
                     }
@@ -162,13 +162,13 @@ namespace Ice
             }
             if(key == null || key.Length == 0)
             {
-                throw new Ice.InitializationException("Attempt to set property with empty key");
+                throw new InitializationException("Attempt to set property with empty key");
             }
 
             //
             // Check if the property is legal.
             //
-            Logger logger = Ice.Util.getProcessLogger();
+            Logger logger = Util.getProcessLogger();
             int dotPos = key.IndexOf('.');
             if(dotPos != -1)
             {
@@ -313,12 +313,7 @@ namespace Ice
         
         public void load(string file)
         {
-#if UNITY
-            throw new FeatureNotSupportedException("File I/O not supported in UNITY build");
-#else
-#   if !SILVERLIGHT
-            if(IceInternal.AssemblyUtil.platform_ == IceInternal.AssemblyUtil.Platform.Windows &&
-               (file.StartsWith("HKLM\\", StringComparison.Ordinal)))
+            if(file.StartsWith("HKLM\\", StringComparison.Ordinal))
             {
                 RegistryKey iceKey = Registry.LocalMachine.OpenSubKey(file.Substring(5));
                 if(iceKey == null)
@@ -339,7 +334,6 @@ namespace Ice
             }
             else
             {
-#   endif
                 try
                 {
                     using(System.IO.StreamReader sr = new System.IO.StreamReader(file))
@@ -349,14 +343,11 @@ namespace Ice
                 }
                 catch(System.IO.IOException ex)
                 {
-                    Ice.FileException fe = new Ice.FileException(ex);
+                    FileException fe = new FileException(ex);
                     fe.path = file;
                     throw fe;
                 }
-#   if !SILVERLIGHT
             }
-#   endif
-#endif
         }
         
         public Properties ice_clone_()
@@ -429,7 +420,7 @@ namespace Ice
             }
             else
             {
-                _properties["Ice.ProgramName"] = new PropertyValue(System.AppDomain.CurrentDomain.FriendlyName, true);
+                _properties["Ice.ProgramName"] = new PropertyValue(AppDomain.CurrentDomain.FriendlyName, true);
             }
 
             bool loadConfigFiles = false;
@@ -447,10 +438,10 @@ namespace Ice
                     loadConfigFiles = true;
 
                     string[] arr = new string[args.Length - 1];
-                    System.Array.Copy(args, 0, arr, 0, i);
+                    Array.Copy(args, 0, arr, 0, i);
                     if(i < args.Length - 1)
                     {
-                        System.Array.Copy(args, i + 1, arr, i, args.Length - i - 1);
+                        Array.Copy(args, i + 1, arr, i, args.Length - i - 1);
                     }
                     args = arr;
                 }
@@ -648,7 +639,7 @@ namespace Ice
         
             if((state == ParseStateKey && key.Length != 0) || (state == ParseStateValue && key.Length == 0))
             {
-                Ice.Util.getProcessLogger().warning("invalid config file entry: \"" + line + "\"");
+                Util.getProcessLogger().warning("invalid config file entry: \"" + line + "\"");
                 return;
             }
             else if(key.Length == 0)
@@ -662,17 +653,14 @@ namespace Ice
         private void loadConfig()
         {
             string val = getProperty("Ice.Config");
-
-#if !COMPACT && !SILVERLIGHT
             if(val.Length == 0 || val.Equals("1"))
             {
-                string s = System.Environment.GetEnvironmentVariable("ICE_CONFIG");
+                string s = Environment.GetEnvironmentVariable("ICE_CONFIG");
                 if(s != null && s.Length != 0)
                 {
                     val = s;
                 }
             }
-#endif
 
             if(val.Length > 0)
             {

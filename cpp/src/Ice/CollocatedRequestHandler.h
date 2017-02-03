@@ -15,7 +15,7 @@
 
 #include <Ice/RequestHandler.h>
 #include <Ice/ResponseHandler.h>
-#include <Ice/BasicStream.h>
+#include <Ice/OutputStream.h>
 #include <Ice/ObjectAdapterF.h>
 #include <Ice/LoggerF.h>
 #include <Ice/TraceLevelsF.h>
@@ -24,19 +24,19 @@ namespace Ice
 {
 
 class ObjectAdapterI;
-typedef IceUtil::Handle<ObjectAdapterI> ObjectAdapterIPtr;
+ICE_DEFINE_PTR(ObjectAdapterIPtr, ObjectAdapterI);
 
 }
 
 namespace IceInternal
 {
 
-class OutgoingBase;
-class Outgoing;
 class OutgoingAsyncBase;
 class OutgoingAsync;
 
-class CollocatedRequestHandler : public RequestHandler, public ResponseHandler, private IceUtil::Monitor<IceUtil::Mutex>
+class CollocatedRequestHandler : public RequestHandler,
+                                 public ResponseHandler,
+                                 private IceUtil::Monitor<IceUtil::Mutex>
 {
 public:
 
@@ -45,13 +45,11 @@ public:
 
     virtual RequestHandlerPtr update(const RequestHandlerPtr&, const RequestHandlerPtr&);
 
-    virtual bool sendRequest(ProxyOutgoingBase*);
     virtual AsyncStatus sendAsyncRequest(const ProxyOutgoingAsyncBasePtr&);
 
-    virtual void requestCanceled(OutgoingBase*, const Ice::LocalException&);
     virtual void asyncRequestCanceled(const OutgoingAsyncBasePtr&, const Ice::LocalException&);
 
-    virtual void sendResponse(Ice::Int, BasicStream*, Ice::Byte, bool);
+    virtual void sendResponse(Ice::Int, Ice::OutputStream*, Ice::Byte, bool);
     virtual void sendNoResponse();
     virtual bool systemException(Ice::Int, const Ice::SystemException&, bool);
     virtual void invokeException(Ice::Int, const Ice::LocalException&, int, bool);
@@ -61,13 +59,18 @@ public:
     virtual Ice::ConnectionIPtr getConnection();
     virtual Ice::ConnectionIPtr waitForConnection();
 
-    void invokeRequest(OutgoingBase*, int);
-    AsyncStatus invokeAsyncRequest(OutgoingAsyncBase*, int);
+    AsyncStatus invokeAsyncRequest(OutgoingAsyncBase*, int, bool);
 
-    bool sent(OutgoingBase*);
     bool sentAsync(OutgoingAsyncBase*);
 
-    void invokeAll(BasicStream*, Ice::Int, Ice::Int);
+    void invokeAll(Ice::OutputStream*, Ice::Int, Ice::Int);
+
+#ifdef ICE_CPP11_MAPPING
+    std::shared_ptr<CollocatedRequestHandler> shared_from_this()
+    {
+        return std::static_pointer_cast<CollocatedRequestHandler>(ResponseHandler::shared_from_this());
+    }
+#endif
 
 private:
 
@@ -79,14 +82,10 @@ private:
     const TraceLevelsPtr _traceLevels;
 
     int _requestId;
-
-    std::map<OutgoingBase*, Ice::Int> _sendRequests;
     std::map<OutgoingAsyncBasePtr, Ice::Int> _sendAsyncRequests;
-
-    std::map<Ice::Int, OutgoingBase*> _requests;
     std::map<Ice::Int, OutgoingAsyncBasePtr> _asyncRequests;
 };
-typedef IceUtil::Handle<CollocatedRequestHandler> CollocatedRequestHandlerPtr;
+ICE_DEFINE_PTR(CollocatedRequestHandlerPtr, CollocatedRequestHandler);
 
 }
 

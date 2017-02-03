@@ -15,18 +15,10 @@
 using namespace IceUtil;
 using namespace std;
 
-#if defined(__GNUC__) && !defined(__sun) && !defined(__FreeBSD__) && !defined(__MINGW32__) && \
-    !defined(ICE_STATIC_LIBS)
-#  define HAS_STACK_TRACES
-#endif
-
-#if defined(_WIN32) && !defined(ICE_OS_WINRT) && !defined(__MINGW32__)
-#  define HAS_STACK_TRACES
-#endif
 
 namespace IceUtilInternal
 {
-extern bool ICE_UTIL_API printStackTraces;
+extern bool ICE_API printStackTraces;
 }
 
 namespace
@@ -81,7 +73,7 @@ getIceHome()
 {
     vector<wchar_t> buf(256);
     DWORD ret = GetEnvironmentVariableW(L"ICE_HOME", &buf[0], static_cast<DWORD>(buf.size()));
-    string iceHome = (ret > 0 && ret < buf.size()) ? IceUtil::wstringToString(&buf[0]) : string("");
+    string iceHome = (ret > 0 && ret < buf.size()) ? wstringToString(&buf[0]) : string("");
     if(!iceHome.empty())
     {
         return iceHome;
@@ -91,7 +83,7 @@ getIceHome()
         HKEY hKey;
 
         string key = string("SOFTWARE\\ZeroC\\Ice ") + ICE_STRING_VERSION;
-        const wstring keyName = IceUtil::stringToWstring(key);
+        const wstring keyName = stringToWstring(key);
 
         if(RegOpenKeyExW(HKEY_LOCAL_MACHINE, keyName.c_str(), 0, KEY_QUERY_VALUE, &hKey) != ERROR_SUCCESS)
         {
@@ -100,11 +92,11 @@ getIceHome()
 
         WCHAR buf[512];
         DWORD bufSize = sizeof(buf);
-        if(RegQueryValueExW(hKey, L"InstallDir", 0, NULL, (LPBYTE)buf, &bufSize) != ERROR_SUCCESS)
+        if(RegQueryValueExW(hKey, L"InstallDir", 0, ICE_NULLPTR, (LPBYTE)buf, &bufSize) != ERROR_SUCCESS)
         {
             return "";
         }
-        return IceUtil::wstringToString(wstring(buf));
+        return wstringToString(wstring(buf));
     }
 }
 #endif
@@ -113,8 +105,12 @@ getIceHome()
 void
 standardizeVersion(string& str)
 {
-    string v1("3.6.2");
-    string v2("36");
+    string v1(ICE_STRING_VERSION);
+
+    vector<string> split;
+    IceUtilInternal::splitString(v1, ".", split);
+    string v2(split[0] + split[1]);
+
     size_t pos = 0;
     while((pos = str.find(v1, pos)) != string::npos)
     {
@@ -140,7 +136,11 @@ splitLines(const string& str)
 
 int main(int argc, char* argv[])
 {
-#ifdef HAS_STACK_TRACES
+    if(IceUtilInternal::stackTraceImpl() == IceUtilInternal::STNone)
+    {
+        cout << "This IceUtil build cannot capture stack traces" << endl;
+        return EXIT_SUCCESS;
+    }
 
     bool optimized = false;
 #ifdef NDEBUG
@@ -150,9 +150,9 @@ int main(int argc, char* argv[])
 #if defined(_WIN32)
     bool binDist = false;
     vector<wchar_t> buf(256);
-    DWORD ret = GetEnvironmentVariableW(L"USE_BIN_DIST", &buf[0], static_cast<DWORD>(buf.size()));
-    string valstr = (ret > 0 && ret < buf.size()) ? IceUtil::wstringToString(&buf[0]) : string("");
-    binDist = valstr == "yes";
+    DWORD ret = GetEnvironmentVariableW(L"ICE_BIN_DIST", &buf[0], static_cast<DWORD>(buf.size()));
+    string valstr = (ret > 0 && ret < buf.size()) ? wstringToString(&buf[0]) : string("");
+    binDist = (valstr.find("all") != std::string::npos) || (valstr.find("cpp") != std::string::npos);
 
     if(binDist)
     {
@@ -183,10 +183,10 @@ int main(int argc, char* argv[])
 
 #if defined(__APPLE__)
     bool binDist = false;
-    const char* s = getenv("USE_BIN_DIST");
+    const char* s = getenv("ICE_BIN_DIST");
     if(s && *s != '\0')
     {
-       binDist = string(s) == "yes";
+       binDist = (string(s).find("all") != std::string::npos) || (string(s).find("cpp") != std::string::npos);
     }
 
     if(binDist && !optimized)
@@ -200,7 +200,9 @@ int main(int argc, char* argv[])
     {
         filename += "release";
 #if defined(_MSC_VER)
-#   if(_MSC_VER == 1800)
+#   if(_MSC_VER == 1700)
+        filename += "-vc110";
+#   elif(_MSC_VER == 1800)
         filename += "-vc120";
 #   elif(_MSC_VER == 1900)
         filename += "-vc140";
@@ -218,6 +220,17 @@ int main(int argc, char* argv[])
     filename += ".OSX";
 #else
     filename += ".Linux";
+
+    if(!optimized && IceUtilInternal::stackTraceImpl() == IceUtilInternal::STLibbacktracePlus)
+    {
+        // Libbacktrace with GCC 4.8 and pie return a smaller backtrace
+#   if defined(__pie__) && defined(__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__ == 408)
+        filename += ".libbacktrace+48pie";
+#   else
+        filename += ".libbacktrace+";
+#   endif
+    }
+
 #endif
 
     while(true)
@@ -226,6 +239,16 @@ int main(int argc, char* argv[])
         bool match = true;
 #endif
         ifstream ifs(filename.c_str());
+
+        if(!ifs)
+        {
+            cout << "cannot open `" << filename << "`, failed!" << endl;
+            return EXIT_FAILURE;
+        }
+
+        // Show which template we use:
+        cout << filename << "... ";
+
         stringstream sstr;
         sstr << ifs.rdbuf();
 #if defined(__APPLE__)
@@ -243,6 +266,8 @@ int main(int argc, char* argv[])
         catch(const IceUtil::Exception& ex)
         {
             string stack = ex.ice_stackTrace();
+            // cerr << "\n full stack trace is \n" << stack << endl;
+
 #ifdef __APPLE__
             standardizeVersion(stack);
             if(expected.size() < stack.size())
@@ -276,6 +301,8 @@ int main(int argc, char* argv[])
                         test(false);
                     }
 #else
+                    cerr << "could not find `" << expected[i] << "` in " << actual[i] << endl;
+                    cerr << "Full stack is:\n" << stack << endl;
                     test(false);
 #endif
                 }
@@ -293,9 +320,6 @@ int main(int argc, char* argv[])
         }
     }
     cout << "ok" << endl;
-#else
-    cout << "Test not supported on this platform" << endl;
-#endif
 
     return EXIT_SUCCESS;
 }

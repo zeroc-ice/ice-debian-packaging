@@ -1,3 +1,13 @@
+// **********************************************************************
+//
+// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+//
+// This copy of Ice is licensed to you under the terms described in the
+// ICE_LICENSE file included in this distribution.
+//
+// **********************************************************************
+
+#include <IceUtil/ConsoleUtil.h>
 #include <ConfluenceOutput.h>
 #include <iostream>
 #include <sstream>
@@ -51,7 +61,7 @@ Confluence::ConfluenceOutput::ConfluenceOutput(const char* s) :
 }
 
 void
-Confluence::ConfluenceOutput::print(const char* s)
+Confluence::ConfluenceOutput::print(const string& s)
 {
     if(_se)
     {
@@ -62,7 +72,7 @@ Confluence::ConfluenceOutput::print(const char* s)
     if(_escape)
     {
         string escaped = escape(s);
-        OutputBase::print(escaped.c_str());
+        OutputBase::print(escaped);
     }
     else
     {
@@ -128,7 +138,7 @@ Confluence::ConfluenceOutput::escapeComment(string comment)
         // For each position of a found escape character
         while(pos != string::npos)
         {
-            pair<unsigned int,unsigned int> *region = NULL;
+            pair<unsigned int,unsigned int> *region = ICE_NULLPTR;
 
             // Is this pos in an escaped section?
             for(list<pair<unsigned int,unsigned int> >::iterator i = escaperLimits.begin(); i != escaperLimits.end();
@@ -141,7 +151,7 @@ Confluence::ConfluenceOutput::escapeComment(string comment)
                 }
             }
 
-            if(region == NULL)
+            if(region == ICE_NULLPTR)
             {
                 comment.replace(pos, c.size(), replacement);
                 pos = comment.find(c, pos + replacement.size());
@@ -795,8 +805,8 @@ Confluence::ConfluenceOutput::getMarkerLimits(const string& str)
         }
         else
         {
-            cerr << "getEscaperLimits FOUND START OF ESCAPE MARKER WITH NO MATCHING END IN STRING:" << endl
-                 << str.substr(start) << endl;
+            consoleErr << "getEscaperLimits FOUND START OF ESCAPE MARKER WITH NO MATCHING END IN STRING:"
+                       << endl << str.substr(start) << endl;
             break;
         }
     }

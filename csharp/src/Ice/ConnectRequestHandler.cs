@@ -7,12 +7,9 @@
 //
 // **********************************************************************
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using Ice.Instrumentation;
 
 namespace IceInternal
 {
@@ -35,7 +32,7 @@ namespace IceInternal
             return previousHandler == this ? newHandler : this;
         }
 
-        public bool sendAsyncRequest(ProxyOutgoingAsyncBase outAsync, out Ice.AsyncCallback sentCallback)
+        public int sendAsyncRequest(ProxyOutgoingAsyncBase outAsync)
         {
             lock(this)
             {
@@ -47,11 +44,10 @@ namespace IceInternal
                 if(!initialized())
                 {
                     _requests.AddLast(outAsync);
-                    sentCallback = null;
-                    return false;
+                    return OutgoingAsyncBase.AsyncStatusQueued;
                 }
             }
-            return outAsync.invokeRemote(_connection, _compress, _response, out sentCallback);
+            return outAsync.invokeRemote(_connection, _compress, _response);
         }
 
         public void asyncRequestCanceled(OutgoingAsyncBase outAsync, Ice.LocalException ex)
@@ -71,10 +67,9 @@ namespace IceInternal
                         if(p.Value == outAsync)
                         {
                             _requests.Remove(p);
-                            Ice.AsyncCallback cb = outAsync.completed(ex);
-                            if(cb != null)
+                            if(outAsync.exception(ex))
                             {
-                                outAsync.invokeCompletedAsync(cb);
+                                outAsync.invokeExceptionAsync();
                             }
                             return;
                         }
@@ -161,14 +156,13 @@ namespace IceInternal
 
                 foreach(ProxyOutgoingAsyncBase outAsync in _requests)
                 {
-                    Ice.AsyncCallback cb = outAsync.completed(_exception);
-                    if(cb != null)
+                    if(outAsync.exception(_exception))
                     {
-                        outAsync.invokeCompletedAsync(cb);
+                        outAsync.invokeExceptionAsync();
                     }
                 }
                 _requests.Clear();
-                System.Threading.Monitor.PulseAll(this);
+                Monitor.PulseAll(this);
             }
         }
 
@@ -205,7 +199,7 @@ namespace IceInternal
             {
                 while(_flushing && _exception == null)
                 {
-                    System.Threading.Monitor.Wait(this);
+                    Monitor.Wait(this);
                 }
 
                 if(_exception != null)
@@ -248,13 +242,9 @@ namespace IceInternal
             {
                 try
                 {
-                    Ice.AsyncCallback sentCallback = null;
-                    if(outAsync.invokeRemote(_connection, _compress, _response, out sentCallback))
+                    if((outAsync.invokeRemote(_connection, _compress, _response) & OutgoingAsyncBase.AsyncStatusInvokeSentCallback) != 0)
                     {
-                        if(sentCallback != null)
-                        {
-                            outAsync.invokeSentAsync(sentCallback);
-                        }
+                        outAsync.invokeSentAsync();
                     }
                 }
                 catch(RetryException ex)
@@ -269,10 +259,9 @@ namespace IceInternal
                 catch(Ice.LocalException ex)
                 {
                     exception = ex;
-                    Ice.AsyncCallback cb = outAsync.completed(ex);
-                    if(cb != null)
+                    if(outAsync.exception(ex))
                     {
-                        outAsync.invokeCompletedAsync(cb);
+                        outAsync.invokeExceptionAsync();
                     }
                 }
             }
@@ -289,7 +278,7 @@ namespace IceInternal
                 _requestHandler = new ConnectionRequestHandler(_reference, _connection, _compress);
                 foreach(Ice.ObjectPrxHelperBase prx in _proxies)
                 {
-                    prx.updateRequestHandler__(this, _requestHandler);
+                    prx.iceUpdateRequestHandler(this, _requestHandler);
                 }
             }
 
@@ -308,7 +297,7 @@ namespace IceInternal
 
                 _proxies.Clear();
                 _proxy = null; // Break cyclic reference count.
-                System.Threading.Monitor.PulseAll(this);
+                Monitor.PulseAll(this);
             }
         }
 

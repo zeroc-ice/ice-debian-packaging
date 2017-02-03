@@ -7,7 +7,17 @@
 //
 // **********************************************************************
 
+#include <IceUtil/Config.h>
+
+#ifndef ICE_HAS_CODECVT_UTF8
+//
+// It's better to exclude the file from the build, but it's not always
+// easy to do.
+//
+
 #include <IceUtil/Unicode.h>
+#include <IceUtil/Exception.h>
+
 #include <IceUtil/ConvertUTF.h>
 
 using namespace std;
@@ -20,39 +30,30 @@ namespace
 // Helper class, base never defined
 // Usage: WstringHelper<sizeof(wchar_t)>::toUTF8 and fromUTF8.
 //
-template<size_t wcharSize> 
-struct WstringHelper
-{
-    static ConversionResult toUTF8(
-        const wchar_t*& sourceStart, const wchar_t* sourceEnd, 
-        Byte*& targetStart, Byte* targetEnd, ConversionFlags flags);
+template<size_t wcharSize> struct WstringHelper;
 
-    static ConversionResult fromUTF8(
-        const Byte*& sourceStart, const Byte* sourceEnd, 
-        wchar_t*& targetStart, wchar_t* targetEnd, ConversionFlags flags);
-};
 
 template<>
 struct WstringHelper<2>
 {
     static ConversionResult toUTF8(
-        const wchar_t*& sourceStart, const wchar_t* sourceEnd, 
-        Byte*& targetStart, Byte* targetEnd, ConversionFlags flags)
+        const wchar_t*& sourceStart, const wchar_t* sourceEnd,
+        Byte*& targetStart, Byte* targetEnd)
     {
         return ConvertUTF16toUTF8(
             reinterpret_cast<const UTF16**>(&sourceStart),
             reinterpret_cast<const UTF16*>(sourceEnd),
-            &targetStart, targetEnd, flags);
+            &targetStart, targetEnd, lenientConversion);
     }
-    
+
     static ConversionResult fromUTF8(
-        const Byte*& sourceStart, const Byte* sourceEnd, 
-        wchar_t*& targetStart, wchar_t* targetEnd, ConversionFlags flags)
+        const Byte*& sourceStart, const Byte* sourceEnd,
+        wchar_t*& targetStart, wchar_t* targetEnd)
     {
         return ConvertUTF8toUTF16(
             &sourceStart, sourceEnd,
             reinterpret_cast<UTF16**>(&targetStart),
-            reinterpret_cast<UTF16*>(targetEnd), flags);
+            reinterpret_cast<UTF16*>(targetEnd), lenientConversion);
     }
 };
 
@@ -60,128 +61,129 @@ template<>
 struct WstringHelper<4>
 {
     static ConversionResult toUTF8(
-        const wchar_t*& sourceStart, const wchar_t* sourceEnd, 
-        Byte*& targetStart, Byte* targetEnd, ConversionFlags flags)
+        const wchar_t*& sourceStart, const wchar_t* sourceEnd,
+        Byte*& targetStart, Byte* targetEnd)
     {
         return ConvertUTF32toUTF8(
             reinterpret_cast<const UTF32**>(&sourceStart),
             reinterpret_cast<const UTF32*>(sourceEnd),
-            &targetStart, targetEnd, flags);
+            &targetStart, targetEnd, lenientConversion);
     }
-    
+
     static ConversionResult fromUTF8(
-        const Byte*& sourceStart, const Byte* sourceEnd, 
-        wchar_t*& targetStart, wchar_t* targetEnd, ConversionFlags flags)
+        const Byte*& sourceStart, const Byte* sourceEnd,
+        wchar_t*& targetStart, wchar_t* targetEnd)
     {
         return ConvertUTF8toUTF32(
             &sourceStart, sourceEnd,
             reinterpret_cast<UTF32**>(&targetStart),
-            reinterpret_cast<UTF32*>(targetEnd), flags);
+            reinterpret_cast<UTF32*>(targetEnd), lenientConversion);
     }
 };
+
+void checkResult(ConversionResult result)
+{
+    switch (result)
+    {
+        case conversionOK:
+            break;
+        case sourceExhausted:
+            throw IceUtil::IllegalConversionException(__FILE__, __LINE__, "source exhausted");
+        case sourceIllegal:
+            throw IceUtil::IllegalConversionException(__FILE__, __LINE__, "source illegal");
+        case targetExhausted:
+            throw IceUtil::IllegalConversionException(__FILE__, __LINE__, "source illegal");
+        default:
+        {
+            assert(0);
+            throw IceUtil::IllegalConversionException(__FILE__, __LINE__);
+        }
+    }
+}
 }
 
 //
 // convertXXX functions
 //
 
-ConversionResult 
-IceUtilInternal::convertUTFWstringToUTF8(
-    const wchar_t*& sourceStart, const wchar_t* sourceEnd, 
-    Byte*& targetStart, Byte* targetEnd, ConversionFlags flags)
+bool
+IceUtilInternal::convertUTFWstringToUTF8(const wchar_t*& sourceStart, const wchar_t* sourceEnd,
+                                         Byte*& targetStart, Byte* targetEnd)
 {
-    return WstringHelper<sizeof(wchar_t)>::toUTF8(
-        sourceStart, sourceEnd, targetStart, targetEnd, flags);
-}
+    ConversionResult result = WstringHelper<sizeof(wchar_t)>::toUTF8(
+        sourceStart, sourceEnd, targetStart, targetEnd);
 
-ConversionResult
-IceUtilInternal::convertUTF8ToUTFWstring(
-    const Byte*& sourceStart, const Byte* sourceEnd, 
-    wchar_t*& targetStart, wchar_t* targetEnd, ConversionFlags flags)
-{
-    return WstringHelper<sizeof(wchar_t)>::fromUTF8(
-        sourceStart, sourceEnd, targetStart, targetEnd, flags);
-}
-
-ConversionResult 
-IceUtilInternal::convertUTF8ToUTFWstring(const Byte*& sourceStart, const Byte* sourceEnd, 
-                                 std::wstring& target, ConversionFlags flags)
-{
-    //
-    // Could be reimplemented without this temporary wchar_t buffer
-    //
-    size_t size = static_cast<size_t>(sourceEnd - sourceStart);
-    wchar_t* outBuf = new wchar_t[size];
-    wchar_t* targetStart = outBuf; 
-    wchar_t* targetEnd = targetStart + size;
-
-    ConversionResult result =  
-        convertUTF8ToUTFWstring(sourceStart, sourceEnd, targetStart,
-                                targetEnd, flags);
-
-    if(result == conversionOK)
+    if(result == targetExhausted)
     {
-        std::wstring s(outBuf, static_cast<size_t>(targetStart - outBuf));
-        s.swap(target);
+        return false;
     }
-    delete[] outBuf;
-    return result;
+    else
+    {
+        checkResult(result);
+        return true;
+    }
 }
 
-ConversionResult
-IceUtilInternal::convertUTF8ToUTF16(const vector<unsigned char>& source, vector<unsigned short>& target, ConversionFlags flags)
+void
+IceUtilInternal::convertUTF8ToUTFWstring(const Byte*& sourceStart, const Byte* sourceEnd, std::wstring& target)
+{
+    size_t sourceSize = static_cast<size_t>(sourceEnd - sourceStart);
+
+    target.resize(sourceSize);
+    wchar_t* targetStart = const_cast<wchar_t*>(target.data());
+    wchar_t* targetEnd = targetStart + sourceSize;
+
+    ConversionResult result = WstringHelper<sizeof(wchar_t)>::fromUTF8(sourceStart, sourceEnd,
+                                                                       targetStart, targetEnd);
+
+    checkResult(result);
+    target.resize(targetStart - target.data());
+}
+
+void
+IceUtilInternal::convertUTF8ToUTF16(const vector<unsigned char>& source, vector<unsigned short>& target)
 {
     target.resize(source.size());
     const unsigned char* sourceStart = &source[0];
     const unsigned char* sourceEnd = &source[0] + source.size();
-    
-    unsigned short* targetStart = &target[0]; 
+
+    unsigned short* targetStart = &target[0];
     unsigned short* targetEnd = &target[0] + target.size();
-    ConversionResult result = ConvertUTF8toUTF16(&sourceStart, sourceEnd, &targetStart, targetEnd, flags);
-    
-    if(result == conversionOK)
-    {
-        target.resize(targetStart - &target[0]);
-    }
-    return result;
+    ConversionResult result = ConvertUTF8toUTF16(&sourceStart, sourceEnd, &targetStart, targetEnd, lenientConversion);
+
+    checkResult(result);
+    target.resize(targetStart - &target[0]);
 }
 
-ConversionResult
-IceUtilInternal::convertUTF8ToUTF32(const vector<unsigned char>& source, vector<unsigned int>& target, ConversionFlags flags)
+void
+IceUtilInternal::convertUTF8ToUTF32(const vector<unsigned char>& source, vector<unsigned int>& target)
 {
     target.resize(source.size());
     const unsigned char* sourceStart = &source[0];
     const unsigned char* sourceEnd = &source[0] + source.size();
-    
-    unsigned int* targetStart = &target[0]; 
+
+    unsigned int* targetStart = &target[0];
     unsigned int* targetEnd = &target[0] + target.size();
-    ConversionResult result = ConvertUTF8toUTF32(&sourceStart, sourceEnd, &targetStart, targetEnd, flags);
-    
-    if(result == conversionOK)
-    {
-        target.resize(targetStart - &target[0]);
-    }
-    return result;
+    ConversionResult result = ConvertUTF8toUTF32(&sourceStart, sourceEnd, &targetStart, targetEnd, lenientConversion);
+
+    checkResult(result);
+    target.resize(targetStart - &target[0]);
 }
 
-ConversionResult
-IceUtilInternal::convertUTF32ToUTF8(const vector<unsigned int>& source, vector<unsigned char>& target, ConversionFlags flags)
+void
+IceUtilInternal::convertUTF32ToUTF8(const vector<unsigned int>& source, vector<unsigned char>& target)
 {
     target.resize(source.size() * 4);
 
     const unsigned int* sourceStart = &source[0];
     const unsigned int* sourceEnd = &source[0] + source.size();
-    
-    unsigned char* targetStart = &target[0]; 
+
+    unsigned char* targetStart = &target[0];
     unsigned char* targetEnd = &target[0] + target.size();
-    ConversionResult result = ConvertUTF32toUTF8(&sourceStart, sourceEnd, &targetStart, targetEnd, flags);
-    
-    if(result == conversionOK)
-    {
-        target.resize(targetStart - &target[0]);
-    }
-    return result;
+    ConversionResult result = ConvertUTF32toUTF8(&sourceStart, sourceEnd, &targetStart, targetEnd, lenientConversion);
+
+    checkResult(result);
+    target.resize(targetStart - &target[0]);
 }
 
-
-
+#endif

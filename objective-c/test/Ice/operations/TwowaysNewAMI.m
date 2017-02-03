@@ -163,9 +163,9 @@
 
 -(void) opMyClassResponse:(id<TestOperationsMyClassPrx>)r p2:(id<TestOperationsMyClassPrx>)c1 p3:(id<TestOperationsMyClassPrx>)c2
 {
-    test([[c1 ice_getIdentity] isEqual:[[c1 ice_getCommunicator] stringToIdentity:@"test"]]);
-    test([[c2 ice_getIdentity] isEqual:[[c1 ice_getCommunicator] stringToIdentity:@"noSuchIdentity"]]);
-    test([[r ice_getIdentity] isEqual:[[c1 ice_getCommunicator] stringToIdentity:@"test"]]);
+    test([[c1 ice_getIdentity] isEqual:[ICEUtil stringToIdentity:@"test"]]);
+    test([[c2 ice_getIdentity] isEqual:[ICEUtil stringToIdentity:@"noSuchIdentity"]]);
+    test([[r ice_getIdentity] isEqual:[ICEUtil stringToIdentity:@"test"]]);
     // We can't do the callbacks below in connection serialization mode.
     if([[[c1 ice_getCommunicator] getProperties] getPropertyAsInt:@"Ice.ThreadPool.Client.Serialize"])
     {
@@ -1420,10 +1420,10 @@ twowaysNewAMI(id<ICECommunicator> communicator, id<TestOperationsMyClassPrx> p)
 
     {
         TestOperationsMutableMyEnumStringD *di1 = [TestOperationsMutableMyEnumStringD dictionary];
-	[di1 setObject:@"abc" forKey:@(TestOperationsenum1)];
+        [di1 setObject:@"abc" forKey:@(TestOperationsenum1)];
         TestOperationsMutableMyEnumStringD *di2 = [TestOperationsMutableMyEnumStringD dictionary];
-	[di2 setObject:@"Hello!!" forKey:@(TestOperationsenum2)];
-	[di2 setObject:@"querty" forKey:@(TestOperationsenum3)];
+        [di2 setObject:@"Hello!!" forKey:@(TestOperationsenum2)];
+        [di2 setObject:@"querty" forKey:@(TestOperationsenum3)];
 
         TestNewAMIOperationsCallback* cb = [TestNewAMIOperationsCallback create];
         [p begin_opMyEnumStringD:di1
@@ -1982,7 +1982,7 @@ twowaysNewAMI(id<ICECommunicator> communicator, id<TestOperationsMyClassPrx> p)
             cb = [TestNewAMIOperationsCallback create];
             [p2 begin_opContext:ctx response:^(ICEMutableContext* ctx) { [cb opNonEmptyContextResponse:ctx]; } exception:^(ICEException* ex) { [cb opContextException:ex]; }];
             test([cb check]);
-	}
+        }
     }
 
     if([p ice_getConnection])

@@ -15,7 +15,7 @@
 #include <IceUtil/Mutex.h>
 #include <IceUtil/RecMutex.h>
 #include <IceUtil/Timer.h>
-#include <IceUtil/StringConverter.h>
+#include <Ice/StringConverter.h>
 #include <Ice/InstanceF.h>
 #include <Ice/CommunicatorF.h>
 #include <Ice/InstrumentationF.h>
@@ -28,7 +28,7 @@
 #include <Ice/ThreadPoolF.h>
 #include <Ice/ConnectionFactoryF.h>
 #include <Ice/ACM.h>
-#include <Ice/ObjectFactoryManagerF.h>
+#include <Ice/ObjectFactory.h>
 #include <Ice/ObjectAdapterFactoryF.h>
 #include <Ice/EndpointFactoryManagerF.h>
 #include <Ice/IPEndpointIF.h>
@@ -42,7 +42,6 @@
 #include <Ice/FacetMap.h>
 #include <Ice/Process.h>
 #include <list>
-#include <IceUtil/UniquePtr.h>
 
 namespace Ice
 {
@@ -58,7 +57,7 @@ class Timer;
 typedef IceUtil::Handle<Timer> TimerPtr;
 
 class MetricsAdminI;
-typedef IceUtil::Handle<MetricsAdminI> MetricsAdminIPtr;
+ICE_DEFINE_PTR(MetricsAdminIPtr, MetricsAdminI);
 
 class RequestHandlerFactory;
 typedef IceUtil::Handle<RequestHandlerFactory> RequestHandlerFactoryPtr;
@@ -95,7 +94,6 @@ public:
     RequestHandlerFactoryPtr requestHandlerFactory() const;
     ProxyFactoryPtr proxyFactory() const;
     OutgoingConnectionFactoryPtr outgoingConnectionFactory() const;
-    ObjectFactoryManagerPtr servantFactoryManager() const;
     ObjectAdapterFactoryPtr objectAdapterFactory() const;
     ProtocolSupport protocolSupport() const;
     bool preferIPv6() const;
@@ -111,13 +109,12 @@ public:
     size_t messageSizeMax() const { return _messageSizeMax; }
     size_t batchAutoFlushSize() const { return _batchAutoFlushSize; }
     bool collectObjects() const { return _collectObjects; }
+    Ice::ToStringMode toStringMode() const { return _toStringMode; }
     const ACMConfig& clientACM() const;
     const ACMConfig& serverACM() const;
-    Ice::Identity stringToIdentity(const std::string&) const;
-    std::string identityToString(const Ice::Identity&) const;
 
-    Ice::ObjectPrx createAdmin(const Ice::ObjectAdapterPtr&, const Ice::Identity&);
-    Ice::ObjectPrx getAdmin();
+    Ice::ObjectPrxPtr createAdmin(const Ice::ObjectAdapterPtr&, const Ice::Identity&);
+    Ice::ObjectPrxPtr getAdmin();
     void addAdminFacet(const Ice::ObjectPtr&, const std::string&);
     Ice::ObjectPtr removeAdminFacet(const std::string&);
     Ice::ObjectPtr findAdminFacet(const std::string&);
@@ -128,18 +125,27 @@ public:
         return _implicitContext;
     }
 
-    void setDefaultLocator(const Ice::LocatorPrx&);
-    void setDefaultRouter(const Ice::RouterPrx&);
+    void setDefaultLocator(const Ice::LocatorPrxPtr&);
+    void setDefaultRouter(const Ice::RouterPrxPtr&);
 
     void setLogger(const Ice::LoggerPtr&);
+#ifdef ICE_CPP11_MAPPING
+    void setThreadHook(std::function<void()>, std::function<void()>);
+#else
     void setThreadHook(const Ice::ThreadNotificationPtr&);
+#endif
 
-    IceUtil::StringConverterPtr getStringConverter() const { return _stringConverter; }
-    IceUtil::WstringConverterPtr getWstringConverter() const { return _wstringConverter; }
+    const Ice::StringConverterPtr& getStringConverter() const { return _stringConverter; }
+    const Ice::WstringConverterPtr& getWstringConverter() const { return _wstringConverter; }
 
     BufSizeWarnInfo getBufSizeWarn(Ice::Short type);
     void setSndBufSizeWarn(Ice::Short type, int size);
     void setRcvBufSizeWarn(Ice::Short type, int size);
+
+    void addObjectFactory(const Ice::ObjectFactoryPtr&, const std::string&);
+    Ice::ObjectFactoryPtr findObjectFactory(const std::string&) const;
+
+    typedef std::map<std::string, Ice::ObjectFactoryPtr> ObjectFactoryMap;
 
 private:
 
@@ -171,6 +177,7 @@ private:
     const size_t _messageSizeMax; // Immutable, not reset by destroy().
     const size_t _batchAutoFlushSize; // Immutable, not reset by destroy().
     const bool _collectObjects; // Immutable, not reset by destroy().
+    const Ice::ToStringMode _toStringMode; // Immutable, not reset by destroy()
     ACMConfig _clientACM;
     ACMConfig _serverACM;
     RouterManagerPtr _routerManager;
@@ -179,7 +186,6 @@ private:
     RequestHandlerFactoryPtr _requestHandlerFactory;
     ProxyFactoryPtr _proxyFactory;
     OutgoingConnectionFactoryPtr _outgoingConnectionFactory;
-    ObjectFactoryManagerPtr _servantFactoryManager;
     ObjectAdapterFactoryPtr _objectAdapterFactory;
     ProtocolSupport _protocolSupport;
     bool _preferIPv6;
@@ -193,8 +199,8 @@ private:
     DynamicLibraryListPtr _dynamicLibraryList;
     Ice::PluginManagerPtr _pluginManager;
     const Ice::ImplicitContextIPtr _implicitContext;
-    IceUtil::StringConverterPtr _stringConverter;
-    IceUtil::WstringConverterPtr _wstringConverter;
+    Ice::StringConverterPtr _stringConverter;
+    Ice::WstringConverterPtr _wstringConverter;
     bool _adminEnabled;
     Ice::ObjectAdapterPtr _adminAdapter;
     Ice::FacetMap _adminFacets;
@@ -203,6 +209,8 @@ private:
     IceInternal::MetricsAdminIPtr _metricsAdmin;
     std::map<Ice::Short, BufSizeWarnInfo> _setBufSizeWarn;
     IceUtil::Mutex _setBufSizeWarnMutex;
+    ObjectFactoryMap _objectFactoryMap;
+    mutable ObjectFactoryMap::iterator _objectFactoryMapHint;
 };
 
 class ProcessI : public Ice::Process
@@ -212,7 +220,11 @@ public:
     ProcessI(const Ice::CommunicatorPtr&);
 
     virtual void shutdown(const Ice::Current&);
+#ifdef ICE_CPP11_MAPPING
+    virtual void writeMessage(std::string, Ice::Int, const Ice::Current&);
+#else
     virtual void writeMessage(const std::string&, Ice::Int, const Ice::Current&);
+#endif
 
 private:
 

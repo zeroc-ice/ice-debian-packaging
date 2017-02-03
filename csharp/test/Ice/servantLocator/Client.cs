@@ -9,7 +9,6 @@
 
 using Test;
 using System;
-using System.Diagnostics;
 using System.Reflection;
 
 [assembly: CLSCompliant(true)]
@@ -18,31 +17,18 @@ using System.Reflection;
 [assembly: AssemblyDescription("Ice test")]
 [assembly: AssemblyCompany("ZeroC, Inc.")]
 
-public class Client
+public class Client : TestCommon.Application
 {
-    internal class App : Ice.Application
+    public override int run(string[] args)
     {
-        public override int run(string[] args)
-        {
-            TestIntfPrx obj = AllTests.allTests(communicator());
-            obj.shutdown();
-            return 0;
-        }
+        TestIntfPrx obj = AllTests.allTests(this);
+        obj.shutdown();
+        return 0;
     }
 
     public static int Main(string[] args)
     {
-        Ice.InitializationData data = new Ice.InitializationData();
-#if COMPACT
-        //
-        // When using Ice for .NET Compact Framework, we need to specify
-        // the assembly so that Ice can locate classes and exceptions.
-        //
-        data.properties = Ice.Util.createProperties();
-        data.properties.setProperty("Ice.FactoryAssemblies", "client");
-#endif
-
-        App app = new App();
-        return app.main(args, data);
+        Client app = new Client();
+        return app.runmain(args);
     }
 }

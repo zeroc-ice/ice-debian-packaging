@@ -19,17 +19,17 @@ using namespace Test;
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", "default -p 12010");
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0));
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
-    Ice::ObjectPtr d = new DI;
-    adapter->add(d, communicator->stringToIdentity("d"));
-    adapter->addFacet(d, communicator->stringToIdentity("d"), "facetABCD");
-    Ice::ObjectPtr f = new FI;
-    adapter->addFacet(f, communicator->stringToIdentity("d"), "facetEF");
-    Ice::ObjectPtr h = new HI(communicator);
-    adapter->addFacet(h, communicator->stringToIdentity("d"), "facetGH");
+    Ice::ObjectPtr d = ICE_MAKE_SHARED(DI);
+    adapter->add(d, Ice::stringToIdentity("d"));
+    adapter->addFacet(d, Ice::stringToIdentity("d"), "facetABCD");
+    Ice::ObjectPtr f = ICE_MAKE_SHARED(FI);
+    adapter->addFacet(f, Ice::stringToIdentity("d"), "facetEF");
+    Ice::ObjectPtr h = ICE_MAKE_SHARED(HI, communicator);
+    adapter->addFacet(h, Ice::stringToIdentity("d"), "facetGH");
 
-    GPrx allTests(const Ice::CommunicatorPtr&);
+    GPrxPtr allTests(const Ice::CommunicatorPtr&);
     allTests(communicator);
 
     return EXIT_SUCCESS;
@@ -41,32 +41,16 @@ main(int argc, char* argv[])
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL();
 #endif
-    int status;
-    Ice::CommunicatorPtr communicator;
 
     try
     {
-        communicator = Ice::initialize(argc, argv);
-        status = run(argc, argv, communicator);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        return run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
-        status = EXIT_FAILURE;
+        return  EXIT_FAILURE;
     }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
-    }
-
-    return status;
 }

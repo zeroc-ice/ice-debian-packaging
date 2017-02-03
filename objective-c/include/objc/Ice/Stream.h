@@ -17,7 +17,6 @@
 //
 @class ICEObject;
 @protocol ICEObjectPrx;
-@protocol ICECommunicator;
 @protocol ICESlicedData;
 @class ICEUserException;
 @class ICEEncodingVersion;
@@ -54,9 +53,7 @@ typedef struct
 
 ICE_API @protocol ICEInputStream <NSObject>
 
--(id<ICECommunicator>) communicator;
-
--(void) sliceObjects:(BOOL)b;
+-(void) setSliceValues:(BOOL)b;
 
 -(BOOL) readBool;
 -(NSMutableData*) newBoolSeq;
@@ -99,14 +96,14 @@ ICE_API @protocol ICEInputStream <NSObject>
 -(id<ICEObjectPrx>) newProxy:(Class)c;
 -(id<ICEObjectPrx>) readProxy:(Class)c;
 
--(void) newObject:(ICEObject*ICE_STRONG_QUALIFIER*)object;
--(void) newObject:(ICEObject*ICE_STRONG_QUALIFIER*)object expectedType:(Class)type;
--(void) readObject:(ICEObject**)object;
--(void) readObject:(ICEObject**)object expectedType:(Class)type;
--(NSMutableArray*) newObjectSeq:(Class)expectedType;
--(NSMutableArray*) readObjectSeq:(Class)expectedType;
--(NSMutableDictionary*) newObjectDict:(Class)keyType expectedType:(Class)type;
--(NSMutableDictionary*) readObjectDict:(Class)keyType expectedType:(Class)type;
+-(void) newValue:(ICEObject*ICE_STRONG_QUALIFIER*)object;
+-(void) newValue:(ICEObject*ICE_STRONG_QUALIFIER*)object expectedType:(Class)type;
+-(void) readValue:(ICEObject**)object;
+-(void) readValue:(ICEObject**)object expectedType:(Class)type;
+-(NSMutableArray*) newValueSeq:(Class)expectedType;
+-(NSMutableArray*) readValueSeq:(Class)expectedType;
+-(NSMutableDictionary*) newValueDict:(Class)keyType expectedType:(Class)type;
+-(NSMutableDictionary*) readValueDict:(Class)keyType expectedType:(Class)type;
 
 -(NSMutableArray*) newSequence:(Class)type;
 -(NSMutableArray*) readSequence:(Class)type;
@@ -120,8 +117,8 @@ ICE_API @protocol ICEInputStream <NSObject>
 
 -(void) throwException;
 
--(void) startObject;
--(id<ICESlicedData>) endObject:(BOOL)preserve NS_RETURNS_RETAINED;
+-(void) startValue;
+-(id<ICESlicedData>) endValue:(BOOL)preserve NS_RETURNS_RETAINED;
 
 -(void) startException;
 -(id<ICESlicedData>) endException:(BOOL)preserve NS_RETURNS_RETAINED;
@@ -132,11 +129,12 @@ ICE_API @protocol ICEInputStream <NSObject>
 
 -(ICEEncodingVersion*) startEncapsulation;
 -(void) endEncapsulation;
+-(ICEEncodingVersion*) skipEmptyEncapsulation;
 -(ICEEncodingVersion*) skipEncapsulation;
 
 -(ICEEncodingVersion*) getEncoding;
 
--(void) readPendingObjects;
+-(void) readPendingValues;
 
 -(void) rewind;
 
@@ -145,8 +143,6 @@ ICE_API @protocol ICEInputStream <NSObject>
 @end
 
 ICE_API @protocol ICEOutputStream <NSObject>
-
--(id<ICECommunicator>) communicator;
 
 -(void) writeBool:(BOOL)v;
 -(void) writeBoolSeq:(NSData*)v;
@@ -177,9 +173,9 @@ ICE_API @protocol ICEOutputStream <NSObject>
 
 -(void) writeProxy:(id<ICEObjectPrx>)v;
 
--(void) writeObject:(ICEObject*)v;
--(void) writeObjectSeq:(NSArray*)v;
--(void) writeObjectDict:(NSDictionary*)v helper:(Class)helper;
+-(void) writeValue:(ICEObject*)v;
+-(void) writeValueSeq:(NSArray*)v;
+-(void) writeValueDict:(NSDictionary*)v helper:(Class)helper;
 
 -(void) writeSequence:(NSArray*)arr helper:(Class)helper;
 -(void) writeDictionary:(NSDictionary*)dictionary helper:(ICEKeyValueTypeHelper)helper;
@@ -190,8 +186,8 @@ ICE_API @protocol ICEOutputStream <NSObject>
 
 -(void) writeException:(ICEUserException*)v;
 
--(void) startObject:(id<ICESlicedData>)slicedData;
--(void) endObject;
+-(void) startValue:(id<ICESlicedData>)slicedData;
+-(void) endValue;
 
 -(void) startException:(id<ICESlicedData>)slicedData;
 -(void) endException;
@@ -205,7 +201,7 @@ ICE_API @protocol ICEOutputStream <NSObject>
 
 -(ICEEncodingVersion*) getEncoding;
 
--(void) writePendingObjects;
+-(void) writePendingValues;
 
 -(NSMutableData*) finished;
 -(NSData*) finishedNoCopy;
@@ -221,9 +217,9 @@ ICE_API @protocol ICEStreamHelper
 +(id) readRetained:(id<ICEInputStream>)stream NS_RETURNS_RETAINED;
 +(id) read:(id<ICEInputStream>)stream;
 +(void) write:(id)obj stream:(id<ICEOutputStream>)stream;
-+(id) readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag;
-+(id) readOpt:(id<ICEInputStream>)stream tag:(ICEInt)tag;
-+(void) writeOpt:(id)obj stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag;
++(id) readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag;
++(id) readOptional:(id<ICEInputStream>)stream tag:(ICEInt)tag;
++(void) writeOptional:(id)obj stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag;
 +(ICEInt) minWireSize;
 @end
 
@@ -259,7 +255,7 @@ ICE_API @interface ICEStringHelper : ICEStreamHelper
 
 ICE_API @interface ICEObjectHelper : ICEStreamHelper
 +(void)read:(ICEObject**)v stream:(id<ICEInputStream>)stream;
-+(void)readOpt:(id*)v stream:(id<ICEInputStream>)stream tag:(ICEInt)tag;
++(void)readOptional:(id*)v stream:(id<ICEInputStream>)stream tag:(ICEInt)tag;
 @end
 
 ICE_API @interface ICEProxyHelper : ICEStreamHelper

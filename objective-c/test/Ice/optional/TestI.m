@@ -213,6 +213,11 @@
     *p3 = p1;
     return p1;
 }
+-(id) opIntOneOptionalDict:(id)p1 p3:(id *)p3 current:(ICECurrent *)current
+{
+    *p3 = p1;
+    return p1;
+}
 -(void) opClassAndUnknownOptional:(TestOptionalA *)p current:(ICECurrent *)current
 {
 }
@@ -227,7 +232,45 @@
 {
     return g;
 }
-
+-(void) opVoid:(ICECurrent*)current
+{
+}
+-(id) opMStruct1:(ICECurrent *)current
+{
+    return [TestOptionalSmallStruct smallStruct];
+}
+-(id) opMStruct2:(id)p1 p2:(id*)p2 current:(ICECurrent *)current
+{
+    *p2 = p1;
+    return p1;
+}
+-(id) opMSeq1:(ICECurrent *)current
+{
+    return [TestOptionalStringSeq array];
+}
+-(id) opMSeq2:(id)p1 p2:(id*)p2 current:(ICECurrent *)current
+{
+    *p2 = p1;
+    return p1;
+}
+-(id) opMDict1:(ICECurrent *)current
+{
+    return [TestOptionalStringIntDict dictionary];
+}
+-(id) opMDict2:(id)p1 p2:(id*)p2 current:(ICECurrent *)current
+{
+    *p2 = p1;
+    return p1;
+}
+-(id) opMG1:(ICECurrent *)current
+{
+    return [TestOptionalG g];
+}
+-(id) opMG2:(id)p1 p2:(id*)p2 current:(ICECurrent *)current
+{
+    *p2 = p1;
+    return p1;
+}
 -(BOOL) supportsRequiredParams:(ICECurrent*)current
 {
     return NO;
@@ -243,6 +286,10 @@
 -(BOOL) supportsCppStringView:(ICECurrent*)current
 {
     return NO;
+}
+-(BOOL) supportsNullOptional:(ICECurrent*)current
+{
+    return YES;
 }
 
 @end

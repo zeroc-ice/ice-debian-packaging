@@ -19,8 +19,8 @@ DEFINE_TEST("client")
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    TestIntfPrx allTests(const Ice::CommunicatorPtr&);
-    TestIntfPrx Test = allTests(communicator);
+    TestIntfPrxPtr allTests(const Ice::CommunicatorPtr&);
+    TestIntfPrxPtr Test = allTests(communicator);
     Test->shutdown();
     return EXIT_SUCCESS;
 }
@@ -30,42 +30,25 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL();
+#   if defined(__linux)
+    Ice::registerIceBT();
+#   endif
 #endif
-
-    int status;
-    Ice::CommunicatorPtr communicator;
 
     try
     {
-        Ice::InitializationData initData;
-        initData.properties = Ice::createProperties(argc, argv);
-
+        Ice::InitializationData initData = getTestInitData(argc, argv);
         //
         // For this test, we enable object collection.
         //
         initData.properties->setProperty("Ice.CollectObjects", "1");
 
-        communicator = Ice::initialize(argc, argv, initData);
-        status = run(argc, argv, communicator);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        return run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
-        status = EXIT_FAILURE;
+        return  EXIT_FAILURE;
     }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
-    }
-
-    return status;
 }

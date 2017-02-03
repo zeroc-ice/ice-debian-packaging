@@ -19,12 +19,12 @@
 @end
 
 @implementation TestObjectReader
--(void) read__:(id<ICEInputStream>)is
+-(void) iceRead:(id<ICEInputStream>)is
 {
-    [is startObject];
+    [is startValue];
     [is startSlice];
     [is endSlice];
-    [is endObject:NO];
+    [is endValue:NO];
 }
 @end
 
@@ -34,9 +34,9 @@
 @end
 
 @implementation BObjectReader
--(void) read__:(id<ICEInputStream>)is
+-(void) iceRead:(id<ICEInputStream>)is
 {
-    [is startObject];
+    [is startValue];
     // ::Test::B
     [is startSlice];
     [is readInt];
@@ -45,7 +45,7 @@
     [is startSlice];
     [is readInt];
     [is endSlice];
-    [is endObject:NO];
+    [is endValue:NO];
 };
 @end
 
@@ -55,9 +55,9 @@
 @end
 
 @implementation CObjectReader
--(void) read__:(id<ICEInputStream>)is
+-(void) iceRead:(id<ICEInputStream>)is
 {
-    [is startObject];
+    [is startValue];
     // ::Test::C
     [is startSlice];
     [is skipSlice];
@@ -69,7 +69,7 @@
     [is startSlice];
     [is readInt];
     [is endSlice];
-    [is endObject:NO];
+    [is endValue:NO];
 };
 @end
 
@@ -79,9 +79,9 @@
 @end
 
 @implementation DObjectWriter
--(void) write__:(id<ICEOutputStream>)os
+-(void) iceWrite:(id<ICEOutputStream>)os
 {
-    [os startObject:0];
+    [os startValue:0];
     // ::Test::D
     [os startSlice:@"::Test::D" compactId:-1 lastSlice:NO];
     [os writeString:@"test"];
@@ -98,7 +98,7 @@
     {
         TestOptionalA* a = [TestOptionalA a];
         a.mc = 18;
-        [os writeObject:a];
+        [os writeValue:a];
     }
     [os endSlice];
     // ::Test::B
@@ -109,7 +109,7 @@
     [os startSlice:@"::Test::A" compactId:-1 lastSlice:YES];
     [os writeInt:14];
     [os endSlice];
-    [os endObject];
+    [os endValue];
 }
 @end
 
@@ -127,9 +127,9 @@
     [super dealloc];
 }
 #endif
--(void) read__:(id<ICEInputStream>)is
+-(void) iceRead:(id<ICEInputStream>)is
 {
-    [is startObject];
+    [is startValue];
     // ::Test::D
     [is startSlice];
     NSString* s = [is readString];
@@ -142,7 +142,7 @@
          [[o objectAtIndex:2] isEqualToString:@"test3"] &&
          [[o objectAtIndex:3] isEqualToString:@"test4"]);
     test([is readOptional:1000 format:ICEOptionalFormatClass]);
-    [is newObject:(ICEObject**)&a_ expectedType:[TestOptionalA class]];
+    [is newValue:(ICEObject**)&a_ expectedType:[TestOptionalA class]];
     [is endSlice];
 
     // ::Test::B
@@ -153,7 +153,7 @@
     [is startSlice];
     [is readInt];
     [is endSlice];
-    [is endObject:NO];
+    [is endValue:NO];
 }
 -(void) check
 {
@@ -178,23 +178,23 @@
     return self;
 }
 
--(void) read__:(id<ICEInputStream>)is
+-(void) iceRead:(id<ICEInputStream>)is
 {
     if(f_ != nil)
     {
         ICE_RELEASE(f_);
     }
     f_ = [TestOptionalF new];
-    [is startObject];
+    [is startValue];
     [is startSlice];
     // Don't read optional af on purpose
-    //[is_ readObject:(ICEObject**)&self->af expectedType:[TestOptionalA class]];
+    //[is_ readValue:(ICEObject**)&self->af expectedType:[TestOptionalA class]];
     [is endSlice];
     [is startSlice];
     TestOptionalA* ICE_AUTORELEASING_QUALIFIER ae;
-    [is readObject:(ICEObject**)&ae expectedType:[TestOptionalA class]];
+    [is readValue:(ICEObject**)&ae expectedType:[TestOptionalA class]];
     [is endSlice];
-    [is endObject:NO];
+    [is endValue:NO];
     f_.ae = ae;
 }
 
@@ -212,7 +212,7 @@
 }
 @end
 
-@interface FactoryI : NSObject<ICEObjectFactory>
+@interface FactoryI : ICEObject
 {
     BOOL enabled_;
 }
@@ -267,9 +267,6 @@
 
     return nil;
 }
--(void) destroy
-{
-}
 -(void) setEnabled:(BOOL)enabled
 {
     self->enabled_ = enabled;
@@ -280,7 +277,7 @@ id<TestOptionalInitialPrx>
 optionalAllTests(id<ICECommunicator> communicator)
 {
     FactoryI* factory = [FactoryI factoryI];
-    [communicator addObjectFactory:factory sliceId:@""];
+    [[communicator getValueFactoryManager] add:^(id s) { return [factory create:s]; } sliceId:@""];
 
     tprintf("testing stringToProxy... ");
     NSString* sref = @"initial:default -p 12010";
@@ -588,7 +585,7 @@ optionalAllTests(id<ICECommunicator> communicator)
     [factory setEnabled:YES];
     id<ICEOutputStream> os = [ICEUtil createOutputStream:communicator];
     [os startEncapsulation];
-    [os writeObject:oo1];
+    [os writeValue:oo1];
     [os endEncapsulation];
     ICEByteSeq* inEncaps = [os finished];
     ICEMutableByteSeq* outEncaps;
@@ -596,19 +593,19 @@ optionalAllTests(id<ICECommunicator> communicator)
     id<ICEInputStream> is = [ICEUtil createInputStream:communicator data:outEncaps];
     [is startEncapsulation];
     ICEObject* obj;
-    [is readObject:&obj];
+    [is readValue:&obj];
     [is endEncapsulation];
     test(obj != nil && [obj isKindOfClass:[TestObjectReader class]]);
 
     os = [ICEUtil createOutputStream:communicator];
     [os startEncapsulation];
-    [os writeObject:mo1];
+    [os writeValue:mo1];
     [os endEncapsulation];
     inEncaps = [os finished];
     test([initial ice_invoke:@"pingPong" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps]);
     is = [ICEUtil createInputStream:communicator data:outEncaps];
     [is startEncapsulation];
-    [is readObject:&obj];
+    [is readValue:&obj];
     [is endEncapsulation];
     test(obj != nil && [obj isKindOfClass:[TestObjectReader class]]);
     [factory setEnabled:false];
@@ -636,6 +633,14 @@ optionalAllTests(id<ICECommunicator> communicator)
     test([r.gg1Opt.a isEqualToString:@"g1opt"]);
     test(r.gg2.a == 10);
     test(r.gg2Opt.a == 20);
+
+    os = [ICEUtil createOutputStream:communicator];
+    [os startEncapsulation];
+    [ICEIntHelper writeOptional:@15 stream:os tag:1];
+    [ICEStringHelper writeOptional:@"test" stream:os tag:2];
+    [os endEncapsulation];
+    inEncaps = [os finished];
+    test([initial ice_invoke:@"opVoid" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps]);
 
     tprintf("ok\n");
 
@@ -665,14 +670,14 @@ optionalAllTests(id<ICECommunicator> communicator)
     [factory setEnabled:YES];
     os = [ICEUtil createOutputStream:communicator];
     [os startEncapsulation];
-    [os writeObject:mc];
+    [os writeValue:mc];
     [os endEncapsulation];
     inEncaps = [os finished];
 
     test([initial ice_invoke:@"pingPong" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps]);
     is = [ICEUtil createInputStream:communicator data:outEncaps];
     [is startEncapsulation];
-    [is readObject:&obj];
+    [is readValue:&obj];
     [is endEncapsulation];
     test(obj != nil && [obj isKindOfClass:[TestObjectReader class]]);
     [factory setEnabled:NO];
@@ -700,13 +705,13 @@ optionalAllTests(id<ICECommunicator> communicator)
     [factory setEnabled:YES];
     os = [ICEUtil createOutputStream:communicator];
     [os startEncapsulation];
-    [os writeObject:b];
+    [os writeValue:b];
     [os endEncapsulation];
     inEncaps = [os finished];
     test([initial ice_invoke:@"pingPong" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps]);
     is = [ICEUtil createInputStream:communicator data:outEncaps];
     [is startEncapsulation];
-    [is readObject:&obj];
+    [is readValue:&obj];
     [is endEncapsulation];
     test(obj != nil);
     [factory setEnabled:NO];
@@ -726,12 +731,12 @@ optionalAllTests(id<ICECommunicator> communicator)
         [factory setEnabled:YES];
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [os writeObject:f];
+        [os writeValue:f];
         [os endEncapsulation];
         inEncaps = [os finished];
         is = [ICEUtil createInputStream:communicator data:inEncaps];
         [is startEncapsulation];
-        [is readObject:&obj];
+        [is readValue:&obj];
         [is endEncapsulation];
         [factory setEnabled:NO];
 
@@ -761,14 +766,14 @@ optionalAllTests(id<ICECommunicator> communicator)
             c.ms = @"testms";
             os = [ICEUtil createOutputStream:communicator];
             [os startEncapsulation];
-            [os writeObject:c];
+            [os writeValue:c];
             [os endEncapsulation];
             inEncaps = [os finished];
             [factory setEnabled:YES];
             test([initial ice_invoke:@"pingPong" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps]);
             is = [ICEUtil createInputStream:communicator data:outEncaps];
             [is startEncapsulation];
-            [is readObject:&obj];
+            [is readValue:&obj];
             [is endEncapsulation];
             test(obj != nil && [obj isKindOfClass:[CObjectReader class]]);
             [factory setEnabled:NO];
@@ -777,14 +782,14 @@ optionalAllTests(id<ICECommunicator> communicator)
             os = [ICEUtil createOutputStream:communicator];
             [os startEncapsulation];
             ICEObject* d = [DObjectWriter new];
-            [os writeObject:d];
+            [os writeValue:d];
             ICE_RELEASE(d);
             [os endEncapsulation];
             inEncaps = [os finished];
             test([initial ice_invoke:@"pingPong" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps]);
             is = [ICEUtil createInputStream:communicator data:outEncaps];
             [is startEncapsulation];
-            [is readObject:&obj];
+            [is readValue:&obj];
             [is endEncapsulation];
             test(obj != nil && [obj isKindOfClass:[DObjectReader class]]);
             [(DObjectReader*)obj check];
@@ -798,9 +803,9 @@ optionalAllTests(id<ICECommunicator> communicator)
 
             os = [ICEUtil createOutputStream:communicator];
             [os startEncapsulation];
-            [os writeObject:a];
+            [os writeValue:a];
             DObjectWriter* writer = [DObjectWriter new];
-            [ICEObjectHelper writeOpt:writer stream:os tag:1];
+            [ICEObjectHelper writeOptional:writer stream:os tag:1];
             ICE_RELEASE(writer);
             [os endEncapsulation];
             inEncaps = [os finished];
@@ -826,17 +831,17 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [ICEByteHelper writeOpt:p1 stream:os tag:2];
+        [ICEByteHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opByte" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [ICEByteHelper readOpt:is tag:1];
-        p3 = [ICEByteHelper readOpt:is tag:3];
+        p2 = [ICEByteHelper readOptional:is tag:1];
+        p3 = [ICEByteHelper readOptional:is tag:3];
 
         id p4 = @0x08;
-        p4 = [ICEByteHelper readOpt:is tag:89];
+        p4 = [ICEByteHelper readOptional:is tag:89];
 
         [is endEncapsulation];
         test([p2 isEqual:@0x56] && [p3 isEqual:@0x56] && [p4 isEqual:ICENone]);
@@ -858,14 +863,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [ICEBoolHelper writeOpt:p1 stream:os tag:2];
+        [ICEBoolHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opBool" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [ICEBoolHelper readOpt:is tag:1];
-        p3 = [ICEBoolHelper readOpt:is tag:3];
+        p2 = [ICEBoolHelper readOptional:is tag:1];
+        p3 = [ICEBoolHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:@YES] && [p3 isEqual:@YES]);
 
@@ -886,14 +891,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [ICEShortHelper writeOpt:p1 stream:os tag:2];
+        [ICEShortHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opShort" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [ICEShortHelper readOpt:is tag:1];
-        p3 = [ICEShortHelper readOpt:is tag:3];
+        p2 = [ICEShortHelper readOptional:is tag:1];
+        p3 = [ICEShortHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:@56] && [p3 isEqual:@56]);
 
@@ -914,14 +919,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [ICEIntHelper writeOpt:p1 stream:os tag:2];
+        [ICEIntHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opInt" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [ICEIntHelper readOpt:is tag:1];
-        p3 = [ICEIntHelper readOpt:is tag:3];
+        p2 = [ICEIntHelper readOptional:is tag:1];
+        p3 = [ICEIntHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:@56] && [p3 isEqual:@56]);
 
@@ -942,14 +947,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [ICELongHelper writeOpt:p1 stream:os tag:1];
+        [ICELongHelper writeOptional:p1 stream:os tag:1];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opLong" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p3 = [ICELongHelper readOpt:is tag:2];
-        p2 = [ICELongHelper readOpt:is tag:3];
+        p3 = [ICELongHelper readOptional:is tag:2];
+        p2 = [ICELongHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:@56] && [p3 isEqual:@56]);
 
@@ -970,14 +975,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [ICEFloatHelper writeOpt:p1 stream:os tag:2];
+        [ICEFloatHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opFloat" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p3 = [ICEFloatHelper readOpt:is tag:1];
-        p2 = [ICEFloatHelper readOpt:is tag:3];
+        p3 = [ICEFloatHelper readOptional:is tag:1];
+        p2 = [ICEFloatHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:@1.0f] && [p3 isEqual:@1.0f]);
 
@@ -998,14 +1003,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [ICEDoubleHelper writeOpt:p1 stream:os tag:2];
+        [ICEDoubleHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opDouble" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p3 = [ICEDoubleHelper readOpt:is tag:1];
-        p2 = [ICEDoubleHelper readOpt:is tag:3];
+        p3 = [ICEDoubleHelper readOptional:is tag:1];
+        p2 = [ICEDoubleHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:@1.0] && [p3 isEqual:@1.0]);
 
@@ -1026,14 +1031,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [ICEStringHelper writeOpt:p1 stream:os tag:2];
+        [ICEStringHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opString" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [ICEStringHelper readOpt:is tag:1];
-        p3 = [ICEStringHelper readOpt:is tag:3];
+        p2 = [ICEStringHelper readOptional:is tag:1];
+        p3 = [ICEStringHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqualToString:@"test"] && [p3 isEqualToString:@"test"]);
 
@@ -1054,14 +1059,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalMyEnumHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalMyEnumHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opMyEnum" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalMyEnumHelper readOpt:is tag:1];
-        p3 = [TestOptionalMyEnumHelper readOpt:is tag:3];
+        p2 = [TestOptionalMyEnumHelper readOptional:is tag:1];
+        p3 = [TestOptionalMyEnumHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:@(TestOptionalMyEnumMember)] && [p3 isEqual:@(TestOptionalMyEnumMember)]);
 
@@ -1082,14 +1087,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalSmallStructHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalSmallStructHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opSmallStruct" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalSmallStructHelper readOpt:is tag:1];
-        p3 = [TestOptionalSmallStructHelper readOpt:is tag:3];
+        p2 = [TestOptionalSmallStructHelper readOptional:is tag:1];
+        p3 = [TestOptionalSmallStructHelper readOptional:is tag:3];
         [is endEncapsulation];
         test(((TestOptionalSmallStruct*)p2).m == 56 && ((TestOptionalSmallStruct*)p3).m== 56);
 
@@ -1110,14 +1115,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalFixedStructHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalFixedStructHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opFixedStruct" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalFixedStructHelper readOpt:is tag:1];
-        p3 = [TestOptionalFixedStructHelper readOpt:is tag:3];
+        p2 = [TestOptionalFixedStructHelper readOptional:is tag:1];
+        p3 = [TestOptionalFixedStructHelper readOptional:is tag:3];
         [is endEncapsulation];
         test(((TestOptionalFixedStruct*)p2).m == 56 && ((TestOptionalFixedStruct*)p3).m== 56);
 
@@ -1138,14 +1143,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalVarStructHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalVarStructHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opVarStruct" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalVarStructHelper readOpt:is tag:1];
-        p3 = [TestOptionalVarStructHelper readOpt:is tag:3];
+        p2 = [TestOptionalVarStructHelper readOptional:is tag:1];
+        p3 = [TestOptionalVarStructHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([((TestOptionalVarStruct*)p2).m isEqual:@"test"] && [((TestOptionalVarStruct*)p3).m isEqual:@"test"]);
 
@@ -1167,14 +1172,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [ICEObjectHelper writeOpt:p1 stream:os tag:2];
+        [ICEObjectHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opOneOptional" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        [ICEObjectHelper readOpt:&p2 stream:is tag:1];
-        [ICEObjectHelper readOpt:&p3 stream:is tag:3];
+        [ICEObjectHelper readOptional:&p2 stream:is tag:1];
+        [ICEObjectHelper readOptional:&p3 stream:is tag:3];
         [is endEncapsulation];
         test([p2 isKindOfClass:[TestOptionalOneOptional class]] && [p3 isKindOfClass:[TestOptionalOneOptional class]]);
         test(((TestOptionalOneOptional*)p2).a == 58 && ((TestOptionalOneOptional*)p3).a == 58);
@@ -1198,14 +1203,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [ICEProxyHelper writeOpt:p1 stream:os tag:2];
+        [ICEProxyHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opOneOptionalProxy" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalOneOptionalPrxHelper readOpt:is tag:1];
-        p3 = [TestOptionalOneOptionalPrxHelper readOpt:is tag:3];
+        p2 = [TestOptionalOneOptionalPrxHelper readOptional:is tag:1];
+        p3 = [TestOptionalOneOptionalPrxHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isKindOfClass:[TestOptionalOneOptionalPrx class]] &&
              [p3 isKindOfClass:[TestOptionalOneOptionalPrx class]]);
@@ -1224,15 +1229,15 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalFHelper writeOpt:f stream:os tag:1];
-        [TestOptionalFHelper writeOpt:f.ae stream:os tag:2];
+        [TestOptionalFHelper writeOptional:f stream:os tag:1];
+        [TestOptionalFHelper writeOptional:f.ae stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
 
         is = [ICEUtil createInputStream:communicator data:inEncaps];
         [is startEncapsulation];
         id a;
-        [TestOptionalAHelper readOpt:&a stream:is tag:2];
+        [TestOptionalAHelper readOptional:&a stream:is tag:2];
         [is endEncapsulation];
         test(a != nil && [a isKindOfClass:[TestOptionalA class]] && ((TestOptionalA*)a).requiredA == 56);
     }
@@ -1252,14 +1257,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalByteSeqHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalByteSeqHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opByteSeq" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalByteSeqHelper readOpt:is tag:1];
-        p3 = [TestOptionalByteSeqHelper readOpt:is tag:3];
+        p2 = [TestOptionalByteSeqHelper readOptional:is tag:1];
+        p3 = [TestOptionalByteSeqHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:bs] && [p3 isEqual:bs]);
 
@@ -1281,14 +1286,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalBoolSeqHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalBoolSeqHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opBoolSeq" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalBoolSeqHelper readOpt:is tag:1];
-        p3 = [TestOptionalBoolSeqHelper readOpt:is tag:3];
+        p2 = [TestOptionalBoolSeqHelper readOptional:is tag:1];
+        p3 = [TestOptionalBoolSeqHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:bs] && [p3 isEqual:bs]);
 
@@ -1310,14 +1315,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalShortSeqHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalShortSeqHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opShortSeq" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalShortSeqHelper readOpt:is tag:1];
-        p3 = [TestOptionalShortSeqHelper readOpt:is tag:3];
+        p2 = [TestOptionalShortSeqHelper readOptional:is tag:1];
+        p3 = [TestOptionalShortSeqHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:bs] && [p3 isEqual:bs]);
 
@@ -1339,14 +1344,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalIntSeqHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalIntSeqHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opIntSeq" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalIntSeqHelper readOpt:is tag:1];
-        p3 = [TestOptionalIntSeqHelper readOpt:is tag:3];
+        p2 = [TestOptionalIntSeqHelper readOptional:is tag:1];
+        p3 = [TestOptionalIntSeqHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:bs] && [p3 isEqual:bs]);
 
@@ -1368,14 +1373,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalLongSeqHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalLongSeqHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opLongSeq" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalLongSeqHelper readOpt:is tag:1];
-        p3 = [TestOptionalLongSeqHelper readOpt:is tag:3];
+        p2 = [TestOptionalLongSeqHelper readOptional:is tag:1];
+        p3 = [TestOptionalLongSeqHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:bs] && [p3 isEqual:bs]);
 
@@ -1397,14 +1402,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalFloatSeqHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalFloatSeqHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opFloatSeq" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalFloatSeqHelper readOpt:is tag:1];
-        p3 = [TestOptionalFloatSeqHelper readOpt:is tag:3];
+        p2 = [TestOptionalFloatSeqHelper readOptional:is tag:1];
+        p3 = [TestOptionalFloatSeqHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:bs] && [p3 isEqual:bs]);
 
@@ -1426,14 +1431,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalDoubleSeqHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalDoubleSeqHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opDoubleSeq" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalDoubleSeqHelper readOpt:is tag:1];
-        p3 = [TestOptionalDoubleSeqHelper readOpt:is tag:3];
+        p2 = [TestOptionalDoubleSeqHelper readOptional:is tag:1];
+        p3 = [TestOptionalDoubleSeqHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:bs] && [p3 isEqual:bs]);
 
@@ -1456,14 +1461,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalStringSeqHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalStringSeqHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opStringSeq" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalStringSeqHelper readOpt:is tag:1];
-        p3 = [TestOptionalStringSeqHelper readOpt:is tag:3];
+        p2 = [TestOptionalStringSeqHelper readOptional:is tag:1];
+        p3 = [TestOptionalStringSeqHelper readOptional:is tag:3];
         [is endEncapsulation];
         test([p2 isEqual:ss] && [p3 isEqual:ss]);
 
@@ -1499,14 +1504,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalFixedStructSeqHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalFixedStructSeqHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opFixedStructSeq" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalFixedStructSeqHelper readOpt:is tag:1];
-        p3 = [TestOptionalFixedStructSeqHelper readOpt:is tag:3];
+        p2 = [TestOptionalFixedStructSeqHelper readOptional:is tag:1];
+        p3 = [TestOptionalFixedStructSeqHelper readOptional:is tag:3];
         [is endEncapsulation];
         test(p2 != nil && p3 != nil);
         test([p2 isEqual:fss] && [p3 isEqual:fss]);
@@ -1543,14 +1548,14 @@ optionalAllTests(id<ICECommunicator> communicator)
 
         os = [ICEUtil createOutputStream:communicator];
         [os startEncapsulation];
-        [TestOptionalVarStructSeqHelper writeOpt:p1 stream:os tag:2];
+        [TestOptionalVarStructSeqHelper writeOptional:p1 stream:os tag:2];
         [os endEncapsulation];
         inEncaps = [os finished];
         [initial ice_invoke:@"opVarStructSeq" mode:ICENormal inEncaps:inEncaps outEncaps:&outEncaps];
         is = [ICEUtil createInputStream:communicator data:outEncaps];
         [is startEncapsulation];
-        p2 = [TestOptionalVarStructSeqHelper readOpt:is tag:1];
-        p3 = [TestOptionalVarStructSeqHelper readOpt:is tag:3];
+        p2 = [TestOptionalVarStructSeqHelper readOptional:is tag:1];
+        p3 = [TestOptionalVarStructSeqHelper readOptional:is tag:3];
         [is endEncapsulation];
         test(p2 != nil && p3 != nil);
         test([p2 isEqual:fss] && [p3 isEqual:fss]);
@@ -1559,7 +1564,57 @@ optionalAllTests(id<ICECommunicator> communicator)
         [is startEncapsulation];
         [is endEncapsulation];
     }
+    tprintf("ok\n");
 
+    tprintf("testing optional parameters and dictionaries... ");
+    {
+        id p1 = ICENone;
+        id p3 = ICENone;
+        id p2 = [initial opIntIntDict:p1 p3:&p3];
+        test(p2 == ICENone && p3 == ICENone);
+
+        p2 = [initial opIntIntDict:[TestOptionalIntIntDict dictionary] p3:&p3];
+        test(p2 != nil && p3 != nil && [p2 count] == 0 && [p3 count] == 0);
+
+        TestOptionalMutableIntIntDict* iid = [TestOptionalMutableIntIntDict dictionary];
+        [iid setObject:@45 forKey:@1];
+        p1 = iid;
+        p2 = [initial opIntIntDict:p1 p3:&p3];
+        test(p2 != nil && p3 != nil);
+        test([p2 isEqual:iid] && [p3 isEqual:iid]);
+
+        p1 = ICENone;
+        p3 = ICENone;
+        p2 = [initial opStringIntDict:p1 p3:&p3];
+        test(p2 == ICENone && p3 == ICENone);
+
+        p2 = [initial opIntIntDict:[TestOptionalStringIntDict dictionary] p3:&p3];
+        test(p2 != nil && p3 != nil && [p2 count] == 0 && [p3 count] == 0);
+
+        TestOptionalMutableStringIntDict* sid = [TestOptionalMutableStringIntDict dictionary];
+        [sid setObject:@45 forKey:@"1"];
+        p1 = sid;
+        p2 = [initial opStringIntDict:p1 p3:&p3];
+        test(p2 != nil && p3 != nil);
+        test([p2 isEqual:sid] && [p3 isEqual:sid]);
+
+        p1 = ICENone;
+        p3 = ICENone;
+        p2 = [initial opIntOneOptionalDict:p1 p3:&p3];
+        test(p2 == ICENone && p3 == ICENone);
+
+        p2 = [initial opIntOneOptionalDict:[TestOptionalStringIntDict dictionary] p3:&p3];
+        test(p2 != nil && p3 != nil && [p2 count] == 0 && [p3 count] == 0);
+
+        TestOptionalMutableIntOneOptionalDict* iod = [TestOptionalMutableIntOneOptionalDict dictionary];
+        TestOptionalOneOptional* oneOpt = [TestOptionalOneOptional oneOptional:@58];
+        [iod setObject:oneOpt forKey:@1];
+        p1 = iod;
+        p2 = [initial opIntOneOptionalDict:p1 p3:&p3];
+        test(p2 != nil && p3 != nil);
+        test(((TestOptionalOneOptional*)[p2 objectForKey:@1]).a == 58 &&
+             ((TestOptionalOneOptional*)[p3 objectForKey:@1]).a == 58);
+    }
     tprintf("ok\n");
 
     tprintf("testing exception optionals... ");
@@ -1685,6 +1740,53 @@ optionalAllTests(id<ICECommunicator> communicator)
         @catch(TestOptionalOptionalException* ex)
         {
             test(NO);
+        }
+    }
+    tprintf("ok\n");
+
+    tprintf("testing optionals with marshaled results... ");
+    {
+        test([initial opMStruct1]);
+        test([initial opMDict1]);
+        test([initial opMSeq1]);
+        test([initial opMG1]);
+
+        {
+            id p1, p2, p3;
+            p3 = [initial opMStruct2:ICENone p2:&p2];
+            test(p2 == ICENone && p3 == ICENone);
+
+            p1 = [TestOptionalSmallStruct smallStruct];
+            p3 = [initial opMStruct2:p1 p2:&p2];
+            test([p2 isEqual:p1] && [p3 isEqual:p1]);
+        }
+        {
+            id p1, p2, p3;
+            p3 = [initial opMSeq2:ICENone p2:&p2];
+            test(p2 == ICENone && p3 == ICENone);
+
+            p1 = [TestOptionalStringSeq arrayWithObject:@"hello"];
+            p3 = [initial opMSeq2:p1 p2:&p2];
+            test([[p2 objectAtIndex:0] isEqualToString:@"hello"] &&
+                 [[p3 objectAtIndex:0] isEqualToString:@"hello"]);
+        }
+        {
+            id p1, p2, p3;
+            p3 = [initial opMDict2:ICENone p2:&p2];
+            test(p2 == ICENone && p3 == ICENone);
+
+            p1 = [TestOptionalStringIntDict dictionaryWithObjectsAndKeys:@54, @"test", nil];
+            p3 = [initial opMDict2:p1 p2:&p2];
+            test([[p2 objectForKey:@"test"] isEqual:@54] && [[p3 objectForKey:@"test"] isEqual:@54]);
+        }
+        {
+            id p1, p2, p3;
+            p3 = [initial opMG2:ICENone p2:&p2];
+            test(p2 == ICENone && p3 == ICENone);
+
+            p1 = [TestOptionalG g];
+            p3 = [initial opMG2:p1 p2:&p2];
+            test(p2 != ICENone && p3 != ICENone && p3 == p2);
         }
     }
     tprintf("ok\n");

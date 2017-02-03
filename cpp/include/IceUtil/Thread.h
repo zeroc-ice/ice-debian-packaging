@@ -15,7 +15,7 @@
 #include <IceUtil/Handle.h>
 #include <IceUtil/Mutex.h>
 
-#ifdef ICE_OS_WINRT
+#ifdef ICE_OS_UWP
 #   include <memory>
 #   include <thread>
 #endif
@@ -25,7 +25,7 @@ namespace IceUtil
 
 class Time;
 
-class ICE_UTIL_API ThreadControl
+class ICE_API ThreadControl
 {
 public:
 
@@ -35,7 +35,7 @@ public:
     //
     ThreadControl();
 
-#ifdef ICE_OS_WINRT
+#ifdef ICE_OS_UWP
     ThreadControl(const std::shared_ptr<std::thread>&);
 #elif defined(_WIN32)
     ThreadControl(HANDLE, DWORD);
@@ -80,7 +80,7 @@ public:
     // id() returns the Thread ID on Windows and the underlying pthread_t
     // on POSIX platforms.
     //
-#ifdef ICE_OS_WINRT
+#ifdef ICE_OS_UWP
     typedef std::thread::id ID;
 #elif defined(_WIN32)
     typedef DWORD ID;
@@ -94,7 +94,7 @@ public:
 
 private:
 
-#ifdef ICE_OS_WINRT
+#ifdef ICE_OS_UWP
     std::shared_ptr<std::thread> _thread;
     std::thread::id _id;
 #elif defined(_WIN32)
@@ -112,7 +112,7 @@ private:
 #endif
 };
 
-class ICE_UTIL_API Thread : virtual public IceUtil::Shared
+class ICE_API Thread : public virtual IceUtil::Shared
 {
 public:
 
@@ -128,7 +128,6 @@ public:
     ThreadControl getThreadControl() const;
 
     bool operator==(const Thread&) const;
-    bool operator!=(const Thread&) const;
     bool operator<(const Thread&) const;
 
     //
@@ -153,7 +152,7 @@ protected:
     bool _started;
     bool _running;
 
-#ifdef ICE_OS_WINRT
+#ifdef ICE_OS_UWP
     std::shared_ptr<std::thread> _thread;
 #elif defined(_WIN32)
     HANDLE _handle;

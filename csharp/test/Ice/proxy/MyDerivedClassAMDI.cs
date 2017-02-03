@@ -8,30 +8,29 @@
 // **********************************************************************
 
 using System;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 
-public sealed class MyDerivedClassI : Test.MyDerivedClass
+public sealed class MyDerivedClassI : Test.MyDerivedClassDisp_
 {
     public MyDerivedClassI()
     {
     }
-    
-    public override void echo_async(Test.AMD_MyDerivedClass_echo cb,
-                                    Ice.ObjectPrx obj,
-                                    Ice.Current c)
+
+    public override Task<Ice.ObjectPrx> echoAsync(Ice.ObjectPrx obj, Ice.Current c)
     {
-        cb.ice_response(obj);
+        return Task.FromResult<Ice.ObjectPrx>(obj);
     }
 
-    public override void shutdown_async(Test.AMD_MyClass_shutdown cb, Ice.Current current)
+    public override Task shutdownAsync(Ice.Current current)
     {
         current.adapter.getCommunicator().shutdown();
-        cb.ice_response();
+        return null;
     }
-    
-    public override void getContext_async(Test.AMD_MyClass_getContext cb, Ice.Current current)
+
+    public override Task<Dictionary<string, string>> getContextAsync(Ice.Current current)
     {
-        cb.ice_response(_ctx);
+        return Task.FromResult<Dictionary<string, string>>(_ctx);
     }
 
     public override bool ice_isA(string s, Ice.Current current)

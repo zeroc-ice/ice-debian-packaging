@@ -36,7 +36,7 @@ public:
 
     virtual std::string operator()(const std::string&) const = 0;
 
-    virtual void initMetrics(const IceInternal::Handle<T>&) const
+    virtual void initMetrics(const ICE_INTERNAL_HANDLE<T>&) const
     {
         // To be overriden in specialization to initialize state attributes
     }
@@ -183,7 +183,7 @@ protected:
             virtual std::string operator()(const Helper* r) const
             {
                 O o = (r->*_getFn)();
-                I* v = dynamic_cast<I*>(IceInternal::ReferenceWrapper<O>::get(o));
+                I* v = dynamicCast<I>(IceInternal::ReferenceWrapper<O>::get(o));
                 if(v)
                 {
                     return toString(v->*_member);
@@ -212,7 +212,7 @@ protected:
             virtual std::string operator()(const Helper* r) const
             {
                 O o = (r->*_getFn)();
-                I* v = dynamic_cast<I*>(IceInternal::ReferenceWrapper<O>::get(o));
+                I* v = dynamicCast<I>(IceInternal::ReferenceWrapper<O>::get(o));
                 if(v)
                 {
                     return toString((v->*_memberFn)());
@@ -229,12 +229,52 @@ protected:
             Y (I::*_memberFn)() const;
         };
 
+        template<typename I, typename V> static I*
+        dynamicCast(V* v)
+        {
+            return dynamic_cast<I*>(v);
+        }
+
+        template<typename I> static I*
+        dynamicCast(Ice::EndpointInfo* v)
+        {
+            for(Ice::EndpointInfo* info = v; info; info = info->underlying.get())
+            {
+                I* i = dynamic_cast<I*>(info);
+                if(i)
+                {
+                    return i;
+                }
+            }
+            return 0;
+        }
+
+        template<typename I> static I*
+        dynamicCast(Ice::ConnectionInfo* v)
+        {
+            for(Ice::ConnectionInfo* info = v; info; info = info->underlying.get())
+            {
+                I* i = dynamic_cast<I*>(info);
+                if(i)
+                {
+                    return i;
+                }
+            }
+            return 0;
+        }
+
         template<typename I> static std::string
         toString(const I& v)
         {
             std::ostringstream os;
             os << v;
             return os.str();
+        }
+
+        static const std::string
+        toString(const Ice::ObjectPrxPtr& p)
+        {
+            return p->ice_toString();
         }
 
         static const std::string&
@@ -266,20 +306,28 @@ protected:
     };
 };
 
-class Updater : public IceUtil::Shared
+class Updater
+#ifndef ICE_CPP11_MAPPING
+    : public virtual IceUtil::Shared
+#endif
 {
 public:
 
     virtual void update() = 0;
 };
-typedef IceUtil::Handle<Updater> UpdaterPtr;
+ICE_DEFINE_PTR(UpdaterPtr, Updater);
 
 template<typename T> class UpdaterT : public Updater
 {
 public:
 
+#ifdef ICE_CPP11_MAPPING
+    UpdaterT(const std::shared_ptr<T>& updater, void (T::*fn)()) :
+#else
     UpdaterT(T* updater, void (T::*fn)()) :
-        _updater(updater), _fn(fn)
+#endif
+        _updater(updater),
+        _fn(fn)
     {
     }
 
@@ -290,24 +338,39 @@ public:
 
 private:
 
-    const IceUtil::Handle<T> _updater;
+    const ICE_HANDLE<T> _updater;
     void (T::*_fn)();
 };
 
-template<typename T> Updater*
+#ifdef ICE_CPP11_MAPPING
+template<typename T> UpdaterPtr
+newUpdater(const std::shared_ptr<T>& updater, void (T::*fn)())
+{
+    if(updater)
+    {
+        return std::make_shared<UpdaterT<T>>(updater, fn);
+    }
+    else
+    {
+        return nullptr;
+    }
+}
+#else
+template<typename T> UpdaterPtr
 newUpdater(const IceInternal::Handle<T>& updater, void (T::*fn)())
 {
     if(updater)
     {
-        return new UpdaterT<T>(updater.get(), fn);
+        return UpdaterPtr(new UpdaterT<T>(updater.get(), fn));
     }
     else
     {
         return 0;
     }
 }
+#endif
 
-template<typename T> class ObserverT : virtual public ::Ice::Instrumentation::Observer
+template<typename T> class ObserverT : public virtual ::Ice::Instrumentation::Observer
 {
 public:
 
@@ -367,7 +430,6 @@ public:
         }
 
         _previousDelay = previous->_previousDelay + previous->_watch.delay();
-
         //
         // Detach entries from previous observer which are no longer
         // attached to this new observer.
@@ -391,10 +453,10 @@ public:
                 return *p;
             }
         }
-        return 0;
+        return ICE_NULLPTR;
     }
 
-    template<typename ObserverImpl, typename ObserverMetricsType> IceInternal::Handle<ObserverImpl>
+    template<typename ObserverImpl, typename ObserverMetricsType> ICE_INTERNAL_HANDLE<ObserverImpl>
     getObserver(const std::string& mapName, const MetricsHelperT<ObserverMetricsType>& helper)
     {
         std::vector<typename IceInternal::MetricsMapT<ObserverMetricsType>::EntryTPtr> metricsObjects;
@@ -409,10 +471,10 @@ public:
 
         if(metricsObjects.empty())
         {
-            return 0;
+            return ICE_NULLPTR;
         }
 
-        IceInternal::Handle<ObserverImpl> obsv = new ObserverImpl();
+        ICE_INTERNAL_HANDLE<ObserverImpl> obsv = ICE_MAKE_SHARED(ObserverImpl);
         obsv->init(helper, metricsObjects);
         return obsv;
     }
@@ -429,10 +491,15 @@ class ObserverFactoryT : public Updater, private IceUtil::Mutex
 {
 public:
 
+#ifdef ICE_CPP11_MAPPING
+    using ObserverImplPtrType = ::std::shared_ptr<ObserverImplType>;
+    using MetricsType = typename ObserverImplType::MetricsType;
+    using MetricsMapSeqType = std::vector<::std::shared_ptr<IceInternal::MetricsMapT<MetricsType>>>;
+#else
     typedef IceUtil::Handle<ObserverImplType> ObserverImplPtrType;
     typedef typename ObserverImplType::MetricsType MetricsType;
-
     typedef std::vector<IceUtil::Handle<IceInternal::MetricsMapT<MetricsType> > > MetricsMapSeqType;
+#endif
 
     ObserverFactoryT(const IceInternal::MetricsAdminIPtr& metrics, const std::string& name) :
         _metrics(metrics), _name(name), _enabled(0)
@@ -454,7 +521,7 @@ public:
         IceUtil::Mutex::Lock sync(*this);
         if(!_metrics)
         {
-            return 0;
+            return ICE_NULLPTR;
         }
 
         typename ObserverImplType::EntrySeqType metricsObjects;
@@ -469,10 +536,10 @@ public:
 
         if(metricsObjects.empty())
         {
-            return 0;
+            return ICE_NULLPTR;
         }
 
-        ObserverImplPtrType obsv = new ObserverImplType();
+        ObserverImplPtrType obsv = ICE_MAKE_SHARED(ObserverImplType);
         obsv->init(helper, metricsObjects);
         return obsv;
     }
@@ -480,16 +547,20 @@ public:
     template<typename ObserverPtrType> ObserverImplPtrType
     getObserver(const MetricsHelperT<MetricsType>& helper, const ObserverPtrType& observer)
     {
+#ifdef ICE_CPP11_MAPPING
+        ObserverImplPtrType old = std::dynamic_pointer_cast<ObserverImplType>(observer);
+#else
         ObserverImplPtrType old = ObserverImplPtrType::dynamicCast(observer);
+#endif
+
         if(!observer || !old)
         {
             return getObserver(helper);
         }
-
         IceUtil::Mutex::Lock sync(*this);
         if(!_metrics)
         {
-            return 0;
+            return ICE_NULLPTR;
         }
 
         typename ObserverImplType::EntrySeqType metricsObjects;
@@ -501,14 +572,13 @@ public:
                 metricsObjects.push_back(entry);
             }
         }
-
         if(metricsObjects.empty())
         {
             old->detach();
-            return 0;
+            return ICE_NULLPTR;
         }
 
-        ObserverImplPtrType obsv = new ObserverImplType();
+        ObserverImplPtrType obsv = ICE_MAKE_SHARED(ObserverImplType);
         obsv->init(helper, metricsObjects, old.get());
         return obsv;
     }
@@ -539,7 +609,11 @@ public:
             _maps.clear();
             for(std::vector<IceInternal::MetricsMapIPtr>::const_iterator p = maps.begin(); p != maps.end(); ++p)
             {
+#ifdef ICE_CPP11_MAPPING
+                _maps.push_back(::std::dynamic_pointer_cast<IceInternal::MetricsMapT<MetricsType>>(*p));
+#else
                 _maps.push_back(IceUtil::Handle<IceInternal::MetricsMapT<MetricsType> >::dynamicCast(*p));
+#endif
                 assert(_maps.back());
             }
             _enabled.exchange(_maps.empty() ? 0 : 1);

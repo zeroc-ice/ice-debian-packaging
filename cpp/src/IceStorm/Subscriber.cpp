@@ -34,10 +34,6 @@ public:
     {
     }
 
-    ~PerSubscriberPublisherI()
-    {
-    }
-
     void
     setSubscriber(const SubscriberPtr& subscriber)
     {
@@ -107,7 +103,6 @@ class SubscriberBatch : public Subscriber
 public:
 
     SubscriberBatch(const InstancePtr&, const SubscriberRecord&, const Ice::ObjectPrx&, int, const Ice::ObjectPrx&);
-    ~SubscriberBatch();
 
     virtual void flush();
 
@@ -131,7 +126,6 @@ class SubscriberOneway : public Subscriber
 public:
 
     SubscriberOneway(const InstancePtr&, const SubscriberRecord&, const Ice::ObjectPrx&, int, const Ice::ObjectPrx&);
-    ~SubscriberOneway();
 
     virtual void flush();
 
@@ -209,10 +203,6 @@ SubscriberBatch::SubscriberBatch(
     assert(retryCount == 0);
 }
 
-SubscriberBatch::~SubscriberBatch()
-{
-}
-
 void
 SubscriberBatch::flush()
 {
@@ -227,7 +217,7 @@ void
 SubscriberBatch::doFlush()
 {
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(_lock);
-    
+
     //
     // If the subscriber isn't online we're done.
     //
@@ -239,7 +229,7 @@ SubscriberBatch::doFlush()
     EventDataSeq v;
     v.swap(_events);
     assert(!v.empty());
-    
+
     if(_observer)
     {
         _outstandingCount = static_cast<Ice::Int>(v.size());
@@ -255,7 +245,7 @@ SubscriberBatch::doFlush()
         }
 
         Ice::AsyncResultPtr result = _obj->begin_ice_flushBatchRequests(
-            Ice::newCallback_Object_ice_flushBatchRequests(this, 
+            Ice::newCallback_Object_ice_flushBatchRequests(this,
                                                            &SubscriberBatch::exception,
                                                            &SubscriberBatch::sent));
         if(result->sentSynchronously())
@@ -278,7 +268,7 @@ SubscriberBatch::doFlush()
     {
         _lock.notify();
     }
-    
+
     // This is significantly faster than the async version, but it can
     // block the calling thread. Bad news!
 
@@ -294,7 +284,7 @@ SubscriberBatch::sent(bool sentSynchronously)
     }
 
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(_lock);
-        
+
     // Decrement the _outstanding count.
     --_outstanding;
     assert(_outstanding == 0);
@@ -326,15 +316,11 @@ SubscriberOneway::SubscriberOneway(
     assert(retryCount == 0);
 }
 
-SubscriberOneway::~SubscriberOneway()
-{
-}
-
 void
 SubscriberOneway::flush()
 {
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(_lock);
-    
+
     //
     // If the subscriber isn't online we're done.
     //
@@ -360,7 +346,7 @@ SubscriberOneway::flush()
         try
         {
             Ice::AsyncResultPtr result = _obj->begin_ice_invoke(
-                e->op, e->mode, e->data, e->context, Ice::newCallback_Object_ice_invoke(this, 
+                e->op, e->mode, e->data, e->context, Ice::newCallback_Object_ice_invoke(this,
                                                                                         &SubscriberOneway::exception,
                                                                                         &SubscriberOneway::sent));
             if(!result->sentSynchronously())
@@ -394,7 +380,7 @@ SubscriberOneway::sent(bool sentSynchronously)
     }
 
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(_lock);
-        
+
     // Decrement the _outstanding count.
     --_outstanding;
     assert(_outstanding >= 0 && _outstanding < _maxOutstanding);
@@ -481,7 +467,7 @@ void
 SubscriberLink::flush()
 {
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(_lock);
-    
+
     if(_state != SubscriberStateOnline || _outstanding > 0)
     {
         return;
@@ -546,7 +532,7 @@ Subscriber::create(
         Ice::Identity perId;
         perId.category = instance->instanceName();
         perId.name = "topic." + rec.topicName + ".publish." +
-                     instance->communicator()->identityToString(rec.obj->ice_getIdentity());
+            instance->communicator()->identityToString(rec.obj->ice_getIdentity());
         Ice::ObjectPrx proxy = instance->publishAdapter()->add(per, perId);
         TraceLevelsPtr traceLevels = instance->traceLevels();
         SubscriberPtr subscriber;
@@ -629,11 +615,6 @@ Subscriber::create(
     }
 }
 
-Subscriber::~Subscriber()
-{
-    //cout << "~Subscriber" << endl;
-}
-
 Ice::ObjectPrx
 Subscriber::proxy() const
 {
@@ -673,23 +654,40 @@ Subscriber::queue(bool forwarded, const EventDataSeq& events)
         {
             break;
         }
-        
+
         //
         // State transition to online.
         //
         setState(SubscriberStateOnline);
         // fall through
     }
-    
+
     case SubscriberStateOnline:
-        copy(events.begin(), events.end(), back_inserter(_events));
+    {
+        for(EventDataSeq::const_iterator p = events.begin(); p != events.end(); ++p)
+        {
+            if(static_cast<int>(_events.size()) == _instance->sendQueueSizeMax())
+            {
+                if(_instance->sendQueueSizeMaxPolicy() == Instance::RemoveSubscriber)
+                {
+                    error(false, IceStorm::SendQueueSizeMaxReached(__FILE__, __LINE__));
+                    return false;
+                }
+                else // DropEvents
+                {
+                    _events.pop_front();
+                }
+            }
+            _events.push_back(*p);
+        }
+
         if(_observer)
         {
             _observer->queued(static_cast<Ice::Int>(events.size()));
         }
         flush();
         break;
-
+    }
     case SubscriberStateError:
         return false;
 
@@ -768,10 +766,24 @@ Subscriber::error(bool dec, const Ice::Exception& e)
         assert(_outstanding >= 0 && _outstanding < _maxOutstanding);
     }
 
+    //
+    // It's possible to be already in the error state if the queue maximum size
+    // has been reached or if an ObjectNotExistException occured before.
+    //
+    if(_state >= SubscriberStateError)
+    {
+        if(_shutdown)
+        {
+            _lock.notify();
+        }
+        return;
+    }
+
     // A hard error is an ObjectNotExistException or
     // NotRegisteredException.
     bool hardError = dynamic_cast<const Ice::ObjectNotExistException*>(&e) ||
-                     dynamic_cast<const Ice::NotRegisteredException*>(&e);
+                     dynamic_cast<const Ice::NotRegisteredException*>(&e) ||
+                     dynamic_cast<const IceStorm::SendQueueSizeMaxReached*>(&e);
 
     //
     // A twoway subscriber can queue multiple send events and
@@ -834,7 +846,7 @@ Subscriber::error(bool dec, const Ice::Exception& e)
     {
         _events.clear();
         setState(SubscriberStateError);
-        
+
         TraceLevelsPtr traceLevels = _instance->traceLevels();
         if(traceLevels->subscriber > 0)
         {
@@ -871,13 +883,13 @@ Subscriber::completed(const Ice::AsyncResultPtr& result)
         {
             _observer->delivered(_outstandingCount);
         }
-        
+
         //
         // A successful response means we're no longer retrying, we're
         // back active.
         //
         _currentRetry = 0;
-        
+
         if(_events.empty() && _outstanding == 0 && _shutdown)
         {
             _lock.notify();
@@ -893,7 +905,7 @@ Subscriber::completed(const Ice::AsyncResultPtr& result)
     }
 }
 
-    
+
 void
 Subscriber::shutdown()
 {
@@ -954,7 +966,7 @@ Subscriber::Subscriber(
                                                                       rec.topicName,
                                                                       rec.obj,
                                                                       rec.theQoS,
-                                                                      rec.theTopic, 
+                                                                      rec.theTopic,
                                                                       toSubscriberState(_state),
                                                                       0));
     }
@@ -992,7 +1004,7 @@ Subscriber::setState(Subscriber::SubscriberState state)
         if(traceLevels->subscriber > 1)
         {
             Ice::Trace out(traceLevels->logger, traceLevels->subscriberCat);
-            out << "endpoints: " << IceStormInternal::describeEndpoints(_rec.obj) 
+            out << "endpoints: " << IceStormInternal::describeEndpoints(_rec.obj)
                 << " transition from: " << stateToString(_state) << " to: " << stateToString(state);
         }
         _state = state;

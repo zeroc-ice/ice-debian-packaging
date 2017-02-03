@@ -14,7 +14,7 @@ public class Server extends test.Util.Application
     @Override
     public int run(String[] args)
     {
-        Ice.Properties properties = communicator().getProperties();
+        com.zeroc.Ice.Properties properties = communicator().getProperties();
 
         int num = 0;
         try
@@ -23,14 +23,15 @@ public class Server extends test.Util.Application
         }
         catch(NumberFormatException ex)
         {
+            assert(false);
         }
 
-        properties.setProperty("ControlAdapter.Endpoints", "default -p " + (12010 + num));
+        properties.setProperty("ControlAdapter.Endpoints", getTestEndpoint(num));
         properties.setProperty("ControlAdapter.AdapterId", "control" + num);
         properties.setProperty("ControlAdapter.ThreadPool.Size", "1");
 
-        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("ControlAdapter");
-        adapter.add(new ControllerI(), communicator().stringToIdentity("controller" + num));
+        com.zeroc.Ice.ObjectAdapter adapter = communicator().createObjectAdapter("ControlAdapter");
+        adapter.add(new ControllerI(), com.zeroc.Ice.Util.stringToIdentity("controller" + num));
         adapter.activate();
 
         return WAIT;

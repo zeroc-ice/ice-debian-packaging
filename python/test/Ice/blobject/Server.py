@@ -15,7 +15,7 @@ import Ice
 Ice.loadSlice('Test.ice')
 import Test
 
-class TestI(Test.Hello):
+class TestI(Test._HelloDisp):
     def sayHello(self, delay, current=None):
         if delay != 0:
             time.sleep(delay / 1000.0)
@@ -33,7 +33,7 @@ class TestI(Test.Hello):
 def run(args, communicator):
     communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010:udp")
     adapter = communicator.createObjectAdapter("TestAdapter")
-    adapter.add(TestI(), communicator.stringToIdentity("test"))
+    adapter.add(TestI(), Ice.stringToIdentity("test"))
     adapter.activate()
     communicator.waitForShutdown()
     return True
@@ -47,17 +47,10 @@ try:
     # this warning.
     #
     initData.properties.setProperty("Ice.Warn.Dispatch", "0");
-    communicator = Ice.initialize(sys.argv, initData)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv, initData) as communicator:
+        status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

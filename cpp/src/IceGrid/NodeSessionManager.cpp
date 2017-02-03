@@ -11,7 +11,6 @@
 #include <IceGrid/NodeSessionManager.h>
 #include <IceGrid/TraceLevels.h>
 #include <IceGrid/NodeI.h>
-#include <IceGrid/Query.h>
 
 using namespace std;
 using namespace IceGrid;
@@ -36,7 +35,7 @@ NodeSessionPrx
 NodeSessionKeepAliveThread::createSession(InternalRegistryPrx& registry, IceUtil::Time& timeout)
 {
     NodeSessionPrx session;
-    IceUtil::UniquePtr<Ice::Exception> exception;
+    IceInternal::UniquePtr<Ice::Exception> exception;
     TraceLevelsPtr traceLevels = _node->getTraceLevels();
     try
     {

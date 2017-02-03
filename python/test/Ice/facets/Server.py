@@ -18,12 +18,12 @@ def run(args, communicator):
     communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010")
     adapter = communicator.createObjectAdapter("TestAdapter")
     d = TestI.DI()
-    adapter.add(d, communicator.stringToIdentity("d"))
-    adapter.addFacet(d, communicator.stringToIdentity("d"), "facetABCD")
+    adapter.add(d, Ice.stringToIdentity("d"))
+    adapter.addFacet(d, Ice.stringToIdentity("d"), "facetABCD")
     f = TestI.FI()
-    adapter.addFacet(f, communicator.stringToIdentity("d"), "facetEF")
+    adapter.addFacet(f, Ice.stringToIdentity("d"), "facetEF")
     h = TestI.HI(communicator)
-    adapter.addFacet(h, communicator.stringToIdentity("d"), "facetGH")
+    adapter.addFacet(h, Ice.stringToIdentity("d"), "facetGH")
 
     adapter.activate()
     communicator.waitForShutdown()
@@ -31,17 +31,10 @@ def run(args, communicator):
     return True
 
 try:
-    communicator = Ice.initialize(sys.argv)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv) as communicator:
+         status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

@@ -8,7 +8,7 @@
 // **********************************************************************
 
 #include <Util.h>
-#include <IceUtil/UUID.h>
+#include <Ice/UUID.h>
 #include <Slice/PHPUtil.h>
 #include <algorithm>
 #include <ctype.h>
@@ -323,7 +323,7 @@ IcePHP::createStringMap(zval* zv, const map<string, string>& ctx TSRMLS_DC)
     for(map<string, string>::const_iterator p = ctx.begin(); p != ctx.end(); ++p)
     {
         if(add_assoc_stringl_ex(zv, const_cast<char*>(p->first.c_str()), p->first.length() + 1,
-                                const_cast<char*>(p->second.c_str()), 
+                                const_cast<char*>(p->second.c_str()),
                                 static_cast<uint>(p->second.length()), 1) == FAILURE)
         {
             return false;
@@ -595,7 +595,7 @@ convertLocalException(const Ice::LocalException& ex, zval* zex TSRMLS_DC)
         zend_update_property(cls, zex, const_cast<char*>("supported"), sizeof("supported") - 1, v TSRMLS_CC);
         zval_ptr_dtor(&v);
     }
-    catch(const Ice::NoObjectFactoryException& e)
+    catch(const Ice::NoValueFactoryException& e)
     {
         setStringMember(zex, "reason", e.reason TSRMLS_CC);
         setStringMember(zex, "type", e.type TSRMLS_CC);
@@ -617,6 +617,10 @@ convertLocalException(const Ice::LocalException& ex, zval* zex TSRMLS_DC)
     catch(const Ice::SecurityException& e)
     {
         setStringMember(zex, "reason", e.reason TSRMLS_CC);
+    }
+    catch(const Ice::ConnectionManuallyClosedException& e)
+    {
+        add_property_bool(zex, "graceful", e.graceful ? 1 : 0);
     }
     catch(const Ice::LocalException&)
     {
@@ -645,7 +649,7 @@ IcePHP::convertException(const Ice::Exception& ex TSRMLS_DC)
     }
     catch(const Ice::LocalException& e)
     {
-        zend_class_entry* cls = idToClass(e.ice_name() TSRMLS_CC);
+        zend_class_entry* cls = idToClass(e.ice_id() TSRMLS_CC);
         if(cls)
         {
             if(object_init_ex(zex, cls) != SUCCESS)
@@ -924,7 +928,7 @@ ZEND_FUNCTION(Ice_generateUUID)
         WRONG_PARAM_COUNT;
     }
 
-    string uuid = IceUtil::generateUUID();
+    string uuid = Ice::generateUUID();
     RETURN_STRINGL(STRCAST(uuid.c_str()), static_cast<int>(uuid.size()), 1);
 }
 

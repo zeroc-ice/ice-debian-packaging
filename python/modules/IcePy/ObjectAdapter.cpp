@@ -164,7 +164,7 @@ IcePy::ServantLocatorWrapper::locate(const Ice::Current& current, Ice::LocalObje
         PyObject* userExceptionType = lookupType("Ice.UserException");
         if(PyObject_IsInstance(ex.ex.get(), userExceptionType))
         {
-            throw ExceptionWriter(current.adapter->getCommunicator(), ex.ex);
+            throw ExceptionWriter(ex.ex);
         }
 
         ex.raise();
@@ -181,7 +181,7 @@ IcePy::ServantLocatorWrapper::locate(const Ice::Current& current, Ice::LocalObje
     {
         if(PyTuple_GET_SIZE(res.get()) > 2)
         {
-            PyErr_Warn(PyExc_RuntimeWarning, STRCAST("invalid return value for ServantLocator::locate"));
+            PyErr_WarnEx(PyExc_RuntimeWarning, STRCAST("invalid return value for ServantLocator::locate"), 1);
             return 0;
         }
         servantObj = PyTuple_GET_ITEM(res.get(), 0);
@@ -200,7 +200,7 @@ IcePy::ServantLocatorWrapper::locate(const Ice::Current& current, Ice::LocalObje
     //
     if(!PyObject_IsInstance(servantObj, _objectType))
     {
-        PyErr_Warn(PyExc_RuntimeWarning, STRCAST("return value of ServantLocator::locate is not an Ice object"));
+        PyErr_WarnEx(PyExc_RuntimeWarning, STRCAST("return value of ServantLocator::locate is not an Ice object"), 1);
         return 0;
     }
 
@@ -243,7 +243,7 @@ IcePy::ServantLocatorWrapper::finished(const Ice::Current& current, const Ice::O
         PyObject* userExceptionType = lookupType("Ice.UserException");
         if(PyObject_IsInstance(ex.ex.get(), userExceptionType))
         {
-            throw ExceptionWriter(current.adapter->getCommunicator(), ex.ex);
+            throw ExceptionWriter(ex.ex);
         }
 
         ex.raise();

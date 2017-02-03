@@ -37,7 +37,7 @@ class A
     C theC;
 
     bool preMarshalInvoked;
-    bool postUnmarshalInvoked();
+    bool postUnmarshalInvoked;
 };
 
 class B extends A
@@ -50,17 +50,17 @@ class C
     B theB;
 
     bool preMarshalInvoked;
-    bool postUnmarshalInvoked();
+    bool postUnmarshalInvoked;
 };
 
 class D
 {
     A theA;
     B theB;
-    C theC;    
+    C theC;
 
     bool preMarshalInvoked;
-    bool postUnmarshalInvoked();
+    bool postUnmarshalInvoked;
 };
 
 ["protected"] class E
@@ -143,6 +143,9 @@ class Initial
     D getD();
     E getE();
     F getF();
+
+    ["marshaled-result"] B getMB();
+    ["amd", "marshaled-result"] B getAMDMB();
 
     void getAll(out B b1, out B b2, out C theC, out D theD);
 

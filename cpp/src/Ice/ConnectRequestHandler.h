@@ -12,14 +12,13 @@
 
 #include <IceUtil/Monitor.h>
 #include <IceUtil/Mutex.h>
-#include <IceUtil/UniquePtr.h>
+#include <Ice/UniquePtr.h>
 
 #include <Ice/ConnectRequestHandlerF.h>
 #include <Ice/RequestHandler.h>
 #include <Ice/Reference.h>
 #include <Ice/RouterInfo.h>
 #include <Ice/ProxyF.h>
-#include <Ice/BasicStream.h>
 
 #include <deque>
 #include <set>
@@ -31,19 +30,19 @@ class ConnectRequestHandler : public RequestHandler,
                               public Reference::GetConnectionCallback,
                               public RouterInfo::AddProxyCallback,
                               public IceUtil::Monitor<IceUtil::Mutex>
+#ifdef ICE_CPP11_MAPPING
+                            , public std::enable_shared_from_this<ConnectRequestHandler>
+#endif
 {
 public:
 
-    ConnectRequestHandler(const ReferencePtr&, const Ice::ObjectPrx&);
-    virtual ~ConnectRequestHandler();
+    ConnectRequestHandler(const ReferencePtr&, const Ice::ObjectPrxPtr&);
 
-    RequestHandlerPtr connect(const Ice::ObjectPrx&);
+    RequestHandlerPtr connect(const Ice::ObjectPrxPtr&);
     virtual RequestHandlerPtr update(const RequestHandlerPtr&, const RequestHandlerPtr&);
 
-    virtual bool sendRequest(ProxyOutgoingBase*);
     virtual AsyncStatus sendAsyncRequest(const ProxyOutgoingAsyncBasePtr&);
 
-    virtual void requestCanceled(OutgoingBase*, const Ice::LocalException&);
     virtual void asyncRequestCanceled(const OutgoingAsyncBasePtr&, const Ice::LocalException&);
 
     virtual Ice::ConnectionIPtr getConnection();
@@ -59,26 +58,16 @@ private:
     bool initialized();
     void flushRequests();
 
-    struct Request
-    {
-        Request() : out(0)
-        {
-        }
-
-        ProxyOutgoingBase* out;
-        ProxyOutgoingAsyncBasePtr outAsync;
-    };
-
-    Ice::ObjectPrx _proxy;
-    std::set<Ice::ObjectPrx> _proxies;
+    Ice::ObjectPrxPtr _proxy;
+    std::set<Ice::ObjectPrxPtr> _proxies;
 
     Ice::ConnectionIPtr _connection;
     bool _compress;
-    IceUtil::UniquePtr<Ice::LocalException> _exception;
+    IceInternal::UniquePtr<Ice::LocalException> _exception;
     bool _initialized;
     bool _flushing;
 
-    std::deque<Request> _requests;
+    std::deque<ProxyOutgoingAsyncBasePtr> _requests;
 
     RequestHandlerPtr _requestHandler;
 };

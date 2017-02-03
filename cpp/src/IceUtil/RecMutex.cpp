@@ -10,12 +10,6 @@
 #include <IceUtil/RecMutex.h>
 #include <IceUtil/Exception.h>
 
-//
-// AbstractMutex isn't used anywhere in IceUtil, we include it here
-// to give the compiler a chance to export the class symbols.
-//
-#include <IceUtil/AbstractMutex.h>
-
 using namespace std;
 
 IceUtil::RecMutex::RecMutex() :
@@ -39,7 +33,7 @@ IceUtil::RecMutex::RecMutex(const IceUtil::MutexProtocol protocol) :
 void
 IceUtil::RecMutex::init(const MutexProtocol)
 {
-#   ifdef ICE_OS_WINRT
+#   ifdef ICE_OS_UWP
     InitializeCriticalSectionEx(&_mutex, 0, 0);
 #   else
     InitializeCriticalSection(&_mutex);

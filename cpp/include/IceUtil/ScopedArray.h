@@ -12,6 +12,12 @@
 
 #include <IceUtil/Config.h>
 
+#ifndef ICE_CPP11_MAPPING
+
+//
+// Only for the C++98 mapping
+//
+
 namespace IceUtil
 {
 
@@ -94,4 +100,5 @@ private:
 
 } // End of namespace IceUtil
 
+#endif
 #endif

@@ -19,7 +19,7 @@ namespace IceInternal
     public class CollocatedRequestHandler : RequestHandler, ResponseHandler
     {
         private void
-        fillInValue(BasicStream os, int pos, int value)
+        fillInValue(Ice.OutputStream os, int pos, int value)
         {
             os.rewriteInt(value, pos);
         }
@@ -42,9 +42,9 @@ namespace IceInternal
             return previousHandler == this ? newHandler : this;
         }
 
-        public bool sendAsyncRequest(ProxyOutgoingAsyncBase outAsync, out Ice.AsyncCallback sentCallback)
+        public int sendAsyncRequest(ProxyOutgoingAsyncBase outAsync)
         {
-            return outAsync.invokeCollocated(this, out sentCallback);
+            return outAsync.invokeCollocated(this);
         }
 
         public void asyncRequestCanceled(OutgoingAsyncBase outAsync, Ice.LocalException ex)
@@ -59,10 +59,9 @@ namespace IceInternal
                         _asyncRequests.Remove(requestId);
                     }
                     _sendAsyncRequests.Remove(outAsync);
-                    Ice.AsyncCallback cb = outAsync.completed(ex);
-                    if(cb != null)
+                    if(outAsync.exception(ex))
                     {
-                        outAsync.invokeCompletedAsync(cb);
+                        outAsync.invokeExceptionAsync();
                     }
                     _adapter.decDirectCount(); // invokeAll won't be called, decrease the direct count.
                     return;
@@ -76,10 +75,9 @@ namespace IceInternal
                         if(e.Value == o)
                         {
                             _asyncRequests.Remove(e.Key);
-                            Ice.AsyncCallback cb = outAsync.completed(ex);
-                            if(cb != null)
+                            if(outAsync.exception(ex))
                             {
-                                outAsync.invokeCompletedAsync(cb);
+                                outAsync.invokeExceptionAsync();
                             }
                             return;
                         }
@@ -88,39 +86,48 @@ namespace IceInternal
             }
         }
 
-        public void sendResponse(int requestId, BasicStream os, byte status, bool amd)
+        public void sendResponse(int requestId, Ice.OutputStream os, byte status, bool amd)
         {
-            Ice.AsyncCallback cb = null;
             OutgoingAsyncBase outAsync;
             lock(this)
             {
                 Debug.Assert(_response);
 
-                os.pos(Protocol.replyHdr.Length + 4);
-
                 if(_traceLevels.protocol >= 1)
                 {
                     fillInValue(os, 10, os.size());
-                    TraceUtil.traceRecv(os, _logger, _traceLevels);
+                }
+
+                // Adopt the OutputStream's buffer.
+                Ice.InputStream iss = new Ice.InputStream(os.instance(), os.getEncoding(), os.getBuffer(), true);
+
+                iss.pos(Protocol.replyHdr.Length + 4);
+
+                if(_traceLevels.protocol >= 1)
+                {
+                    TraceUtil.traceRecv(iss, _logger, _traceLevels);
                 }
 
                 if(_asyncRequests.TryGetValue(requestId, out outAsync))
                 {
+                    outAsync.getIs().swap(iss);
+                    if(!outAsync.response())
+                    {
+                        outAsync = null;
+                    }
                     _asyncRequests.Remove(requestId);
-                    outAsync.getIs().swap(os);
-                    cb = outAsync.completed();
                 }
             }
 
-            if(cb != null)
+            if(outAsync != null)
             {
                 if(amd)
                 {
-                    outAsync.invokeCompletedAsync(cb);
+                    outAsync.invokeResponseAsync();
                 }
                 else
                 {
-                    outAsync.invokeCompleted(cb);
+                    outAsync.invokeResponse();
                 }
             }
             _adapter.decDirectCount();
@@ -159,8 +166,7 @@ namespace IceInternal
             return null;
         }
 
-        public bool invokeAsyncRequest(OutgoingAsyncBase outAsync, int batchRequestNum, bool synchronous,
-                                       out Ice.AsyncCallback sentCallback)
+        public int invokeAsyncRequest(OutgoingAsyncBase outAsync, int batchRequestNum, bool synchronous)
         {
             //
             // Increase the direct count to prevent the thread pool from being destroyed before
@@ -184,61 +190,44 @@ namespace IceInternal
                     _sendAsyncRequests.Add(outAsync, requestId);
                 }
             }
-            catch(System.Exception ex)
+            catch(Exception)
             {
                 _adapter.decDirectCount();
-                throw ex;
+                throw;
             }
 
             outAsync.attachCollocatedObserver(_adapter, requestId);
-
-            if(synchronous)
+            if(!synchronous || !_response || _reference.getInvocationTimeout() > 0)
             {
-                //
-                // Treat this collocated call as if it is a synchronous invocation.
-                //
-                if(_reference.getInvocationTimeout() > 0 || !_response)
-                {
-                    // Don't invoke from the user thread, invocation timeouts wouldn't work otherwise.
-                    _adapter.getThreadPool().dispatch(() =>
+                // Don't invoke from the user thread if async or invocation timeout is set
+                _adapter.getThreadPool().dispatch(
+                    () =>
                     {
-                        if(sentAsync(outAsync))
+                        if (sentAsync(outAsync))
                         {
                             invokeAll(outAsync.getOs(), requestId, batchRequestNum);
                         }
                     }, null);
-                }
-                else if(_dispatcher)
-                {
-                    _adapter.getThreadPool().dispatchFromThisThread(() =>
+            }
+            else if(_dispatcher)
+            {
+                _adapter.getThreadPool().dispatchFromThisThread(
+                    () =>
                     {
-                        if(sentAsync(outAsync))
+                        if (sentAsync(outAsync))
                         {
                             invokeAll(outAsync.getOs(), requestId, batchRequestNum);
                         }
                     }, null);
-                }
-                else // Optimization: directly call invokeAll if there's no dispatcher.
-                {
-                    if(sentAsync(outAsync))
-                    {
-                        invokeAll(outAsync.getOs(), requestId, batchRequestNum);
-                    }
-                }
-                sentCallback = null;
             }
-            else
+            else // Optimization: directly call invokeAll if there's no dispatcher.
             {
-                _adapter.getThreadPool().dispatch(() =>
+                if(sentAsync(outAsync))
                 {
-                    if(sentAsync(outAsync))
-                    {
-                        invokeAll(outAsync.getOs(), requestId, batchRequestNum);
-                    }
-                }, null);
-                sentCallback = null;
+                    invokeAll(outAsync.getOs(), requestId, batchRequestNum);
+                }
             }
-            return false;
+            return OutgoingAsyncBase.AsyncStatusQueued;
         }
 
         private bool sentAsync(OutgoingAsyncBase outAsync)
@@ -249,27 +238,18 @@ namespace IceInternal
                 {
                     return false; // The request timed-out.
                 }
-            }
 
-            Ice.AsyncCallback cb = outAsync.sent();
-            if(cb != null)
-            {
-                outAsync.invokeSent(cb);
+                if(!outAsync.sent())
+                {
+                    return true;
+                }
             }
+            outAsync.invokeSent();
             return true;
         }
 
-        private void invokeAll(BasicStream os, int requestId, int batchRequestNum)
+        private void invokeAll(Ice.OutputStream os, int requestId, int batchRequestNum)
         {
-            if(batchRequestNum > 0)
-            {
-                os.pos(Protocol.requestBatchHdr.Length);
-            }
-            else
-            {
-                os.pos(Protocol.requestHdr.Length);
-            }
-
             if(_traceLevels.protocol >= 1)
             {
                 fillInValue(os, 10, os.size());
@@ -282,6 +262,17 @@ namespace IceInternal
                     fillInValue(os, Protocol.headerSize, batchRequestNum);
                 }
                 TraceUtil.traceSend(os, _logger, _traceLevels);
+            }
+
+            Ice.InputStream iss = new Ice.InputStream(os.instance(), os.getEncoding(), os.getBuffer(), false);
+
+            if(batchRequestNum > 0)
+            {
+                iss.pos(Protocol.requestBatchHdr.Length);
+            }
+            else
+            {
+                iss.pos(Protocol.requestHdr.Length);
             }
 
             int invokeNum = batchRequestNum > 0 ? batchRequestNum : 1;
@@ -306,9 +297,9 @@ namespace IceInternal
                         break;
                     }
 
-                    Incoming @in = new Incoming(_reference.getInstance(), this, null, _adapter, _response, (byte)0,
-                                               requestId);
-                    @in.invoke(servantManager, os);
+                    Incoming inS = new Incoming(_reference.getInstance(), this, null, _adapter, _response, (byte)0,
+                                                requestId);
+                    inS.invoke(servantManager, iss);
                     --invokeNum;
                 }
             }
@@ -329,25 +320,32 @@ namespace IceInternal
             }
 
             OutgoingAsyncBase outAsync;
-            Ice.AsyncCallback cb = null;
             lock(this)
             {
                 if(_asyncRequests.TryGetValue(requestId, out outAsync))
                 {
+                    if(!outAsync.exception(ex))
+                    {
+                        outAsync = null;
+                    }
                     _asyncRequests.Remove(requestId);
-                    cb = outAsync.completed(ex);
                 }
             }
 
-            if(cb != null)
+            if(outAsync != null)
             {
+                //
+                // If called from an AMD dispatch, invoke asynchronously
+                // the completion callback since this might be called from
+                // the user code.
+                //
                 if(amd)
                 {
-                    outAsync.invokeCompletedAsync(cb);
+                    outAsync.invokeExceptionAsync();
                 }
                 else
                 {
-                    outAsync.invokeCompleted(cb);
+                    outAsync.invokeException();
                 }
             }
         }

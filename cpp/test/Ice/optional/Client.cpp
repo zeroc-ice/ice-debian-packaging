@@ -19,8 +19,8 @@ using namespace Test;
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    InitialPrx allTests(const Ice::CommunicatorPtr&, bool);
-    InitialPrx initial = allTests(communicator, false);
+    InitialPrxPtr allTests(const Ice::CommunicatorPtr&, bool);
+    InitialPrxPtr initial = allTests(communicator, false);
     initial->shutdown();
     return EXIT_SUCCESS;
 }
@@ -30,34 +30,20 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL();
+#   if defined(__linux)
+    Ice::registerIceBT();
+#   endif
 #endif
-
-    int status;
-    Ice::CommunicatorPtr communicator;
 
     try
     {
-        communicator = Ice::initialize(argc, argv);
-        status = run(argc, argv, communicator);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        return run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
-        status = EXIT_FAILURE;
+        return EXIT_FAILURE;
     }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
-    }
-
-    return status;
 }

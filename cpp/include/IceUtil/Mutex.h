@@ -33,7 +33,7 @@ class Cond;
 // `IceUtil::noncopyable' inaccessible in `IceInternal::Outgoing' due
 // to ambiguity
 //
-class ICE_UTIL_API Mutex
+class ICE_API Mutex
 {
 public:
 
@@ -141,7 +141,7 @@ Mutex::Mutex(MutexProtocol protocol)
 inline void
 Mutex::init(MutexProtocol)
 {
-#ifdef ICE_OS_WINRT
+#ifdef ICE_OS_UWP
     InitializeCriticalSectionEx(&_mutex, 0, 0);
 #else
     InitializeCriticalSection(&_mutex);

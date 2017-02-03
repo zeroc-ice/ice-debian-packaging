@@ -7,10 +7,9 @@
 //
 // **********************************************************************
 
-using System;
 using System.Collections.Generic;
 
-public sealed class MyDerivedClassI : Test.MyDerivedClass
+public sealed class MyDerivedClassI : Test.MyDerivedClassDisp_
 {
     public MyDerivedClassI()
     {

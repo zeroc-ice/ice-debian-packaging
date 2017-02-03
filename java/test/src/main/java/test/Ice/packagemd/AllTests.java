@@ -12,7 +12,6 @@ package test.Ice.packagemd;
 import java.io.PrintWriter;
 
 import test.Ice.packagemd.Test.InitialPrx;
-import test.Ice.packagemd.Test.InitialPrxHelper;
 import test.Ice.packagemd.Test1.C1;
 import test.Ice.packagemd.Test1.C2;
 import test.Ice.packagemd.Test1.E1;
@@ -21,8 +20,7 @@ import test.Ice.packagemd.Test1._notify;
 
 public class AllTests
 {
-    private static void
-    test(boolean b)
+    private static void test(boolean b)
     {
         if(!b)
         {
@@ -30,19 +28,20 @@ public class AllTests
         }
     }
 
-    public static InitialPrx
-    allTests(Ice.Communicator communicator, PrintWriter out)
+    public static InitialPrx allTests(test.Util.Application app)
     {
-                out.print("testing stringToProxy... ");
+        com.zeroc.Ice.Communicator communicator=app.communicator();
+        PrintWriter out = app.getWriter();
+        out.print("testing stringToProxy... ");
         out.flush();
-        String ref = "initial:default -p 12010";
-        Ice.ObjectPrx base = communicator.stringToProxy(ref);
+        String ref = "initial:" + app.getTestEndpoint(0);
+        com.zeroc.Ice.ObjectPrx base = communicator.stringToProxy(ref);
         test(base != null);
         out.println("ok");
 
         out.print("testing checked cast... ");
         out.flush();
-        InitialPrx initial = InitialPrxHelper.checkedCast(base);
+        InitialPrx initial = InitialPrx.checkedCast(base);
         test(initial != null);
         test(initial.equals(base));
         out.println("ok");
@@ -95,11 +94,11 @@ public class AllTests
                     initial.throwTest2E2AsE1();
                     test(false);
                 }
-                catch(Ice.UnknownUserException ex)
+                catch(com.zeroc.Ice.UnknownUserException ex)
                 {
                     // Expected
                 }
-                catch(Ice.MarshalException ex)
+                catch(com.zeroc.Ice.MarshalException ex)
                 {
                     // Expected
                 }
@@ -112,11 +111,11 @@ public class AllTests
                     initial.throwTest2E2AsE2();
                     test(false);
                 }
-                catch(Ice.UnknownUserException ex)
+                catch(com.zeroc.Ice.UnknownUserException ex)
                 {
                     // Expected
                 }
-                catch(Ice.MarshalException ex)
+                catch(com.zeroc.Ice.MarshalException ex)
                 {
                     // Expected
                 }

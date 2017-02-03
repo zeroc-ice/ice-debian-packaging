@@ -9,21 +9,52 @@
 
 #include <Ice/Config.h>
 
-// For deprecated StringConverterPlugin
-#include <IceUtil/DisableWarnings.h>
-#include <Ice/DeprecatedStringConverter.h>
-
-#include <IceUtil/IceUtil.h>
+#include <Ice/StringConverter.h>
+#include <Ice/IconvStringConverter.h>
+#include <Ice/Initialize.h>
+#include <Ice/Communicator.h>
+#include <Ice/LoggerUtil.h>
 #include <IceUtil/StringUtil.h>
 
-#include <Ice/Communicator.h>
-#include <Ice/Initialize.h>
-#include <Ice/LocalException.h>
-#include <Ice/LoggerUtil.h>
-
-using namespace IceUtilInternal;
 using namespace Ice;
 using namespace std;
+
+namespace
+{
+
+class StringConverterPlugin : public Plugin
+{
+public:
+
+    StringConverterPlugin(const CommunicatorPtr&,
+                          const StringConverterPtr&, const WstringConverterPtr&);
+
+    virtual void initialize();
+
+    virtual void destroy();
+};
+
+StringConverterPlugin::StringConverterPlugin(const CommunicatorPtr& /*notused*/,
+                                             const StringConverterPtr& stringConverter,
+                                             const WstringConverterPtr& wstringConverter)
+{
+    setProcessStringConverter(stringConverter);
+    setProcessWstringConverter(wstringConverter);
+}
+
+void
+StringConverterPlugin::initialize()
+{
+    // no op
+}
+
+void
+StringConverterPlugin::destroy()
+{
+    // no op
+}
+
+}
 
 //
 // The entry point for the string converter plugin built-in the Ice library
@@ -78,7 +109,7 @@ createStringConverter(const CommunicatorPtr& communicator, const string& name, c
             return 0;
         }
 
-        stringConverter = new IceUtil::WindowsStringConverter(static_cast<unsigned int>(cp));
+        stringConverter = createWindowsStringConverter(static_cast<unsigned int>(cp));
 #else
         StringSeq iconvArgs;
 
@@ -105,18 +136,18 @@ createStringConverter(const CommunicatorPtr& communicator, const string& name, c
         {
             case 0:
             {
-                stringConverter = new IceUtil::IconvStringConverter<char>;
+                stringConverter = createIconvStringConverter<char>();
                 break;
             }
             case 1:
             {
-                stringConverter = new IceUtil::IconvStringConverter<char>(iconvArgs[0].c_str());
+                stringConverter = createIconvStringConverter<char>(iconvArgs[0]);
                 break;
             }
             case 2:
             {
-                stringConverter = new IceUtil::IconvStringConverter<char>(iconvArgs[0].c_str());
-                wstringConverter = new IceUtil::IconvStringConverter<wchar_t>(iconvArgs[1].c_str());
+                stringConverter = createIconvStringConverter<char>(iconvArgs[0]);
+                wstringConverter = createIconvStringConverter<wchar_t>(iconvArgs[1]);
                 break;
             }
             default:
@@ -151,7 +182,7 @@ namespace Ice
 ICE_API void
 registerIceStringConverter(bool loadOnInitialize)
 {
-    Ice::registerPluginFactory("IceStringConverter", createStringConverter, loadOnInitialize);
+    registerPluginFactory("IceStringConverter", createStringConverter, loadOnInitialize);
 }
 
 }

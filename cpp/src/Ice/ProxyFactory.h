@@ -20,25 +20,30 @@
 #include <Ice/OutgoingAsyncF.h>
 #include <Ice/Properties.h>
 
-namespace IceInternal
+namespace Ice
 {
 
-class BasicStream;
+class OutputStream;
+class InputStream;
+
+}
+
+namespace IceInternal
+{
 
 class ProxyFactory : public IceUtil::Shared
 {
 public:
     
-    Ice::ObjectPrx stringToProxy(const std::string&) const;
-    std::string proxyToString(const Ice::ObjectPrx&) const;
+    Ice::ObjectPrxPtr stringToProxy(const std::string&) const;
+    std::string proxyToString(const Ice::ObjectPrxPtr&) const;
 
-    Ice::ObjectPrx propertyToProxy(const std::string&) const;
-    Ice::PropertyDict proxyToProperty(const Ice::ObjectPrx&, const std::string&) const;
+    Ice::ObjectPrxPtr propertyToProxy(const std::string&) const;
+    Ice::PropertyDict proxyToProperty(const Ice::ObjectPrxPtr&, const std::string&) const;
 
-    Ice::ObjectPrx streamToProxy(BasicStream*) const;
-    void proxyToStream(const Ice::ObjectPrx&, BasicStream*) const;
+    Ice::ObjectPrxPtr streamToProxy(Ice::InputStream*) const;
 
-    Ice::ObjectPrx referenceToProxy(const ReferencePtr&) const;
+    Ice::ObjectPrxPtr referenceToProxy(const ReferencePtr&) const;
 
     int checkRetryAfterException(const Ice::LocalException&, const ReferencePtr&, int&) const;
 

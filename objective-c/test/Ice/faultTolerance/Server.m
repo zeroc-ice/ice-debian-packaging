@@ -39,7 +39,7 @@ run(int argc, char** argv, id<ICECommunicator> communicator)
             return EXIT_FAILURE;
         }
 
-        port = atoi(argv[i]);
+        port = 12010 + atoi(argv[i]);
     }
 
     if(port <= 0)
@@ -49,12 +49,12 @@ run(int argc, char** argv, id<ICECommunicator> communicator)
         return EXIT_FAILURE;
     }
 
-    NSString* endpts = [NSString stringWithFormat:@"default  -p %d:udp", port];
+    NSString* endpts = [NSString stringWithFormat:@"default -p %d:udp", port];
     [[communicator getProperties] setProperty:@"TestAdapter.Endpoints" value:endpts];
     id<ICEObjectAdapter> adapter = [communicator createObjectAdapter:@"TestAdapter"];
 
     ICEObject* object = [TestI testIntf];
-    [adapter add:object identity:[communicator stringToIdentity:@"test"]];
+    [adapter add:object identity:[ICEUtil stringToIdentity:@"test"]];
     [adapter activate];
     [communicator waitForShutdown];
     return EXIT_SUCCESS;
@@ -63,6 +63,13 @@ run(int argc, char** argv, id<ICECommunicator> communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    ICEregisterIceSSL(YES);
+#if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+    ICEregisterIceIAP(YES);
+#endif
+#endif
+
     int status;
     @autoreleasepool
     {
@@ -90,15 +97,7 @@ main(int argc, char* argv[])
 
         if(communicator)
         {
-            @try
-            {
-                [communicator destroy];
-            }
-            @catch(ICEException* ex)
-            {
-                NSLog(@"%@", ex);
-                status = EXIT_FAILURE;
-            }
+            [communicator destroy];
         }
     }
     return status;

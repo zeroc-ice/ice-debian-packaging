@@ -19,14 +19,15 @@
 namespace IceInternal
 {
 
-class ICE_API Acceptor : virtual public ::IceUtil::Shared
+class ICE_API Acceptor : public virtual ::IceUtil::Shared
 {
 public:
+    virtual ~Acceptor();
 
     virtual NativeInfoPtr getNativeInfo() = 0;
     virtual void close() = 0;
     virtual EndpointIPtr listen() = 0;
-#if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
     virtual void startAccept() = 0;
     virtual void finishAccept() = 0;
 #endif

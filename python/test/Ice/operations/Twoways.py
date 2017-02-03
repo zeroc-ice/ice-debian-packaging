@@ -8,91 +8,92 @@
 # **********************************************************************
 
 import Ice, math, Test, array, sys
+from sys import version_info
 
 def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
 def twoways(communicator, p):
-    
+
     literals = p.opStringLiterals();
-        
-    test(Test.s0 == "\\" and
-         Test.s0 == Test.sw0 and
-         Test.s0 == literals[0] and
-         Test.s0 == literals[11]);
 
-    test(Test.s1 == "A" and
-         Test.s1 == Test.sw1 and
-         Test.s1 == literals[1] and
-         Test.s1 == literals[12]);
+    test(Test.s0 == "\\")
+    test(Test.s0 == Test.sw0)
+    test(Test.s0 == literals[0])
+    test(Test.s0 == literals[11])
 
-    test(Test.s2 == "Ice" and
-         Test.s2 == Test.sw2 and
-         Test.s2 == literals[2] and
-         Test.s2 == literals[13]);
-    
-    test(Test.s3 == "A21" and 
-         Test.s3 == Test.sw3 and
-         Test.s3 == literals[3] and
-         Test.s3 == literals[14]);
+    test(Test.s1 == "A")
+    test(Test.s1 == Test.sw1)
+    test(Test.s1 == literals[1])
+    test(Test.s1 == literals[12])
 
-    test(Test.s4 == "\\u0041 \\U00000041" and
-         Test.s4 == Test.sw4 and
-         Test.s4 == literals[4] and
-         Test.s4 == literals[15]);
+    test(Test.s2 == "Ice")
+    test(Test.s2 == Test.sw2)
+    test(Test.s2 == literals[2])
+    test(Test.s2 == literals[13])
 
-    test(Test.s5 == "\xc3\xbf" and
-         Test.s5 == Test.sw5 and
-         Test.s5 == literals[5] and
-         Test.s5 == literals[16]);
+    test(Test.s3 == "A21")
+    test(Test.s3 == Test.sw3)
+    test(Test.s3 == literals[3])
+    test(Test.s3 == literals[14])
 
-    test(Test.s6 == "\xcf\xbf" and
-         Test.s6 == Test.sw6 and
-         Test.s6 == literals[6] and
-         Test.s6 == literals[17]);
+    test(Test.s4 == "\\u0041 \\U00000041")
+    test(Test.s4 == Test.sw4)
+    test(Test.s4 == literals[4])
+    test(Test.s4 == literals[15])
 
-    test(Test.s7 == "\xd7\xb0" and
-         Test.s7 == Test.sw7 and
-         Test.s7 == literals[7] and
-         Test.s7 == literals[18]);
+    test(Test.s5 == "\xc3\xbf" if version_info[0] < 3 else b"\xc3\xbf".decode("utf-8"))
+    test(Test.s5 == Test.sw5)
+    test(Test.s5 == literals[5])
+    test(Test.s5 == literals[16])
 
-    test(Test.s8 == "\xf0\x90\x80\x80" and
-         Test.s8 == Test.sw8 and
-         Test.s8 == literals[8] and
-         Test.s8 == literals[19]);
-    
-    test(Test.s9 == "\xf0\x9f\x8d\x8c" and
-         Test.s9 == Test.sw9 and
-         Test.s9 == literals[9] and
-         Test.s9 == literals[20]);
+    test(Test.s6 == "\xcf\xbf" if version_info[0] < 3 else b"\xcf\xbf".decode("utf-8"))
+    test(Test.s6 == Test.sw6)
+    test(Test.s6 == literals[6])
+    test(Test.s6 == literals[17])
 
-    test(Test.s10 == "\xe0\xb6\xa7" and
-         Test.s10 == Test.sw10 and
-         Test.s10 == literals[10] and
-         Test.s10 == literals[21]);
+    test(Test.s7 == "\xd7\xb0" if version_info[0] < 3 else b"\xd7\xb0".decode("utf-8"))
+    test(Test.s7 == Test.sw7)
+    test(Test.s7 == literals[7])
+    test(Test.s7 == literals[18])
 
-    test(Test.ss0 == "\'\"\x3f\\\a\b\f\n\r\t\v" and
-         Test.ss0 == Test.ss1 and
-         Test.ss0 == Test.ss2 and
-         Test.ss0 == literals[22] and
-         Test.ss0 == literals[23] and
-         Test.ss0 == literals[24]);
-    
-    test(Test.ss3 == "\\\\U\\u\\" and
-         Test.ss3 == literals[25]);
+    test(Test.s8 == "\xf0\x90\x80\x80" if version_info[0] < 3 else b"\xf0\x90\x80\x80".decode("utf-8"))
+    test(Test.s8 == Test.sw8)
+    test(Test.s8 == literals[8])
+    test(Test.s8 == literals[19])
 
-    test(Test.ss4 == "\\A\\" and
-         Test.ss4 == literals[26]);
+    test(Test.s9 == "\xf0\x9f\x8d\x8c" if version_info[0] < 3 else b"\xf0\x9f\x8d\x8c".decode("utf-8"))
+    test(Test.s9 == Test.sw9)
+    test(Test.s9 == literals[9])
+    test(Test.s9 == literals[20])
 
-    test(Test.ss5 == "\\u0041\\" and
-         Test.ss5 == literals[27]);
-            
-    test(Test.su0 == Test.su1 and
-         Test.su0 == Test.su2 and
-         Test.su0 == literals[28] and
-         Test.su0 == literals[29] and
-         Test.su0 == literals[30]);
+    test(Test.s10 == "\xe0\xb6\xa7" if version_info[0] < 3 else b"\xe0\xb6\xa7".decode("utf-8"))
+    test(Test.s10 == Test.sw10)
+    test(Test.s10 == literals[10])
+    test(Test.s10 == literals[21])
+
+    test(Test.ss0 == "\'\"\x3f\\\a\b\f\n\r\t\v\x06")
+    test(Test.ss0 == Test.ss1)
+    test(Test.ss0 == Test.ss2)
+    test(Test.ss0 == literals[22])
+    test(Test.ss0 == literals[23])
+    test(Test.ss0 == literals[24])
+
+    test(Test.ss3 == "\\\\U\\u\\")
+    test(Test.ss3 == literals[25])
+
+    test(Test.ss4 == "\\A\\")
+    test(Test.ss4 == literals[26])
+
+    test(Test.ss5 == "\\u0041\\")
+    test(Test.ss5 == literals[27])
+
+    test(Test.su0 == Test.su1)
+    test(Test.su0 == Test.su2)
+    test(Test.su0 == literals[28])
+    test(Test.su0 == literals[29])
+    test(Test.su0 == literals[30])
 
     #
     # ice_ping
@@ -265,9 +266,9 @@ def twoways(communicator, p):
     test(Ice.proxyIdentityAndFacetEqual(c1, p))
     test(not Ice.proxyIdentityAndFacetEqual(c2, p))
     test(Ice.proxyIdentityAndFacetEqual(r, p))
-    test(c1.ice_getIdentity() == communicator.stringToIdentity("test"))
-    test(c2.ice_getIdentity() == communicator.stringToIdentity("noSuchIdentity"))
-    test(r.ice_getIdentity() == communicator.stringToIdentity("test"))
+    test(c1.ice_getIdentity() == Ice.stringToIdentity("test"))
+    test(c2.ice_getIdentity() == Ice.stringToIdentity("noSuchIdentity"))
+    test(r.ice_getIdentity() == Ice.stringToIdentity("test"))
     r.opVoid()
     c1.opVoid()
     try:
@@ -1419,3 +1420,19 @@ def twoways(communicator, p):
     test(c.tesT == "Test.MyClass1.testT")
     test(c.myClass == None)
     test(c.myClass1 == "Test.MyClass1.myClass1")
+
+    p1 = p.opMStruct1()
+    p1.e = Test.MyEnum.enum3
+    (p3, p2) = p.opMStruct2(p1)
+    test(p2 == p1 and p3 == p1)
+
+    p.opMSeq1();
+    p1 = ["test"]
+    (p3, p2) = p.opMSeq2(p1)
+    test(p2[0] == "test" and p3[0] == "test");
+
+    p.opMDict1();
+
+    p1 = { "test": "test" }
+    (p3, p2) = p.opMDict2(p1)
+    test(p3["test"] == "test" and p2["test"] == "test")

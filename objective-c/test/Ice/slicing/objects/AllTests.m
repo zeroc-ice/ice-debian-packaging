@@ -10,7 +10,6 @@
 #import <objc/Ice.h>
 #import <TestCommon.h>
 #import <SlicingObjectsTestClient.h>
-#import <SlicingObjectsForwardClient.h>
 
 #import <Foundation/Foundation.h>
 
@@ -139,7 +138,7 @@
 
 -(void) SBSUnknownDerivedAsSBaseCompactException:(ICEException*)exc
 {
-    test([[exc ice_name] isEqualToString:@"Ice::NoObjectFactoryException"]);
+    test([[exc ice_id] isEqualToString:@"::Ice::NoValueFactoryException"]);
     [self called];
 }
 
@@ -150,7 +149,7 @@
 
 -(void) SUnknownAsObjectException10:(ICEException*)exc
 {
-    test([[exc ice_name] isEqualToString:@"Ice::NoObjectFactoryException"]);
+    test([[exc ice_id] isEqualToString:@"::Ice::NoValueFactoryException"]);
     [self called];
 }
 
@@ -399,7 +398,7 @@
 
 -(void) throwBaseAsBaseException:(ICEException*)ex
 {
-    test([[ex ice_name] isEqualToString:@"Test::BaseException"]);
+    test([[ex ice_id] isEqualToString:@"::Test::BaseException"]);
     TestSlicingObjectsClientBaseException* e = (TestSlicingObjectsClientBaseException*)ex;
     test([e.sbe isEqualToString:@"sbe"]);
     test(e.pb);
@@ -415,7 +414,7 @@
 
 -(void) throwDerivedAsBaseException:(ICEException*)ex
 {
-    test([[ex ice_name] isEqualToString:@"Test::DerivedException"]);
+    test([[ex ice_id] isEqualToString:@"::Test::DerivedException"]);
     TestSlicingObjectsClientDerivedException* e = (TestSlicingObjectsClientDerivedException*)ex;
     test([e.sbe isEqualToString:@"sbe"]);
     test(e.pb);
@@ -437,7 +436,7 @@
 
 -(void) throwDerivedAsDerivedException:(ICEException*)ex
 {
-    test([[ex ice_name] isEqualToString:@"Test::DerivedException"]);
+    test([[ex ice_id] isEqualToString:@"::Test::DerivedException"]);
     TestSlicingObjectsClientDerivedException* e = (TestSlicingObjectsClientDerivedException*)ex;
     test([e.sbe isEqualToString:@"sbe"]);
     test(e.pb);
@@ -459,7 +458,7 @@
 
 -(void) throwUnknownDerivedAsBaseException:(ICEException*)ex
 {
-    test([[ex ice_name] isEqualToString:@"Test::BaseException"]);
+    test([[ex ice_id] isEqualToString:@"::Test::BaseException"]);
     TestSlicingObjectsClientBaseException* e = (TestSlicingObjectsClientBaseException*)ex;
     test([e.sbe isEqualToString:@"sbe"]);
     test(e.pb);
@@ -648,7 +647,7 @@ slicingObjectsAllTests(id<ICECommunicator> communicator)
         {
             test(0);
         }
-	test([sb isKindOfClass:[TestSlicingObjectsClientSBSKnownDerived class]]);
+        test([sb isKindOfClass:[TestSlicingObjectsClientSBSKnownDerived class]]);
         test([((TestSlicingObjectsClientSBSKnownDerived*)sb).sbskd isEqualToString:@"SBSKnownDerived.sbskd"]);
     }
     tprintf("ok\n");
@@ -728,7 +727,7 @@ slicingObjectsAllTests(id<ICECommunicator> communicator)
             @catch(const ICEOperationNotExistException*)
             {
             }
-            @catch(const ICENoObjectFactoryException*)
+            @catch(const ICENoValueFactoryException*)
             {
                 // Expected.
             }
@@ -774,11 +773,11 @@ slicingObjectsAllTests(id<ICECommunicator> communicator)
         {
             o = [test SUnknownAsObject];
             test(![[test ice_getEncodingVersion] isEqual:ICEEncoding_1_0]);
-            test([o isKindOfClass:[ICEUnknownSlicedObject class]]);
-            test([[((ICEUnknownSlicedObject*)o) getUnknownTypeId] isEqualToString:@"::Test::SUnknown"]);
+            test([o isKindOfClass:[ICEUnknownSlicedValue class]]);
+            test([[((ICEUnknownSlicedValue*)o) getUnknownTypeId] isEqualToString:@"::Test::SUnknown"]);
             [test checkSUnknown:o];
         }
-        @catch(ICENoObjectFactoryException*)
+        @catch(ICENoValueFactoryException*)
         {
             test([[test ice_getEncodingVersion] isEqual:ICEEncoding_1_0]);
         }
@@ -1783,7 +1782,7 @@ slicingObjectsAllTests(id<ICECommunicator> communicator)
         }
         @catch(TestSlicingObjectsClientBaseException* e)
         {
-            test([[e ice_name] isEqualToString: @"Test::BaseException"]);
+            test([[e ice_id] isEqualToString: @"::Test::BaseException"]);
             test([e.sbe isEqualToString:@"sbe"]);
             test(e.pb);
             test([e.pb.sb isEqualToString:@"sb"]);
@@ -1813,7 +1812,7 @@ slicingObjectsAllTests(id<ICECommunicator> communicator)
         }
         @catch(TestSlicingObjectsClientDerivedException* e)
         {
-            test([[e ice_name] isEqualToString:@"Test::DerivedException"]);
+            test([[e ice_id] isEqualToString:@"::Test::DerivedException"]);
             test([e.sbe isEqualToString:@"sbe"]);
             test(e.pb);
             test([e.pb.sb isEqualToString:@"sb1"]);
@@ -1849,7 +1848,7 @@ slicingObjectsAllTests(id<ICECommunicator> communicator)
         }
         @catch(TestSlicingObjectsClientDerivedException* e)
         {
-            test([[e ice_name] isEqualToString:@"Test::DerivedException"]);
+            test([[e ice_id] isEqualToString:@"::Test::DerivedException"]);
             test([e.sbe isEqualToString:@"sbe"]);
             test(e.pb);
             test([e.pb.sb isEqualToString:@"sb1"]);
@@ -1885,7 +1884,7 @@ slicingObjectsAllTests(id<ICECommunicator> communicator)
         }
         @catch(TestSlicingObjectsClientBaseException* e)
         {
-            test([[e ice_name] isEqualToString:@"Test::BaseException"]);
+            test([[e ice_id] isEqualToString:@"::Test::BaseException"]);
             test([e.sbe isEqualToString:@"sbe"]);
             test(e.pb);
             test([e.pb.sb isEqualToString:@"sb d2"]);

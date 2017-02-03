@@ -9,10 +9,9 @@
 
 namespace IceInternal
 {
-
-    using System.Collections;
     using System.Collections.Generic;
     using System.Globalization;
+    using System.Diagnostics;
 
     sealed class OpaqueEndpointI : EndpointI
     {
@@ -36,11 +35,11 @@ namespace IceInternal
             calcHashValue();
         }
 
-        public OpaqueEndpointI(short type, BasicStream s)
+        public OpaqueEndpointI(short type, Ice.InputStream s)
         {
             _type = type;
-            _rawEncoding = s.getReadEncoding();
-            int sz = s.getReadEncapsSize();
+            _rawEncoding = s.getEncoding();
+            int sz = s.getEncapsulationSize();
             _rawBytes = new byte[sz];
             s.readBlob(_rawBytes);
 
@@ -50,11 +49,16 @@ namespace IceInternal
         //
         // Marshal the endpoint
         //
-        public override void streamWrite(BasicStream s)
+        public override void streamWrite(Ice.OutputStream s)
         {
-            s.startWriteEncaps(_rawEncoding, Ice.FormatType.DefaultFormat);
+            s.startEncapsulation(_rawEncoding, Ice.FormatType.DefaultFormat);
             s.writeBlob(_rawBytes);
-            s.endWriteEncaps();
+            s.endEncapsulation();
+        }
+
+        public override void streamWriteImpl(Ice.OutputStream s)
+        {
+            Debug.Assert(false);
         }
 
         //
@@ -62,14 +66,14 @@ namespace IceInternal
         //
         public override string ice_toString_()
         {
-            string val = IceUtilInternal.Base64.encode(_rawBytes);
+            string val = System.Convert.ToBase64String(_rawBytes);
             return "opaque -t " + _type + " -e " + Ice.Util.encodingVersionToString(_rawEncoding) + " -v " + val;
         }
 
         private sealed class InfoI : Ice.OpaqueEndpointInfo
         {
             public InfoI(short type, Ice.EncodingVersion rawEncoding, byte[] rawBytes) :
-                base(-1, false, rawEncoding, rawBytes)
+                base(null, -1, false, rawEncoding, rawBytes)
             {
                 _type = type;
             }
@@ -253,7 +257,7 @@ namespace IceInternal
             s += " -e " + Ice.Util.encodingVersionToString(_rawEncoding);
             if(_rawBytes.Length > 0)
             {
-                s += " -v " + IceUtilInternal.Base64.encode(_rawBytes);
+                s += " -v " + System.Convert.ToBase64String(_rawBytes);
             }
             return s;
         }
@@ -371,16 +375,16 @@ namespace IceInternal
                     throw new Ice.EndpointParseException("no argument provided for -v option in endpoint " + endpoint);
                 }
 
-                for(int j = 0; j < argument.Length; ++j)
+
+                try
                 {
-                    if(!IceUtilInternal.Base64.isBase64(argument[j]))
-                    {
-                        throw new Ice.EndpointParseException("invalid base64 character `" + argument[j] +
-                                                             "' (ordinal " + ((int)argument[j]) +
-                                                             ") in endpoint " + endpoint);
-                    }
+                    _rawBytes = System.Convert.FromBase64String(argument);
                 }
-                _rawBytes = IceUtilInternal.Base64.decode(argument);
+                catch(System.FormatException ex)
+                {
+                    throw new Ice.EndpointParseException("Invalid Base64 input in endpoint " + endpoint, ex);
+                }
+                
                 return true;
             }
 
@@ -413,9 +417,9 @@ namespace IceInternal
         private void calcHashValue()
         {
             int h = 5381;
-            IceInternal.HashUtil.hashAdd(ref h, _type);
-            IceInternal.HashUtil.hashAdd(ref h, _rawEncoding);
-            IceInternal.HashUtil.hashAdd(ref h, _rawBytes);
+            HashUtil.hashAdd(ref h, _type);
+            HashUtil.hashAdd(ref h, _rawEncoding);
+            HashUtil.hashAdd(ref h, _rawBytes);
             _hashCode = h;
         }
 

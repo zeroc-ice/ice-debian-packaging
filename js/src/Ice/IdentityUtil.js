@@ -7,12 +7,12 @@
 //
 // **********************************************************************
 
-var Ice = require("../Ice/ModuleRegistry").Ice;
-Ice.__M.require(module, [ "../Ice/StringUtil", "../Ice/Identity", "../Ice/LocalException"]);
+const Ice = require("../Ice/ModuleRegistry").Ice;
+Ice._ModuleRegistry.require(module, [ "../Ice/StringUtil", "../Ice/Identity", "../Ice/LocalException"]);
 
-var StringUtil = Ice.StringUtil;
-var Identity = Ice.Identity;
-var IdentityParseException = Ice.IdentityParseException;
+const StringUtil = Ice.StringUtil;
+const Identity = Ice.Identity;
+const IdentityParseException = Ice.IdentityParseException;
 
 /**
 * Converts a string to an object identity.
@@ -23,17 +23,17 @@ var IdentityParseException = Ice.IdentityParseException;
 **/
 Ice.stringToIdentity = function(s)
 {
-    var ident = new Identity();
+    const ident = new Identity();
 
     //
     // Find unescaped separator; note that the string may contain an escaped
     // backslash before the separator.
     //
-    var slash = -1;
-    var pos = 0;
+    let slash = -1;
+    let pos = 0;
     while((pos = s.indexOf('/', pos)) !== -1)
     {
-        var escapes = 0;
+        let escapes = 0;
         while(pos - escapes > 0 && s.charAt(pos - escapes - 1) == '\\')
         {
             escapes++;
@@ -53,9 +53,7 @@ Ice.stringToIdentity = function(s)
                 //
                 // Extra unescaped slash found.
                 //
-                var ex = new IdentityParseException();
-                ex.str = "unescaped backslash in identity `" + s + "'";
-                throw ex;
+                throw new IdentityParseException(`unescaped backslash in identity \`${s}'`);
             }
         }
         pos++;
@@ -66,38 +64,32 @@ Ice.stringToIdentity = function(s)
         ident.category = "";
         try
         {
-            ident.name = StringUtil.unescapeString(s);
+            ident.name = StringUtil.unescapeString(s, 0, s.length, "/");
         }
         catch(e)
         {
-            var ex = new IdentityParseException();
-            ex.str = "invalid identity name `" + s + "': " + ex.toString();
-            throw ex;
+            throw new IdentityParseException(`invalid identity name \`${s}': ${e.toString()}`);
         }
     }
     else
     {
         try
         {
-            ident.category = StringUtil.unescapeString(s, 0, slash);
+            ident.category = StringUtil.unescapeString(s, 0, slash, "/");
         }
         catch(e)
         {
-            var ex = new IdentityParseException();
-            ex.str = "invalid category in identity `" + s + "': " + ex.toString();
-            throw ex;
+            throw new IdentityParseException(`invalid category in identity \`${s}': ${e.toString()}`);
         }
         if(slash + 1 < s.length)
         {
             try
             {
-                ident.name = StringUtil.unescapeString(s, slash + 1, s.length);
+                ident.name = StringUtil.unescapeString(s, slash + 1, s.length, "/");
             }
             catch(e)
             {
-                var ex = new IdentityParseException();
-                ex.str = "invalid name in identity `" + s + "': " + ex.toString();
-                throw ex;
+                throw new IdentityParseException(`invalid name in identity \`${s}': ${e.toString()}`);
             }
         }
         else
@@ -114,17 +106,19 @@ Ice.stringToIdentity = function(s)
 *
 * @param ident The object identity to convert.
 *
+* @param toStringMode Specifies if and how non-printable ASCII characters are escaped in the result.
+*
 * @return The string representation of the object identity.
 **/
-Ice.identityToString = function(ident)
+Ice.identityToString = function(ident, toStringMode = Ice.ToStringMode.Unicode)
 {
     if(ident.category === null || ident.category.length === 0)
     {
-        return StringUtil.escapeString(ident.name, "/");
+        return StringUtil.escapeString(ident.name, "/", toStringMode);
     }
     else
     {
-        return StringUtil.escapeString(ident.category, "/") + '/' + StringUtil.escapeString(ident.name, "/");
+        return StringUtil.escapeString(ident.category, "/", toStringMode) + '/' + StringUtil.escapeString(ident.name, "/", toStringMode);
     }
 };
 
@@ -157,14 +151,10 @@ Ice.proxyIdentityCompare = function(lhs, rhs)
     }
     else
     {
-        var lhsIdentity = lhs.ice_getIdentity();
-        var rhsIdentity = rhs.ice_getIdentity();
-        var n;
-        if((n = lhsIdentity.name.localeCompare(rhsIdentity.name)) !== 0)
-        {
-            return n;
-        }
-        return lhsIdentity.category.localeCompare(rhsIdentity.category);
+        const lhsIdentity = lhs.ice_getIdentity();
+        const rhsIdentity = rhs.ice_getIdentity();
+        const n = lhsIdentity.name.localeCompare(rhsIdentity.name);
+        return (n !== 0) ? n : lhsIdentity.category.localeCompare(rhsIdentity.category);
     }
 };
 
@@ -197,20 +187,21 @@ Ice.proxyIdentityAndFacetCompare = function(lhs, rhs)
     }
     else
     {
-        var lhsIdentity = lhs.ice_getIdentity();
-        var rhsIdentity = rhs.ice_getIdentity();
-        var n;
-        if((n = lhsIdentity.name.localeCompare(rhsIdentity.name)) !== 0)
+        const lhsIdentity = lhs.ice_getIdentity();
+        const rhsIdentity = rhs.ice_getIdentity();
+        let n = lhsIdentity.name.localeCompare(rhsIdentity.name);
+        if(n !== 0)
         {
             return n;
         }
-        if((n = lhsIdentity.category.localeCompare(rhsIdentity.category)) !== 0)
+        n = lhsIdentity.category.localeCompare(rhsIdentity.category);
+        if(n !== 0)
         {
             return n;
         }
 
-        var lhsFacet = lhs.ice_getFacet();
-        var rhsFacet = rhs.ice_getFacet();
+        const lhsFacet = lhs.ice_getFacet();
+        const rhsFacet = rhs.ice_getFacet();
         if(lhsFacet === null && rhsFacet === null)
         {
             return 0;

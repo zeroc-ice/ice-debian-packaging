@@ -9,9 +9,13 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API"]]
 
 #include <Ice/PropertiesAdmin.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:ICE"]
 module Ice
@@ -25,6 +29,7 @@ module Ice
  * <em>application-name</em>\[.<em>category</em>\[.<em>sub-category</em>]].<em>name</em>.
  *
  **/
+["php:internal"]
 local interface Properties
 {
     /**
@@ -56,7 +61,7 @@ local interface Properties
      * @see #setProperty
      *
      **/
-    string getPropertyWithDefault(string key, string value);
+    string getPropertyWithDefault(string key, string \value);
 
     /**
      *
@@ -88,7 +93,7 @@ local interface Properties
      * @see #setProperty
      *
      **/
-    int getPropertyAsIntWithDefault(string key, int value);
+    int getPropertyAsIntWithDefault(string key, int \value);
 
 
      /**
@@ -132,7 +137,7 @@ local interface Properties
      * @see #setProperty
      *
      **/
-    StringSeq getPropertyAsListWithDefault(string key, StringSeq value);
+    StringSeq getPropertyAsListWithDefault(string key, StringSeq \value);
 
     /**
      *
@@ -158,7 +163,7 @@ local interface Properties
      * @see #getProperty
      *
      **/
-    void setProperty(string key, string value);
+    void setProperty(string key, string \value);
 
     /**
      *
@@ -226,4 +231,3 @@ local interface Properties
 };
 
 };
-

@@ -11,27 +11,15 @@
 #define CUSTOM_MAP_H
 
 #include <IceUtil/Config.h>
-
-#ifdef ICE_CPP11
-#   include <unordered_map>
-#else
-#   include <map>
-#endif
+#include <map>
 
 namespace Test
 {
 
-#ifdef ICE_CPP11
-template<typename K, typename V>
-class CustomMap : public std::unordered_map<K, V>
-{
-};
-#else
 template<typename K, typename V>
 class CustomMap : public std::map<K, V>
 {
 };
-#endif
 
 }
 

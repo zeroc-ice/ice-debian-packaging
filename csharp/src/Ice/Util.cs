@@ -10,7 +10,6 @@
 using System;
 using System.Threading;
 using System.Collections;
-using System.Text;
 using System.Globalization;
 
 namespace Ice
@@ -37,22 +36,11 @@ namespace Ice
         void stop();
     }
 
-#if COMPACT
-    /// <summary>
-    /// A delegate for an action taking no parameters.
-    /// </summary>
-    public delegate void VoidAction();
-#endif
-
     /// <summary>
     /// A delegate for the dispatcher. The dispatcher is called by the Ice
     /// runtime to dispatch servant calls and AMI callbacks.
     /// </summary>
-#if COMPACT
-    public delegate void Dispatcher(VoidAction call, Connection con);
-#else
     public delegate void Dispatcher(System.Action call, Connection con);
-#endif
 
     /// <summary>
     /// Applications that make use of compact type IDs to conserve space
@@ -71,7 +59,7 @@ namespace Ice
         /// <summary>
         /// Creates and returns a copy of this object.
         /// </summary>
-        public System.Object Clone()
+        public object Clone()
         {
             //
             // A member-wise copy is safe because the members are immutable.
@@ -92,7 +80,7 @@ namespace Ice
         /// <summary>
         /// The communicator observer used by the Ice run-time.
         /// </summary>
-        public Ice.Instrumentation.CommunicatorObserver observer;
+        public Instrumentation.CommunicatorObserver observer;
 
         /// <summary>
         /// The thread hook for the communicator.
@@ -113,6 +101,11 @@ namespace Ice
         /// The batch request interceptor.
         /// </summary>
         public BatchRequestInterceptor batchRequestInterceptor;
+
+        /// <summary>
+        /// The value factory manager.
+        /// </summary>
+        public ValueFactoryManager valueFactoryManager;
     }
 
     /// <summary>
@@ -281,9 +274,9 @@ namespace Ice
                 ident.category = "";
                 try
                 {
-                    ident.name = IceUtilInternal.StringUtil.unescapeString(s, 0, s.Length);
+                    ident.name = IceUtilInternal.StringUtil.unescapeString(s, 0, s.Length, "/");
                 }
-                catch(System.ArgumentException e)
+                catch(ArgumentException e)
                 {
                     IdentityParseException ex = new IdentityParseException();
                     ex.str = "invalid identity name `" + s + "': " + e.Message;
@@ -294,9 +287,9 @@ namespace Ice
             {
                 try
                 {
-                    ident.category = IceUtilInternal.StringUtil.unescapeString(s, 0, slash);
+                    ident.category = IceUtilInternal.StringUtil.unescapeString(s, 0, slash, "/");
                 }
-                catch(System.ArgumentException e)
+                catch(ArgumentException e)
                 {
                     IdentityParseException ex = new IdentityParseException();
                     ex.str = "invalid category in identity `" + s + "': " + e.Message;
@@ -306,9 +299,9 @@ namespace Ice
                 {
                     try
                     {
-                        ident.name = IceUtilInternal.StringUtil.unescapeString(s, slash + 1, s.Length);
+                        ident.name = IceUtilInternal.StringUtil.unescapeString(s, slash + 1, s.Length, "/");
                     }
-                    catch(System.ArgumentException e)
+                    catch(ArgumentException e)
                     {
                         IdentityParseException ex = new IdentityParseException();
                         ex.str = "invalid name in identity `" + s + "': " + e.Message;
@@ -328,17 +321,18 @@ namespace Ice
         /// Converts an object identity to a string.
         /// </summary>
         /// <param name="ident">The object identity to convert.</param>
+        /// <param name="toStringMode">Specifies if and how non-printable ASCII characters are escaped in the result.</param>
         /// <returns>The string representation of the object identity.</returns>
-        public static string identityToString(Identity ident)
+        public static string identityToString(Identity ident, ToStringMode toStringMode = ToStringMode.Unicode)
         {
             if(ident.category == null || ident.category.Length == 0)
             {
-                return IceUtilInternal.StringUtil.escapeString(ident.name, "/");
+                return IceUtilInternal.StringUtil.escapeString(ident.name, "/", toStringMode);
             }
             else
             {
-                return IceUtilInternal.StringUtil.escapeString(ident.category, "/") + '/' +
-                    IceUtilInternal.StringUtil.escapeString(ident.name, "/");
+                return IceUtilInternal.StringUtil.escapeString(ident.category, "/", toStringMode) + '/' +
+                    IceUtilInternal.StringUtil.escapeString(ident.name, "/", toStringMode);
             }
         }
 
@@ -447,79 +441,6 @@ namespace Ice
         }
 
         /// <summary>
-        /// Creates an input stream for dynamic invocation and dispatch. The stream uses
-        /// the communicator's default encoding version. The given data is copied.
-        /// </summary>
-        /// <param name="communicator">The communicator for the stream.</param>
-        /// <param name="bytes">An encoded request or reply.</param>
-        /// <returns>The input stream.</returns>
-        public static InputStream createInputStream(Communicator communicator, byte[] bytes)
-        {
-            return new InputStreamI(communicator, bytes, true);
-        }
-
-        /// <summary>
-        /// Creates an input stream for dynamic invocation and dispatch. The stream uses
-        /// the given encoding version.
-        /// </summary>
-        /// <param name="communicator">The communicator for the stream.</param>
-        /// <param name="bytes">An encoded request or reply.</param>
-        /// <param name="v">The desired encoding version.</param>
-        /// <returns>The input stream.</returns>
-        public static InputStream createInputStream(Communicator communicator, byte[] bytes, EncodingVersion v)
-        {
-            return new InputStreamI(communicator, bytes, v, true);
-        }
-
-        /// <summary>
-        /// Wraps encoded data with an input stream for dynamic invocation and dispatch.
-        /// The stream uses the communicator's default encoding version.
-        /// </summary>
-        /// <param name="communicator">The communicator for the stream.</param>
-        /// <param name="bytes">An encoded request or reply.</param>
-        /// <returns>The input stream.</returns>
-        public static InputStream wrapInputStream(Communicator communicator, byte[] bytes)
-        {
-            return new InputStreamI(communicator, bytes, false);
-        }
-
-        /// <summary>
-        /// Wraps encoded data with an input stream for dynamic invocation and dispatch.
-        /// The stream uses the given encoding version.
-        /// </summary>
-        /// <param name="communicator">The communicator for the stream.</param>
-        /// <param name="bytes">An encoded request or reply.</param>
-        /// <param name="v">The desired encoding version.</param>
-        /// <returns>The input stream.</returns>
-        public static InputStream wrapInputStream(Communicator communicator, byte[] bytes, EncodingVersion v)
-        {
-            return new InputStreamI(communicator, bytes, v, false);
-        }
-
-        /// <summary>
-        /// Creates an output stream for dynamic invocation and dispatch. The stream uses
-        /// the communicator's default encoding version.
-        /// </summary>
-        /// <param name="communicator">The communicator for the stream.</param>
-        /// <returns>The output stream.</returns>
-        public static OutputStream createOutputStream(Communicator communicator)
-        {
-            return new OutputStreamI(communicator);
-        }
-
-        /// <summary>
-        /// Creates an output stream for dynamic invocation and dispatch. The stream uses
-        /// the given encoding version.
-        /// </summary>
-        /// <param name="communicator">The communicator for the stream.</param>
-        /// <param name="v">The desired encoding version.</param>
-        /// <returns>The output stream.</returns>
-        public static OutputStream createOutputStream(Communicator communicator, EncodingVersion v)
-        {
-            return new OutputStreamI(communicator, v);
-        }
-
-        /// <summary>
         /// Returns the process-wide logger.
         /// </summary>
         /// <returns>The process-wide logger.</returns>
@@ -529,7 +450,7 @@ namespace Ice
             {
                 if(_processLogger == null)
                 {
-                    _processLogger = new ConsoleLoggerI(System.AppDomain.CurrentDomain.FriendlyName);
+                    _processLogger = new ConsoleLoggerI(AppDomain.CurrentDomain.FriendlyName);
                 }
                 return _processLogger;
             }
@@ -555,7 +476,7 @@ namespace Ice
         /// <returns>The Ice version.</returns>
         public static string stringVersion()
         {
-            return "3.6.2"; // "A.B.C", with A=major, B=minor, C=patch
+            return "3.7a4"; // "A.B.C", with A=major, B=minor, C=patch
         }
 
         /// <summary>
@@ -566,7 +487,7 @@ namespace Ice
         /// <returns>The Ice version.</returns>
         public static int intVersion()
         {
-            return 30602; // AABBCC, with AA=major, BB=minor, CC=patch
+            return 30754; // AABBCC, with AA=major, BB=minor, CC=patch
         }
 
         /// <summary>
@@ -574,11 +495,11 @@ namespace Ice
         /// </summary>
         /// <param name="version">The string to convert.</param>
         /// <returns>The converted protocol version.</returns>
-        public static Ice.ProtocolVersion stringToProtocolVersion(string version)
+        public static ProtocolVersion stringToProtocolVersion(string version)
         {
             byte major, minor;
             stringToMajorMinor(version, out major, out minor);
-            return new Ice.ProtocolVersion(major, minor);
+            return new ProtocolVersion(major, minor);
         }
 
         /// <summary>
@@ -586,11 +507,11 @@ namespace Ice
         /// </summary>
         /// <param name="version">The string to convert.</param>
         /// <returns>The converted object identity.</returns>
-        public static Ice.EncodingVersion stringToEncodingVersion(string version)
+        public static EncodingVersion stringToEncodingVersion(string version)
         {
             byte major, minor;
             stringToMajorMinor(version, out major, out minor);
-            return new Ice.EncodingVersion(major, minor);
+            return new EncodingVersion(major, minor);
         }
 
         /// <summary>
@@ -615,10 +536,10 @@ namespace Ice
 
         static private void stringToMajorMinor(string str, out byte major, out byte minor)
         {
-            int pos = str.IndexOf((System.Char) '.');
+            int pos = str.IndexOf('.');
             if(pos == -1)
             {
-                throw new Ice.VersionParseException("malformed version value `" + str + "'");
+                throw new VersionParseException("malformed version value `" + str + "'");
             }
 
             string majStr = str.Substring(0, (pos) - (0));
@@ -627,30 +548,26 @@ namespace Ice
             int minVersion;
             try
             {
-                majVersion = System.Int32.Parse(majStr, CultureInfo.InvariantCulture);
-                minVersion = System.Int32.Parse(minStr, CultureInfo.InvariantCulture);
+                majVersion = int.Parse(majStr, CultureInfo.InvariantCulture);
+                minVersion = int.Parse(minStr, CultureInfo.InvariantCulture);
             }
-            catch(System.FormatException)
+            catch(FormatException)
             {
-                throw new Ice.VersionParseException("invalid version value `" + str + "'");
+                throw new VersionParseException("invalid version value `" + str + "'");
             }
 
             if(majVersion < 1 || majVersion > 255 || minVersion < 0 || minVersion > 255)
             {
-                throw new Ice.VersionParseException("range error in version `" + str + "'");
+                throw new VersionParseException("range error in version `" + str + "'");
             }
 
             major = (byte)majVersion;
             minor = (byte)minVersion;
         }
 
-        static private String majorMinorToString(byte major, byte minor)
+        static private string majorMinorToString(byte major, byte minor)
         {
-            StringBuilder str = new StringBuilder();
-            str.Append(major < 0 ? (int)major + 255 : (int)major);
-            str.Append(".");
-            str.Append(minor < 0 ? (int)minor + 255 : (int)minor);
-            return str.ToString();
+            return string.Format("{0}.{1}", major, minor);
         }
 
         public static readonly ProtocolVersion currentProtocol =
@@ -768,10 +685,9 @@ namespace IceInternal
             return new ProtocolPluginFacadeI(communicator);
         }
 
-#if !SILVERLIGHT
-        public static System.Threading.ThreadPriority stringToThreadPriority(string s)
+        public static ThreadPriority stringToThreadPriority(string s)
         {
-            if(String.IsNullOrEmpty(s))
+            if(string.IsNullOrEmpty(s))
             {
                 return ThreadPriority.Normal;
             }
@@ -801,16 +717,5 @@ namespace IceInternal
             }
             return ThreadPriority.Normal;
         }
-#endif
     }
 }
-
-#if SILVERLIGHT
-namespace System
-{
-    public interface ICloneable
-    {
-        Object Clone();
-    }
-}
-#endif

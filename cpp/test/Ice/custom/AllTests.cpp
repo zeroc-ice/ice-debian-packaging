@@ -19,6 +19,18 @@
 
 using namespace std;
 
+#ifdef ICE_CPP11_MAPPING
+//
+// Slice class C is mapped to ObjectPrx
+//
+namespace Test
+{
+typedef shared_ptr<Ice::ObjectPrx> CPrxPtr;
+typedef Ice::ObjectPrx CPrx;
+}
+#endif
+
+
 namespace
 {
 
@@ -42,8 +54,9 @@ arrayRangeEquals(pair<const T*, const T*> lhs, pair<const T*, const T*> rhs)
     return true;
 }
 
-
 }
+
+#ifndef ICE_CPP11_MAPPING
 
 class CallbackBase : public IceUtil::Monitor<IceUtil::Mutex>
 {
@@ -103,12 +116,12 @@ public:
 template<typename T> InParamPtr newInParam(const T& v)
 {
     return new InParamT<T>(v);
-} 
+}
 
 template<typename T> const T& getIn(const InParamPtr& cookie)
 {
     return dynamic_cast<InParamT<T>* >(cookie.get())->in;
-} 
+}
 
 class Callback : public CallbackBase, public IceUtil::Shared
 {
@@ -153,23 +166,23 @@ public:
         test(arrayRangeEquals<Ice::Byte>(ret, in));
         called();
     }
-    
+
     void opVariableArray(const pair<const Test::Variable*, const Test::Variable*>& ret,
                          const pair<const Test::Variable*, const Test::Variable*>& out,
                          const InParamPtr& cookie)
     {
-        const pair<const Test::Variable*, const Test::Variable*>& in = 
+        const pair<const Test::Variable*, const Test::Variable*>& in =
             getIn<pair<const Test::Variable*, const Test::Variable*> >(cookie);
         test(arrayRangeEquals<Test::Variable>(out, in));
         test(arrayRangeEquals<Test::Variable>(ret, in));
         called();
     }
-    
+
     void opBoolRange(const pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator>& ret,
                      const pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator>& out,
                      const InParamPtr& cookie)
     {
-        const pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator>& in 
+        const pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator>& in
             = getIn<pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator> >(cookie);
         test(equal(out.first, out.second, in.first));
         test(equal(ret.first, ret.second, in.first));
@@ -180,7 +193,7 @@ public:
                      const pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>& out,
                      const InParamPtr& cookie)
     {
-        const pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>& in = 
+        const pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>& in =
             getIn<pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> >(cookie);
         test(equal(out.first, out.second, in.first));
         test(equal(ret.first, ret.second, in.first));
@@ -191,7 +204,7 @@ public:
                          const pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator>& out,
                          const InParamPtr& cookie)
     {
-        const pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator>& in = 
+        const pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator>& in =
             getIn<pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator> >(cookie);
         test(equal(out.first, out.second, in.first));
         test(equal(ret.first, ret.second, in.first));
@@ -202,20 +215,20 @@ public:
                          const pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>& out,
                          const InParamPtr& cookie)
     {
-        const pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>& in = 
+        const pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>& in =
             getIn<pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> >(cookie);
         test(equal(out.first, out.second, in.first));
         test(equal(ret.first, ret.second, in.first));
         called();
     }
 
-    void opVariableRangeType(const pair<deque<Test::Variable>::const_iterator, 
-                             deque<Test::Variable>::const_iterator>& ret, 
-                             const pair<deque<Test::Variable>::const_iterator, 
+    void opVariableRangeType(const pair<deque<Test::Variable>::const_iterator,
+                             deque<Test::Variable>::const_iterator>& ret,
+                             const pair<deque<Test::Variable>::const_iterator,
                              deque<Test::Variable>::const_iterator>& out,
                              const InParamPtr& cookie)
     {
-        const pair<deque<Test::Variable>::const_iterator, deque<Test::Variable>::const_iterator>& in = 
+        const pair<deque<Test::Variable>::const_iterator, deque<Test::Variable>::const_iterator>& in =
             getIn<pair<deque<Test::Variable>::const_iterator, deque<Test::Variable>::const_iterator> >(cookie);
 
         test(equal(out.first, out.second, in.first));
@@ -238,7 +251,7 @@ public:
         test(ret == in);
         called();
     }
-    
+
     void opByteSeq(const deque<Ice::Byte>& ret, const deque<Ice::Byte>& out, const InParamPtr& cookie)
     {
         const deque<Ice::Byte>& in = getIn< deque<Ice::Byte> >(cookie);
@@ -270,7 +283,7 @@ public:
         test(ret == in);
         called();
     }
-    
+
     void opStringList(const list<string>& ret, const list<string>& out, const InParamPtr& cookie)
     {
         const list<string>& in = getIn<list<string> >(cookie);
@@ -346,17 +359,17 @@ public:
         called();
     }
 
-    void opCPrxSeq(const deque<Test::CPrx>& ret, const deque<Test::CPrx>& out, const InParamPtr& cookie)
+    void opCPrxSeq(const deque<Test::CPrxPtr>& ret, const deque<Test::CPrxPtr>& out, const InParamPtr& cookie)
     {
-        const deque<Test::CPrx>& in = getIn<deque<Test::CPrx> >(cookie);
+        const deque<Test::CPrxPtr>& in = getIn<deque<Test::CPrxPtr> >(cookie);
         test(out == in);
         test(ret == in);
         called();
     }
 
-    void opCPrxList(const list<Test::CPrx>& ret, const list<Test::CPrx>& out, const InParamPtr& cookie)
+    void opCPrxList(const list<Test::CPrxPtr>& ret, const list<Test::CPrxPtr>& out, const InParamPtr& cookie)
     {
-        const list<Test::CPrx>& in = getIn<list<Test::CPrx> >(cookie);
+        const list<Test::CPrxPtr>& in = getIn<list<Test::CPrxPtr> >(cookie);
         test(out == in);
         test(ret == in);
         called();
@@ -394,14 +407,14 @@ public:
                        const ::Test::ClassStructSeq& seq,
                        const InParamPtr& cookie)
     {
-        pair< ::Test::ClassStructPtr, ::Test::ClassStructSeq> in = 
+        pair< ::Test::ClassStructPtr, ::Test::ClassStructSeq> in =
             getIn<pair< ::Test::ClassStructPtr, ::Test::ClassStructSeq> >(cookie);
         test(ret == in.first);
         test(cs1 == in.first);
         test(seq == in.second);
         called();
     }
-    
+
     void opString(const wstring& ret, const wstring& out, const InParamPtr& cookie)
     {
         const wstring& in = getIn<wstring>(cookie);
@@ -409,29 +422,29 @@ public:
         test(ret == in);
         called();
     }
-    
+
     void opOutArrayByteSeq(const ::std::pair<const ::Ice::Byte*, const ::Ice::Byte*>& data, const InParamPtr& cookie)
     {
         const Test::ByteSeq& in = getIn<Test::ByteSeq>(cookie);
         Test::ByteSeq out(data.first, data.second);
         Test::ByteSeq::const_iterator p1;
         Test::ByteSeq::const_iterator p2;
-                
+
         for(p1 = out.begin(), p2 = in.begin(); p1 != out.end(); ++p1, ++p2)
         {
             test(*p1 == *p2);
         }
         called();
     }
-    
-    void opOutRangeByteSeq(const ::std::pair< ::Test::ByteSeq::const_iterator, ::Test::ByteSeq::const_iterator>& data, 
+
+    void opOutRangeByteSeq(const ::std::pair< ::Test::ByteSeq::const_iterator, ::Test::ByteSeq::const_iterator>& data,
                            const InParamPtr& cookie)
     {
         const Test::ByteSeq& in = getIn<Test::ByteSeq>(cookie);
         Test::ByteSeq out(data.first, data.second);
         Test::ByteSeq::const_iterator p1;
         Test::ByteSeq::const_iterator p2;
-                
+
         for(p1 = out.begin(), p2 = in.begin(); p1 != out.end(); ++p1, ++p2)
         {
             test(*p1 == *p2);
@@ -442,32 +455,20 @@ public:
     void opIntStringDict(const Test::IntStringDict& ret, const Test::IntStringDict& out, const InParamPtr& cookie)
     {
         const Test::IntStringDict& in = getIn<Test::IntStringDict>(cookie);
-        
+
         test(ret == in);
         test(out == in);
         called();
     }
 
-    void opVarDict(const Test::CustomMap<Ice::Long, Ice::Long>& ret, 
+    void opVarDict(const Test::CustomMap<Ice::Long, Ice::Long>& ret,
                    const Test::CustomMap<std::string, Ice::Int>& out, const InParamPtr& cookie)
     {
         const Test::CustomMap<std::string, Ice::Int>& in = getIn<Test::CustomMap<std::string, Ice::Int> >(cookie);
 
-#if defined(_MSC_VER) && (_MSC_VER == 1600)
-        //
-        // operator== for std::unordered_map does not work with Visual Studio 2010
-        //
-        test(out.size() == in.size());
-        
-        for(Test::CustomMap<std::string, Ice::Int>::const_iterator p = in.begin(); p != in.end(); ++p)
-        {
-            Test::CustomMap<std::string, Ice::Int>::const_iterator q = out.find(p->first);
-            test(q != out.end() && q->second == p->second);
-        } 
-#else   
         test(out == in);
-#endif
         test(ret.size() == 1000);
+
         for(Test::CustomMap<Ice::Long, Ice::Long>::const_iterator i = ret.begin(); i != ret.end(); ++i)
         {
             test(i->second == i->first * i->first);
@@ -479,16 +480,16 @@ public:
     void opCustomIntStringDict(const map<int, Util::string_view>& ret, const map<int, Util::string_view>& out, const InParamPtr& cookie)
     {
         const map<int, Util::string_view>& in = getIn<map<int, Util::string_view> >(cookie);
-        
+
         test(out.size() == in.size());
         test(ret == out);
-        
+
         for(map<int, Util::string_view>::const_iterator p = in.begin(); p != in.end(); ++p)
         {
             map<int, Util::string_view>::const_iterator q = out.find(p->first);
             test(q != out.end());
             test(q->second.size() == p->second.size());
-        } 
+        }
 
         called();
     }
@@ -511,7 +512,7 @@ public:
             test(false);
         }
     }
-    
+
     void throwExcept1(const Ice::Exception& ex, const wstring& in)
     {
         try
@@ -547,7 +548,7 @@ public:
             test(false);
         }
     }
-    
+
     void throwExcept2(const Ice::Exception& ex, const wstring& in)
     {
         try
@@ -565,7 +566,7 @@ public:
         }
     }
 
-    void 
+    void
     noEx(const Ice::Exception& ex, const InParamPtr&)
     {
         cerr << ex << endl;
@@ -574,30 +575,47 @@ public:
 };
 typedef IceUtil::Handle<Callback> CallbackPtr;
 
-Test::TestIntfPrx
+#endif
+
+
+Test::TestIntfPrxPtr
 allTests(const Ice::CommunicatorPtr& communicator)
 {
+    const string endp = getTestEndpoint(communicator, 0);
     cout << "testing stringToProxy... " << flush;
-    string ref = communicator->getProperties()->getPropertyWithDefault(
-        "Custom.Proxy", "test:default -p 12010");
-    Ice::ObjectPrx base = communicator->stringToProxy(ref);
+    string ref = communicator->getProperties()->getPropertyWithDefault("Custom.Proxy", "test:" + endp);
+    Ice::ObjectPrxPtr base = communicator->stringToProxy(ref);
     test(base);
     cout << "ok" << endl;
 
     cout << "testing checked cast... " << flush;
-    Test::TestIntfPrx t = Test::TestIntfPrx::checkedCast(base);
+
+    Test::TestIntfPrxPtr t = ICE_CHECKED_CAST(Test::TestIntfPrx, base);
     test(t);
+#ifdef ICE_CPP11_MAPPING
+    test(Ice::targetEqualTo(t, base));
+#else
     test(t == base);
+#endif
+    cout << "ok" << endl;
+
+    cout << "testing ice_id and ice_ids with string converter... " << flush;
+    test(t->ice_id() == Test::TestIntfPrx::ice_staticId());
+    test(t->ice_ids()[0] == Ice::ObjectPrx::ice_staticId());
+    test(t->ice_ids()[1] == Test::TestIntfPrx::ice_staticId());
     cout << "ok" << endl;
 
     cout << "testing alternate strings... " << flush;
     {
-        Util::string_view in = "Hello World!";
+        Util::string_view in = "HELLO WORLD!";
         string out;
         string ret = t->opString(in, out);
 
+        test(ret == out);
+#ifdef ICE_CPP11_MAPPING
+        test(ret == in);
+#else
         //
-        // TODO: improve test
         // When a parameter is mapped as a string_view on both sides,
         // no conversion occurs, and all is good
         // However, when a parameter is mapped as a string on one side and
@@ -605,8 +623,8 @@ allTests(const Ice::CommunicatorPtr& communicator)
         // the string converter converts the string but not the string_view,
         // and we have a mismatch
         //
-        test(ret == out);
         test(ret.size() == in.size());
+#endif
     }
     cout << "ok" << endl;
 
@@ -676,20 +694,21 @@ allTests(const Ice::CommunicatorPtr& communicator)
     {
         Test::VariableList in;
         Test::Variable inArray[5];
-        inArray[0].s = "These";
+        inArray[0].s = "THESE";
         in.push_back(inArray[0]);
-        inArray[1].s = "are";
+        inArray[1].s = "ARE";
         in.push_back(inArray[1]);
-        inArray[2].s = "five";
+        inArray[2].s = "FIVE";
         in.push_back(inArray[2]);
-        inArray[3].s = "short";
+        inArray[3].s = "SHORT";
         in.push_back(inArray[3]);
-        inArray[4].s = "strings.";
+        inArray[4].s = "STRINGS.";
         in.push_back(inArray[4]);
         pair<const Test::Variable*, const Test::Variable*> inPair(inArray, inArray + 5);
 
         Test::VariableList out;
         Test::VariableList ret = t->opVariableArray(inPair, out);
+
         test(out == in);
         test(ret == in);
     }
@@ -701,10 +720,13 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in[2] = true;
         in[3] = false;
         in[4] = true;
-        pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator> inPair(in.begin(), in.end());
-
         Test::BoolSeq out;
+#ifdef ICE_CPP11_MAPPING
+        Test::BoolSeq ret = t->opBoolRange(in, out);
+#else
+        pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator> inPair(in.begin(), in.end());
         Test::BoolSeq ret = t->opBoolRange(inPair, out);
+#endif
         test(out == in);
         test(ret == in);
     }
@@ -716,10 +738,13 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in.push_back('3');
         in.push_back('4');
         in.push_back('5');
-        pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
-
         Test::ByteList out;
+#ifdef ICE_CPP11_MAPPING
+        Test::ByteList ret = t->opByteRange(in, out);
+#else
+        pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
         Test::ByteList ret = t->opByteRange(inPair, out);
+#endif
         test(out == in);
         test(ret == in);
     }
@@ -727,20 +752,23 @@ allTests(const Ice::CommunicatorPtr& communicator)
     {
         Test::VariableList in;
         Test::Variable v;
-        v.s = "These";
+        v.s = "THESE";
         in.push_back(v);
-        v.s = "are";
+        v.s = "ARE";
         in.push_back(v);
-        v.s = "five";
+        v.s = "FIVE";
         in.push_back(v);
-        v.s = "short";
+        v.s = "SHORT";
         in.push_back(v);
-        v.s = "strings.";
+        v.s = "STRINGS.";
         in.push_back(v);
-        pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator> inPair(in.begin(), in.end());
-
         Test::VariableList out;
+#ifdef ICE_CPP11_MAPPING
+        Test::VariableList ret = t->opVariableRange(in, out);
+#else
+        pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator> inPair(in.begin(), in.end());
         Test::VariableList ret = t->opVariableRange(inPair, out);
+#endif
         test(out == in);
         test(ret == in);
     }
@@ -752,10 +780,13 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in.push_back('3');
         in.push_back('4');
         in.push_back('5');
-        pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
-
         Test::ByteList out;
+#ifdef ICE_CPP11_MAPPING
+        Test::ByteList ret = t->opByteRangeType(in, out);
+#else
+        pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
         Test::ByteList ret = t->opByteRangeType(inPair, out);
+#endif
         test(out == in);
         test(ret == in);
     }
@@ -764,26 +795,29 @@ allTests(const Ice::CommunicatorPtr& communicator)
         Test::VariableList in;
         deque<Test::Variable> inSeq;
         Test::Variable v;
-        v.s = "These";
+        v.s = "THESE";
         in.push_back(v);
         inSeq.push_back(v);
-        v.s = "are";
+        v.s = "ARE";
         in.push_back(v);
         inSeq.push_back(v);
-        v.s = "five";
+        v.s = "FIVE";
         in.push_back(v);
         inSeq.push_back(v);
-        v.s = "short";
+        v.s = "SHORT";
         in.push_back(v);
         inSeq.push_back(v);
-        v.s = "strings.";
+        v.s = "STRINGS.";
         in.push_back(v);
         inSeq.push_back(v);
+        Test::VariableList out;
+#ifdef ICE_CPP11_MAPPING
+        Test::VariableList ret = t->opVariableRangeType(in, out);
+#else
         pair<deque<Test::Variable>::const_iterator, deque<Test::Variable>::const_iterator>
             inPair(inSeq.begin(), inSeq.end());
-
-        Test::VariableList out;
         Test::VariableList ret = t->opVariableRangeType(inPair, out);
+#endif
         test(out == in);
         test(ret == in);
     }
@@ -860,11 +894,11 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     {
         deque<string> in(5);
-        in[0] = "These";
-        in[1] = "are";
-        in[2] = "five";
-        in[3] = "short";
-        in[4] = "strings.";
+        in[0] = "THESE";
+        in[1] = "ARE";
+        in[2] = "FIVE";
+        in[3] = "SHORT";
+        in[4] = "STRINGS.";
 
         deque<string> out;
         deque<string> ret = t->opStringSeq(in, out);
@@ -874,11 +908,11 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     {
         list<string> in;
-        in.push_back("These");
-        in.push_back("are");
-        in.push_back("five");
-        in.push_back("short");
-        in.push_back("strings.");
+        in.push_back("THESE");
+        in.push_back("ARE");
+        in.push_back("FIVE");
+        in.push_back("SHORT");
+        in.push_back("STRINGS.");
 
         list<string> out;
         list<string> ret = t->opStringList(in, out);
@@ -916,11 +950,11 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     {
         deque<Test::Variable> in(5);
-        in[0].s = "These";
-        in[1].s = "are";
-        in[2].s = "five";
-        in[3].s = "short";
-        in[4].s = "strings.";
+        in[0].s = "THESE";
+        in[1].s = "ARE";
+        in[2].s = "FIVE";
+        in[3].s = "SHORT";
+        in[4].s = "STRINGS.";
 
         deque<Test::Variable> out;
         deque<Test::Variable> ret = t->opVariableSeq(in, out);
@@ -931,15 +965,15 @@ allTests(const Ice::CommunicatorPtr& communicator)
     {
         list<Test::Variable> in;
         Test::Variable v;
-        v.s = "These";
+        v.s = "THESE";
         in.push_back(v);
-        v.s = "are";
+        v.s = "ARE";
         in.push_back(v);
-        v.s = "five";
+        v.s = "FIVE";
         in.push_back(v);
-        v.s = "short";
+        v.s = "SHORT";
         in.push_back(v);
-        v.s = "strings.";
+        v.s = "STRINGS.";
         in.push_back(v);
 
         list<Test::Variable> out;
@@ -950,11 +984,11 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     {
         deque<Test::StringStringDict> in(5);
-        in[0]["A"] = "a";
-        in[1]["B"] = "b";
-        in[2]["C"] = "c";
-        in[3]["D"] = "d";
-        in[4]["E"] = "e";
+        in[0]["A"] = "A";
+        in[1]["B"] = "B";
+        in[2]["C"] = "C";
+        in[3]["D"] = "D";
+        in[4]["E"] = "E";
 
         deque<Test::StringStringDict> out;
         deque<Test::StringStringDict> ret = t->opStringStringDictSeq(in, out);
@@ -965,15 +999,15 @@ allTests(const Ice::CommunicatorPtr& communicator)
     {
         list<Test::StringStringDict> in;
         Test::StringStringDict ssd;
-        ssd["A"] = "a";
+        ssd["A"] = "A";
         in.push_back(ssd);
-        ssd["B"] = "b";
+        ssd["B"] = "B";
         in.push_back(ssd);
-        ssd["C"] = "c";
+        ssd["C"] = "C";
         in.push_back(ssd);
-        ssd["D"] = "d";
+        ssd["D"] = "D";
         in.push_back(ssd);
-        ssd["E"] = "e";
+        ssd["E"] = "E";
         in.push_back(ssd);
 
         list<Test::StringStringDict> out;
@@ -984,11 +1018,11 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     {
         deque<Test::E> in(5);
-        in[0] = Test::E1;
-        in[1] = Test::E2;
-        in[2] = Test::E3;
-        in[3] = Test::E1;
-        in[4] = Test::E3;
+        in[0] = Test:: ICE_ENUM(E, E1);
+        in[1] = Test:: ICE_ENUM(E, E2);
+        in[2] = Test:: ICE_ENUM(E, E3);
+        in[3] = Test:: ICE_ENUM(E, E1);
+        in[4] = Test:: ICE_ENUM(E, E3);
 
         deque<Test::E> out;
         deque<Test::E> ret = t->opESeq(in, out);
@@ -998,11 +1032,11 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     {
         list<Test::E> in;
-        in.push_back(Test::E1);
-        in.push_back(Test::E2);
-        in.push_back(Test::E3);
-        in.push_back(Test::E1);
-        in.push_back(Test::E3);
+        in.push_back(Test:: ICE_ENUM(E, E1));
+        in.push_back(Test:: ICE_ENUM(E, E2));
+        in.push_back(Test:: ICE_ENUM(E, E3));
+        in.push_back(Test:: ICE_ENUM(E, E1));
+        in.push_back(Test:: ICE_ENUM(E, E3));
 
         list<Test::E> out;
         list<Test::E> ret = t->opEList(in, out);
@@ -1011,36 +1045,59 @@ allTests(const Ice::CommunicatorPtr& communicator)
     }
 
     {
-        deque<Test::CPrx> in(5);
-        in[0] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C1:default -p 12010 -t 10000"));
-        in[1] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C2:default -p 12010 -t 10001"));
-        in[2] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C3:default -p 12010 -t 10002"));
-        in[3] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C4:default -p 12010 -t 10003"));
-        in[4] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C5:default -p 12010 -t 10004"));
+        deque<Test::CPrxPtr> in(5);
+        in[0] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C1:" + endp + " -t 10000"));
+        in[1] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C2:" + endp + " -t 10001"));
+        in[2] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C3:" + endp + " -t 10002"));
+        in[3] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C4:" + endp + " -t 10003"));
+        in[4] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C5:" + endp + " -t 10004"));
 
-        deque<Test::CPrx> out;
-        deque<Test::CPrx> ret = t->opCPrxSeq(in, out);
+        deque<Test::CPrxPtr> out;
+        deque<Test::CPrxPtr> ret = t->opCPrxSeq(in, out);
+
+#ifdef ICE_CPP11_MAPPING
+        auto op = out.begin();
+        auto rp = ret.begin();
+
+        for(auto i: in)
+        {
+            test(Ice::targetEqualTo(*op++, i));
+            test(Ice::targetEqualTo(*rp++, i));
+        }
+#else
         test(out == in);
         test(ret == in);
+#endif
     }
 
     {
-        list<Test::CPrx> in;
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C1:default -p 12010 -t 10000")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C2:default -p 12010 -t 10001")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C3:default -p 12010 -t 10002")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C4:default -p 12010 -t 10003")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C5:default -p 12010 -t 10004")));
+        list<Test::CPrxPtr> in;
+        in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C1:" + endp + " -t 10000")));
+        in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C2:" + endp + " -t 10001")));
+        in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C3:" + endp + " -t 10002")));
+        in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C4:" + endp + " -t 10003")));
+        in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C5:" + endp + " -t 10004")));
 
-        list<Test::CPrx> out;
-        list<Test::CPrx> ret = t->opCPrxList(in, out);
+        list<Test::CPrxPtr> out;
+        list<Test::CPrxPtr> ret = t->opCPrxList(in, out);
+#ifdef ICE_CPP11_MAPPING
+        auto op = out.begin();
+        auto rp = ret.begin();
+
+        for(auto i: in)
+        {
+            test(Ice::targetEqualTo(*op++, i));
+            test(Ice::targetEqualTo(*rp++, i));
+        }
+#else
         test(out == in);
         test(ret == in);
+#endif
     }
 
     {
         deque<Test::CPtr> in(5);
-        in[0] = new Test::C();
+        in[0] = ICE_MAKE_SHARED(Test::C);
         in[1] = in[0];
         in[2] = in[0];
         in[3] = in[0];
@@ -1059,11 +1116,11 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     {
         list<Test::CPtr> in;
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
+        in.push_back(ICE_MAKE_SHARED(Test::C));
+        in.push_back(ICE_MAKE_SHARED(Test::C));
+        in.push_back(ICE_MAKE_SHARED(Test::C));
+        in.push_back(ICE_MAKE_SHARED(Test::C));
+        in.push_back(ICE_MAKE_SHARED(Test::C));
 
         list<Test::CPtr> out;
         list<Test::CPtr> ret = t->opCList(in, out);
@@ -1080,19 +1137,20 @@ allTests(const Ice::CommunicatorPtr& communicator)
     cout << "ok" << endl;
 
     cout << "testing alternate dictionaries... " << flush;
-    
+
     {
         Test::IntStringDict idict;
 
-        idict[1] = "one";
-        idict[2] = "two";
-        idict[3] = "three";
-        idict[-1] = "minus one";
-        
+        idict[1] = "ONE";
+        idict[2] = "TWO";
+        idict[3] = "THREE";
+        idict[-1] = "MINUS ONE";
+
         Test::IntStringDict out;
-        out[5] = "five";
-        
+        out[5] = "FIVE";
+
         Test::IntStringDict ret = t->opIntStringDict(idict, out);
+
         test(out == idict);
         test(ret == idict);
     }
@@ -1100,29 +1158,17 @@ allTests(const Ice::CommunicatorPtr& communicator)
     {
         Test::CustomMap<std::string, Ice::Int> idict;
 
-        idict["one"] = 1;
-        idict["two"] = 2;
-        idict["three"] = 3;
-        idict["minus one"] = -1;
-        
+        idict["ONE"] = 1;
+        idict["TWO"] = 2;
+        idict["THREE"] = 3;
+        idict["MINUS ONE"] = -1;
+
         Test::CustomMap<std::string, Ice::Int> out;
-        out["five"] = 5;
-        
+        out["FIVE"] = 5;
+
         Test::CustomMap<Ice::Long, Ice::Long> ret = t->opVarDict(idict, out);
-        
-#if defined(_MSC_VER) && (_MSC_VER == 1600)
-        //
-        // operator== for std::unordered_map does not work with Visual Studio 2010
-        //
-        test(out.size() == idict.size());
-        
-        for(Test::CustomMap<std::string, Ice::Int>::iterator p = idict.begin(); p != idict.end(); ++p)
-        {
-            test(out[p->first] == p->second);
-        } 
-#else
+
         test(out == idict);
-#endif
 
         test(ret.size() == 1000);
         for(Test::CustomMap<Ice::Long, Ice::Long>::const_iterator i = ret.begin(); i != ret.end(); ++i)
@@ -1134,22 +1180,25 @@ allTests(const Ice::CommunicatorPtr& communicator)
     {
         std::map<int, Util::string_view> idict;
 
-        idict[1] = "one";
-        idict[2] = "two";
-        idict[3] = "three";
-        idict[-1] = "minus one";
-        
+        idict[1] = "ONE";
+        idict[2] = "TWO";
+        idict[3] = "THREE";
+        idict[-1] = "MINUS ONE";
+
         Test::IntStringDict out;
-        out[5] = "five";
-        
+        out[5] = "FIVE";
+
         Test::IntStringDict ret = t->opCustomIntStringDict(idict, out);
         test(out.size() == idict.size());
         test(out == ret);
         for(std::map<int, Util::string_view>::const_iterator p = idict.begin();
             p != idict.end(); ++p)
         {
+#ifdef ICE_CPP11_MAPPING
+            test(out[p->first] == p->second.to_string());
+#else
             test(out[p->first].size() == p->second.size());
-            //  test(out[p->first] == p->second.to_string()); does not always work due to string converter
+#endif
         }
     }
 
@@ -1167,7 +1216,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
         Test::CustomBuffer<bool> inBS;
         inBS.setAndInit(new bool[2], 2);
-        
+
         Test::CustomBuffer<bool> outBS;
         Test::CustomBuffer<bool> retBS = t->opBoolBuffer(inBS, outBS);
 
@@ -1186,28 +1235,37 @@ allTests(const Ice::CommunicatorPtr& communicator)
         Test::BufferStruct rs = t->opBufferStruct(bs);
         test(rs == bs);
 
-        Ice::OutputStreamPtr os = Ice::createOutputStream(communicator);
-        os->write(rs);
+        Ice::OutputStream os(communicator);
+        os.write(rs);
         Ice::ByteSeq bytes;
-        os->finished(bytes);
+        os.finished(bytes);
 
-        Ice::InputStreamPtr is = Ice::wrapInputStream(communicator, bytes);
+        Ice::InputStream is(communicator, os.getEncoding(), bytes);
         Test::BufferStruct rs2;
-        is->read(rs2);
+        is.read(rs2);
         test(rs == rs2);
     }
     cout << "ok" << endl;
 
+
     cout << "testing alternate strings with AMI... " << flush;
     {
-        Util::string_view in = "Hello World!";
-            
+        Util::string_view in = "HELLO WORLD!";
+
+#ifdef ICE_CPP11_MAPPING
+
+        auto r = t->opStringAsync(in).get();
+        test(r.returnValue == r.outString);
+        test(r.returnValue == in);
+
+#else
         Ice::AsyncResultPtr r = t->begin_opString(in);
         string out;
         string ret = t->end_opString(out, r);
-            
+
         test(ret == out);
         test(ret.size() == in.size());
+#endif
     }
     cout << "ok" << endl;
 
@@ -1227,11 +1285,17 @@ allTests(const Ice::CommunicatorPtr& communicator)
             }
             pair<const Ice::Double*, const Ice::Double*> inPair(inArray, inArray + 5);
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opDoubleArrayAsync(inPair).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             Test::DoubleSeq out;
             Ice::AsyncResultPtr r = t->begin_opDoubleArray(inPair);
             Test::DoubleSeq ret = t->end_opDoubleArray(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1248,11 +1312,18 @@ allTests(const Ice::CommunicatorPtr& communicator)
             }
             pair<const bool*, const bool*> inPair(inArray, inArray + 5);
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opBoolArrayAsync(inPair).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
+
             Test::BoolSeq out;
             Ice::AsyncResultPtr r = t->begin_opBoolArray(inPair);
             Test::BoolSeq ret = t->end_opBoolArray(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1270,33 +1341,45 @@ allTests(const Ice::CommunicatorPtr& communicator)
             in.push_back(inArray[4]);
             pair<const Ice::Byte*, const Ice::Byte*> inPair(inArray, inArray + 5);
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opByteArrayAsync(inPair).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             Test::ByteList out;
             Ice::AsyncResultPtr r = t->begin_opByteArray(inPair);
             Test::ByteList ret = t->end_opByteArray(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             Test::VariableList in;
             Test::Variable inArray[5];
-            inArray[0].s = "These";
+            inArray[0].s = "THESE";
             in.push_back(inArray[0]);
-            inArray[1].s = "are";
+            inArray[1].s = "ARE";
             in.push_back(inArray[1]);
-            inArray[2].s = "five";
+            inArray[2].s = "FIVE";
             in.push_back(inArray[2]);
-            inArray[3].s = "short";
+            inArray[3].s = "SHORT";
             in.push_back(inArray[3]);
-            inArray[4].s = "strings.";
+            inArray[4].s = "STRINGS.";
             in.push_back(inArray[4]);
             pair<const Test::Variable*, const Test::Variable*> inPair(inArray, inArray + 5);
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opVariableArrayAsync(inPair).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             Test::VariableList out;
             Ice::AsyncResultPtr r = t->begin_opVariableArray(inPair);
             Test::VariableList ret = t->end_opVariableArray(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1306,13 +1389,18 @@ allTests(const Ice::CommunicatorPtr& communicator)
             in[2] = true;
             in[3] = false;
             in[4] = true;
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opBoolRangeAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator> inPair(in.begin(), in.end());
-
             Test::BoolSeq out;
             Ice::AsyncResultPtr r = t->begin_opBoolRange(inPair);
             Test::BoolSeq ret = t->end_opBoolRange(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1322,35 +1410,47 @@ allTests(const Ice::CommunicatorPtr& communicator)
             in.push_back('3');
             in.push_back('4');
             in.push_back('5');
-            pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opByteRangeAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
+            pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
             Test::ByteList out;
             Ice::AsyncResultPtr r = t->begin_opByteRange(inPair);
             Test::ByteList ret = t->end_opByteRange(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             Test::VariableList in;
             Test::Variable v;
-            v.s = "These";
+            v.s = "THESE";
             in.push_back(v);
-            v.s = "are";
+            v.s = "ARE";
             in.push_back(v);
-            v.s = "five";
+            v.s = "FIVE";
             in.push_back(v);
-            v.s = "short";
+            v.s = "SHORT";
             in.push_back(v);
-            v.s = "strings.";
+            v.s = "STRINGS.";
             in.push_back(v);
-            pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator> inPair(in.begin(), in.end());
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opVariableRangeAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
+            pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator> inPair(in.begin(), in.end());
             Test::VariableList out;
             Ice::AsyncResultPtr r = t->begin_opVariableRange(inPair);
             Test::VariableList ret = t->end_opVariableRange(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1360,42 +1460,53 @@ allTests(const Ice::CommunicatorPtr& communicator)
             in.push_back('3');
             in.push_back('4');
             in.push_back('5');
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opByteRangeTypeAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
-
             Test::ByteList out;
             Ice::AsyncResultPtr r = t->begin_opByteRangeType(inPair);
             Test::ByteList ret = t->end_opByteRangeType(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             Test::VariableList in;
             deque<Test::Variable> inSeq;
             Test::Variable v;
-            v.s = "These";
+            v.s = "THESE";
             in.push_back(v);
             inSeq.push_back(v);
-            v.s = "are";
+            v.s = "ARE";
             in.push_back(v);
             inSeq.push_back(v);
-            v.s = "five";
+            v.s = "FIVE";
             in.push_back(v);
             inSeq.push_back(v);
-            v.s = "short";
+            v.s = "SHORT";
             in.push_back(v);
             inSeq.push_back(v);
-            v.s = "strings.";
+            v.s = "STRINGS.";
             in.push_back(v);
             inSeq.push_back(v);
+
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opVariableRangeTypeAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             pair<deque<Test::Variable>::const_iterator, deque<Test::Variable>::const_iterator>
                 inPair(inSeq.begin(), inSeq.end());
-
             Test::VariableList out;
             Ice::AsyncResultPtr r = t->begin_opVariableRangeType(inPair);
             Test::VariableList ret = t->end_opVariableRangeType(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1406,11 +1517,17 @@ allTests(const Ice::CommunicatorPtr& communicator)
             in[3] = false;
             in[4] = true;
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opBoolSeqAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             deque<bool> out;
             Ice::AsyncResultPtr r = t->begin_opBoolSeq(in);
             deque<bool> ret = t->end_opBoolSeq(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1421,11 +1538,17 @@ allTests(const Ice::CommunicatorPtr& communicator)
             in.push_back(false);
             in.push_back(true);
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opBoolListAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             list<bool> out;
             Ice::AsyncResultPtr r = t->begin_opBoolList(in);
             list<bool> ret = t->end_opBoolList(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1436,11 +1559,17 @@ allTests(const Ice::CommunicatorPtr& communicator)
             in[3] = '4';
             in[4] = '5';
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opByteSeqAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             deque< ::Ice::Byte> out;
             Ice::AsyncResultPtr r = t->begin_opByteSeq(in);
             deque< ::Ice::Byte> ret = t->end_opByteSeq(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1451,11 +1580,17 @@ allTests(const Ice::CommunicatorPtr& communicator)
             in.push_back('4');
             in.push_back('5');
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opByteListAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             list< ::Ice::Byte> out;
             Ice::AsyncResultPtr r = t->begin_opByteList(in);
             list< ::Ice::Byte> ret = t->end_opByteList(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1466,41 +1601,59 @@ allTests(const Ice::CommunicatorPtr& communicator)
                 *p = '1' + i++;
             }
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opMyByteSeqAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             MyByteSeq out;
             Ice::AsyncResultPtr r = t->begin_opMyByteSeq(in);
             MyByteSeq ret = t->end_opMyByteSeq(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             deque<string> in(5);
-            in[0] = "These";
-            in[1] = "are";
-            in[2] = "five";
-            in[3] = "short";
-            in[4] = "strings.";
+            in[0] = "THESE";
+            in[1] = "ARE";
+            in[2] = "FIVE";
+            in[3] = "SHORT";
+            in[4] = "STRINGS.";
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opStringSeqAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             deque<string> out;
             Ice::AsyncResultPtr r = t->begin_opStringSeq(in);
             deque<string> ret = t->end_opStringSeq(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             list<string> in;
-            in.push_back("These");
-            in.push_back("are");
-            in.push_back("five");
-            in.push_back("short");
-            in.push_back("strings.");
+            in.push_back("THESE");
+            in.push_back("ARE");
+            in.push_back("FIVE");
+            in.push_back("SHORT");
+            in.push_back("STRINGS.");
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opStringListAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             list<string> out;
             Ice::AsyncResultPtr r = t->begin_opStringList(in);
             list<string> ret = t->end_opStringList(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1511,11 +1664,17 @@ allTests(const Ice::CommunicatorPtr& communicator)
             in[3].s = 4;
             in[4].s = 5;
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opFixedSeqAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             deque<Test::Fixed> out;
             Ice::AsyncResultPtr r = t->begin_opFixedSeq(in);
             deque<Test::Fixed> ret = t->end_opFixedSeq(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
@@ -1526,153 +1685,239 @@ allTests(const Ice::CommunicatorPtr& communicator)
                 (*p).s = num++;
             }
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opFixedListAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             list<Test::Fixed> out;
             Ice::AsyncResultPtr r = t->begin_opFixedList(in);
             list<Test::Fixed> ret = t->end_opFixedList(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             deque<Test::Variable> in(5);
-            in[0].s = "These";
-            in[1].s = "are";
-            in[2].s = "five";
-            in[3].s = "short";
-            in[4].s = "strings.";
+            in[0].s = "THESE";
+            in[1].s = "ARE";
+            in[2].s = "FIVE";
+            in[3].s = "SHORT";
+            in[4].s = "STRINGS.";
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opVariableSeqAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             deque<Test::Variable> out;
             Ice::AsyncResultPtr r = t->begin_opVariableSeq(in);
             deque<Test::Variable> ret = t->end_opVariableSeq(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             list<Test::Variable> in;
             Test::Variable v;
-            v.s = "These";
+            v.s = "THESE";
             in.push_back(v);
-            v.s = "are";
+            v.s = "ARE";
             in.push_back(v);
-            v.s = "five";
+            v.s = "FIVE";
             in.push_back(v);
-            v.s = "short";
+            v.s = "SHORT";
             in.push_back(v);
-            v.s = "strings.";
+            v.s = "STRINGS.";
             in.push_back(v);
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opVariableListAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             list<Test::Variable> out;
             Ice::AsyncResultPtr r = t->begin_opVariableList(in);
             list<Test::Variable> ret = t->end_opVariableList(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             deque<Test::StringStringDict> in(5);
-            in[0]["A"] = "a";
-            in[1]["B"] = "b";
-            in[2]["C"] = "c";
-            in[3]["D"] = "d";
-            in[4]["E"] = "e";
+            in[0]["A"] = "A";
+            in[1]["B"] = "B";
+            in[2]["C"] = "C";
+            in[3]["D"] = "D";
+            in[4]["E"] = "E";
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opStringStringDictSeqAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             deque<Test::StringStringDict> out;
             Ice::AsyncResultPtr r = t->begin_opStringStringDictSeq(in);
             deque<Test::StringStringDict> ret = t->end_opStringStringDictSeq(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             list<Test::StringStringDict> in;
             Test::StringStringDict ssd;
-            ssd["A"] = "a";
+            ssd["A"] = "A";
             in.push_back(ssd);
-            ssd["B"] = "b";
+            ssd["B"] = "B";
             in.push_back(ssd);
-            ssd["C"] = "c";
+            ssd["C"] = "C";
             in.push_back(ssd);
-            ssd["D"] = "d";
+            ssd["D"] = "D";
             in.push_back(ssd);
-            ssd["E"] = "e";
+            ssd["E"] = "E";
             in.push_back(ssd);
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opStringStringDictListAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             list<Test::StringStringDict> out;
             Ice::AsyncResultPtr r = t->begin_opStringStringDictList(in);
             list<Test::StringStringDict> ret = t->end_opStringStringDictList(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             deque<Test::E> in(5);
-            in[0] = Test::E1;
-            in[1] = Test::E2;
-            in[2] = Test::E3;
-            in[3] = Test::E1;
-            in[4] = Test::E3;
+            in[0] = Test:: ICE_ENUM(E, E1);
+            in[1] = Test:: ICE_ENUM(E, E2);
+            in[2] = Test:: ICE_ENUM(E, E3);
+            in[3] = Test:: ICE_ENUM(E, E1);
+            in[4] = Test:: ICE_ENUM(E, E3);
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opESeqAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             deque<Test::E> out;
             Ice::AsyncResultPtr r = t->begin_opESeq(in);
             deque<Test::E> ret = t->end_opESeq(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             list<Test::E> in;
-            in.push_back(Test::E1);
-            in.push_back(Test::E2);
-            in.push_back(Test::E3);
-            in.push_back(Test::E1);
-            in.push_back(Test::E3);
+            in.push_back(Test:: ICE_ENUM(E, E1));
+            in.push_back(Test:: ICE_ENUM(E, E2));
+            in.push_back(Test:: ICE_ENUM(E, E3));
+            in.push_back(Test:: ICE_ENUM(E, E1));
+            in.push_back(Test:: ICE_ENUM(E, E3));
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opEListAsync(in).get();
+            test(r.outSeq == in);
+            test(r.returnValue == in);
+#else
             list<Test::E> out;
             Ice::AsyncResultPtr r = t->begin_opEList(in);
             list<Test::E> ret = t->end_opEList(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
-            deque<Test::CPrx> in(5);
-            in[0] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C1:default -p 12010 -t 10000"));
-            in[1] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C2:default -p 12010 -t 10001"));
-            in[2] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C3:default -p 12010 -t 10002"));
-            in[3] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C4:default -p 12010 -t 10003"));
-            in[4] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C5:default -p 12010 -t 10004"));
+            deque<Test::CPrxPtr> in(5);
+            in[0] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C1:" + endp + " -t 10000"));
+            in[1] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C2:" + endp + " -t 10001"));
+            in[2] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C3:" + endp + " -t 10002"));
+            in[3] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C4:" + endp + " -t 10003"));
+            in[4] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C5:" + endp + " -t 10004"));
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opCPrxSeqAsync(in).get();
+
+            test(r.outSeq.size() == in.size());
+            test(r.returnValue.size() == in.size());
+
+            auto op = r.outSeq.begin();
+            auto rp = r.returnValue.begin();
+
+            for(auto i: in)
+            {
+                test(Ice::targetEqualTo(*op++, i));
+                test(Ice::targetEqualTo(*rp++, i));
+            }
+#else
             deque<Test::CPrx> out;
             Ice::AsyncResultPtr r = t->begin_opCPrxSeq(in);
             deque<Test::CPrx> ret = t->end_opCPrxSeq(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
-            list<Test::CPrx> in;
-            in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C1:default -p 12010 -t 10000")));
-            in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C2:default -p 12010 -t 10001")));
-            in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C3:default -p 12010 -t 10002")));
-            in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C4:default -p 12010 -t 10003")));
-            in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C5:default -p 12010 -t 10004")));
+            list<Test::CPrxPtr> in;
+            in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C1:" + endp + " -t 10000")));
+            in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C2:" + endp + " -t 10001")));
+            in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C3:" + endp + " -t 10002")));
+            in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C4:" + endp + " -t 10003")));
+            in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C5:" + endp + " -t 10004")));
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opCPrxListAsync(in).get();
+
+            test(r.outSeq.size() == in.size());
+            test(r.returnValue.size() == in.size());
+
+            auto op = r.outSeq.begin();
+            auto rp = r.returnValue.begin();
+
+            for(auto i: in)
+            {
+                test(Ice::targetEqualTo(*op++, i));
+                test(Ice::targetEqualTo(*rp++, i));
+            }
+#else
             list<Test::CPrx> out;
             Ice::AsyncResultPtr r = t->begin_opCPrxList(in);
             list<Test::CPrx> ret = t->end_opCPrxList(out, r);
             test(out == in);
             test(ret == in);
+#endif
         }
 
         {
             deque<Test::CPtr> in(5);
-            in[0] = new Test::C();
+            in[0] = ICE_MAKE_SHARED(Test::C);
             in[1] = in[0];
             in[2] = in[0];
             in[3] = in[0];
             in[4] = in[0];
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opCSeqAsync(in).get();
+            test(r.outSeq.size() == in.size());
+            test(r.returnValue.size() == in.size());
+
+            auto rp = r.returnValue.begin();
+            for(auto o: r.outSeq)
+            {
+                test(o == r.outSeq[0]);
+                test(*rp++ == o);
+            }
+#else
             deque<Test::CPtr> out;
             Ice::AsyncResultPtr r = t->begin_opCSeq(in);
             deque<Test::CPtr> ret = t->end_opCSeq(out, r);
@@ -1683,16 +1928,23 @@ allTests(const Ice::CommunicatorPtr& communicator)
                 test(out[i] == out[0]);
                 test(ret[i] == out[i]);
             }
+#endif
         }
 
         {
             list<Test::CPtr> in;
-            in.push_back(new Test::C());
-            in.push_back(new Test::C());
-            in.push_back(new Test::C());
-            in.push_back(new Test::C());
-            in.push_back(new Test::C());
+            in.push_back(ICE_MAKE_SHARED(Test::C));
+            in.push_back(ICE_MAKE_SHARED(Test::C));
+            in.push_back(ICE_MAKE_SHARED(Test::C));
+            in.push_back(ICE_MAKE_SHARED(Test::C));
+            in.push_back(ICE_MAKE_SHARED(Test::C));
 
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opCListAsync(in).get();
+            test(r.outSeq.size() == in.size());
+            test(r.returnValue.size() == in.size());
+            test(r.outSeq == r.returnValue);
+#else
             list<Test::CPtr> out;
             Ice::AsyncResultPtr r = t->begin_opCList(in);
             list<Test::CPtr> ret = t->end_opCList(out, r);
@@ -1704,68 +1956,101 @@ allTests(const Ice::CommunicatorPtr& communicator)
             {
                 test(*p1 == *p2);
             }
+#endif
         }
-            
-            
+
+
         {
             Test::ByteSeq in;
             in.push_back('1');
             in.push_back('2');
             in.push_back('3');
             in.push_back('4');
-                
+
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opOutArrayByteSeqAsync(in).get();
+            test(r.size() == in.size());
+            test(r == in);
+#else
             Ice::AsyncResultPtr r = t->begin_opOutArrayByteSeq(in);
-                
+
             Test::ByteSeq out;
             t->end_opOutArrayByteSeq(out, r);
-                
+
             test(out.size() == in.size());
             Test::ByteSeq::const_iterator p1;
             Test::ByteSeq::const_iterator p2;
-                
+
             for(p1 = out.begin(), p2 = in.begin(); p1 != out.end(); ++p1, ++p2)
             {
                 test(*p1 == *p2);
             }
+#endif
         }
-            
+
         {
             Test::ByteSeq in;
             in.push_back('1');
             in.push_back('2');
             in.push_back('3');
             in.push_back('4');
-                
+
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opOutRangeByteSeqAsync(in).get();
+            test(r.size() == in.size());
+            test(r == in);
+#else
             Ice::AsyncResultPtr r = t->begin_opOutRangeByteSeq(in);
-                
+
             Test::ByteSeq out;
             t->end_opOutRangeByteSeq(out, r);
-                
+
             test(out.size() == in.size());
             Test::ByteSeq::const_iterator p1;
             Test::ByteSeq::const_iterator p2;
-                
+
             for(p1 = out.begin(), p2 = in.begin(); p1 != out.end(); ++p1, ++p2)
             {
                 test(*p1 == *p2);
             }
+#endif
         }
     }
     cout << "ok" << endl;
 
-    cout << "testing alternate strings with new AMI callbacks... " << flush;
+    cout << "testing alternate strings with AMI callbacks... " << flush;
     {
-        Util::string_view in = "Hello World!";
-            
+        Util::string_view in = "HELLO WORLD!";
+
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opStringAsync(in,
+            [&](Util::string_view ret, Util::string_view out)
+            {
+                test(out == ret);
+                test(in == out);
+                done.set_value(true);
+            },
+            [&](std::exception_ptr)
+            {
+                done.set_value(false);
+            });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opStringPtr callback = 
+
+        Test::Callback_TestIntf_opStringPtr callback =
             Test::newCallback_TestIntf_opString(cb, &Callback::opString, &Callback::noEx);
         t->begin_opString(in, callback, newInParam(in));
         cb->check();
+#endif
     }
     cout << "ok" << endl;
 
-    cout << "testing alternate sequences with new AMI callbacks... " << flush;
+    cout << "testing alternate sequences with AMI callbacks... " << flush;
 
     {
         Test::DoubleSeq in(5);
@@ -1781,12 +2066,33 @@ allTests(const Ice::CommunicatorPtr& communicator)
         }
         pair<const Ice::Double*, const Ice::Double*> inPair(inArray, inArray + 5);
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opDoubleArrayAsync(inPair,
+                              [&](pair<const Ice::Double*, const Ice::Double*> ret,
+                                  pair<const Ice::Double*, const Ice::Double*> out)
+                              {
+                                  test(arrayRangeEquals<double>(out, inPair));
+                                  test(arrayRangeEquals<double>(ret, inPair));
+                                  done.set_value(true);
+                              },
+                              [&](std::exception_ptr)
+                              {
+                                  done.set_value(false);
+                              });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opDoubleArrayPtr callback = 
+        Test::Callback_TestIntf_opDoubleArrayPtr callback =
             Test::newCallback_TestIntf_opDoubleArray(cb, &Callback::opDoubleArray, &Callback::noEx);
         t->begin_opDoubleArray(inPair, callback, newInParam(inPair));
         cb->check();
+#endif
     }
+
 
     {
         Test::BoolSeq in(5);
@@ -1802,11 +2108,31 @@ allTests(const Ice::CommunicatorPtr& communicator)
         }
         pair<const bool*, const bool*> inPair(inArray, inArray + 5);
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opBoolArrayAsync(inPair,
+                            [&](pair<const bool*, const bool*> ret,
+                                pair<const bool*, const bool*> out)
+                            {
+                                test(arrayRangeEquals<bool>(out, inPair));
+                                test(arrayRangeEquals<bool>(ret, inPair));
+                                done.set_value(true);
+                            },
+                            [&](std::exception_ptr)
+                            {
+                                done.set_value(false);
+                            });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opBoolArrayPtr callback = 
+        Test::Callback_TestIntf_opBoolArrayPtr callback =
             Test::newCallback_TestIntf_opBoolArray(cb, &Callback::opBoolArray, &Callback::noEx);
         t->begin_opBoolArray(inPair, callback, newInParam(inPair));
         cb->check();
+#endif
     }
 
     {
@@ -1818,33 +2144,74 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in[4] = '5';
         pair<const Ice::Byte*, const Ice::Byte*> inPair(in, in + 5);
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opByteArrayAsync(inPair,
+                            [&](pair<const Ice::Byte*, const Ice::Byte*> ret,
+                                pair<const Ice::Byte*, const Ice::Byte*> out)
+                            {
+                                test(arrayRangeEquals<Ice::Byte>(out, inPair));
+                                test(arrayRangeEquals<Ice::Byte>(ret, inPair));
+                                done.set_value(true);
+                            },
+                            [&](std::exception_ptr)
+                            {
+                                done.set_value(false);
+                            });
+
+        test(done.get_future().get());
+#else
+
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opByteArrayPtr callback = 
+        Test::Callback_TestIntf_opByteArrayPtr callback =
             Test::newCallback_TestIntf_opByteArray(cb, &Callback::opByteArray, &Callback::noEx);
         t->begin_opByteArray(inPair, callback, newInParam(inPair));
         cb->check();
+#endif
     }
 
     {
         Test::VariableList in;
         Test::Variable inArray[5];
-        inArray[0].s = "These";
+        inArray[0].s = "THESE";
         in.push_back(inArray[0]);
-        inArray[1].s = "are";
+        inArray[1].s = "ARE";
         in.push_back(inArray[1]);
-        inArray[2].s = "five";
+        inArray[2].s = "FIVE";
         in.push_back(inArray[2]);
-        inArray[3].s = "short";
+        inArray[3].s = "SHORT";
         in.push_back(inArray[3]);
-        inArray[4].s = "strings.";
+        inArray[4].s = "STRINGS.";
         in.push_back(inArray[4]);
         pair<const Test::Variable*, const Test::Variable*> inPair(inArray, inArray + 5);
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opVariableArrayAsync(inPair,
+                                [&](pair<const Test::Variable*, const Test::Variable*> ret,
+                                    pair<const Test::Variable*, const Test::Variable*> out)
+                                {
+                                    test(arrayRangeEquals<Test::Variable>(out, inPair));
+                                    test(arrayRangeEquals<Test::Variable>(ret, inPair));
+                                    done.set_value(true);
+                                },
+                                [&](std::exception_ptr)
+                                {
+                                    done.set_value(false);
+                                });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
         Test::Callback_TestIntf_opVariableArrayPtr callback =
             Test::newCallback_TestIntf_opVariableArray(cb, &Callback::opVariableArray, &Callback::noEx);
         t->begin_opVariableArray(inPair, callback, newInParam(inPair));
         cb->check();
+#endif
     }
 
     {
@@ -1854,14 +2221,35 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in[2] = true;
         in[3] = false;
         in[4] = true;
+
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opBoolRangeAsync(in,
+                            [&](Test::BoolSeq ret, Test::BoolSeq out)
+                            {
+                                   test(ret == in);
+                                   test(out == in);
+                                   done.set_value(true);
+                            },
+                            [&](std::exception_ptr)
+                            {
+                                done.set_value(false);
+                            });
+
+        test(done.get_future().get());
+#else
         pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator> inPair(in.begin(), in.end());
 
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opBoolRangePtr callback = 
+        Test::Callback_TestIntf_opBoolRangePtr callback =
             Test::newCallback_TestIntf_opBoolRange(cb, &Callback::opBoolRange, &Callback::noEx);
         t->begin_opBoolRange(inPair, callback, newInParam(inPair));
         cb->check();
+#endif
     }
+
 
     {
         Test::ByteList in;
@@ -1870,35 +2258,73 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in.push_back('3');
         in.push_back('4');
         in.push_back('5');
-        pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opByteRangeAsync(in,
+                            [&](Test::ByteList ret, Test::ByteList out)
+                            {
+                                test(ret == in);
+                                test(out == in);
+                                done.set_value(true);
+                            },
+                            [&](std::exception_ptr)
+                            {
+                                done.set_value(false);
+                            });
+
+        test(done.get_future().get());
+#else
+        pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opByteRangePtr callback = 
+        Test::Callback_TestIntf_opByteRangePtr callback =
             Test::newCallback_TestIntf_opByteRange(cb, &Callback::opByteRange, &Callback::noEx);
         t->begin_opByteRange(inPair, callback, newInParam(inPair));
         cb->check();
+#endif
     }
 
     {
         Test::VariableList in;
         Test::Variable v;
-        v.s = "These";
+        v.s = "THESE";
         in.push_back(v);
-        v.s = "are";
+        v.s = "ARE";
         in.push_back(v);
-        v.s = "five";
+        v.s = "FIVE";
         in.push_back(v);
-        v.s = "short";
+        v.s = "SHORT";
         in.push_back(v);
-        v.s = "strings.";
+        v.s = "STRINGS.";
         in.push_back(v);
-        pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator> inPair(in.begin(), in.end());
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opVariableRangeAsync(in,
+                                [&](Test::VariableList ret, Test::VariableList out)
+                                {
+                                    test(ret == in);
+                                    test(out == in);
+                                    done.set_value(true);
+                                },
+                                [&](std::exception_ptr)
+                                {
+                                    done.set_value(false);
+                                });
+
+        test(done.get_future().get());
+#else
+        pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator> inPair(in.begin(), in.end());
         CallbackPtr cb = new Callback();
         Test::Callback_TestIntf_opVariableRangePtr callback =
             Test::newCallback_TestIntf_opVariableRange(cb, &Callback::opVariableRange, &Callback::noEx);
         t->begin_opVariableRange(inPair, callback, newInParam(inPair));
         cb->check();
+#endif
     }
 
     {
@@ -1908,42 +2334,79 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in.push_back('3');
         in.push_back('4');
         in.push_back('5');
-        pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opByteRangeTypeAsync(in,
+                                [&](Test::ByteList ret, Test::ByteList out)
+                                {
+                                    test(ret == in);
+                                    test(out == in);
+                                    done.set_value(true);
+                                },
+                                [&](std::exception_ptr)
+                                {
+                                    done.set_value(false);
+                                });
+
+        test(done.get_future().get());
+#else
+        pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
         CallbackPtr cb = new Callback();
         Test::Callback_TestIntf_opByteRangeTypePtr callback =
             Test::newCallback_TestIntf_opByteRangeType(cb, &Callback::opByteRangeType, &Callback::noEx);
         t->begin_opByteRangeType(inPair, callback, newInParam(inPair));
         cb->check();
+#endif
     }
 
     {
         Test::VariableList in;
         deque<Test::Variable> inSeq;
         Test::Variable v;
-        v.s = "These";
+        v.s = "THESE";
         in.push_back(v);
         inSeq.push_back(v);
-        v.s = "are";
+        v.s = "ARE";
         in.push_back(v);
         inSeq.push_back(v);
-        v.s = "five";
+        v.s = "FIVE";
         in.push_back(v);
         inSeq.push_back(v);
-        v.s = "short";
+        v.s = "SHORT";
         in.push_back(v);
         inSeq.push_back(v);
-        v.s = "strings.";
+        v.s = "STRINGS.";
         in.push_back(v);
         inSeq.push_back(v);
-        pair<deque<Test::Variable>::const_iterator, deque<Test::Variable>::const_iterator> inPair(inSeq.begin(), 
-                                                                                                  inSeq.end());
+#ifdef ICE_CPP11_MAPPING
 
+        promise<bool> done;
+
+        t->opVariableRangeTypeAsync(in,
+                                    [&](Test::VariableList ret, Test::VariableList out)
+                                    {
+                                        test(ret == in);
+                                        test(out == in);
+                                        done.set_value(true);
+                                    },
+                                    [&](std::exception_ptr)
+                                    {
+                                        done.set_value(false);
+                                    });
+
+        test(done.get_future().get());
+#else
+        pair<deque<Test::Variable>::const_iterator, deque<Test::Variable>::const_iterator> inPair(inSeq.begin(),
+                                                                                                  inSeq.end());
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opVariableRangeTypePtr callback = 
+        Test::Callback_TestIntf_opVariableRangeTypePtr callback =
             Test::newCallback_TestIntf_opVariableRangeType(cb, &Callback::opVariableRangeType, &Callback::noEx);
         t->begin_opVariableRangeType(inPair, callback, newInParam(inPair));
         cb->check();
+#endif
     }
 
     {
@@ -1954,11 +2417,30 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in[3] = false;
         in[4] = true;
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opBoolSeqAsync(in,
+                          [&](deque<bool>ret, deque<bool> out)
+                          {
+                              test(ret == out);
+                              test(ret == in);
+                              done.set_value(true);
+                          },
+                          [&](std::exception_ptr)
+                          {
+                              done.set_value(false);
+                          });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opBoolSeqPtr callback = 
+        Test::Callback_TestIntf_opBoolSeqPtr callback =
             Test::newCallback_TestIntf_opBoolSeq(cb, &Callback::opBoolSeq, &Callback::noEx);
         t->begin_opBoolSeq(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
@@ -1969,11 +2451,30 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in.push_back(false);
         in.push_back(true);
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opBoolListAsync(in,
+                          [&](list<bool>ret, list<bool> out)
+                          {
+                              test(ret == out);
+                              test(ret == in);
+                              done.set_value(true);
+                          },
+                          [&](std::exception_ptr)
+                          {
+                              done.set_value(false);
+                          });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opBoolListPtr callback = 
+        Test::Callback_TestIntf_opBoolListPtr callback =
             Test::newCallback_TestIntf_opBoolList(cb, &Callback::opBoolList, &Callback::noEx);
         t->begin_opBoolList(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
@@ -1984,11 +2485,30 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in[3] = '4';
         in[4] = '5';
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opByteSeqAsync(in,
+                          [&](deque<Ice::Byte> ret, deque<Ice::Byte> out)
+                          {
+                              test(ret == out);
+                              test(ret == in);
+                              done.set_value(true);
+                          },
+                          [&](std::exception_ptr)
+                          {
+                              done.set_value(false);
+                          });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opByteSeqPtr callback = 
+        Test::Callback_TestIntf_opByteSeqPtr callback =
             Test::newCallback_TestIntf_opByteSeq(cb, &Callback::opByteSeq, &Callback::noEx);
         t->begin_opByteSeq(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
@@ -1999,11 +2519,31 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in.push_back('4');
         in.push_back('5');
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opByteListAsync(in,
+                           [&](list<Ice::Byte> ret, list<Ice::Byte> out)
+                           {
+                               test(ret == out);
+                               test(ret == in);
+                               done.set_value(true);
+                           },
+                           [&](std::exception_ptr)
+                           {
+                               done.set_value(false);
+                           });
+
+        test(done.get_future().get());
+#else
+
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opByteListPtr callback = 
+        Test::Callback_TestIntf_opByteListPtr callback =
             Test::newCallback_TestIntf_opByteList(cb, &Callback::opByteList, &Callback::noEx);
         t->begin_opByteList(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
@@ -2014,41 +2554,98 @@ allTests(const Ice::CommunicatorPtr& communicator)
             *p = '1' + i++;
         }
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opMyByteSeqAsync(in,
+                            [&](MyByteSeq ret, MyByteSeq out)
+                            {
+                                test(ret == out);
+                                test(ret == in);
+                                done.set_value(true);
+                            },
+                            [&](std::exception_ptr)
+                            {
+                                done.set_value(false);
+                            });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opMyByteSeqPtr callback = 
+        Test::Callback_TestIntf_opMyByteSeqPtr callback =
             Test::newCallback_TestIntf_opMyByteSeq(cb, &Callback::opMyByteSeq, &Callback::noEx);
         t->begin_opMyByteSeq(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
         deque<string> in(5);
-        in[0] = "These";
-        in[1] = "are";
-        in[2] = "five";
-        in[3] = "short";
-        in[4] = "strings.";
+        in[0] = "THESE";
+        in[1] = "ARE";
+        in[2] = "FIVE";
+        in[3] = "SHORT";
+        in[4] = "STRINGS.";
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opStringSeqAsync(in,
+                            [&](deque<string> ret, deque<string> out)
+                            {
+                                test(ret == out);
+                                test(ret == in);
+                                done.set_value(true);
+                            },
+                            [&](std::exception_ptr)
+                            {
+                                done.set_value(false);
+                            });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opStringSeqPtr callback = 
+        Test::Callback_TestIntf_opStringSeqPtr callback =
             Test::newCallback_TestIntf_opStringSeq(cb, &Callback::opStringSeq, &Callback::noEx);
         t->begin_opStringSeq(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
         list<string> in;
-        in.push_back("These");
-        in.push_back("are");
-        in.push_back("five");
-        in.push_back("short");
-        in.push_back("strings.");
+        in.push_back("THESE");
+        in.push_back("ARE");
+        in.push_back("FIVE");
+        in.push_back("SHORT");
+        in.push_back("STRINGS.");
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opStringListAsync(in,
+                             [&](list<string> ret, list<string> out)
+                             {
+                                 test(ret == out);
+                                 test(ret == in);
+                                 done.set_value(true);
+                             },
+                             [&](std::exception_ptr)
+                             {
+                                 done.set_value(false);
+                             });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opStringListPtr callback = 
+        Test::Callback_TestIntf_opStringListPtr callback =
             Test::newCallback_TestIntf_opStringList(cb, &Callback::opStringList, &Callback::noEx);
         t->begin_opStringList(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
@@ -2059,11 +2656,30 @@ allTests(const Ice::CommunicatorPtr& communicator)
         in[3].s = 4;
         in[4].s = 5;
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opFixedSeqAsync(in,
+                           [&](deque<Test::Fixed> ret, deque<Test::Fixed> out)
+                           {
+                               test(ret == out);
+                               test(ret == in);
+                               done.set_value(true);
+                           },
+                           [&](std::exception_ptr)
+                           {
+                               done.set_value(false);
+                           });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opFixedSeqPtr callback = 
+        Test::Callback_TestIntf_opFixedSeqPtr callback =
             Test::newCallback_TestIntf_opFixedSeq(cb, &Callback::opFixedSeq, &Callback::noEx);
         t->begin_opFixedSeq(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
@@ -2074,990 +2690,548 @@ allTests(const Ice::CommunicatorPtr& communicator)
             (*p).s = num++;
         }
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opFixedListAsync(in,
+                            [&](list<Test::Fixed> ret, list<Test::Fixed> out)
+                            {
+                                test(ret == out);
+                                test(ret == in);
+                                done.set_value(true);
+                            },
+                            [&](std::exception_ptr)
+                            {
+                                done.set_value(false);
+                            });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opFixedListPtr callback = 
+        Test::Callback_TestIntf_opFixedListPtr callback =
             Test::newCallback_TestIntf_opFixedList(cb, &Callback::opFixedList, &Callback::noEx);
         t->begin_opFixedList(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
         deque<Test::Variable> in(5);
-        in[0].s = "These";
-        in[1].s = "are";
-        in[2].s = "five";
-        in[3].s = "short";
-        in[4].s = "strings.";
+        in[0].s = "THESE";
+        in[1].s = "ARE";
+        in[2].s = "FIVE";
+        in[3].s = "SHORT";
+        in[4].s = "STRINGS.";
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opVariableSeqAsync(in,
+                              [&](deque<Test::Variable> ret, deque<Test::Variable> out)
+                              {
+                                  test(ret == out);
+                                  test(ret == in);
+                                  done.set_value(true);
+                              },
+                              [&](std::exception_ptr)
+                              {
+                                  done.set_value(false);
+                              });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opVariableSeqPtr callback = 
+        Test::Callback_TestIntf_opVariableSeqPtr callback =
             Test::newCallback_TestIntf_opVariableSeq(cb, &Callback::opVariableSeq, &Callback::noEx);
         t->begin_opVariableSeq(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
         list<Test::Variable> in;
         Test::Variable v;
-        v.s = "These";
+        v.s = "THESE";
         in.push_back(v);
-        v.s = "are";
+        v.s = "ARE";
         in.push_back(v);
-        v.s = "five";
+        v.s = "FIVE";
         in.push_back(v);
-        v.s = "short";
+        v.s = "SHORT";
         in.push_back(v);
-        v.s = "strings.";
+        v.s = "STRINGS.";
         in.push_back(v);
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opVariableListAsync(in,
+                               [&](list<Test::Variable> ret, list<Test::Variable> out)
+                               {
+                                   test(ret == out);
+                                   test(ret == in);
+                                   done.set_value(true);
+                               },
+                               [&](std::exception_ptr)
+                               {
+                                   done.set_value(false);
+                               });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opVariableListPtr callback = 
+        Test::Callback_TestIntf_opVariableListPtr callback =
             Test::newCallback_TestIntf_opVariableList(cb, &Callback::opVariableList, &Callback::noEx);
         t->begin_opVariableList(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
         deque<Test::StringStringDict> in(5);
-        in[0]["A"] = "a";
-        in[1]["B"] = "b";
-        in[2]["C"] = "c";
-        in[3]["D"] = "d";
-        in[4]["E"] = "e";
+        in[0]["A"] = "A";
+        in[1]["B"] = "B";
+        in[2]["C"] = "C";
+        in[3]["D"] = "D";
+        in[4]["E"] = "E";
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opStringStringDictSeqAsync(in,
+                                      [&](deque<Test::StringStringDict> ret, deque<Test::StringStringDict> out)
+                                      {
+                                          test(ret == out);
+                                          test(ret == in);
+                                          done.set_value(true);
+                                       },
+                                      [&](std::exception_ptr)
+                                      {
+                                          done.set_value(false);
+                                      });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opStringStringDictSeqPtr callback = 
+        Test::Callback_TestIntf_opStringStringDictSeqPtr callback =
             Test::newCallback_TestIntf_opStringStringDictSeq(cb, &Callback::opStringStringDictSeq, &Callback::noEx);
         t->begin_opStringStringDictSeq(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
         list<Test::StringStringDict> in;
         Test::StringStringDict ssd;
-        ssd["A"] = "a";
+        ssd["A"] = "A";
         in.push_back(ssd);
-        ssd["B"] = "b";
+        ssd["B"] = "B";
         in.push_back(ssd);
-        ssd["C"] = "c";
+        ssd["C"] = "C";
         in.push_back(ssd);
-        ssd["D"] = "d";
+        ssd["D"] = "D";
         in.push_back(ssd);
-        ssd["E"] = "e";
+        ssd["E"] = "E";
         in.push_back(ssd);
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opStringStringDictListAsync(in,
+                                   [&](list<Test::StringStringDict> ret, list<Test::StringStringDict> out)
+                                   {
+                                       test(ret == out);
+                                       test(ret == in);
+                                       done.set_value(true);
+                                   },
+                                   [&](std::exception_ptr)
+                                   {
+                                       done.set_value(false);
+                                   });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opStringStringDictListPtr callback = 
+        Test::Callback_TestIntf_opStringStringDictListPtr callback =
             Test::newCallback_TestIntf_opStringStringDictList(cb, &Callback::opStringStringDictList, &Callback::noEx);
         t->begin_opStringStringDictList(in, callback, newInParam(in));
         cb->check();
+#endif
     }
+
 
     {
         deque<Test::E> in(5);
-        in[0] = Test::E1;
-        in[1] = Test::E2;
-        in[2] = Test::E3;
-        in[3] = Test::E1;
-        in[4] = Test::E3;
+        in[0] = Test:: ICE_ENUM(E, E1);
+        in[1] = Test:: ICE_ENUM(E, E2);
+        in[2] = Test:: ICE_ENUM(E, E3);
+        in[3] = Test:: ICE_ENUM(E, E1);
+        in[4] = Test:: ICE_ENUM(E, E3);
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opESeqAsync(in,
+                       [&](deque<Test::E> ret, deque<Test::E> out)
+                       {
+                           test(ret == out);
+                           test(ret == in);
+                           done.set_value(true);
+                       },
+                       [&](std::exception_ptr)
+                       {
+                           done.set_value(false);
+                       });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opESeqPtr callback = 
+        Test::Callback_TestIntf_opESeqPtr callback =
             Test::newCallback_TestIntf_opESeq(cb, &Callback::opESeq, &Callback::noEx);
         t->begin_opESeq(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
         list<Test::E> in;
-        in.push_back(Test::E1);
-        in.push_back(Test::E2);
-        in.push_back(Test::E3);
-        in.push_back(Test::E1);
-        in.push_back(Test::E3);
+        in.push_back(Test:: ICE_ENUM(E, E1));
+        in.push_back(Test:: ICE_ENUM(E, E2));
+        in.push_back(Test:: ICE_ENUM(E, E3));
+        in.push_back(Test:: ICE_ENUM(E, E1));
+        in.push_back(Test:: ICE_ENUM(E, E3));
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opEListAsync(in,
+                        [&](list<Test::E> ret, list<Test::E> out)
+                        {
+                            test(ret == out);
+                            test(ret == in);
+                            done.set_value(true);
+                        },
+                        [&](std::exception_ptr)
+                        {
+                            done.set_value(false);
+                        });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opEListPtr callback = 
+        Test::Callback_TestIntf_opEListPtr callback =
             Test::newCallback_TestIntf_opEList(cb, &Callback::opEList, &Callback::noEx);
         t->begin_opEList(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
-        deque<Test::CPrx> in(5);
-        in[0] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C1:default -p 12010 -t 10000"));
-        in[1] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C2:default -p 12010 -t 10001"));
-        in[2] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C3:default -p 12010 -t 10002"));
-        in[3] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C4:default -p 12010 -t 10003"));
-        in[4] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C5:default -p 12010 -t 10004"));
+        deque<Test::CPrxPtr> in(5);
+        in[0] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C1:" + endp + " -t 10000"));
+        in[1] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C2:" + endp + " -t 10001"));
+        in[2] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C3:" + endp + " -t 10002"));
+        in[3] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C4:" + endp + " -t 10003"));
+        in[4] = ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C5:" + endp + " -t 10004"));
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opCPrxSeqAsync(in,
+                          [&](deque<shared_ptr<Test::CPrx>> ret, deque<shared_ptr<Test::CPrx>> out)
+                          {
+                              test(ret.size() == in.size());
+                              auto op = out.begin();
+                              auto rp = ret.begin();
+                              for(auto i: in)
+                              {
+                                  test(Ice::targetEqualTo(*op++, i));
+                                  test(Ice::targetEqualTo(*rp++, i));
+                              }
+                              done.set_value(true);
+                          },
+                          [&](std::exception_ptr)
+                          {
+                              done.set_value(false);
+                          });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opCPrxSeqPtr callback = 
+        Test::Callback_TestIntf_opCPrxSeqPtr callback =
             Test::newCallback_TestIntf_opCPrxSeq(cb, &Callback::opCPrxSeq, &Callback::noEx);
         t->begin_opCPrxSeq(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
-        list<Test::CPrx> in;
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C1:default -p 12010 -t 10000")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C2:default -p 12010 -t 10001")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C3:default -p 12010 -t 10002")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C4:default -p 12010 -t 10003")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C5:default -p 12010 -t 10004")));
+        list<Test::CPrxPtr> in;
+        in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C1:" + endp + " -t 10000")));
+        in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C2:" + endp + " -t 10001")));
+        in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C3:" + endp + " -t 10002")));
+        in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C4:" + endp + " -t 10003")));
+        in.push_back(ICE_UNCHECKED_CAST(Test::CPrx, communicator->stringToProxy("C5:" + endp + " -t 10004")));
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opCPrxListAsync(in,
+                           [&](list<shared_ptr<Test::CPrx>> ret, list<shared_ptr<Test::CPrx>> out)
+                           {
+                               test(ret.size() == in.size());
+                              auto op = out.begin();
+                              auto rp = ret.begin();
+                              for(auto i: in)
+                              {
+                                  test(Ice::targetEqualTo(*op++, i));
+                                  test(Ice::targetEqualTo(*rp++, i));
+                              }
+                              done.set_value(true);
+                          },
+                          [&](std::exception_ptr)
+                          {
+                              done.set_value(false);
+                          });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opCPrxListPtr callback = 
+        Test::Callback_TestIntf_opCPrxListPtr callback =
             Test::newCallback_TestIntf_opCPrxList(cb, &Callback::opCPrxList, &Callback::noEx);
         t->begin_opCPrxList(in, callback, newInParam(in));
         cb->check();
+#endif
     }
 
     {
         deque<Test::CPtr> in(5);
-        in[0] = new Test::C();
+        in[0] = ICE_MAKE_SHARED(Test::C);
         in[1] = in[0];
         in[2] = in[0];
         in[3] = in[0];
         in[4] = in[0];
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opCSeqAsync(in,
+                       [&](deque<shared_ptr<Test::C>> ret, deque<shared_ptr<Test::C>> out)
+                       {
+                           test(ret == out);
+                           test(ret.size() == in.size());
+                           done.set_value(true);
+                       },
+                       [&](std::exception_ptr)
+                       {
+                           done.set_value(false);
+                       });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
         Test::Callback_TestIntf_opCSeqPtr callback = Test::newCallback_TestIntf_opCSeq(cb, &Callback::opCSeq, &Callback::noEx);
         t->begin_opCSeq(in, callback, newInParam(in));
         cb->check();
+#endif
     }
-    
+
     {
         list<Test::CPtr> in;
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
+        in.push_back(ICE_MAKE_SHARED(Test::C));
+        in.push_back(ICE_MAKE_SHARED(Test::C));
+        in.push_back(ICE_MAKE_SHARED(Test::C));
+        in.push_back(ICE_MAKE_SHARED(Test::C));
+        in.push_back(ICE_MAKE_SHARED(Test::C));
 
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opCListAsync(in,
+                        [&](list<shared_ptr<Test::C>> ret, list<shared_ptr<Test::C>> out)
+                        {
+                            test(ret == out);
+                            test(ret.size() == in.size());
+                            done.set_value(true);
+                        },
+                        [&](std::exception_ptr)
+                        {
+                            done.set_value(false);
+                        });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opCListPtr callback = 
+        Test::Callback_TestIntf_opCListPtr callback =
             Test::newCallback_TestIntf_opCList(cb, &Callback::opCList, &Callback::noEx);
         t->begin_opCList(in, callback, newInParam(in));
         cb->check();
+#endif
     }
-        
-        
+
     {
         Test::ByteSeq in;
         in.push_back('1');
         in.push_back('2');
         in.push_back('3');
         in.push_back('4');
-            
+
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opOutArrayByteSeqAsync(in,
+                                  [&](pair<const Ice::Byte*, const Ice::Byte*> out)
+                                  {
+                                      test(arrayRangeEquals<Ice::Byte>(
+                                               make_pair<const Ice::Byte*>(&in[0], &in[0] + in.size()), out));
+                                      done.set_value(true);
+                                  },
+                                  [&](std::exception_ptr)
+                                  {
+                                      done.set_value(false);
+                                  });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opOutArrayByteSeqPtr callback = Test::newCallback_TestIntf_opOutArrayByteSeq(cb, 
+        Test::Callback_TestIntf_opOutArrayByteSeqPtr callback = Test::newCallback_TestIntf_opOutArrayByteSeq(cb,
                                                                                                              &Callback::opOutArrayByteSeq, &Callback::noEx);
-            
+
         t->begin_opOutArrayByteSeq(in, callback, newInParam(in));
         cb->check();
+#endif
     }
-        
+
+
     {
         Test::ByteSeq in;
         in.push_back('1');
         in.push_back('2');
         in.push_back('3');
         in.push_back('4');
-            
+
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        t->opOutRangeByteSeqAsync(in,
+                                  [&](Test::ByteSeq out)
+                                  {
+                                      test(out == in);
+                                      done.set_value(true);
+                                  },
+                                  [&](std::exception_ptr)
+                                  {
+                                      done.set_value(false);
+                                  });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opOutRangeByteSeqPtr callback = Test::newCallback_TestIntf_opOutRangeByteSeq(cb, 
+        Test::Callback_TestIntf_opOutRangeByteSeqPtr callback = Test::newCallback_TestIntf_opOutRangeByteSeq(cb,
                                                                                                              &Callback::opOutRangeByteSeq, &Callback::noEx);
-            
+
         t->begin_opOutRangeByteSeq(in, callback, newInParam(in));
         cb->check();
-    }
-
-    cout << "ok" << endl;
-#ifdef ICE_CPP11
-
-    cout << "testing alternate strings with new C++11 AMI callbacks... " << flush;
-    {
-        Util::string_view in = "Hello World!";
-            
-        CallbackPtr cb = new Callback();
-            
-        t->begin_opString(in,
-                          [=](const Util::string_view& p1, const Util::string_view& p2)
-                          {
-                              cb->opString(p1, p2, newInParam(in));
-                          },
-                          [=](const Ice::Exception& ex)
-                          {
-                              cb->noEx(ex, newInParam(in));
-                          });
-    }
-    cout << "ok" << endl;
-
-
-    cout << "testing alternate sequences with C++11 AMI callbacks... " << flush;
-
-    {
-        Test::DoubleSeq in(5);
-        in[0] = 3.14;
-        in[1] = 1 / 3;
-        in[2] = 0.375;
-        in[3] = 4 / 3;
-        in[4] = -5.725;
-        Ice::Double inArray[5];
-        for(int i = 0; i < 5; ++i)
-        {
-            inArray[i] = in[i];
-        }
-        pair<const Ice::Double*, const Ice::Double*> inPair(inArray, inArray + 5);
-
-        CallbackPtr cb = new Callback();
-        t->begin_opDoubleArray(inPair, 
-                               [=](const pair<const Ice::Double*, const Ice::Double*>& p1, const pair<const Ice::Double*, const Ice::Double*>& p2)
-                               {
-                                   cb->opDoubleArray(p1, p2, newInParam(inPair));
-                               },
-                               [=](const Ice::Exception& ex)
-                               {
-                                   cb->noEx(ex, newInParam(inPair));
-                               });
-        cb->check();
-    }
-
-    {
-        Test::BoolSeq in(5);
-        in[0] = false;
-        in[1] = true;
-        in[2] = true;
-        in[3] = false;
-        in[4] = true;
-        bool inArray[5];
-        for(int i = 0; i < 5; ++i)
-        {
-            inArray[i] = in[i];
-        }
-        pair<const bool*, const bool*> inPair(inArray, inArray + 5);
-
-        CallbackPtr cb = new Callback();
-        t->begin_opBoolArray(inPair, 
-                             [=](const pair<const bool*, const bool*>& p1, const pair<const bool*, const bool*>& p2)
-                             {
-                                 cb->opBoolArray(p1, p2, newInParam(inPair));
-                             },
-                             [=](const Ice::Exception& ex)
-                             {
-                                 cb->noEx(ex, newInParam(inPair));
-                             });
-        cb->check();
-    }
-
-    {
-        Ice::Byte in[5];
-        in[0] = '1';
-        in[1] = '2';
-        in[2] = '3';
-        in[3] = '4';
-        in[4] = '5';
-        pair<const Ice::Byte*, const Ice::Byte*> inPair(in, in + 5);
-
-        CallbackPtr cb = new Callback();
-        t->begin_opByteArray(inPair, 
-                             [=](const pair<const Ice::Byte*, const Ice::Byte*>& p1, 
-                                 const pair<const Ice::Byte*, const Ice::Byte*>& p2)
-                             {
-                                 cb->opByteArray(p1, p2, newInParam(inPair));
-                             },
-                             [=](const Ice::Exception& ex)
-                             {
-                                 cb->noEx(ex, newInParam(inPair));
-                             });
-        cb->check();
-    }
-
-    {
-        Test::VariableList in;
-        Test::Variable inArray[5];
-        inArray[0].s = "These";
-        in.push_back(inArray[0]);
-        inArray[1].s = "are";
-        in.push_back(inArray[1]);
-        inArray[2].s = "five";
-        in.push_back(inArray[2]);
-        inArray[3].s = "short";
-        in.push_back(inArray[3]);
-        inArray[4].s = "strings.";
-        in.push_back(inArray[4]);
-        pair<const Test::Variable*, const Test::Variable*> inPair(inArray, inArray + 5);
-
-        CallbackPtr cb = new Callback();
-        t->begin_opVariableArray(inPair, 
-                                 [=](const pair<const Test::Variable*, const Test::Variable*>& p1,
-                                     const pair<const Test::Variable*, const Test::Variable*>& p2)
-                                 {
-                                     cb->opVariableArray(p1, p2, newInParam(inPair));
-                                 },
-                                 [=](const Ice::Exception& ex)
-                                 {
-                                     cb->noEx(ex, newInParam(inPair));
-                                 });
-        cb->check();
-    }
-
-    {
-        Test::BoolSeq in(5);
-        in[0] = false;
-        in[1] = true;
-        in[2] = true;
-        in[3] = false;
-        in[4] = true;
-        pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator> inPair(in.begin(), in.end());
-
-        CallbackPtr cb = new Callback();
-        t->begin_opBoolRange(inPair,
-                             [=](const pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator>& p1,
-                                 const pair<Test::BoolSeq::const_iterator, Test::BoolSeq::const_iterator>& p2)
-                             {
-                                 cb->opBoolRange(p1, p2, newInParam(inPair));
-                             },
-                             [=](const Ice::Exception& ex)
-                             {
-                                 cb->noEx(ex, newInParam(inPair));
-                             });
-        cb->check();
-    }
-
-    {
-        Test::ByteList in;
-        in.push_back('1');
-        in.push_back('2');
-        in.push_back('3');
-        in.push_back('4');
-        in.push_back('5');
-        pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
-
-        CallbackPtr cb = new Callback();
-        t->begin_opByteRange(inPair, 
-                             [=](const pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>& p1,
-                                 const pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>& p2)
-                             {
-                                 cb->opByteRange(p1, p2, newInParam(inPair));
-                             },
-                             [=](const Ice::Exception& ex)
-                             {
-                                 cb->noEx(ex, newInParam(inPair));
-                             });
-        cb->check();
-    }
-
-    {
-        Test::VariableList in;
-        Test::Variable v;
-        v.s = "These";
-        in.push_back(v);
-        v.s = "are";
-        in.push_back(v);
-        v.s = "five";
-        in.push_back(v);
-        v.s = "short";
-        in.push_back(v);
-        v.s = "strings.";
-        in.push_back(v);
-        pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator> inPair(in.begin(), in.end());
-
-        CallbackPtr cb = new Callback();
-        t->begin_opVariableRange(inPair, 
-                                 [=](const pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator>& p1,
-                                     const pair<Test::VariableList::const_iterator, Test::VariableList::const_iterator>& p2)
-                                 {
-                                     cb->opVariableRange(p1, p2, newInParam(inPair));
-                                 },
-                                 [=](const Ice::Exception& ex)
-                                 {
-                                     cb->noEx(ex, newInParam(inPair));
-                                 });
-        cb->check();
-    }
-
-    {
-        Test::ByteList in;
-        in.push_back('1');
-        in.push_back('2');
-        in.push_back('3');
-        in.push_back('4');
-        in.push_back('5');
-        pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator> inPair(in.begin(), in.end());
-
-        CallbackPtr cb = new Callback();
-        t->begin_opByteRangeType(inPair, 
-                                 [=](const pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>& p1,
-                                     const pair<Test::ByteList::const_iterator, Test::ByteList::const_iterator>& p2)
-                                 {
-                                     cb->opByteRangeType(p1, p2, newInParam(inPair));
-                                 },
-                                 [=](const Ice::Exception& ex)
-                                 {
-                                     cb->noEx(ex, newInParam(inPair));
-                                 });
-        cb->check();
-    }
-
-    {
-        Test::VariableList in;
-        deque<Test::Variable> inSeq;
-        Test::Variable v;
-        v.s = "These";
-        in.push_back(v);
-        inSeq.push_back(v);
-        v.s = "are";
-        in.push_back(v);
-        inSeq.push_back(v);
-        v.s = "five";
-        in.push_back(v);
-        inSeq.push_back(v);
-        v.s = "short";
-        in.push_back(v);
-        inSeq.push_back(v);
-        v.s = "strings.";
-        in.push_back(v);
-        inSeq.push_back(v);
-        pair<deque<Test::Variable>::const_iterator, deque<Test::Variable>::const_iterator> inPair(inSeq.begin(), 
-                                                                                                  inSeq.end());
-
-        CallbackPtr cb = new Callback();
-        t->begin_opVariableRangeType(inPair, 
-                                     [=](const pair<deque<Test::Variable>::const_iterator, deque<Test::Variable>::const_iterator>& p1,
-                                         const pair<deque<Test::Variable>::const_iterator, deque<Test::Variable>::const_iterator>& p2)
-                                     {
-                                         cb->opVariableRangeType(p1, p2, newInParam(inPair));
-                                     },
-                                     [=](const Ice::Exception& ex)
-                                     {
-                                         cb->noEx(ex, newInParam(inPair));
-                                     });
-        cb->check();
-    }
-
-    {
-        deque<bool> in(5);
-        in[0] = false;
-        in[1] = true;
-        in[2] = true;
-        in[3] = false;
-        in[4] = true;
-
-        CallbackPtr cb = new Callback();
-        t->begin_opBoolSeq(in, 
-                           [=](const deque<bool>& p1, const deque<bool>& p2)
-                           {
-                               cb->opBoolSeq(p1, p2, newInParam(in));
-                           },
-                           [=](const Ice::Exception& ex)
-                           {
-                               cb->noEx(ex, newInParam(in));
-                           });
-        cb->check();
-    }
-
-    {
-        list<bool> in;
-        in.push_back(false);
-        in.push_back(true);
-        in.push_back(true);
-        in.push_back(false);
-        in.push_back(true);
-
-        CallbackPtr cb = new Callback();
-        t->begin_opBoolList(in,
-                            [=](const list<bool>& p1, const list<bool>& p2)
-                            {
-                                cb->opBoolList(p1, p2, newInParam(in));
-                            },
-                            [=](const Ice::Exception& ex)
-                            {
-                                cb->noEx(ex, newInParam(in));
-                            });
-        cb->check();
-    }
-
-    {
-        deque< ::Ice::Byte> in(5);
-        in[0] = '1';
-        in[1] = '2';
-        in[2] = '3';
-        in[3] = '4';
-        in[4] = '5';
-
-        CallbackPtr cb = new Callback();
-        t->begin_opByteSeq(in, 
-                           [=](const deque< ::Ice::Byte>& p1, const deque< ::Ice::Byte>& p2)
-                           {
-                               cb->opByteSeq(p1, p2, newInParam(in));
-                           },
-                           [=](const Ice::Exception& ex)
-                           {
-                               cb->noEx(ex, newInParam(in));
-                           });
-        cb->check();
-    }
-
-    {
-        list< ::Ice::Byte> in;
-        in.push_back('1');
-        in.push_back('2');
-        in.push_back('3');
-        in.push_back('4');
-        in.push_back('5');
-
-        CallbackPtr cb = new Callback();
-        t->begin_opByteList(in, 
-                            [=](const list< ::Ice::Byte>& p1, const list< ::Ice::Byte>& p2)
-                            {
-                                cb->opByteList(p1, p2, newInParam(in));
-                            },
-                            [=](const Ice::Exception& ex)
-                            {
-                                cb->noEx(ex, newInParam(in));
-                            });
-        cb->check();
-    }
-
-    {
-        MyByteSeq in(5);
-        int i = 0;
-        for(MyByteSeq::iterator p = in.begin(); p != in.end(); ++p)
-        {
-            *p = '1' + i++;
-        }
-
-        CallbackPtr cb = new Callback();
-        t->begin_opMyByteSeq(in,
-                             [=](const MyByteSeq& p1, const MyByteSeq& p2)
-                             {
-                                 cb->opMyByteSeq(p1, p2, newInParam(in));
-                             },
-                             [=](const Ice::Exception& ex)
-                             {
-                                 cb->noEx(ex, newInParam(in));
-                             });
-        cb->check();
-    }
-
-    {
-        deque<string> in(5);
-        in[0] = "These";
-        in[1] = "are";
-        in[2] = "five";
-        in[3] = "short";
-        in[4] = "strings.";
-
-        CallbackPtr cb = new Callback();
-        t->begin_opStringSeq(in, 
-                             [=](const deque<string>& p1, const deque<string>& p2)
-                             {
-                                 cb->opStringSeq(p1, p2, newInParam(in));
-                             },
-                             [=](const Ice::Exception& ex)
-                             {
-                                 cb->noEx(ex, newInParam(in));
-                             });
-        cb->check();
-    }
-
-    {
-        list<string> in;
-        in.push_back("These");
-        in.push_back("are");
-        in.push_back("five");
-        in.push_back("short");
-        in.push_back("strings.");
-
-        CallbackPtr cb = new Callback();
-        t->begin_opStringList(in,
-                              [=](const list<string>& p1, const list<string>& p2)
-                              {
-                                  cb->opStringList(p1, p2, newInParam(in));
-                              },
-                              [=](const Ice::Exception& ex)
-                              {
-                                  cb->noEx(ex, newInParam(in));
-                              });
-        cb->check();
-    }
-
-    {
-        deque<Test::Fixed> in(5);
-        in[0].s = 1;
-        in[1].s = 2;
-        in[2].s = 3;
-        in[3].s = 4;
-        in[4].s = 5;
-
-        CallbackPtr cb = new Callback();
-        t->begin_opFixedSeq(in, 
-                            [=](const deque<Test::Fixed>& p1, const deque<Test::Fixed>& p2)
-                            {
-                                cb->opFixedSeq(p1, p2, newInParam(in));
-                            },
-                            [=](const Ice::Exception& ex)
-                            {
-                                cb->noEx(ex, newInParam(in));
-                            });
-        cb->check();
-    }
-
-    {
-        list<Test::Fixed> in(5);
-        short num = 1;
-        for(list<Test::Fixed>::iterator p = in.begin(); p != in.end(); ++p)
-        {
-            (*p).s = num++;
-        }
-
-        CallbackPtr cb = new Callback();
-        t->begin_opFixedList(in,
-                             [=](const list<Test::Fixed> p1, const list<Test::Fixed> p2)
-                             {
-                                 cb->opFixedList(p1, p2, newInParam(in));
-                             },
-                             [=](const Ice::Exception& ex)
-                             {
-                                 cb->noEx(ex, newInParam(in));
-                             });
-        cb->check();
-    }
-
-    {
-        deque<Test::Variable> in(5);
-        in[0].s = "These";
-        in[1].s = "are";
-        in[2].s = "five";
-        in[3].s = "short";
-        in[4].s = "strings.";
-
-        CallbackPtr cb = new Callback();
-        t->begin_opVariableSeq(in,
-                               [=](const deque<Test::Variable>& p1, const deque<Test::Variable>& p2)
-                               {
-                                   cb->opVariableSeq(p1, p2, newInParam(in));
-                               },
-                               [=](const Ice::Exception& ex)
-                               {
-                                   cb->noEx(ex, newInParam(in));
-                               });
-        cb->check();
-    }
-
-    {
-        list<Test::Variable> in;
-        Test::Variable v;
-        v.s = "These";
-        in.push_back(v);
-        v.s = "are";
-        in.push_back(v);
-        v.s = "five";
-        in.push_back(v);
-        v.s = "short";
-        in.push_back(v);
-        v.s = "strings.";
-        in.push_back(v);
-
-        CallbackPtr cb = new Callback();
-        t->begin_opVariableList(in,
-                                [=](const list<Test::Variable>& p1, const list<Test::Variable>& p2)
-                                {
-                                    cb->opVariableList(p1, p2, newInParam(in));
-                                },
-                                [=](const Ice::Exception& ex)
-                                {
-                                    cb->noEx(ex, newInParam(in));
-                                });
-        cb->check();
-    }
-
-    {
-        deque<Test::StringStringDict> in(5);
-        in[0]["A"] = "a";
-        in[1]["B"] = "b";
-        in[2]["C"] = "c";
-        in[3]["D"] = "d";
-        in[4]["E"] = "e";
-
-        CallbackPtr cb = new Callback();
-        t->begin_opStringStringDictSeq(in,
-                                       [=](const deque<Test::StringStringDict>& p1, const deque<Test::StringStringDict>& p2)
-                                       {
-                                           cb->opStringStringDictSeq(p1, p2, newInParam(in));
-                                       },
-                                       [=](const Ice::Exception& ex)
-                                       {
-                                           cb->noEx(ex, newInParam(in));
-                                       });
-        cb->check();
-    }
-
-    {
-        list<Test::StringStringDict> in;
-        Test::StringStringDict ssd;
-        ssd["A"] = "a";
-        in.push_back(ssd);
-        ssd["B"] = "b";
-        in.push_back(ssd);
-        ssd["C"] = "c";
-        in.push_back(ssd);
-        ssd["D"] = "d";
-        in.push_back(ssd);
-        ssd["E"] = "e";
-        in.push_back(ssd);
-
-        CallbackPtr cb = new Callback();
-        t->begin_opStringStringDictList(in,
-                                        [=](const list<Test::StringStringDict>& p1, 
-                                            const list<Test::StringStringDict>& p2)
-                                        {
-                                            cb->opStringStringDictList(p1, p2, newInParam(in));
-                                        },
-                                        [=](const Ice::Exception& ex)
-                                        {
-                                            cb->noEx(ex, newInParam(in));
-                                        });
-        cb->check();
-    }
-
-    {
-        deque<Test::E> in(5);
-        in[0] = Test::E1;
-        in[1] = Test::E2;
-        in[2] = Test::E3;
-        in[3] = Test::E1;
-        in[4] = Test::E3;
-
-        CallbackPtr cb = new Callback();
-        t->begin_opESeq(in,
-                        [=](const deque<Test::E>& p1, const deque<Test::E>& p2)
-                        {
-                            cb->opESeq(p1, p2, newInParam(in));
-                        },
-                        [=](const Ice::Exception& ex)
-                        {
-                            cb->noEx(ex, newInParam(in));
-                        });
-        cb->check();
-    }
-
-    {
-        list<Test::E> in;
-        in.push_back(Test::E1);
-        in.push_back(Test::E2);
-        in.push_back(Test::E3);
-        in.push_back(Test::E1);
-        in.push_back(Test::E3);
-
-        CallbackPtr cb = new Callback();
-        t->begin_opEList(in,
-                         [=](const list<Test::E>& p1, const list<Test::E>& p2)
-                         {
-                             cb->opEList(p1, p2, newInParam(in));
-                         },
-                         [=](const Ice::Exception& ex)
-                         {
-                             cb->noEx(ex, newInParam(in));
-                         });
-        cb->check();
-    }
-
-    {
-        deque<Test::CPrx> in(5);
-        in[0] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C1:default -p 12010 -t 10000"));
-        in[1] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C2:default -p 12010 -t 10001"));
-        in[2] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C3:default -p 12010 -t 10002"));
-        in[3] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C4:default -p 12010 -t 10003"));
-        in[4] = Test::CPrx::uncheckedCast(communicator->stringToProxy("C5:default -p 12010 -t 10004"));
-
-        CallbackPtr cb = new Callback();
-        t->begin_opCPrxSeq(in,
-                           [=](const deque<Test::CPrx>& p1, const deque<Test::CPrx>& p2)
-                           {
-                               cb->opCPrxSeq(p1, p2, newInParam(in));
-                           },
-                           [=](const Ice::Exception& ex)
-                           {
-                               cb->noEx(ex, newInParam(in));
-                           });
-        cb->check();
-    }
-
-    {
-        list<Test::CPrx> in;
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C1:default -p 12010 -t 10000")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C2:default -p 12010 -t 10001")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C3:default -p 12010 -t 10002")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C4:default -p 12010 -t 10003")));
-        in.push_back(Test::CPrx::uncheckedCast(communicator->stringToProxy("C5:default -p 12010 -t 10004")));
-
-        CallbackPtr cb = new Callback();
-        t->begin_opCPrxList(in,
-                            [=](const list<Test::CPrx>& p1, const list<Test::CPrx>& p2)
-                            {
-                                cb->opCPrxList(p1, p2, newInParam(in));
-                            },
-                            [=](const Ice::Exception& ex)
-                            {
-                                cb->noEx(ex, newInParam(in));
-                            });
-        cb->check();
-    }
-
-    {
-        deque<Test::CPtr> in(5);
-        in[0] = new Test::C();
-        in[1] = in[0];
-        in[2] = in[0];
-        in[3] = in[0];
-        in[4] = in[0];
-
-        CallbackPtr cb = new Callback();
-        t->begin_opCSeq(in,
-                        [=](const deque<Test::CPtr>& p1, const deque<Test::CPtr>& p2)
-                        {
-                            cb->opCSeq(p1, p2, newInParam(in));
-                        },
-                        [=](const Ice::Exception& ex)
-                        {
-                            cb->noEx(ex, newInParam(in));
-                        });
-        cb->check();
-    }
-    
-    {
-        list<Test::CPtr> in;
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
-        in.push_back(new Test::C());
-
-        CallbackPtr cb = new Callback();
-        t->begin_opCList(in,
-                         [=](const list<Test::CPtr>& p1, const list<Test::CPtr>& p2)
-                         {
-                             cb->opCList(p1, p2, newInParam(in));
-                         },
-                         [=](const Ice::Exception& ex)
-                         {
-                             cb->noEx(ex, newInParam(in));
-                         });
-        cb->check();
-    }
-        
-        
-    {
-        Test::ByteSeq in;
-        in.push_back('1');
-        in.push_back('2');
-        in.push_back('3');
-        in.push_back('4');
-            
-        CallbackPtr cb = new Callback();
-        t->begin_opOutArrayByteSeq(in,
-                                   [=](const ::std::pair<const ::Ice::Byte*, const ::Ice::Byte*>& p1)
-                                   {
-                                       cb->opOutArrayByteSeq(p1, newInParam(in));
-                                   },
-                                   [=](const Ice::Exception& ex)
-                                   {
-                                       cb->noEx(ex, newInParam(in));
-                                   });
-        cb->check();
-    }
-        
-    {
-        Test::ByteSeq in;
-        in.push_back('1');
-        in.push_back('2');
-        in.push_back('3');
-        in.push_back('4');
-            
-        CallbackPtr cb = new Callback();
-        t->begin_opOutRangeByteSeq(in,
-                                   [=](const ::std::pair< ::Test::ByteSeq::const_iterator, ::Test::ByteSeq::const_iterator>& p1)
-                                   {
-                                       cb->opOutRangeByteSeq(p1, newInParam(in));
-                                   },
-                                   [=](const Ice::Exception& ex)
-                                   {
-                                       cb->noEx(ex, newInParam(in));
-                                   });
-        cb->check();
-    }
-    cout << "ok" << endl;
 #endif
+    }
+
+    cout << "ok" << endl;
 
     cout << "testing alternate dictionaries with new AMI... " << flush;
     {
         {
             Test::IntStringDict idict;
-                
-            idict[1] = "one";
-            idict[2] = "two";
-            idict[3] = "three";
-            idict[-1] = "minus one";
-                
+
+            idict[1] = "ONE";
+            idict[2] = "TWO";
+            idict[3] = "THREE";
+            idict[-1] = "MINUS ONE";
+
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opIntStringDictAsync(idict).get();
+            test(r.odict == idict);
+            test(r.returnValue == idict);
+#else
             Test::IntStringDict out;
-            out[5] = "five";
-                
+            out[5] = "FIVE";
+
             Ice::AsyncResultPtr r = t->begin_opIntStringDict(idict);
             Test::IntStringDict ret = t->end_opIntStringDict(out, r);
             test(out == idict);
             test(ret == idict);
+#endif
         }
 
         {
             Test::CustomMap<std::string, Ice::Int> idict;
-                
-            idict["one"] = 1;
-            idict["two"] = 2;
-            idict["three"] = 3;
-            idict["minus one"] = -1;
-                
+
+            idict["ONE"] = 1;
+            idict["TWO"] = 2;
+            idict["THREE"] = 3;
+            idict["MINUS ONE"] = -1;
+
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opVarDictAsync(idict).get();
+            test(r.odict == idict);
+            test(r.returnValue.size() == 1000);
+            for(auto i: r.returnValue)
+            {
+                test(i.second == i.first * i.first);
+            }
+#else
             Test::CustomMap<std::string, Ice::Int> out;
-            out["five"] = 5;
-                
+            out["FIVE"] = 5;
+
             Ice::AsyncResultPtr r = t->begin_opVarDict(idict);
             Test::CustomMap<Ice::Long, Ice::Long> ret = t->end_opVarDict(out, r);
-#if defined(_MSC_VER) && (_MSC_VER == 1600)
-            //
-            // operator== for std::unordered_map does not work with Visual Studio 2010
-            //
-            test(out.size() == idict.size());
-        
-            for(Test::CustomMap<std::string, Ice::Int>::iterator p = idict.begin(); p != idict.end(); ++p)
-            {
-                test(out[p->first] == p->second);
-            } 
-#else
+
             test(out == idict);
-#endif
             test(ret.size() == 1000);
             for(Test::CustomMap<Ice::Long, Ice::Long>::const_iterator i = ret.begin(); i != ret.end(); ++i)
             {
                 test(i->second == i->first * i->first);
             }
+#endif
         }
 
         {
             std::map<int, Util::string_view> idict;
 
-            idict[1] = "one";
-            idict[2] = "two";
-            idict[3] = "three";
-            idict[-1] = "minus one";
-                
+            idict[1] = "ONE";
+            idict[2] = "TWO";
+            idict[3] = "THREE";
+            idict[-1] = "MINUS ONE";
+
+#ifdef ICE_CPP11_MAPPING
+            auto r = t->opCustomIntStringDictAsync(idict).get();
+            test(r.odict.size() == idict.size());
+
+            test(r.odict == r.returnValue);
+
+            for(auto i: idict)
+            {
+                test(r.odict[i.first] == i.second);
+            }
+#else
             Test::IntStringDict out;
-            out[5] = "five";
-        
+            out[5] = "FIVE";
+
             Ice::AsyncResultPtr r = t->begin_opCustomIntStringDict(idict);
             Test::IntStringDict ret = t->end_opCustomIntStringDict(out, r);
-               
+
             test(out.size() == idict.size());
             test(out == ret);
             for(std::map<int, Util::string_view>::const_iterator p = idict.begin();
@@ -3066,139 +3240,131 @@ allTests(const Ice::CommunicatorPtr& communicator)
                 test(out[p->first].size() == p->second.size());
                 //  test(out[p->first] == p->second.to_string()); does not always work due to string converter
             }
+#endif
         }
+
     }
     cout << "ok" << endl;
-        
+
     cout << "testing alternate dictionaries with new AMI callbacks... " << flush;
     {
         {
             Test::IntStringDict idict;
-                
-            idict[1] = "one";
-            idict[2] = "two";
-            idict[3] = "three";
-            idict[-1] = "minus one";
-                   
+
+            idict[1] = "ONE";
+            idict[2] = "TWO";
+            idict[3] = "THREE";
+            idict[-1] = "MINUS ONE";
+
+#ifdef ICE_CPP11_MAPPING
+            promise<bool> done;
+
+            t->opIntStringDictAsync(idict,
+                                    [&](map<int, string> ret, map<int, string> out)
+                                    {
+                                        test(ret == out);
+                                        test(ret == idict);
+                                        done.set_value(true);
+                                    },
+                                    [&](std::exception_ptr)
+                                    {
+                                        done.set_value(false);
+                                    });
+
+            test(done.get_future().get());
+
+#else
             CallbackPtr cb = new Callback();
-            Test::Callback_TestIntf_opIntStringDictPtr callback = 
+            Test::Callback_TestIntf_opIntStringDictPtr callback =
                 Test::newCallback_TestIntf_opIntStringDict(cb, &Callback::opIntStringDict, &Callback::noEx);
             t->begin_opIntStringDict(idict, callback, newInParam(idict));
             cb->check();
+#endif
         }
 
         {
             Test::CustomMap<std::string, Ice::Int> idict;
-                
-            idict["one"] = 1;
-            idict["two"] = 2;
-            idict["three"] = 3;
-            idict["minus one"] = -1;
-                
+
+            idict["ONE"] = 1;
+            idict["TWO"] = 2;
+            idict["THREE"] = 3;
+            idict["MINUS ONE"] = -1;
+
+#ifdef ICE_CPP11_MAPPING
+            promise<bool> done;
+
+            t->opVarDictAsync(idict,
+                              [&](Test::CustomMap<long long, long long> ret, Test::CustomMap<string, int> out)
+                              {
+                                  test(out == idict);
+                                  for(auto i: ret)
+                                  {
+                                      test(i.second == i.first * i.first);
+                                  }
+
+                                  done.set_value(true);
+                              },
+                              [&](std::exception_ptr)
+                              {
+                                  done.set_value(false);
+                              });
+
+            test(done.get_future().get());
+
+#else
+
             CallbackPtr cb = new Callback();
-            Test::Callback_TestIntf_opVarDictPtr callback = 
+            Test::Callback_TestIntf_opVarDictPtr callback =
                 Test::newCallback_TestIntf_opVarDict(cb, &Callback::opVarDict, &Callback::noEx);
             t->begin_opVarDict(idict, callback, newInParam(idict));
             cb->check();
+#endif
         }
 
         {
             std::map<int, Util::string_view> idict;
 
-            idict[1] = "one";
-            idict[2] = "two";
-            idict[3] = "three";
-            idict[-1] = "minus one";
-                
+            idict[1] = "ONE";
+            idict[2] = "TWO";
+            idict[3] = "THREE";
+            idict[-1] = "MINUS ONE";
+
+#ifdef ICE_CPP11_MAPPING
+            promise<bool> done;
+
+            t->opCustomIntStringDictAsync(idict,
+                                          [&](map<int, Util::string_view> ret, map<int, Util::string_view> out)
+                                          {
+                                              test(ret == out);
+                                              for(auto i: idict)
+                                              {
+                                                  test(ret[i.first] == i.second);
+                                              }
+
+                                              done.set_value(true);
+                                           },
+                                           [&](std::exception_ptr)
+                                           {
+                                              done.set_value(false);
+                                           });
+
+            test(done.get_future().get());
+#else
             CallbackPtr cb = new Callback();
-            Test::Callback_TestIntf_opCustomIntStringDictPtr callback = 
+            Test::Callback_TestIntf_opCustomIntStringDictPtr callback =
                 Test::newCallback_TestIntf_opCustomIntStringDict(cb, &Callback::opCustomIntStringDict, &Callback::noEx);
             t->begin_opCustomIntStringDict(idict, callback, newInParam(idict));
             cb->check();
-        }
-
-    }
-    cout << "ok" << endl;
-
-#ifdef ICE_CPP11  
-    cout << "testing alternate dictionaries with new C++11 AMI callbacks... " << flush;
-    {
-        {
-            Test::IntStringDict idict;
-                
-            idict[1] = "one";
-            idict[2] = "two";
-            idict[3] = "three";
-            idict[-1] = "minus one";
-                
-            Test::IntStringDict out;
-            out[5] = "five";
-                
-            CallbackPtr cb = new Callback();
-                
-            t->begin_opIntStringDict(idict, 
-                                     [=](const Test::IntStringDict& ret, const Test::IntStringDict& out)
-                                     {
-                                         cb->opIntStringDict(ret, out, newInParam(idict));
-                                     },
-                                     [=](const Ice::Exception& ex)
-                                     {
-                                         cb->noEx(ex, newInParam(idict));
-                                     });               
-            cb->check();
-        }
-
-        {
-            Test::CustomMap<std::string, Ice::Int> idict;
-                
-            idict["one"] = 1;
-            idict["two"] = 2;
-            idict["three"] = 3;
-            idict["minus one"] = -1;
-                
-            Test::CustomMap<std::string, Ice::Int> out;
-            out["five"] = 5;
-                
-            CallbackPtr cb = new Callback();
-                
-            t->begin_opVarDict(idict, 
-                               [=](const Test::CustomMap<Ice::Long, Ice::Long>& ret, 
-                                   const Test::CustomMap<std::string, Ice::Int>& out)
-                               {
-                                   cb->opVarDict(ret, out, newInParam(idict));
-                               },
-                               [=](const Ice::Exception& ex)
-                               {
-                                   cb->noEx(ex, newInParam(idict));
-                               });               
-            cb->check();
-        }
-
-        {
-            std::map<int, Util::string_view> idict;
-
-            idict[1] = "one";
-            idict[2] = "two";
-            idict[3] = "three";
-            idict[-1] = "minus one";
-                
-            CallbackPtr cb = new Callback();
-
-            t->begin_opCustomIntStringDict(idict,
-                                           [=](const std::map<int, Util::string_view>& ret,
-                                               const std::map<int, Util::string_view>& out)
-                                           {
-                                               cb->opCustomIntStringDict(ret, out, newInParam(idict));
-                                           },
-                                           [=](const Ice::Exception& ex)
-                                           {
-                                               cb->noEx(ex, newInParam(idict));
-                                           });               
-            cb->check();
-        }
-    }
-    cout << "ok" << endl;
 #endif
+        }
+
+    }
+    cout << "ok" << endl;
+
+
+
+#ifndef ICE_CPP11_MAPPING
+
 
     cout << "testing class mapped structs ... " << flush;
     Test::ClassStructPtr cs = new Test::ClassStruct();
@@ -3231,131 +3397,128 @@ allTests(const Ice::CommunicatorPtr& communicator)
     }
     {
         CallbackPtr cb = new Callback();
-        Test::Callback_TestIntf_opClassStructPtr callback = 
+        Test::Callback_TestIntf_opClassStructPtr callback =
             Test::newCallback_TestIntf_opClassStruct(cb, &Callback::opClassStruct, &Callback::noEx);
         t->begin_opClassStruct(cs, csseq1, callback, newInParam(make_pair(cs, csseq1)));
         cb->check();
     }
     cout << "ok" << endl;
-#ifdef ICE_CPP11
-    cout << "testing class mapped structs with C++11 AMI... " << flush;
-    {
-        CallbackPtr cb = new Callback();
-        t->begin_opClassStruct(cs, csseq1,
-                               [=](const ::Test::ClassStructPtr& p1,
-                                   const ::Test::ClassStructPtr& p2,
-                                   const ::Test::ClassStructSeq& p3)
-                               {
-                                   cb->opClassStruct(p1, p2, p3, newInParam(make_pair(cs, csseq1)));
-                               },
-                               [=](const Ice::Exception& ex)
-                               {
-                                   cb->noEx(ex, newInParam(make_pair(cs, csseq1)));
-                               });
-        cb->check();
-    }
-    cout << "ok" << endl;
+
 #endif
 
     cout << "testing wstring... " << flush;
 
     Test1::WstringSeq wseq1;
-    wseq1.push_back(L"Wide String");
+    wseq1.push_back(L"WIDE STRING");
 
     Test2::WstringSeq wseq2;
     wseq2 = wseq1;
 
     Test1::WstringWStringDict wdict1;
-    wdict1[L"Key"] = L"Value";
+    wdict1[L"KEY"] = L"VALUE";
 
     Test2::WstringWStringDict wdict2;
     wdict2 = wdict1;
 
-    ref = communicator->getProperties()->getPropertyWithDefault("Custom.WstringProxy1", "wstring1:default -p 12010");
+    ref = communicator->getProperties()->getPropertyWithDefault("Custom.WstringProxy1", "wstring1:" + endp);
     base = communicator->stringToProxy(ref);
     test(base);
-    Test1::WstringClassPrx wsc1 = Test1::WstringClassPrx::checkedCast(base);
+    Test1::WstringClassPrxPtr wsc1 = ICE_CHECKED_CAST(Test1::WstringClassPrx, base);
     test(t);
 
-    ref = communicator->getProperties()->getPropertyWithDefault("Custom.WstringProxy2", "wstring2:default -p 12010");
+    ref = communicator->getProperties()->getPropertyWithDefault("Custom.WstringProxy2", "wstring2:" + endp);
     base = communicator->stringToProxy(ref);
     test(base);
-    Test2::WstringClassPrx wsc2 = Test2::WstringClassPrx::checkedCast(base);
+    Test2::WstringClassPrxPtr wsc2 = ICE_CHECKED_CAST(Test2::WstringClassPrx, base);
     test(t);
 
-    wstring wstr = L"A Wide String";
+    wstring wstr = L"A WIDE STRING";
     wstring out;
     wstring ret = wsc1->opString(wstr, out);
     test(out == wstr);
     test(ret == wstr);
 
     {
+#ifdef ICE_CPP11_MAPPING
+        auto r = wsc1->opStringAsync(wstr).get();
+        test(r.s2 == wstr);
+        test(r.returnValue == wstr);
+#else
         Ice::AsyncResultPtr r = wsc1->begin_opString(wstr);
         wstring out;
         wstring ret = wsc1->end_opString(out, r);
         test(out == wstr);
         test(ret == wstr);
+#endif
     }
     {
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        wsc1->opStringAsync(wstr,
+                            [&](wstring ret, wstring out)
+                            {
+                                test(out == wstr);
+                                test(ret == wstr);
+                                done.set_value(true);
+                            },
+                            [&](std::exception_ptr)
+                            {
+                                done.set_value(false);
+                            });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
         wsc1->begin_opString(wstr, Test1::newCallback_WstringClass_opString(cb, &Callback::opString, &Callback::noEx),
                              newInParam(wstr));
         cb->check();
-    }
-#ifdef ICE_CPP11
-    {
-        CallbackPtr cb = new Callback();
-        wsc1->begin_opString(wstr,
-                             [=](const wstring& p1, const wstring& p2)
-                             {
-                                 cb->opString(p1, p2, newInParam(wstr));
-                             },
-                             [=](const Ice::Exception& ex)
-                             {
-                                 cb->noEx(ex, newInParam(wstr));
-                             });
-        cb->check();
-    }
 #endif
+    }
 
     ret = wsc2->opString(wstr, out);
     test(out == wstr);
     test(ret == wstr);
 
     {
+#ifdef ICE_CPP11_MAPPING
+        auto r = wsc2->opStringAsync(wstr).get();
+        test(r.s2 == wstr);
+        test(r.returnValue == wstr);
+#else
         Ice::AsyncResultPtr r = wsc2->begin_opString(wstr);
         wstring out;
         wstring ret = wsc2->end_opString(out, r);
         test(out == wstr);
         test(ret == wstr);
-    }
-    {
-        CallbackPtr cb = new Callback();
-        wsc2->begin_opString(wstr, Test2::newCallback_WstringClass_opString(cb, &Callback::opString, 
-                                                                            &Callback::noEx), newInParam(wstr));
-        cb->check();
-    }
-    {
-        CallbackPtr cb = new Callback();
-        wsc2->begin_opString(wstr, Test2::newCallback_WstringClass_opString(cb, &Callback::opString, 
-                                                                            &Callback::noEx), newInParam(wstr));
-        cb->check();
-    }
-#ifdef ICE_CPP11
-    {
-        CallbackPtr cb = new Callback();
-        wsc2->begin_opString(wstr,
-                             [=](const wstring& p1, const wstring& p2)
-                             {
-                                 cb->opString(p1, p2, newInParam(wstr));
-                             },
-                             [=](const Ice::Exception& ex)
-                             {
-                                 cb->noEx(ex, newInParam(wstr));
-                             });
-        cb->check();
-    }
 #endif
+    }
+    {
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        wsc2->opStringAsync(wstr,
+                            [&](wstring ret, wstring out)
+                            {
+                                test(out == wstr);
+                                test(ret == wstr);
+                                done.set_value(true);
+                            },
+                            [&](std::exception_ptr)
+                            {
+                                done.set_value(false);
+                            });
+
+        test(done.get_future().get());
+#else
+        CallbackPtr cb = new Callback();
+        wsc2->begin_opString(wstr, Test2::newCallback_WstringClass_opString(cb, &Callback::opString,
+                                                                            &Callback::noEx), newInParam(wstr));
+        cb->check();
+#endif
+    }
 
     Test1::WstringStruct wss1;
     wss1.s = wstr;
@@ -3381,6 +3544,19 @@ allTests(const Ice::CommunicatorPtr& communicator)
     }
 
     {
+#ifdef ICE_CPP11_MAPPING
+
+        auto f = wsc1->throwExceptAsync(wstr);
+        try
+        {
+            f.get();
+            test(false);
+        }
+        catch(const Test1::WstringException& ex)
+        {
+            test(ex.reason == wstr);
+        }
+#else
         Ice::AsyncResultPtr r = wsc1->begin_throwExcept(wstr);
         try
         {
@@ -3391,23 +3567,43 @@ allTests(const Ice::CommunicatorPtr& communicator)
         {
             test(ex.reason == wstr);
         }
+#endif
     }
     {
+
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        wsc1->throwExceptAsync(wstr,
+                               [&]()
+                               {
+                                   done.set_value(false);
+                               },
+                               [&](std::exception_ptr eptr)
+                               {
+                                   try
+                                   {
+                                       std::rethrow_exception(eptr);
+                                   }
+                                   catch(const Test1::WstringException& ex)
+                                   {
+                                       test(ex.reason == wstr);
+                                       done.set_value(true);
+                                   }
+                                   catch(...)
+                                   {
+                                       done.set_value(false);
+                                   }
+                               });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
         wsc1->begin_throwExcept(wstr, Ice::newCallback(cb, &Callback::throwExcept1), newInParam(wstr));
         cb->check();
-    }
-#ifdef ICE_CPP11
-    {
-        CallbackPtr cb = new Callback();
-        wsc1->begin_throwExcept(wstr, nullptr,
-                                [=](const Ice::Exception& ex)
-                                {
-                                    cb->throwExcept1(ex, wstr);
-                                });
-        cb->check();
-    }
 #endif
+    }
 
     try
     {
@@ -3419,6 +3615,20 @@ allTests(const Ice::CommunicatorPtr& communicator)
     }
 
     {
+
+#ifdef ICE_CPP11_MAPPING
+
+        auto f = wsc2->throwExceptAsync(wstr);
+        try
+        {
+            f.get();
+            test(false);
+        }
+        catch(const Test2::WstringException& ex)
+        {
+            test(ex.reason == wstr);
+        }
+#else
         Ice::AsyncResultPtr r = wsc2->begin_throwExcept(wstr);
         try
         {
@@ -3429,23 +3639,42 @@ allTests(const Ice::CommunicatorPtr& communicator)
         {
             test(ex.reason == wstr);
         }
+#endif
     }
     {
+#ifdef ICE_CPP11_MAPPING
+
+        promise<bool> done;
+
+        wsc2->throwExceptAsync(wstr,
+                               [&]()
+                               {
+                                   done.set_value(false);
+                               },
+                               [&](std::exception_ptr eptr)
+                               {
+                                   try
+                                   {
+                                       std::rethrow_exception(eptr);
+                                   }
+                                   catch(const Test2::WstringException& ex)
+                                   {
+                                       test(ex.reason == wstr);
+                                       done.set_value(true);
+                                   }
+                                   catch(...)
+                                   {
+                                       done.set_value(false);
+                                   }
+                               });
+
+        test(done.get_future().get());
+#else
         CallbackPtr cb = new Callback();
         wsc2->begin_throwExcept(wstr, Ice::newCallback(cb, &Callback::throwExcept2), newInParam(wstr));
         cb->check();
-    }
-#ifdef ICE_CPP11
-    {
-        CallbackPtr cb = new Callback();
-        wsc2->begin_throwExcept(wstr, nullptr,
-                                [=](const Ice::Exception& ex)
-                                {
-                                    cb->throwExcept2(ex, wstr);
-                                });
-        cb->check();
-    }
 #endif
+    }
 
     cout << "ok" << endl;
 

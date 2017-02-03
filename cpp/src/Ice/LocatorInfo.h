@@ -22,7 +22,7 @@
 #include <Ice/PropertiesF.h>
 #include <Ice/Version.h>
 
-#include <IceUtil/UniquePtr.h>
+#include <Ice/UniquePtr.h>
 
 namespace IceInternal
 {
@@ -39,14 +39,21 @@ public:
     // Returns locator info for a given locator. Automatically creates
     // the locator info if it doesn't exist yet.
     //
-    LocatorInfoPtr get(const Ice::LocatorPrx&);
+    LocatorInfoPtr get(const Ice::LocatorPrxPtr&);
 
 private:
 
     const bool _background;
 
-    std::map<Ice::LocatorPrx, LocatorInfoPtr> _table;
-    std::map<Ice::LocatorPrx, LocatorInfoPtr>::iterator _tableHint;
+#ifdef ICE_CPP11_MAPPING
+    using LocatorInfoTable = std::map<std::shared_ptr<Ice::LocatorPrx>,
+                                      LocatorInfoPtr,
+                                      Ice::TargetCompare<std::shared_ptr<Ice::LocatorPrx>, std::less>>;
+#else
+    typedef std::map<Ice::LocatorPrx, LocatorInfoPtr> LocatorInfoTable;
+#endif
+    LocatorInfoTable _table;
+    LocatorInfoTable::iterator _tableHint;
 
     std::map<std::pair<Ice::Identity, Ice::EncodingVersion>, LocatorTablePtr> _locatorTables;
 };
@@ -79,7 +86,7 @@ class LocatorInfo : public IceUtil::Shared, public IceUtil::Mutex
 {
 public:
 
-    class GetEndpointsCallback : virtual public IceUtil::Shared
+    class GetEndpointsCallback : public virtual IceUtil::Shared
     {
     public:
 
@@ -88,13 +95,13 @@ public:
     };
     typedef IceUtil::Handle<GetEndpointsCallback> GetEndpointsCallbackPtr;
 
-    class RequestCallback : virtual public IceUtil::Shared
+    class RequestCallback : public virtual IceUtil::Shared
     {
     public:
 
         RequestCallback(const ReferencePtr&, int, const GetEndpointsCallbackPtr&);
 
-        void response(const LocatorInfoPtr&, const Ice::ObjectPrx&);
+        void response(const LocatorInfoPtr&, const Ice::ObjectPrxPtr&);
         void exception(const LocatorInfoPtr&, const Ice::Exception&);
 
     private:
@@ -105,14 +112,14 @@ public:
     };
     typedef IceUtil::Handle<RequestCallback> RequestCallbackPtr;
 
-    class Request : virtual public IceUtil::Shared
+    class Request : public virtual IceUtil::Shared
     {
     public:
 
         void addCallback(const ReferencePtr&, const ReferencePtr&, int, const GetEndpointsCallbackPtr&);
         std::vector<EndpointIPtr> getEndpoints(const ReferencePtr&, const ReferencePtr&, int, bool&);
 
-        void response(const Ice::ObjectPrx&);
+        void response(const Ice::ObjectPrxPtr&);
         void exception(const Ice::Exception&);
 
     protected:
@@ -131,27 +138,26 @@ public:
         std::vector<ReferencePtr> _wellKnownRefs;
         bool _sent;
         bool _response;
-        Ice::ObjectPrx _proxy;
-        IceUtil::UniquePtr<Ice::Exception> _exception;
+        Ice::ObjectPrxPtr _proxy;
+        IceInternal::UniquePtr<Ice::Exception> _exception;
     };
     typedef IceUtil::Handle<Request> RequestPtr;
 
-    LocatorInfo(const Ice::LocatorPrx&, const LocatorTablePtr&, bool);
+    LocatorInfo(const Ice::LocatorPrxPtr&, const LocatorTablePtr&, bool);
 
     void destroy();
 
     bool operator==(const LocatorInfo&) const;
-    bool operator!=(const LocatorInfo&) const;
     bool operator<(const LocatorInfo&) const;
 
-    const Ice::LocatorPrx& getLocator() const
+    const Ice::LocatorPrxPtr& getLocator() const
     {
         //
         // No mutex lock necessary, _locator is immutable.
         //
         return _locator;
     }
-    Ice::LocatorRegistryPrx getLocatorRegistry();
+    Ice::LocatorRegistryPrxPtr getLocatorRegistry();
 
     std::vector<EndpointIPtr> getEndpoints(const ReferencePtr& ref, int ttl, bool& cached)
     {
@@ -176,12 +182,12 @@ private:
     RequestPtr getAdapterRequest(const ReferencePtr&);
     RequestPtr getObjectRequest(const ReferencePtr&);
 
-    void finishRequest(const ReferencePtr&, const std::vector<ReferencePtr>&, const Ice::ObjectPrx&, bool);
+    void finishRequest(const ReferencePtr&, const std::vector<ReferencePtr>&, const Ice::ObjectPrxPtr&, bool);
     friend class Request;
     friend class RequestCallback;
 
-    const Ice::LocatorPrx _locator;
-    Ice::LocatorRegistryPrx _locatorRegistry;
+    const Ice::LocatorPrxPtr _locator;
+    Ice::LocatorRegistryPrxPtr _locatorRegistry;
     const LocatorTablePtr _table;
     const bool _background;
 

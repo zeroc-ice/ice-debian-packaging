@@ -15,22 +15,22 @@ static int
 run(id<ICECommunicator> communicator)
 {
     [[communicator getProperties] setProperty:@"TestAdapter1.Endpoints" value:@"default -p 12010 -t 10000:udp"];
-    [[communicator getProperties] setProperty:@"TestAdapter1.ThreadPool.Size" value:@"5"]; 
-    [[communicator getProperties] setProperty:@"TestAdapter1.ThreadPool.SizeMax" value:@"5"]; 
-    [[communicator getProperties] setProperty:@"TestAdapter1.ThreadPool.SizeWarn" value:@"0"]; 
+    [[communicator getProperties] setProperty:@"TestAdapter1.ThreadPool.Size" value:@"5"];
+    [[communicator getProperties] setProperty:@"TestAdapter1.ThreadPool.SizeMax" value:@"5"];
+    [[communicator getProperties] setProperty:@"TestAdapter1.ThreadPool.SizeWarn" value:@"0"];
     [[communicator getProperties] setProperty:@"TestAdapter1.ThreadPool.Serialize" value:@"0"];
     id<ICEObjectAdapter> adapter1 = [communicator createObjectAdapter:@"TestAdapter1"];
 
 
     [[communicator getProperties] setProperty:@"TestAdapter2.Endpoints" value:@"default -p 12011 -t 10000:udp"];
-    [[communicator getProperties] setProperty:@"TestAdapter2.ThreadPool.Size" value:@"5"]; 
-    [[communicator getProperties] setProperty:@"TestAdapter2.ThreadPool.SizeMax" value:@"5"]; 
-    [[communicator getProperties] setProperty:@"TestAdapter2.ThreadPool.SizeWarn" value:@"0"]; 
+    [[communicator getProperties] setProperty:@"TestAdapter2.ThreadPool.Size" value:@"5"];
+    [[communicator getProperties] setProperty:@"TestAdapter2.ThreadPool.SizeMax" value:@"5"];
+    [[communicator getProperties] setProperty:@"TestAdapter2.ThreadPool.SizeWarn" value:@"0"];
     [[communicator getProperties] setProperty:@"TestAdapter2.ThreadPool.Serialize" value:@"1"];
     id<ICEObjectAdapter> adapter2 = [communicator createObjectAdapter:@"TestAdapter2"];
-    
-    [adapter1 add:[HoldI hold] identity:[communicator stringToIdentity:@"hold"]];
-    [adapter2 add:[HoldI hold] identity:[communicator stringToIdentity:@"hold"]];
+
+    [adapter1 add:[HoldI hold] identity:[ICEUtil stringToIdentity:@"hold"]];
+    [adapter2 add:[HoldI hold] identity:[ICEUtil stringToIdentity:@"hold"]];
 
     [adapter1 activate];
     [adapter2 activate];
@@ -49,6 +49,13 @@ run(id<ICECommunicator> communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    ICEregisterIceSSL(YES);
+#if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+    ICEregisterIceIAP(YES);
+#endif
+#endif
+
     @autoreleasepool
     {
         int status;
@@ -59,8 +66,8 @@ main(int argc, char* argv[])
             ICEInitializationData* initData = [ICEInitializationData initializationData];
             initData.properties = defaultServerProperties(&argc, argv);
 #if TARGET_OS_IPHONE
-            initData.prefixTable__ = [NSDictionary dictionaryWithObjectsAndKeys:
-                                      @"TestHold", @"::Test", 
+            initData.prefixTable_ = [NSDictionary dictionaryWithObjectsAndKeys:
+                                      @"TestHold", @"::Test",
                                       nil];
 #endif
 
@@ -75,15 +82,7 @@ main(int argc, char* argv[])
 
         if(communicator)
         {
-            @try
-            {
-                [communicator destroy];
-            }
-            @catch(ICEException* ex)
-            {
-                tprintf("%@\n", ex);
-                status = EXIT_FAILURE;
-            }
+            [communicator destroy];
         }
         return status;
     }

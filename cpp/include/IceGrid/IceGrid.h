@@ -14,9 +14,6 @@
 #include <IceGrid/Descriptor.h>
 #include <IceGrid/Exception.h>
 #include <IceGrid/FileParser.h>
-#include <IceGrid/Locator.h>
-#include <IceGrid/Observer.h>
-#include <IceGrid/Query.h>
 #include <IceGrid/Registry.h>
 #include <IceGrid/Session.h>
 #include <IceGrid/UserAccountMapper.h>
@@ -28,7 +25,7 @@ namespace IceGrid
 //
 // Global function to obtain a RegistryPluginFacade
 //
-ICE_GRID_API RegistryPluginFacadePtr getRegistryPluginFacade();
+ICEGRID_API RegistryPluginFacadePtr getRegistryPluginFacade();
 
 }
 

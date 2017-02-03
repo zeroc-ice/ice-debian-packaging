@@ -14,20 +14,19 @@ import test.Ice.slicing.exceptions.client.Test.TestIntfPrx;
 public class Client extends test.Util.Application
 {
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    public int run(String[] args)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
-        initData.properties.setProperty("Ice.Package.Test", "test.Ice.slicing.exceptions.client");
-        return initData;
+        TestIntfPrx test = AllTests.allTests(this, false);
+        test.shutdown();
+        return 0;
     }
 
     @Override
-    public int run(String[] args)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        TestIntfPrx test = AllTests.allTests(communicator(), false, getWriter());
-        test.shutdown();
-        return 0;
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
+        initData.properties.setProperty("Ice.Package.Test", "test.Ice.slicing.exceptions.client");
+        return initData;
     }
 
     public static void main(String[] args)

@@ -26,6 +26,10 @@
 #   pragma warning( 4 : 4244 )
 #endif
 
+#if defined(__GNUC__)
+#   pragma GCC diagnostic ignored "-Wsign-compare"
+#endif
+
 using namespace std;
 using namespace Ice;
 using namespace IceStorm;
@@ -146,36 +150,6 @@ keyword [[:alpha:]]*
 		case '"':
 		{
 		    s += next;
-		    break;
-		}
-	    
-		case 'n':
-		{
-		    s += '\n';
-		    break;
-		}
-	    
-		case 'r':
-		{
-		    s += '\r';
-		    break;
-		}
-
-		case 't':
-		{
-		    s += '\t';
-		    break;
-		}
-	    
-		case 'v':
-		{
-		    s += '\v';
-		    break;
-		}
-	    
-		case 'f':
-		{
-		    s += '\f';
 		    break;
 		}
 	    

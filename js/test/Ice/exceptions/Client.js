@@ -16,42 +16,30 @@
 
     var allTests = function(out, communicator, Test, bidir)
     {
-        var EmptyI = function()
+        class EmptyI extends Test._EmptyDisp
         {
-        };
+        }
 
-        EmptyI.prototype = new Test.Empty();
-        EmptyI.prototype.constructor = EmptyI;
-
-        var ServantLocatorI = function()
+        class ServantLocatorI 
         {
-        };
+            locate(curr, cookie)
+            {
+                return null;
+            }
 
-        ServantLocatorI.prototype.locate = function(curr, cookie)
-        {
-            return null;
-        };
+            finished(curr, servant, cookie)
+            {
+            }
 
-        ServantLocatorI.prototype.finished = function(curr, servant, cookie)
-        {
-        };
+            deactivate(category)
+            {
+            }
+        }
 
-        ServantLocatorI.prototype.deactivate = function(category)
-        {
-        };
-
-        var ObjectFactoryI = function()
-        {
-        };
-
-        ObjectFactoryI.prototype.create = function(type)
+        function ValueFactoryI()
         {
             return null;
-        };
-
-        ObjectFactoryI.prototype.destroy = function()
-        {
-        };
+        }
 
         var p = new Ice.Promise();
         var test = function(b)
@@ -64,7 +52,7 @@
                 }
                 catch(err)
                 {
-                    p.fail(err);
+                    p.reject(err);
                     throw err;
                 }
             }
@@ -166,10 +154,10 @@
                     function(adapter)
                     {
                         var obj = new EmptyI();
-                        adapter.add(obj, communicator.stringToIdentity("x"));
+                        adapter.add(obj, Ice.stringToIdentity("x"));
                         try
                         {
-                            adapter.add(obj, communicator.stringToIdentity("x"));
+                            adapter.add(obj, Ice.stringToIdentity("x"));
                             test(false);
                         }
                         catch(ex)
@@ -178,7 +166,7 @@
                         }
                         try
                         {
-                            adapter.add(obj, communicator.stringToIdentity(""));
+                            adapter.add(obj, Ice.stringToIdentity(""));
                             test(false);
                         }
                         catch(ex)
@@ -188,7 +176,7 @@
                         }
                         try
                         {
-                            adapter.add(null, communicator.stringToIdentity("x"));
+                            adapter.add(null, Ice.stringToIdentity("x"));
                             test(false);
                         }
                         catch(ex)
@@ -196,10 +184,10 @@
                             test(ex instanceof Ice.IllegalServantException);
                         }
 
-                        adapter.remove(communicator.stringToIdentity("x"));
+                        adapter.remove(Ice.stringToIdentity("x"));
                         try
                         {
-                            adapter.remove(communicator.stringToIdentity("x"));
+                            adapter.remove(Ice.stringToIdentity("x"));
                             test(false);
                         }
                         catch(ex)
@@ -235,12 +223,12 @@
         ).then(
             function()
             {
-                out.write("testing object factory registration exception... ");
-                var of = new ObjectFactoryI();
-                communicator.addObjectFactory(of, "::x");
+                out.write("testing value factory registration exception... ");
+
+                communicator.getValueFactoryManager().add(ValueFactoryI, "::x");
                 try
                 {
-                    communicator.addObjectFactory(of, "::x");
+                    communicator.getValueFactoryManager().add(ValueFactoryI, "::x");
                     test(false);
                 }
                 catch(ex)
@@ -257,7 +245,7 @@
                 out.write("testing checked cast... ");
                 return Test.ThrowerPrx.checkedCast(base);
             }
-            ).then(
+        ).then(
             function(obj)
             {
                 thrower = obj;
@@ -393,7 +381,7 @@
             function()
             {
                 out.write("catching object not exist exception... ");
-                var id = communicator.stringToIdentity("does not exist");
+                var id = Ice.stringToIdentity("does not exist");
                 var thrower2 = Test.ThrowerPrx.uncheckedCast(thrower.ice_identity(id));
                 return thrower2.ice_ping();
             }
@@ -402,7 +390,7 @@
             function(ex)
             {
                 test(ex instanceof Ice.ObjectNotExistException);
-                test(ex.id.equals(communicator.stringToIdentity("does not exist")));
+                test(ex.id.equals(Ice.stringToIdentity("does not exist")));
                 out.writeLine("ok");
                 out.write("catching facet not exist exception... ");
                 var thrower2 = Test.ThrowerPrx.uncheckedCast(thrower, "no such facet");
@@ -468,16 +456,7 @@
                 out.writeLine("ok");
                 return thrower.shutdown();
             }
-        ).then(
-            function()
-            {
-                p.succeed();
-            },
-            function(ex)
-            {
-                p.fail(ex);
-            }
-        );
+        ).then(p.resolve, p.reject);
         return p;
     };
 
@@ -491,17 +470,12 @@
             {
                 return allTests(out, c, Test);
             }
-        ).finally(
-            function()
-            {
-                return c.destroy();
-            }
-        );
+        ).finally(() => c.destroy);
     };
-    exports.__test__ = run;
-    exports.__clientAllTests__ = allTests;
-    exports.__runServer__ = true;
+    exports._test = run;
+    exports._clientAllTests = allTests;
+    exports._runServer = true;
 }
 (typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? module : undefined,
- typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice.__require,
+ typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice._require,
  typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? exports : this));

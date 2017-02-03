@@ -19,7 +19,7 @@
 namespace IceUtil
 {
 
-class ICE_UTIL_API Time
+class ICE_API Time
 {
 public:
 
@@ -28,7 +28,7 @@ public:
     // No copy constructor and assignment operator necessary. The
     // automatically generated copy constructor and assignment
     // operator do the right thing.
-    
+
     enum Clock { Realtime, Monotonic };
     static Time now(Clock = Realtime);
 
@@ -39,7 +39,7 @@ public:
     static Time secondsDouble(double);
     static Time milliSecondsDouble(double);
     static Time microSecondsDouble(double);
-    
+
 #ifndef _WIN32
     operator timeval() const;
 #endif
@@ -54,6 +54,7 @@ public:
 
     std::string toDateTime() const;
     std::string toDuration() const;
+    std::string toString(const std::string&) const;
 
     Time operator-() const
     {
@@ -202,7 +203,7 @@ private:
     Int64 _usec;
 };
 
-ICE_UTIL_API std::ostream& operator<<(std::ostream&, const Time&);
+ICE_API std::ostream& operator<<(std::ostream&, const Time&);
 
 } // End namespace IceUtil
 

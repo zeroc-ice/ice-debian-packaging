@@ -29,7 +29,7 @@ class ActivateAdapterThread(threading.Thread):
         time.sleep(self._timeout / 1000.0)
         self._adapter.activate()
 
-class TimeoutI(Test.Timeout):
+class TimeoutI(Test._TimeoutDisp):
     def op(self, current=None):
         pass
 
@@ -51,7 +51,7 @@ class TimeoutI(Test.Timeout):
 def run(args, communicator):
     communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010:udp")
     adapter = communicator.createObjectAdapter("TestAdapter")
-    adapter.add(TimeoutI(), communicator.stringToIdentity("timeout"))
+    adapter.add(TimeoutI(), Ice.stringToIdentity("timeout"))
     adapter.activate()
     communicator.waitForShutdown()
     return True
@@ -65,17 +65,10 @@ try:
     # send() blocking after sending a given amount of data.
     #
     initData.properties.setProperty("Ice.TCP.RcvSize", "50000");
-    communicator = Ice.initialize(sys.argv, initData)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv, initData) as communicator:
+        status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

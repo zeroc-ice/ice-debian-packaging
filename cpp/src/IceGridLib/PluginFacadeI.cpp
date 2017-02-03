@@ -7,8 +7,8 @@
 //
 // **********************************************************************
 
-#ifndef ICE_GRID_API_EXPORTS
-#   define ICE_GRID_API_EXPORTS
+#ifndef ICEGRID_API_EXPORTS
+#   define ICEGRID_API_EXPORTS
 #endif
 
 #include <IceGrid/IceGrid.h>
@@ -18,14 +18,17 @@ using namespace IceGrid;
 namespace
 {
 
-RegistryPluginFacadePtr pluginFacade;
-
-};
+#ifdef ICE_CPP11_MAPPING
+std::shared_ptr<RegistryPluginFacade> pluginFacade;
+#else
+RegistryPluginFacade* pluginFacade = 0;
+#endif
+}
 
 namespace IceGrid
 {
 
-ICE_GRID_API void setRegistryPluginFacade(const RegistryPluginFacadePtr&);
+ICEGRID_API void setRegistryPluginFacade(const RegistryPluginFacadePtr&);
 
 };
 
@@ -38,5 +41,17 @@ IceGrid::getRegistryPluginFacade()
 void
 IceGrid::setRegistryPluginFacade(const RegistryPluginFacadePtr& facade)
 {
+#ifdef ICE_CPP11_MAPPING
     pluginFacade = facade;
+#else
+    if(pluginFacade)
+    {
+        pluginFacade->__decRef();
+    }
+    pluginFacade = facade.get();
+    if(pluginFacade)
+    {
+        pluginFacade->__incRef();
+    }
+#endif
 }

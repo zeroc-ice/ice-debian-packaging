@@ -18,6 +18,7 @@
 #include <IceUtil/MutexPtrLock.h>
 
 using namespace std;
+using namespace Ice;
 using namespace Ice::Instrumentation;
 using namespace IceInternal;
 
@@ -46,7 +47,9 @@ Init init;
 
 }
 
+#ifndef ICE_CPP11_MAPPING
 IceUtil::Shared* IceInternal::upCast(IPEndpointI* p) { return p; }
+#endif
 IceUtil::Shared* IceInternal::upCast(EndpointHostResolver* p) { return p; }
 
 IceInternal::IPEndpointInfoI::IPEndpointInfoI(const EndpointIPtr& endpoint) : _endpoint(endpoint)
@@ -78,7 +81,7 @@ IceInternal::IPEndpointInfoI::secure() const
 Ice::EndpointInfoPtr
 IceInternal::IPEndpointI::getInfo() const
 {
-    Ice::IPEndpointInfoPtr info = new IPEndpointInfoI(const_cast<IPEndpointI*>(this));
+    Ice::IPEndpointInfoPtr info = ICE_MAKE_SHARED(IPEndpointInfoI, ICE_SHARED_FROM_CONST_THIS(IPEndpointI));
     fillEndpointInfo(info.get());
     return info;
 }
@@ -103,11 +106,10 @@ IceInternal::IPEndpointI::secure() const
 }
 
 void
-IceInternal::IPEndpointI::streamWrite(BasicStream* s) const
+IceInternal::IPEndpointI::streamWriteImpl(OutputStream* s) const
 {
-    s->startWriteEncaps();
-    streamWriteImpl(s);
-    s->endWriteEncaps();
+    s->write(_host, false);
+    s->write(_port);
 }
 
 const string&
@@ -121,7 +123,7 @@ IceInternal::IPEndpointI::connectionId(const string& connectionId) const
 {
     if(connectionId == _connectionId)
     {
-        return const_cast<IPEndpointI*>(this);
+        return ICE_SHARED_FROM_CONST_THIS(IPEndpointI);
     }
     else
     {
@@ -129,22 +131,10 @@ IceInternal::IPEndpointI::connectionId(const string& connectionId) const
     }
 }
 
-const std::string&
-IceInternal::IPEndpointI::host() const
-{
-    return _host;
-}
-
-int
-IceInternal::IPEndpointI::port() const
-{
-    return _port;
-}
-
 void
 IceInternal::IPEndpointI::connectors_async(Ice::EndpointSelectionType selType, const EndpointI_connectorsPtr& cb) const
 {
-    _instance->resolve(_host, _port, selType, const_cast<IPEndpointI*>(this), cb);
+    _instance->resolve(_host, _port, selType, ICE_SHARED_FROM_CONST_THIS(IPEndpointI), cb);
 }
 
 vector<EndpointIPtr>
@@ -154,7 +144,7 @@ IceInternal::IPEndpointI::expand() const
     vector<string> hosts = getHostsForEndpointExpand(_host, _instance->protocolSupport(), false);
     if(hosts.empty())
     {
-        endps.push_back(const_cast<IPEndpointI*>(this));
+        endps.push_back(ICE_SHARED_FROM_CONST_THIS(IPEndpointI));
     }
     else
     {
@@ -229,7 +219,11 @@ IceInternal::IPEndpointI::options() const
 }
 
 bool
+#ifdef ICE_CPP11_MAPPING
+IceInternal::IPEndpointI::operator==(const Endpoint& r) const
+#else
 IceInternal::IPEndpointI::operator==(const LocalObject& r) const
+#endif
 {
     const IPEndpointI* p = dynamic_cast<const IPEndpointI*>(&r);
     if(!p)
@@ -261,12 +255,15 @@ IceInternal::IPEndpointI::operator==(const LocalObject& r) const
     {
         return false;
     }
-
     return true;
 }
 
 bool
+#ifdef ICE_CPP11_MAPPING
+IceInternal::IPEndpointI::operator<(const Endpoint& r) const
+#else
 IceInternal::IPEndpointI::operator<(const LocalObject& r) const
+#endif
 {
     const IPEndpointI* p = dynamic_cast<const IPEndpointI*>(&r);
     if(!p)
@@ -342,13 +339,6 @@ IceInternal::IPEndpointI::connectors(const vector<Address>& addresses, const Net
         connectors.push_back(createConnector(addresses[i], proxy));
     }
     return connectors;
-}
-
-void
-IceInternal::IPEndpointI::streamWriteImpl(BasicStream* s) const
-{
-    s->write(_host, false);
-    s->write(_port);
 }
 
 void
@@ -452,7 +442,7 @@ IceInternal::IPEndpointI::checkOption(const string& option, const string& argume
             ex.str = "no argument provided for --sourceAddress option in endpoint " + endpoint;
             throw ex;
         }
-#ifndef ICE_OS_WINRT
+#ifndef ICE_OS_UWP
         const_cast<Address&>(_sourceAddr) = getNumericAddress(argument);
         if(!isAddressValid(_sourceAddr))
         {
@@ -487,7 +477,7 @@ IceInternal::IPEndpointI::IPEndpointI(const ProtocolInstancePtr& instance) :
 {
 }
 
-IceInternal::IPEndpointI::IPEndpointI(const ProtocolInstancePtr& instance, BasicStream* s) :
+IceInternal::IPEndpointI::IPEndpointI(const ProtocolInstancePtr& instance, InputStream* s) :
     _instance(instance),
     _port(0),
     _hashInitialized(false)
@@ -496,7 +486,7 @@ IceInternal::IPEndpointI::IPEndpointI(const ProtocolInstancePtr& instance, Basic
     s->read(const_cast<Ice::Int&>(_port));
 }
 
-#ifndef ICE_OS_WINRT
+#ifndef ICE_OS_UWP
 
 IceInternal::EndpointHostResolver::EndpointHostResolver(const InstancePtr& instance) :
     IceUtil::Thread("Ice.HostResolver"),
@@ -633,23 +623,20 @@ IceInternal::EndpointHostResolver::run()
                 }
             }
 
-            r.callback->connectors(r.endpoint->connectors(getAddresses(r.host,
-                                                                       r.port,
-                                                                       protocol,
-                                                                       r.selType,
-                                                                       _preferIPv6,
-                                                                       true),
-                                                          networkProxy));
+            vector<Address> addresses = getAddresses(r.host, r.port, protocol, r.selType, _preferIPv6, true);
+            if(r.observer)
+            {
+                r.observer->detach();
+                r.observer = 0;
+            }
+
+            r.callback->connectors(r.endpoint->connectors(addresses, networkProxy));
 
             if(threadObserver)
             {
                 threadObserver->stateChanged(ThreadStateInUseForOther, ThreadStateIdle);
             }
 
-            if(r.observer)
-            {
-                r.observer->detach();
-            }
         }
         catch(const Ice::LocalException& ex)
         {
@@ -659,7 +646,7 @@ IceInternal::EndpointHostResolver::run()
             }
             if(r.observer)
             {
-                r.observer->failed(ex.ice_name());
+                r.observer->failed(ex.ice_id());
                 r.observer->detach();
             }
             r.callback->exception(ex);
@@ -671,7 +658,7 @@ IceInternal::EndpointHostResolver::run()
         Ice::CommunicatorDestroyedException ex(__FILE__, __LINE__);
         if(p->observer)
         {
-            p->observer->failed(ex.ice_name());
+            p->observer->failed(ex.ice_id());
             p->observer->detach();
         }
         p->callback->exception(ex);
@@ -711,7 +698,7 @@ IceInternal::EndpointHostResolver::resolve(const string& host,
                                            const EndpointI_connectorsPtr& callback)
 {
     //
-    // No DNS lookup support with WinRT.
+    // No DNS lookup support with UWP.
     //
     callback->connectors(endpoint->connectors(getAddresses(host, port,
                                                            _instance->protocolSupport(),

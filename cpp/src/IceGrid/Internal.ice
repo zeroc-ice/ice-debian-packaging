@@ -9,17 +9,15 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["ice-prefix", "cpp:header-ext:h"]]
 
 #include <Ice/Identity.ice>
 #include <Ice/BuiltinSequences.ice>
 #include <Ice/ProcessF.ice>
-#include <Ice/Locator.ice>
 #include <Ice/Properties.ice>
 
 #include <Glacier2/Session.ice>
 #include <IceGrid/Admin.ice>
-#include <IceGrid/Observer.ice>
 #include <IceGrid/Registry.ice>
 
 module IceGrid
@@ -33,7 +31,7 @@ class InternalDbEnvDescriptor
 {
     /** The name of the database environment. */
     string name;
-    
+
     /** The database properties. */
     PropertyDescriptorSeq properties;
 };
@@ -70,7 +68,7 @@ class InternalServerDescriptor
 
     /** The application uuid. */
     string uuid;
-    
+
     /** The application revision. */
     int revision;
 
@@ -79,19 +77,19 @@ class InternalServerDescriptor
 
     /** The server executable. */
     string exe;
-    
+
     /** The server working directory. */
     string pwd;
 
     /** The user ID to use to run the server. */
     string user;
-    
+
     /** The server activation mode. */
     string activation;
 
     /** The server activation timeout. */
     string activationTimeout;
-    
+
     /** The server deactivation timeout. */
     string deactivationTimeout;
 
@@ -103,10 +101,10 @@ class InternalServerDescriptor
 
     /** Specifies if a process object is registered. */
     bool processRegistered;
-    
+
     /** The server command line options. */
     Ice::StringSeq options;
-    
+
     /** The server environment variables. */
     Ice::StringSeq envs;
 
@@ -121,6 +119,9 @@ class InternalServerDescriptor
 
     /** The configuration files of the server. */
     PropertyDescriptorSeqDict properties;
+
+    /** IceBox service names */
+    optional(1) Ice::StringSeq services;
 };
 
 /**
@@ -142,14 +143,14 @@ interface Adapter
 {
     /**
      *
-     * Activate this adapter. If this adapter can be activated, this 
-     * will activate the adapter and return the direct proxy of the 
+     * Activate this adapter. If this adapter can be activated, this
+     * will activate the adapter and return the direct proxy of the
      * adapter once it's active. If this adapter can be activated on
      * demand, this will return 0 if the adapter is inactive or the
      * adapter direct proxy it's active.
      *
      **/
-    ["amd"] Object* activate();    
+    ["amd"] Object* activate();
 
     /**
      *
@@ -208,7 +209,7 @@ interface FileReader
     /**
      *
      * Read lines (or size bytes) at the specified position from the given file.
-     * 
+     *
      **/
     ["cpp:const"] idempotent bool read(string filename, long pos, int size, out long newPos, out Ice::StringSeq lines)
         throws FileNotAvailableException;
@@ -236,7 +237,7 @@ interface Server extends FileReader
      **/
     ["amd"] void stop()
         throws ServerStopException;
-    
+
     /**
      *
      * Check if the given server can be loaded on this node.
@@ -253,7 +254,7 @@ interface Server extends FileReader
      *
      * Enable or disable the server.
      *
-     **/ 
+     **/
     void setEnabled(bool enable);
 
     /**
@@ -268,9 +269,9 @@ interface Server extends FileReader
      * Send signal to the server
      *
      **/
-    void sendSignal(string signal) 
+    void sendSignal(string signal)
         throws BadSignalException;
-    
+
     /**
      *
      * Write message on servers' stdout or stderr.
@@ -316,12 +317,12 @@ interface ReplicaObserver
      *
      * Initialization of the replica observer.
      *
-     **/ 
+     **/
     void replicaInit(InternalRegistryPrxSeq replicas);
 
     /**
      *
-     * Notification that a replica has been added. The node should 
+     * Notification that a replica has been added. The node should
      * establish a session with this new replica.
      *
      **/
@@ -364,8 +365,8 @@ interface Node extends FileReader, ReplicaObserver
      **/
     ["amd"] idempotent Server* loadServer(InternalServerDescriptor svr,
                                                  string replicaName,
-                                                 out AdapterPrxDict adapters, 
-                                                 out int actTimeout, 
+                                                 out AdapterPrxDict adapters,
+                                                 out int actTimeout,
                                                  out int deactTimeout)
         throws DeploymentException;
 
@@ -380,8 +381,8 @@ interface Node extends FileReader, ReplicaObserver
      **/
     ["amd"] idempotent Server* loadServerWithoutRestart(InternalServerDescriptor svr,
                                                         string replicaName,
-                                                        out AdapterPrxDict adapters, 
-                                                        out int actTimeout, 
+                                                        out AdapterPrxDict adapters,
+                                                        out int actTimeout,
                                                         out int deactTimeout)
         throws DeploymentException;
 
@@ -407,12 +408,12 @@ interface Node extends FileReader, ReplicaObserver
      * using a distribution directory to patch are active, this method
      * will raise a PatchException unless shutdown is set to true. In
      * which case the servers will be shutdown.
-     * 
+     *
      **/
-    ["amd"] idempotent void patch(PatcherFeedback* feedback, 
-                                  string application, 
-                                  string server, 
-                                  InternalDistributionDescriptor appDistrib, 
+    ["amd"] idempotent void patch(PatcherFeedback* feedback,
+                                  string application,
+                                  string server,
+                                  InternalDistributionDescriptor appDistrib,
                                   bool shutdown);
 
     /**
@@ -420,7 +421,7 @@ interface Node extends FileReader, ReplicaObserver
      * Establish a session to the given replica, this method only
      * returns once the registration was attempted (unlike
      * replicaAdded below).
-     * 
+     *
      **/
     void registerWithReplica(InternalRegistry* replica);
 
@@ -429,14 +430,14 @@ interface Node extends FileReader, ReplicaObserver
      * Get the node name.
      *
      **/
-    ["nonmutating", "cpp:const"] idempotent string getName();    
+    ["nonmutating", "cpp:const"] idempotent string getName();
 
     /**
      *
      * Get the node hostname.
      *
      **/
-    ["nonmutating", "cpp:const"] idempotent string getHostname();    
+    ["nonmutating", "cpp:const"] idempotent string getHostname();
 
     /**
      *
@@ -495,7 +496,7 @@ interface NodeSession
      *
      * Return the node session timeout.
      *
-     **/ 
+     **/
     ["nonmutating", "cpp:const"] idempotent int getTimeout();
 
     /**
@@ -508,7 +509,7 @@ interface NodeSession
     /**
      *
      * Ask the registry to load the servers on the node.
-     * 
+     *
      **/
     ["amd", "nonmutating", "cpp:const"] idempotent void loadServers();
 
@@ -576,7 +577,7 @@ interface ReplicaSession
      *
      * Return the replica session timeout.
      *
-     **/ 
+     **/
     ["cpp:const"] idempotent int getTimeout();
 
     /**
@@ -593,7 +594,7 @@ interface ReplicaSession
      * This method sets the endpoints of the replica. This allows the
      * master to create proxies with multiple endpoints for replicated
      * objects (e.g.: IceGrid::Query object).
-     * 
+     *
      **/
     idempotent void setEndpoints(StringObjectProxyDict endpoints);
 
@@ -621,7 +622,7 @@ interface ReplicaSession
      * before to continue.
      *
      **/
-    void receivedUpdate(TopicName name, int serial, string failure); 
+    void receivedUpdate(TopicName name, int serial, string failure);
 
     /**
      *
@@ -663,7 +664,7 @@ class InternalNodeInfo
     /**
      *
      * The operation system release level (as defined in uname()).
-     * 
+     *
      **/
     string release;
 
@@ -679,16 +680,16 @@ class InternalNodeInfo
      * The machine hardware type (as defined in uname()).
      *
      **/
-    string machine;    
+    string machine;
 
     /**
      *
-     * The number of processor threads (e.g. 8 on 
+     * The number of processor threads (e.g. 8 on
      * system with 1 quad-core CPU, with 2 threads per core)
      *
      **/
     int nProcessors;
-    
+
     /**
      *
      * The path to the node data directory.
@@ -731,11 +732,11 @@ interface InternalRegistry extends FileReader
      * @param info Some information on the node.
      *
      * @param prx The proxy of the node.
-     * 
+     *
      * @param loadInf The load information of the node.
-     * 
+     *
      * @return The node session proxy.
-     * 
+     *
      * @throws NodeActiveException Raised if the node is already
      * registered and currently active.
      *
@@ -752,9 +753,9 @@ interface InternalRegistry extends FileReader
      * @param info Some information on the replica.
      *
      * @param prx The proxy of the replica.
-     * 
+     *
      * @return The replica session proxy.
-     * 
+     *
      * @throws ReplicaActiveException Raised if the replica is already
      * registered and currently active.
      *
@@ -766,7 +767,7 @@ interface InternalRegistry extends FileReader
      *
      * Create a session with the given registry replica. This method
      * returns only once the session creation has been attempted.
-     * 
+     *
      **/
     void registerWithReplica(InternalRegistry* prx);
 
@@ -788,7 +789,7 @@ interface InternalRegistry extends FileReader
     /**
      *
      * Return applications, adapters, objects from this replica.
-     * 
+     *
      **/
     ["cpp:const"] idempotent ApplicationInfoSeq getApplications(out long serial);
     ["cpp:const"] idempotent AdapterInfoSeq getAdapters(out long serial);

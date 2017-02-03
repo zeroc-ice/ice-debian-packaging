@@ -23,12 +23,12 @@ class ICE_API LoggerOutputBase : private IceUtil::noncopyable
 public:
 
     std::string str() const;
-   
-    std::ostringstream& __str(); // For internal use only. Don't use in your code.
+
+    std::ostringstream& _stream(); // For internal use only. Don't use in your code.
 
 private:
 
-    std::ostringstream _str;
+    std::ostringstream _os;
 };
 
 ICE_API LoggerOutputBase& loggerInsert(LoggerOutputBase& out, const IceUtil::Exception& ex);
@@ -48,7 +48,7 @@ struct LoggerOutputInserter
     static inline LoggerOutputBase&
     insert(LoggerOutputBase& out, const T& val)
     {
-        out.__str() << val;
+        out._stream() << val;
         return out;
     }
 };
@@ -68,12 +68,18 @@ template<typename T>
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& out, const T& val)
 {
-    return LoggerOutputInserter<T, IsException<T>::value>::insert(out, val); 
+    return LoggerOutputInserter<T, IsException<T>::value>::insert(out, val);
 }
 
+#ifdef ICE_CPP11_MAPPING
+template<typename T, typename ::std::enable_if<::std::is_base_of<::Ice::ObjectPrx, T>::value>::type* = nullptr>
+inline LoggerOutputBase&
+operator<<(LoggerOutputBase& os, const ::std::shared_ptr<T>& p)
+#else
 template<typename T>
-inline LoggerOutputBase& 
+inline LoggerOutputBase&
 operator<<(LoggerOutputBase& os, const ::IceInternal::ProxyHandle<T>& p)
+#endif
 {
     return os << (p ? p->ice_toString() : "");
 }
@@ -81,7 +87,7 @@ operator<<(LoggerOutputBase& os, const ::IceInternal::ProxyHandle<T>& p)
 inline LoggerOutputBase&
 operator<<(LoggerOutputBase& out, const ::std::exception& ex)
 {
-    out.__str() << ex.what();
+    out._stream() << ex.what();
     return out;
 }
 
@@ -94,7 +100,7 @@ public:
     inline LoggerOutput(const LPtr& lptr) :
         _logger(lptr)
     {}
-    
+
     inline ~LoggerOutput()
     {
         flush();
@@ -102,17 +108,17 @@ public:
 
     inline void flush()
     {
-        std::string s = __str().str();
+        std::string s = _stream().str();
         if(!s.empty())
         {
             L& ref = *_logger;
             (ref.*output)(s);
         }
-        __str().str("");
+        _stream().str("");
     }
 
 private:
-   
+
     LPtr _logger;
 };
 
@@ -126,9 +132,9 @@ public:
     Trace(const LoggerPtr&, const std::string&);
     ~Trace();
     void flush();
-   
+
 private:
-    
+
     LoggerPtr _logger;
     std::string _category;
 };

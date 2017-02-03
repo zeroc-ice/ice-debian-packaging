@@ -11,49 +11,37 @@
 #import <objects/TestI.h>
 
 @implementation TestObjectsBI
--(BOOL) postUnmarshalInvoked:(ICECurrent*)current
-{
-    return _postUnmarshalInvoked;
-}
 -(void) ice_preMarshal
 {
     preMarshalInvoked = YES;
 }
 -(void) ice_postUnmarshal
 {
-    _postUnmarshalInvoked = YES;
+    postUnmarshalInvoked = YES;
 }
 
 @end
 
 @implementation TestObjectsCI
--(BOOL) postUnmarshalInvoked:(ICECurrent*)current
-{
-    return _postUnmarshalInvoked;
-}
 -(void) ice_preMarshal
 {
     preMarshalInvoked = YES;
 }
 -(void) ice_postUnmarshal
 {
-    _postUnmarshalInvoked = YES;
+    postUnmarshalInvoked = YES;
 }
 
 @end
 
 @implementation TestObjectsDI
--(BOOL) postUnmarshalInvoked:(ICECurrent*)current
-{
-    return _postUnmarshalInvoked;
-}
 -(void) ice_preMarshal
 {
     preMarshalInvoked = YES;
 }
 -(void) ice_postUnmarshal
 {
-    _postUnmarshalInvoked = YES;
+    postUnmarshalInvoked = YES;
 }
 @end
 
@@ -207,6 +195,15 @@
     return _f;
 }
 
+-(TestObjectsB*) getMB:(ICECurrent*)current
+{
+    return _b1;
+}
+
+-(TestObjectsB*) getAMDMB:(ICECurrent*)current
+{
+    return _b1;
+}
 
 -(void) getAll:(TestObjectsB **)b1 b2:(TestObjectsB **)b2 theC:(TestObjectsC **)theC theD:(TestObjectsD **)theD current:(ICECurrent *)current;
 {
@@ -233,6 +230,19 @@
 -(TestObjectsI*) getH:(ICECurrent*)current
 {
     return (TestObjectsI*)[TestObjectsH h];
+}
+
+-(TestObjectsI*) getD1:(TestObjectsI*)d1 current:(ICECurrent*)current
+{
+    return d1;
+}
+
+-(void) throwEDerived:(ICECurrent*)current
+{
+    @throw [TestObjectsEDerived eDerived:[TestObjectsA1 a1:@"a1"]
+                                      a2:[TestObjectsA1 a1:@"a2"]
+                                      a3:[TestObjectsA1 a1:@"a3"]
+                                      a4:[TestObjectsA1 a1:@"a4"]];
 }
 
 -(TestObjectsBaseSeq*) opBaseSeq:(TestObjectsMutableBaseSeq*)inSeq outSeq:(TestObjectsBaseSeq**)outSeq
@@ -319,8 +329,8 @@
     id<ICEOutputStream> o = [ICEUtil createOutputStream:communicator];
     [o startEncapsulation];
     TestObjectsAlsoEmpty* ae = [TestObjectsAlsoEmpty alsoEmpty];
-    [o writeObject:ae];
-    [o writePendingObjects];
+    [o writeValue:ae];
+    [o writePendingValues];
     [o endEncapsulation];
     *outEncaps = [o finished];
     return YES;

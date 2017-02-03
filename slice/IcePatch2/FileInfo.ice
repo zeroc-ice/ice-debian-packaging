@@ -9,10 +9,14 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEPATCH2_API", "objc:header-dir:objc"]]
 [["cpp:include:IcePatch2/Config.h"]]
 
 #include <Ice/BuiltinSequences.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:ICEPATCH2"]
 module IcePatch2
@@ -74,5 +78,3 @@ struct LargeFileInfo
 sequence<LargeFileInfo> LargeFileInfoSeq;
 
 };
-
-

@@ -33,39 +33,50 @@ namespace Glacier2
 const int GLACIER2_SSL_PORT = 4064;
 const int GLACIER2_TCP_PORT = 4063;
 
-class GLACIER2_API SessionHelper : public IceUtil::Shared
+class GLACIER2_API SessionHelper
+#ifndef ICE_CPP11_MAPPING
+    : public virtual IceUtil::Shared
+#endif
 {
-
 public:
+    virtual ~SessionHelper();
 
     virtual void destroy() = 0;
     virtual Ice::CommunicatorPtr communicator() const = 0;
     virtual std::string categoryForClient() const = 0;
-    virtual Ice::ObjectPrx addWithUUID(const Ice::ObjectPtr&) = 0;
-    virtual Glacier2::SessionPrx session() const = 0;
+    virtual Ice::ObjectPrxPtr addWithUUID(const Ice::ObjectPtr&) = 0;
+    virtual Glacier2::SessionPrxPtr session() const = 0;
     virtual bool isConnected() const = 0;
     virtual Ice::ObjectAdapterPtr objectAdapter() = 0;
 
     bool operator==(const Glacier2::SessionHelper&) const;
     bool operator!=(const Glacier2::SessionHelper&) const;
 };
-typedef IceUtil::Handle<SessionHelper> SessionHelperPtr;
+ICE_DEFINE_PTR(SessionHelperPtr, SessionHelper);
 
-class GLACIER2_API SessionCallback : virtual public IceUtil::Shared
+class GLACIER2_API SessionCallback
+#ifndef ICE_CPP11_MAPPING
+    : public virtual IceUtil::Shared
+#endif
 {
-
 public:
+    virtual ~SessionCallback();
 
     virtual void createdCommunicator(const SessionHelperPtr& session) = 0;
     virtual void connected(const SessionHelperPtr&) = 0;
     virtual void disconnected(const SessionHelperPtr&) = 0;
     virtual void connectFailed(const SessionHelperPtr&, const Ice::Exception&) = 0;
 };
-typedef IceUtil::Handle<SessionCallback> SessionCallbackPtr;
+ICE_DEFINE_PTR(SessionCallbackPtr, SessionCallback);
 
 class SessionThreadCallback;
 
-class GLACIER2_API SessionFactoryHelper : public IceUtil::Shared
+class GLACIER2_API SessionFactoryHelper
+#ifdef ICE_CPP11_MAPPING
+    : public std::enable_shared_from_this<SessionFactoryHelper>
+#else
+    : public virtual IceUtil::Shared
+#endif
 {
     friend class SessionThreadCallback; // To access thread functions
 
@@ -131,7 +142,7 @@ private:
     bool _useCallbacks;
     std::map<const SessionHelper*, IceUtil::ThreadPtr> _threads;
 };
-typedef IceUtil::Handle<SessionFactoryHelper> SessionFactoryHelperPtr;
+ICE_DEFINE_PTR(SessionFactoryHelperPtr, SessionFactoryHelper);
 
 }
 

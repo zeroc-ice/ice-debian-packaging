@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build"]]
 
 #include <Ice/BuiltinSequences.ice>
 
@@ -20,6 +20,10 @@
  * metrics from Ice applications.
  *
  **/
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
+
 ["objc:prefix:ICEMX"]
 module IceMX
 {
@@ -269,7 +273,7 @@ class ThreadMetrics extends Metrics
      *
      * The number of threads which are currently performing other
      * activities. These are all other that are not counted with
-     * {@link inUseForUser} or {@link inUseForIO}, such as DNS
+     * {@link #inUseForUser} or {@link #inUseForIO}, such as DNS
      * lookups, garbage collection).
      *
      **/

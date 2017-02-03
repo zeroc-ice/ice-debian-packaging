@@ -21,17 +21,22 @@
 @implementation ICEException
 -(id)init
 {
-    return [super initWithName:[self ice_name] reason:nil userInfo:nil];
+    return [super initWithName:[self ice_id] reason:nil userInfo:nil];
 }
 
 -(id)initWithReason:(NSString*)reason
 {
-    return [super initWithName:[self ice_name] reason:reason userInfo:nil];
+    return [super initWithName:[self ice_id] reason:reason userInfo:nil];
 }
 
 -(NSString*)ice_name
 {
-    NSAssert(false, @"ice_name not overriden");
+    return [[self ice_id] substringFromIndex:2];
+}
+
+-(NSString*)ice_id
+{
+    NSAssert(false, @"ice_id not overriden");
     return nil;
 }
 
@@ -166,33 +171,33 @@ localExceptionToString(const Ice::LocalException& ex)
 @end
 
 @implementation ICEUserException
--(BOOL)usesClasses__
+-(BOOL)iceUsesClasses
 {
     return NO;
 }
 
--(void)write__:(id<ICEOutputStream>)os
+-(void)iceWrite:(id<ICEOutputStream>)os
 {
     [os startException:nil];
-    [self writeImpl__:os];
+    [self iceWriteImpl:os];
     [os endException];
 }
 
--(void) writeImpl__:(id<ICEOutputStream>)os
+-(void) iceWriteImpl:(id<ICEOutputStream>)os
 {
-    NSAssert(NO, @"writeImpl__ requires override");
+    NSAssert(NO, @"iceWriteImpl requires override");
 }
 
--(void)read__:(id<ICEInputStream>)is
+-(void)iceRead:(id<ICEInputStream>)is
 {
     [is startException];
-    [self readImpl__:is];
+    [self iceReadImpl:is];
     [is endException:NO];
 }
 
--(void) readImpl__:(id<ICEInputStream>)is
+-(void) iceReadImpl:(id<ICEInputStream>)is
 {
-    NSAssert(NO, @"readImpl__ requires override");
+    NSAssert(NO, @"iceReadImpl requires override");
 }
 
 -(id) copyWithZone:(NSZone *)zone
@@ -730,13 +735,6 @@ localExceptionToString(const Ice::LocalException& ex)
 }
 @end
 
-@implementation ICEForcedCloseConnectionException (ICEInternal)
--(void) rethrowCxx
-{
-    throw Ice::ForcedCloseConnectionException(file, line, fromNSString([self reason_]));
-}
-@end
-
 @implementation ICEIllegalMessageSizeException (ICEInternal)
 -(void) rethrowCxx
 {
@@ -864,7 +862,7 @@ localExceptionToString(const Ice::LocalException& ex)
 }
 @end
 
-@implementation ICENoObjectFactoryException (ICEInternal)
+@implementation ICENoValueFactoryException (ICEInternal)
 -(id)initWithLocalException:(const Ice::LocalException&)ex
 {
     self = [super initWithLocalException:ex];
@@ -872,14 +870,14 @@ localExceptionToString(const Ice::LocalException& ex)
     {
         return nil;
     }
-    NSAssert(dynamic_cast<const Ice::NoObjectFactoryException*>(&ex), @"invalid local exception type");
-    const Ice::NoObjectFactoryException& localEx = dynamic_cast<const Ice::NoObjectFactoryException&>(ex);
+    NSAssert(dynamic_cast<const Ice::NoValueFactoryException*>(&ex), @"invalid local exception type");
+    const Ice::NoValueFactoryException& localEx = dynamic_cast<const Ice::NoValueFactoryException&>(ex);
     type = toNSString(localEx.type);
     return self;
 }
 -(void) rethrowCxx
 {
-    throw Ice::NoObjectFactoryException(file, line, fromNSString([self reason_]), fromNSString(type));
+    throw Ice::NoValueFactoryException(file, line, fromNSString([self reason_]), fromNSString(type));
 }
 @end
 

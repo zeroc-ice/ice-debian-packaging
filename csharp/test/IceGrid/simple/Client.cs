@@ -7,9 +7,7 @@
 //
 // **********************************************************************
 
-using Test;
 using System;
-using System.Diagnostics;
 using System.Reflection;
 
 [assembly: CLSCompliant(true)]
@@ -18,9 +16,9 @@ using System.Reflection;
 [assembly: AssemblyDescription("Ice test")]
 [assembly: AssemblyCompany("ZeroC, Inc.")]
 
-public class Client
+public class Client : TestCommon.Application
 {
-    private static int run(string[] args, Ice.Communicator communicator)
+    public override int run(string[] args)
     {
         bool withDeploy = false;
         for(int i = 0; i < args.Length; i++)
@@ -34,11 +32,11 @@ public class Client
 
         if(!withDeploy)
         {
-            AllTests.allTests(communicator);
+            AllTests.allTests(this);
         }
         else
         {
-            AllTests.allTestsWithDeploy(communicator);
+            AllTests.allTestsWithDeploy(this);
         }
 
         return 0;
@@ -46,33 +44,7 @@ public class Client
 
     public static int Main(string[] args)
     {
-        int status = 0;
-        Ice.Communicator communicator = null;
-
-        try
-        {
-            communicator = Ice.Util.initialize(ref args);
-            status = run(args, communicator);
-        }
-        catch (System.Exception ex)
-        {
-            System.Console.Error.WriteLine(ex);
-            status = 1;
-        }
-
-        if (communicator != null)
-        {
-            try
-            {
-                communicator.destroy();
-            }
-            catch (Ice.LocalException ex)
-            {
-                System.Console.Error.WriteLine(ex);
-                status = 1;
-            }
-        }
-
-        return status;
+        Client app = new Client();
+        return app.runmain(args);
     }
 }

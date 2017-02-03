@@ -12,7 +12,9 @@
 
 #include <Config.h>
 #include <Util.h>
-#include <Ice/Stream.h>
+#include <Ice/FactoryTable.h>
+#include <Ice/Object.h>
+#include <Ice/SlicedDataF.h>
 #include <IceUtil/OutputUtil.h>
 
 #include <set>
@@ -28,6 +30,10 @@ class ClassInfo;
 typedef IceUtil::Handle<ClassInfo> ClassInfoPtr;
 typedef std::vector<ClassInfoPtr> ClassInfoList;
 
+
+class ValueInfo;
+typedef IceUtil::Handle<ValueInfo> ValueInfoPtr;
+
 //
 // This class is raised as an exception when object marshaling needs to be aborted.
 //
@@ -39,37 +45,6 @@ typedef std::map<PyObject*, Ice::ObjectPtr> ObjectMap;
 
 class ObjectReader;
 typedef IceUtil::Handle<ObjectReader> ObjectReaderPtr;
-
-//
-// This class keeps track of Python objects (instances of Slice classes
-// and exceptions) that have preserved slices.
-//
-class SlicedDataUtil
-{
-public:
-
-    SlicedDataUtil();
-    ~SlicedDataUtil();
-
-    void add(const ObjectReaderPtr&);
-
-    void update();
-
-    static void setMember(PyObject*, const Ice::SlicedDataPtr&);
-    static Ice::SlicedDataPtr getMember(PyObject*, ObjectMap*);
-
-private:
-
-    std::set<ObjectReaderPtr> _readers;
-    static PyObject* _slicedDataType;
-    static PyObject* _sliceInfoType;
-};
-
-struct PrintObjectHistory
-{
-    int index;
-    std::map<PyObject*, int> objects;
-};
 
 //
 // The delayed nature of class unmarshaling in the Ice protocol requires us to
@@ -93,6 +68,71 @@ public:
     virtual void unmarshaled(PyObject*, PyObject*, void*) = 0;
 };
 typedef IceUtil::Handle<UnmarshalCallback> UnmarshalCallbackPtr;
+
+//
+// ReadObjectCallback retains all of the information necessary to store an unmarshaled
+// Slice value as a Python object.
+//
+class ReadObjectCallback : public IceUtil::Shared
+{
+public:
+
+    ReadObjectCallback(const ValueInfoPtr&, const UnmarshalCallbackPtr&, PyObject*, void*);
+    ~ReadObjectCallback();
+
+    void invoke(const ::Ice::ObjectPtr&);
+
+private:
+
+    ValueInfoPtr _info;
+    UnmarshalCallbackPtr _cb;
+    PyObject* _target;
+    void* _closure;
+};
+typedef IceUtil::Handle<ReadObjectCallback> ReadObjectCallbackPtr;
+
+//
+// This class assists during unmarshaling of Slice classes and exceptions.
+// We attach an instance to a stream.
+//
+class StreamUtil
+{
+public:
+
+    StreamUtil();
+    ~StreamUtil();
+
+    //
+    // Keep a reference to a ReadObjectCallback for patching purposes.
+    //
+    void add(const ReadObjectCallbackPtr&);
+
+    //
+    // Keep track of object instances that have preserved slices.
+    //
+    void add(const ObjectReaderPtr&);
+
+    //
+    // Updated the sliced data information for all stored object instances.
+    //
+    void updateSlicedData();
+
+    static void setSlicedDataMember(PyObject*, const Ice::SlicedDataPtr&);
+    static Ice::SlicedDataPtr getSlicedDataMember(PyObject*, ObjectMap*);
+
+private:
+
+    std::vector<ReadObjectCallbackPtr> _callbacks;
+    std::set<ObjectReaderPtr> _readers;
+    static PyObject* _slicedDataType;
+    static PyObject* _sliceInfoType;
+};
+
+struct PrintObjectHistory
+{
+    int index;
+    std::map<PyObject*, int> objects;
+};
 
 //
 // Base class for type information.
@@ -125,8 +165,8 @@ public:
     // The marshal and unmarshal functions can raise Ice exceptions, and may raise
     // AbortMarshaling if an error occurs.
     //
-    virtual void marshal(PyObject*, const Ice::OutputStreamPtr&, ObjectMap*, bool, const Ice::StringSeq* = 0) = 0;
-    virtual void unmarshal(const Ice::InputStreamPtr&, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
+    virtual void marshal(PyObject*, Ice::OutputStream*, ObjectMap*, bool, const Ice::StringSeq* = 0) = 0;
+    virtual void unmarshal(Ice::InputStream*, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
                            const Ice::StringSeq* = 0) = 0;
 
     virtual void print(PyObject*, IceUtilInternal::Output&, PrintObjectHistory*) = 0;
@@ -162,8 +202,8 @@ public:
     virtual int wireSize() const;
     virtual Ice::OptionalFormat optionalFormat() const;
 
-    virtual void marshal(PyObject*, const Ice::OutputStreamPtr&, ObjectMap*, bool, const Ice::StringSeq* = 0);
-    virtual void unmarshal(const Ice::InputStreamPtr&, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
+    virtual void marshal(PyObject*, Ice::OutputStream*, ObjectMap*, bool, const Ice::StringSeq* = 0);
+    virtual void unmarshal(Ice::InputStream*, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
                            const Ice::StringSeq* = 0);
 
     virtual void print(PyObject*, IceUtilInternal::Output&, PrintObjectHistory*);
@@ -191,8 +231,8 @@ public:
     virtual int wireSize() const;
     virtual Ice::OptionalFormat optionalFormat() const;
 
-    virtual void marshal(PyObject*, const Ice::OutputStreamPtr&, ObjectMap*, bool, const Ice::StringSeq* = 0);
-    virtual void unmarshal(const Ice::InputStreamPtr&, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
+    virtual void marshal(PyObject*, Ice::OutputStream*, ObjectMap*, bool, const Ice::StringSeq* = 0);
+    virtual void unmarshal(Ice::InputStream*, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
                            const Ice::StringSeq* = 0);
 
     virtual void print(PyObject*, IceUtilInternal::Output&, PrintObjectHistory*);
@@ -241,8 +281,8 @@ public:
 
     virtual bool usesClasses() const;
 
-    virtual void marshal(PyObject*, const Ice::OutputStreamPtr&, ObjectMap*, bool, const Ice::StringSeq* = 0);
-    virtual void unmarshal(const Ice::InputStreamPtr&, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
+    virtual void marshal(PyObject*, Ice::OutputStream*, ObjectMap*, bool, const Ice::StringSeq* = 0);
+    virtual void unmarshal(Ice::InputStream*, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
                            const Ice::StringSeq* = 0);
 
     virtual void print(PyObject*, IceUtilInternal::Output&, PrintObjectHistory*);
@@ -282,8 +322,8 @@ public:
 
     virtual bool usesClasses() const;
 
-    virtual void marshal(PyObject*, const Ice::OutputStreamPtr&, ObjectMap*, bool, const Ice::StringSeq* = 0);
-    virtual void unmarshal(const Ice::InputStreamPtr&, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
+    virtual void marshal(PyObject*, Ice::OutputStream*, ObjectMap*, bool, const Ice::StringSeq* = 0);
+    virtual void unmarshal(Ice::InputStream*, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
                            const Ice::StringSeq* = 0);
 
     virtual void print(PyObject*, IceUtilInternal::Output&, PrintObjectHistory*);
@@ -311,8 +351,8 @@ private:
     typedef IceUtil::Handle<SequenceMapping> SequenceMappingPtr;
 
     PyObject* getSequence(const PrimitiveInfoPtr&, PyObject*);
-    void marshalPrimitiveSequence(const PrimitiveInfoPtr&, PyObject*, const Ice::OutputStreamPtr&);
-    void unmarshalPrimitiveSequence(const PrimitiveInfoPtr&, const Ice::InputStreamPtr&, const UnmarshalCallbackPtr&,
+    void marshalPrimitiveSequence(const PrimitiveInfoPtr&, PyObject*, Ice::OutputStream*);
+    void unmarshalPrimitiveSequence(const PrimitiveInfoPtr&, Ice::InputStream*, const UnmarshalCallbackPtr&,
                                     PyObject*, void*, const SequenceMappingPtr&);
 
 public:
@@ -342,8 +382,8 @@ public:
 
     virtual bool usesClasses() const;
 
-    virtual void marshal(PyObject*, const Ice::OutputStreamPtr&, ObjectMap*, bool, const Ice::StringSeq* = 0);
-    virtual void unmarshal(const Ice::InputStreamPtr&, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
+    virtual void marshal(PyObject*, Ice::OutputStream*, ObjectMap*, bool, const Ice::StringSeq* = 0);
+    virtual void unmarshal(Ice::InputStream*, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
                            const Ice::StringSeq* = 0);
 
     virtual void print(PyObject*, IceUtilInternal::Output&, PrintObjectHistory*);
@@ -374,8 +414,8 @@ public:
 
     virtual bool usesClasses() const;
 
-    virtual void marshal(PyObject*, const Ice::OutputStreamPtr&, ObjectMap*, bool, const Ice::StringSeq* = 0);
-    virtual void unmarshal(const Ice::InputStreamPtr&, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
+    virtual void marshal(PyObject*, Ice::OutputStream*, ObjectMap*, bool, const Ice::StringSeq* = 0);
+    virtual void unmarshal(Ice::InputStream*, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
                            const Ice::StringSeq* = 0);
     virtual void unmarshaled(PyObject*, PyObject*, void*);
 
@@ -412,7 +452,7 @@ public:
 
     ClassInfo(const std::string&);
 
-    void define(PyObject*, int, bool, bool, PyObject*, PyObject*, PyObject*);
+    void define(PyObject*, PyObject*, PyObject*);
 
     virtual std::string getId() const;
 
@@ -424,8 +464,46 @@ public:
 
     virtual bool usesClasses() const;
 
-    virtual void marshal(PyObject*, const Ice::OutputStreamPtr&, ObjectMap*, bool, const Ice::StringSeq* = 0);
-    virtual void unmarshal(const Ice::InputStreamPtr&, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
+    virtual void marshal(PyObject*, Ice::OutputStream*, ObjectMap*, bool, const Ice::StringSeq* = 0);
+    virtual void unmarshal(Ice::InputStream*, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
+                           const Ice::StringSeq* = 0);
+
+    virtual void print(PyObject*, IceUtilInternal::Output&, PrintObjectHistory*);
+
+    virtual void destroy();
+
+    const std::string id;
+    const ClassInfoPtr base;
+    const ClassInfoList interfaces;
+    const PyObjectHandle pythonType;
+    const PyObjectHandle typeObj;
+    const bool defined;
+};
+
+//
+// Value type information
+//
+
+class ValueInfo : public TypeInfo
+{
+public:
+
+    ValueInfo(const std::string&);
+
+    void define(PyObject*, int, bool, bool, PyObject*, PyObject*);
+
+    virtual std::string getId() const;
+
+    virtual bool validate(PyObject*);
+
+    virtual bool variableLength() const;
+    virtual int wireSize() const;
+    virtual Ice::OptionalFormat optionalFormat() const;
+
+    virtual bool usesClasses() const;
+
+    virtual void marshal(PyObject*, Ice::OutputStream*, ObjectMap*, bool, const Ice::StringSeq* = 0);
+    virtual void unmarshal(Ice::InputStream*, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
                            const Ice::StringSeq* = 0);
 
     virtual void print(PyObject*, IceUtilInternal::Output&, PrintObjectHistory*);
@@ -436,10 +514,9 @@ public:
 
     const std::string id;
     const Ice::Int compactId;
-    const bool isAbstract;
     const bool preserve;
-    const ClassInfoPtr base;
-    const ClassInfoList interfaces;
+    const bool interface;
+    const ValueInfoPtr base;
     const DataMemberList members;
     const DataMemberList optionalMembers;
     const PyObjectHandle pythonType;
@@ -466,8 +543,8 @@ public:
     virtual int wireSize() const;
     virtual Ice::OptionalFormat optionalFormat() const;
 
-    virtual void marshal(PyObject*, const Ice::OutputStreamPtr&, ObjectMap*, bool, const Ice::StringSeq* = 0);
-    virtual void unmarshal(const Ice::InputStreamPtr&, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
+    virtual void marshal(PyObject*, Ice::OutputStream*, ObjectMap*, bool, const Ice::StringSeq* = 0);
+    virtual void unmarshal(Ice::InputStream*, const UnmarshalCallbackPtr&, PyObject*, void*, bool,
                            const Ice::StringSeq* = 0);
 
     virtual void print(PyObject*, IceUtilInternal::Output&, PrintObjectHistory*);
@@ -487,8 +564,8 @@ class ExceptionInfo : public IceUtil::Shared
 {
 public:
 
-    void marshal(PyObject*, const Ice::OutputStreamPtr&, ObjectMap*);
-    PyObject* unmarshal(const Ice::InputStreamPtr&);
+    void marshal(PyObject*, Ice::OutputStream*, ObjectMap*);
+    PyObject* unmarshal(Ice::InputStream*);
 
     void print(PyObject*, IceUtilInternal::Output&);
     void printMembers(PyObject*, IceUtilInternal::Output&, PrintObjectHistory*);
@@ -503,47 +580,50 @@ public:
 
 private:
 
-    void writeMembers(PyObject*, const Ice::OutputStreamPtr&, const DataMemberList&, ObjectMap*) const;
+    void writeMembers(PyObject*, Ice::OutputStream*, const DataMemberList&, ObjectMap*) const;
 };
 
 //
 // ObjectWriter wraps a Python object for marshaling.
 //
-class ObjectWriter : public Ice::ObjectWriter
+class ObjectWriter : public Ice::Object
 {
 public:
 
-    ObjectWriter(PyObject*, ObjectMap*);
+    ObjectWriter(PyObject*, ObjectMap*, const ValueInfoPtr&);
     ~ObjectWriter();
 
     virtual void ice_preMarshal();
 
-    virtual void write(const Ice::OutputStreamPtr&) const;
+    virtual void _iceWrite(Ice::OutputStream*) const;
+    virtual void _iceRead(Ice::InputStream*);
 
 private:
 
-    void writeMembers(const Ice::OutputStreamPtr&, const DataMemberList&) const;
+    void writeMembers(Ice::OutputStream*, const DataMemberList&) const;
 
     PyObject* _object;
     ObjectMap* _map;
-    ClassInfoPtr _info;
+    ValueInfoPtr _info;
+    ValueInfoPtr _formal;
 };
 
 //
 // ObjectReader unmarshals the state of an Ice object.
 //
-class ObjectReader : public Ice::ObjectReader
+class ObjectReader : public Ice::Object
 {
 public:
 
-    ObjectReader(PyObject*, const ClassInfoPtr&);
+    ObjectReader(PyObject*, const ValueInfoPtr&);
     ~ObjectReader();
 
     virtual void ice_postUnmarshal();
 
-    virtual void read(const Ice::InputStreamPtr&);
+    virtual void _iceWrite(Ice::OutputStream*) const;
+    virtual void _iceRead(Ice::InputStream*);
 
-    virtual ClassInfoPtr getInfo() const;
+    virtual ValueInfoPtr getInfo() const;
 
     PyObject* getObject() const; // Borrowed reference.
 
@@ -552,26 +632,35 @@ public:
 private:
 
     PyObject* _object;
-    ClassInfoPtr _info;
+    ValueInfoPtr _info;
     Ice::SlicedDataPtr _slicedData;
 };
 
 //
 // ExceptionWriter wraps a Python user exception for marshaling.
 //
-class ExceptionWriter : public Ice::UserExceptionWriter
+class ExceptionWriter : public Ice::UserException
 {
 public:
 
-    ExceptionWriter(const Ice::CommunicatorPtr&, const PyObjectHandle&, const ExceptionInfoPtr& = 0);
+    ExceptionWriter(const PyObjectHandle&, const ExceptionInfoPtr& = 0);
     ~ExceptionWriter() throw();
 
-    virtual void write(const Ice::OutputStreamPtr&) const;
-    virtual bool usesClasses() const;
-
-    virtual std::string ice_name() const;
+    virtual std::string ice_id() const;
+#ifndef ICE_CPP11_MAPPING
     virtual Ice::UserException* ice_clone() const;
+#endif
     virtual void ice_throw() const;
+
+    virtual void _write(Ice::OutputStream*) const;
+    virtual void _read(Ice::InputStream*);
+
+    virtual bool _usesClasses() const;
+
+protected:
+
+    virtual void _writeImpl(Ice::OutputStream*) const {}
+    virtual void _readImpl(Ice::InputStream*) {}
 
 private:
 
@@ -583,23 +672,32 @@ private:
 //
 // ExceptionReader creates a Python user exception and unmarshals it.
 //
-class ExceptionReader : public Ice::UserExceptionReader
+class ExceptionReader : public Ice::UserException
 {
 public:
 
-    ExceptionReader(const Ice::CommunicatorPtr&, const ExceptionInfoPtr&);
+    ExceptionReader(const ExceptionInfoPtr&);
     ~ExceptionReader() throw();
 
-    virtual void read(const Ice::InputStreamPtr&) const;
-    virtual bool usesClasses() const;
-
-    virtual std::string ice_name() const;
+    virtual std::string ice_id() const;
+#ifndef ICE_CPP11_MAPPING
     virtual Ice::UserException* ice_clone() const;
+#endif
     virtual void ice_throw() const;
+
+    virtual void _write(Ice::OutputStream*) const;
+    virtual void _read(Ice::InputStream*);
+
+    virtual bool _usesClasses() const;
 
     PyObject* getException() const; // Borrowed reference.
 
     Ice::SlicedDataPtr getSlicedData() const;
+
+protected:
+
+    virtual void _writeImpl(Ice::OutputStream*) const {}
+    virtual void _readImpl(Ice::InputStream*) {}
 
 private:
 
@@ -616,6 +714,7 @@ public:
 };
 
 ClassInfoPtr lookupClassInfo(const std::string&);
+ValueInfoPtr lookupValueInfo(const std::string&);
 ExceptionInfoPtr lookupExceptionInfo(const std::string&);
 
 extern PyObject* Unset;
@@ -639,6 +738,8 @@ extern "C" PyObject* IcePy_declareProxy(PyObject*, PyObject*);
 extern "C" PyObject* IcePy_defineProxy(PyObject*, PyObject*);
 extern "C" PyObject* IcePy_declareClass(PyObject*, PyObject*);
 extern "C" PyObject* IcePy_defineClass(PyObject*, PyObject*);
+extern "C" PyObject* IcePy_declareValue(PyObject*, PyObject*);
+extern "C" PyObject* IcePy_defineValue(PyObject*, PyObject*);
 extern "C" PyObject* IcePy_defineException(PyObject*, PyObject*);
 extern "C" PyObject* IcePy_stringify(PyObject*, PyObject*);
 extern "C" PyObject* IcePy_stringifyException(PyObject*, PyObject*);

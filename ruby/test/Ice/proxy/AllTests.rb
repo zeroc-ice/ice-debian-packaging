@@ -355,7 +355,32 @@ def allTests(communicator)
     print "testing proxy methods... "
     STDOUT.flush
     test(communicator.identityToString(base.ice_identity(communicator.stringToIdentity("other")).ice_getIdentity()) == "other")
-    test(Ice::identityToString(base.ice_identity(Ice::stringToIdentity("other")).ice_getIdentity()) == "other")
+
+    #
+    # Verify that ToStringMode is passed correctly
+    #
+    ident = Ice::Identity.new("test", "\x7f\u20ac")
+
+    idStr = Ice::identityToString(ident, Ice::ToStringMode::Unicode)
+    test(idStr == "\\u007f\u20ac/test")
+    ident2 = Ice::stringToIdentity(idStr)
+    test(Ice::identityToString(ident) == idStr)
+
+    idStr = Ice::identityToString(ident, Ice::ToStringMode::ASCII)
+    test(idStr == "\\u007f\\u20ac/test")
+    ident2 = Ice::stringToIdentity(idStr)
+    test(ident.name == ident2.name)
+
+    test(ident.category == ident2.category)
+
+    idStr = Ice::identityToString(ident, Ice::ToStringMode::Compat)
+    test(idStr == "\\177\\342\\202\\254/test")
+    ident2 = Ice::stringToIdentity(idStr)
+    test(ident == ident2)
+
+    ident2 = Ice::stringToIdentity(communicator.identityToString(ident))
+    test(ident == ident2)
+
     test(base.ice_facet("facet").ice_getFacet() == "facet")
     test(base.ice_adapterId("id").ice_getAdapterId() == "id")
     test(base.ice_twoway().ice_isTwoway())

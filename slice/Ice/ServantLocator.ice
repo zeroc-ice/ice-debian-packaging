@@ -9,10 +9,14 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API"]]
 
 #include <Ice/ObjectAdapterF.ice>
 #include <Ice/Current.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:ICE"]
 module Ice
@@ -61,12 +65,15 @@ local interface ServantLocator
      * @return The located servant, or null if no suitable servant has
      * been found.
      *
+     * @throws UserException The implementation can raise a UserException
+     * and the run time will marshal it as the result of the invocation.
+     *
      * @see ObjectAdapter
      * @see Current
      * @see #finished
      *
      **/
-    ["UserException"] Object locate(Current curr, out LocalObject cookie);
+    ["java:UserException"] Object locate(Current curr, out LocalObject cookie);
 
     /**
      *
@@ -91,12 +98,15 @@ local interface ServantLocator
      *
      * @param cookie The cookie that was returned by <tt>locate</tt>.
      *
+     * @throws UserException The implementation can raise a UserException
+     * and the run time will marshal it as the result of the invocation.
+     *
      * @see ObjectAdapter
      * @see Current
      * @see #locate
      *
      **/
-    ["UserException"] void finished(Current curr, Object servant, LocalObject cookie);
+    ["java:UserException"] void finished(Current curr, Object servant, LocalObject cookie);
 
     /**
      *
@@ -115,4 +125,3 @@ local interface ServantLocator
 };
 
 };
-

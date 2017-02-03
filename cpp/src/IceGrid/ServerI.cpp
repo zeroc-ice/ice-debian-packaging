@@ -22,6 +22,7 @@
 #include <IceUtil/FileUtil.h>
 
 #include <sys/types.h>
+#include <fstream>
 
 #ifdef _WIN32
 #  include <direct.h>
@@ -44,7 +45,7 @@ namespace IceGrid
 void
 chownRecursive(const string& path, uid_t uid, gid_t gid)
 {
-    struct dirent **namelist = 0;
+    vector<vector<Ice::Byte> > namelist;
     DIR* d;
     if((d = opendir(path.c_str())) == 0)
     {
@@ -52,26 +53,15 @@ chownRecursive(const string& path, uid_t uid, gid_t gid)
     }
 
     struct dirent* entry;
-    int n = 0;
     while((entry = readdir(d)) != 0)
     {
-        namelist = static_cast<struct dirent**>(
-                                            realloc(namelist, static_cast<size_t>((n + 1) * sizeof(struct dirent*))));
-        if(namelist == 0)
-        {
-            closedir(d);
-            throw "cannot read directory `" + path + "':\n" + IceUtilInternal::lastErrorToString();
-        }
+        size_t index = namelist.size();
+        namelist.resize(index + 1);
 
         size_t entrysize = sizeof(struct dirent) - sizeof(entry->d_name) + strlen(entry->d_name) + 1;
-        namelist[n] = static_cast<struct dirent*>(malloc(entrysize));
-        if(namelist[n] == 0)
-        {
-            closedir(d);
-            throw "cannot read directory `" + path + "':\n" + IceUtilInternal::lastErrorToString();
-        }
-        memcpy(namelist[n], entry, entrysize);
-        ++n;
+        namelist[index].resize(entrysize);
+
+        memcpy(&namelist[index][0], entry, entrysize);
     }
 
     if(closedir(d))
@@ -79,11 +69,10 @@ chownRecursive(const string& path, uid_t uid, gid_t gid)
         throw "cannot read directory `" + path + "':\n" + IceUtilInternal::lastErrorToString();
     }
 
-    for(int i = 0; i < n; ++i)
+    for(size_t i = 0; i < namelist.size(); ++i)
     {
-        string name = namelist[i]->d_name;
+        string name = reinterpret_cast<struct dirent*>(&namelist[i][0])->d_name;
         assert(!name.empty());
-        free(namelist[i]);
 
         if(name == ".")
         {
@@ -115,8 +104,6 @@ chownRecursive(const string& path, uid_t uid, gid_t gid)
             }
         }
     }
-
-    free(namelist);
 }
 #endif
 
@@ -341,7 +328,14 @@ private:
         {
             assert(_p->first.find("config_") == 0);
             const string service = _p->first.substr(7);
-            facet = "IceBox.Service." + service + ".Properties";
+            if(getPropertyAsInt(_properties.at("config"), "IceBox.UseSharedCommunicator." + service) > 0)
+            {
+                facet = "IceBox.SharedCommunicator.Properties";
+            }
+            else
+            {
+                facet = "IceBox.Service." + service + ".Properties";
+            }
             if(_traceLevels->server > 1)
             {
                 const string id = _server->getId();
@@ -405,9 +399,9 @@ struct EnvironmentEval : std::unary_function<string, string>
                 break;
             }
             string variable = v.substr(beg + 1, end - beg - 1);
-            DWORD ret = GetEnvironmentVariableW(IceUtil::stringToWstring(variable).c_str(), &buf[0],
+            DWORD ret = GetEnvironmentVariableW(Ice::stringToWstring(variable).c_str(), &buf[0],
                                                 static_cast<DWORD>(buf.size()));
-            string valstr = (ret > 0 && ret < buf.size()) ? IceUtil::wstringToString(&buf[0]) : string("");
+            string valstr = (ret > 0 && ret < buf.size()) ? Ice::wstringToString(&buf[0]) : string("");
             v.replace(beg, end - beg + 1, valstr);
             beg += valstr.size();
         }
@@ -2305,17 +2299,18 @@ ServerI::updateImpl(const InternalServerDescriptorPtr& descriptor)
     //
     // Create or update the server directories exists.
     //
-    createOrUpdateDirectory(_serverDir);
-    createOrUpdateDirectory(_serverDir + "/config");
-    createOrUpdateDirectory(_serverDir + "/dbs");
-    createOrUpdateDirectory(_serverDir + "/distrib");
+    IcePatch2Internal::createDirectory(_serverDir);
+    IcePatch2Internal::createDirectory(_serverDir + "/config");
+    IcePatch2Internal::createDirectory(_serverDir + "/dbs");
+    IcePatch2Internal::createDirectory(_serverDir + "/distrib");
+    IcePatch2Internal::createDirectory(_serverDir + "/data");
 
     //
     // Create the configuration files, remove the old ones.
     //
     {
         //
-        // We do not want to esapce the properties if the Ice version is
+        // We do not want to escape the properties if the Ice version is
         // previous to Ice 3.3.
         //
         Ice::StringSeq knownFiles;
@@ -2324,7 +2319,7 @@ ServerI::updateImpl(const InternalServerDescriptorPtr& descriptor)
             knownFiles.push_back(p->first);
 
             const string configFilePath = _serverDir + "/config/" + p->first;
-            IceUtilInternal::ofstream configfile(configFilePath); // configFilePath is a UTF-8 string
+            ofstream configfile(IceUtilInternal::streamFilename(configFilePath).c_str()); // configFilePath is a UTF-8 string
             if(!configfile.good())
             {
                 throw "couldn't create configuration file: " + configFilePath;
@@ -2369,6 +2364,47 @@ ServerI::updateImpl(const InternalServerDescriptorPtr& descriptor)
     }
 
     //
+    // Update the service data directories if necessary and remove the old ones.
+    //
+    if(_desc->services)
+    {
+        Ice::StringSeq knownDirs;
+        for(Ice::StringSeq::const_iterator q = _desc->services->begin(); q != _desc->services->end(); ++q)
+        {
+            knownDirs.push_back("data_" + *q);
+            IcePatch2Internal::createDirectory(_serverDir + "/data_" + *q);
+        }
+        sort(knownDirs.begin(), knownDirs.end());
+
+        //
+        // Remove old directories
+        //
+        Ice::StringSeq dirs = IcePatch2Internal::readDirectory(_serverDir);
+        Ice::StringSeq svcDirs;
+        for(Ice::StringSeq::const_iterator p = dirs.begin(); p != dirs.end(); ++p)
+        {
+            if(p->find("data_") == 0)
+            {
+                svcDirs.push_back(*p);
+            }
+        }
+        Ice::StringSeq toDel;
+        set_difference(svcDirs.begin(), svcDirs.end(), knownDirs.begin(), knownDirs.end(), back_inserter(toDel));
+        for(Ice::StringSeq::const_iterator p = toDel.begin(); p != toDel.end(); ++p)
+        {
+            try
+            {
+                IcePatch2Internal::removeRecursive(_serverDir + "/" + *p);
+            }
+            catch(const string& msg)
+            {
+                Ice::Warning out(_node->getTraceLevels()->logger);
+                out << "couldn't remove directory `" + _serverDir + "/" + *p + "':\n" + msg;
+            }
+        }
+    }
+
+    //
     // Update the database environments if necessary and remove the
     // old ones.
     //
@@ -2379,13 +2415,13 @@ ServerI::updateImpl(const InternalServerDescriptorPtr& descriptor)
             knownDbEnvs.push_back((*q)->name);
 
             string dbEnvHome = _serverDir + "/dbs/" + (*q)->name;
-            createOrUpdateDirectory(dbEnvHome);
+            IcePatch2Internal::createDirectory(dbEnvHome);
 
             if(!(*q)->properties.empty())
             {
                 string file = dbEnvHome + "/DB_CONFIG";
 
-                IceUtilInternal::ofstream configfile(file); // file is a UTF-8 string
+                ofstream configfile(IceUtilInternal::streamFilename(file).c_str()); // file is a UTF-8 string
                 if(!configfile.good())
                 {
                     throw "couldn't create configuration file `" + file + "'";
@@ -2457,7 +2493,7 @@ ServerI::checkRevision(const string& replicaName, const string& uuid, int revisi
     else
     {
         string idFilePath = _serverDir + "/revision";
-        IceUtilInternal::ifstream is(idFilePath); // idFilePath is a UTF-8 string
+        ifstream is(IceUtilInternal::streamFilename(idFilePath).c_str()); // idFilePath is a UTF-8 string
         if(!is.good())
         {
             return;
@@ -2646,7 +2682,7 @@ ServerI::updateRevision(const string& uuid, int revision)
     }
 
     string idFilePath = _serverDir + "/revision";
-    IceUtilInternal::ofstream os(idFilePath); // idFilePath is a UTF-8 string
+    ofstream os(IceUtilInternal::streamFilename(idFilePath).c_str()); // idFilePath is a UTF-8 string
     if(os.good())
     {
         os << "#" << endl;
@@ -3039,18 +3075,6 @@ ServerI::setStateNoSync(InternalServerState st, const std::string& reason)
                 out << "changed server `" << _id << "' state to `Loading'";
             }
         }
-    }
-}
-
-void
-ServerI::createOrUpdateDirectory(const string& dir)
-{
-    try
-    {
-        IcePatch2Internal::createDirectory(dir);
-    }
-    catch(const string&)
-    {
     }
 }
 

@@ -7,8 +7,9 @@
 //
 // **********************************************************************
 
-using Test;
-
-public sealed class JI : JDisp_
+public sealed class JI : Ice.InterfaceByValue
 {
+    public JI() : base(Test.JDisp_.ice_staticId())
+    {
+    }
 }

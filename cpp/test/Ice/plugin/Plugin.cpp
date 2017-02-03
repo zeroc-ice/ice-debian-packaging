@@ -58,9 +58,11 @@ class PluginInitializeFailExeption : public std::exception
 
 public:
 
-    PluginInitializeFailExeption() throw() {}
+    PluginInitializeFailExeption() ICE_NOEXCEPT {}
+#ifndef ICE_CPP11_COMPILER
     virtual ~PluginInitializeFailExeption() throw() {}
-    virtual const char* what() const throw() { return "PluginInitializeFailExeption"; }
+#endif
+    virtual const char* what() const ICE_NOEXCEPT { return "PluginInitializeFailExeption"; }
 };
 
 class PluginInitializeFail : public Ice::Plugin
@@ -91,7 +93,7 @@ private:
 };
 
 class BasePlugin;
-typedef IceUtil::Handle<BasePlugin> BasePluginPtr;
+ICE_DEFINE_PTR(BasePluginPtr, BasePlugin);
 
 class BasePlugin : public Ice::Plugin
 {
@@ -139,7 +141,7 @@ public:
     void
     initialize()
     {
-        _other = BasePluginPtr::dynamicCast(_communicator->getPluginManager()->getPlugin("PluginTwo"));
+        _other = ICE_DYNAMIC_CAST(BasePlugin, _communicator->getPluginManager()->getPlugin("PluginTwo"));
         test(!_other->isInitialized());
         _initialized = true;
     }
@@ -167,7 +169,7 @@ public:
     initialize()
     {
         _initialized = true;
-        _other = BasePluginPtr::dynamicCast(_communicator->getPluginManager()->getPlugin("PluginOne"));
+        _other = ICE_DYNAMIC_CAST(BasePlugin, _communicator->getPluginManager()->getPlugin("PluginOne"));
         test(_other->isInitialized());
     }
 
@@ -194,7 +196,7 @@ public:
     initialize()
     {
         _initialized = true;
-        _other = BasePluginPtr::dynamicCast(_communicator->getPluginManager()->getPlugin("PluginTwo"));
+        _other = ICE_DYNAMIC_CAST(BasePlugin, _communicator->getPluginManager()->getPlugin("PluginTwo"));
         test(_other->isInitialized());
     }
 
@@ -208,7 +210,7 @@ public:
 };
 
 class BasePluginFail;
-typedef IceUtil::Handle<BasePluginFail> BasePluginFailPtr;
+ICE_DEFINE_PTR(BasePluginFailPtr, BasePluginFail);
 
 class BasePluginFail : public Ice::Plugin
 {
@@ -258,9 +260,9 @@ public:
     void
     initialize()
     {
-        _two = BasePluginFailPtr::dynamicCast(_communicator->getPluginManager()->getPlugin("PluginTwoFail"));
+        _two = ICE_DYNAMIC_CAST(BasePluginFail, _communicator->getPluginManager()->getPlugin("PluginTwoFail"));
         test(!_two->isInitialized());
-        _three = BasePluginFailPtr::dynamicCast(_communicator->getPluginManager()->getPlugin("PluginThreeFail"));
+        _three = ICE_DYNAMIC_CAST(BasePluginFail, _communicator->getPluginManager()->getPlugin("PluginThreeFail"));
         test(!_three->isInitialized());
         _initialized = true;
     }
@@ -299,9 +301,9 @@ public:
     initialize()
     {
         _initialized = true;
-        _one = BasePluginFailPtr::dynamicCast(_communicator->getPluginManager()->getPlugin("PluginOneFail"));
+        _one = ICE_DYNAMIC_CAST(BasePluginFail, _communicator->getPluginManager()->getPlugin("PluginOneFail"));
         test(_one->isInitialized());
-        _three = BasePluginFailPtr::dynamicCast(_communicator->getPluginManager()->getPlugin("PluginThreeFail"));
+        _three = ICE_DYNAMIC_CAST(BasePluginFail, _communicator->getPluginManager()->getPlugin("PluginThreeFail"));
         test(!_three->isInitialized());
     }
 

@@ -21,6 +21,23 @@ template<typename R> struct ReferenceWrapper
     }
 };
 
+#ifdef ICE_CPP11_MAPPING // C++11 mapping
+template<typename R> struct ReferenceWrapper<::std::shared_ptr<R> >
+{
+    static R* get(const ::std::shared_ptr<R>& v)
+    {
+        return v.get();
+    }
+};
+
+template<typename R> struct ReferenceWrapper<const ::std::shared_ptr<R>& >
+{
+    static R* get(const ::std::shared_ptr<R>& v)
+    {
+        return v.get();
+    }
+};
+#else // C++98 mapping
 template<typename R> struct ReferenceWrapper<IceInternal::ProxyHandle<R> >
 {
     static R* get(const IceInternal::ProxyHandle<R>& v)
@@ -52,6 +69,7 @@ template<typename R> struct ReferenceWrapper<const IceInternal::Handle<R>& >
         return v.get();
     }
 };
+#endif
     
 template<typename R> struct ReferenceWrapper<R*>
 {
@@ -76,7 +94,7 @@ namespace IceMX
 
 template<class T, typename Y, typename Func> struct ApplyOnMember
 {
-    ApplyOnMember(Y T::*member, Func func) : func(func), member(member)
+    ApplyOnMember(Y T::*m, Func f) : func(f), member(m)
     {
     }
 
@@ -108,7 +126,7 @@ template<typename T> struct Increment
 
 template<typename T> struct Add
 {
-    Add(T value) : value(value) { }
+    Add(T v) : value(v) { }
 
     template<typename Y>
     void operator()(Y& v)

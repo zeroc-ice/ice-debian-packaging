@@ -28,15 +28,10 @@ using namespace IceDiscovery;
 //
 // Plugin factory function.
 //
-extern "C"
-{
-
-ICE_DISCOVERY_API Ice::Plugin*
+extern "C" ICE_DISCOVERY_API Ice::Plugin*
 createIceDiscovery(const Ice::CommunicatorPtr& communicator, const string&, const Ice::StringSeq&)
 {
     return new PluginI(communicator);
-}
-
 }
 
 namespace Ice
@@ -48,6 +43,15 @@ registerIceDiscovery(bool loadOnInitialize)
     Ice::registerPluginFactory("IceDiscovery", createIceDiscovery, loadOnInitialize);
 }
 
+}
+
+//
+// Objective-C function to allow Objective-C programs to register plugin.
+//
+extern "C" ICE_DISCOVERY_API void
+ICEregisterIceDiscovery(bool loadOnInitialize)
+{
+    Ice::registerIceDiscovery(loadOnInitialize);
 }
 
 PluginI::PluginI(const Ice::CommunicatorPtr& communicator) : _communicator(communicator)
@@ -71,15 +75,15 @@ PluginI::initialize()
         address = properties->getPropertyWithDefault("IceDiscovery.Address", "ff15::1");
     }
     int port = properties->getPropertyAsIntWithDefault("IceDiscovery.Port", 4061);
-    string interface = properties->getProperty("IceDiscovery.Interface");
+    string intf = properties->getProperty("IceDiscovery.Interface");
 
     if(properties->getProperty("IceDiscovery.Multicast.Endpoints").empty())
     {
         ostringstream os;
         os << "udp -h \"" << address << "\" -p " << port;
-        if(!interface.empty())
+        if(!intf.empty())
         {
-            os << " --interface \"" << interface << "\"";
+            os << " --interface \"" << intf << "\"";
         }
         properties->setProperty("IceDiscovery.Multicast.Endpoints", os.str());
     }
@@ -87,15 +91,15 @@ PluginI::initialize()
     {
         ostringstream os;
         os << "udp";
-        if(!interface.empty())
+        if(!intf.empty())
         {
-            os << " -h \"" << interface << "\"";
+            os << " -h \"" << intf << "\"";
         }
         properties->setProperty("IceDiscovery.Reply.Endpoints", os.str());
     }
     if(properties->getProperty("IceDiscovery.Locator.Endpoints").empty())
     {
-        properties->setProperty("IceDiscovery.Locator.AdapterId", IceUtil::generateUUID());
+        properties->setProperty("IceDiscovery.Locator.AdapterId", Ice::generateUUID());
     }
 
     _multicastAdapter = _communicator->createObjectAdapter("IceDiscovery.Multicast");
@@ -105,33 +109,37 @@ PluginI::initialize()
     //
     // Setup locatory registry.
     //
-    LocatorRegistryIPtr locatorRegistry = new LocatorRegistryI(_communicator);
-    Ice::LocatorRegistryPrx locatorRegistryPrx =
-        Ice::LocatorRegistryPrx::uncheckedCast(_locatorAdapter->addWithUUID(locatorRegistry));
+    LocatorRegistryIPtr locatorRegistry = ICE_MAKE_SHARED(LocatorRegistryI, _communicator);
+    Ice::LocatorRegistryPrxPtr locatorRegistryPrx =
+        ICE_UNCHECKED_CAST(Ice::LocatorRegistryPrx, _locatorAdapter->addWithUUID(locatorRegistry));
 
     string lookupEndpoints = properties->getProperty("IceDiscovery.Lookup");
     if(lookupEndpoints.empty())
     {
         ostringstream os;
         os << "udp -h \"" << address << "\" -p " << port;
-        if(!interface.empty())
+        if(!intf.empty())
         {
-            os << " --interface \"" << interface << "\"";
+            os << " --interface \"" << intf << "\"";
         }
         lookupEndpoints = os.str();
     }
 
-    Ice::ObjectPrx lookupPrx = _communicator->stringToProxy("IceDiscovery/Lookup -d:" + lookupEndpoints);
+    Ice::ObjectPrxPtr lookupPrx = _communicator->stringToProxy("IceDiscovery/Lookup -d:" + lookupEndpoints);
     lookupPrx = lookupPrx->ice_collocationOptimized(false); // No collocation optimization for the multicast proxy!
     try
     {
         // Ensure we can establish a connection to the multicast proxy
         // but don't block.
+#ifdef ICE_CPP11_MAPPING
+        lookupPrx->ice_getConnection();
+#else
         Ice::AsyncResultPtr result = lookupPrx->begin_ice_getConnection();
         if(result->sentSynchronously())
         {
             lookupPrx->end_ice_getConnection(result);
         }
+#endif
     }
     catch(const Ice::LocalException& ex)
     {
@@ -145,17 +153,17 @@ PluginI::initialize()
     //
     // Add lookup and lookup reply Ice objects
     //
-    _lookup = new LookupI(locatorRegistry, LookupPrx::uncheckedCast(lookupPrx), properties);
-    _multicastAdapter->add(_lookup, _communicator->stringToIdentity("IceDiscovery/Lookup"));
+    _lookup = ICE_MAKE_SHARED(LookupI, locatorRegistry, ICE_UNCHECKED_CAST(LookupPrx, lookupPrx), properties);
+    _multicastAdapter->add(_lookup, Ice::stringToIdentity("IceDiscovery/Lookup"));
 
-    Ice::ObjectPrx lookupReply = _replyAdapter->addWithUUID(new LookupReplyI(_lookup))->ice_datagram();
-    _lookup->setLookupReply(LookupReplyPrx::uncheckedCast(lookupReply));
+    Ice::ObjectPrxPtr lookupReply = _replyAdapter->addWithUUID(ICE_MAKE_SHARED(LookupReplyI, _lookup))->ice_datagram();
+    _lookup->setLookupReply(ICE_UNCHECKED_CAST(LookupReplyPrx, lookupReply));
 
     //
     // Setup locator on the communicator.
     //
-    Ice::ObjectPrx loc = _locatorAdapter->addWithUUID(new LocatorI(_lookup, locatorRegistryPrx));
-    _communicator->setDefaultLocator(Ice::LocatorPrx::uncheckedCast(loc));
+    Ice::ObjectPrxPtr loc = _locatorAdapter->addWithUUID(ICE_MAKE_SHARED(LocatorI, _lookup, locatorRegistryPrx));
+    _communicator->setDefaultLocator(ICE_UNCHECKED_CAST(Ice::LocatorPrx, loc));
 
     _multicastAdapter->activate();
     _replyAdapter->activate();

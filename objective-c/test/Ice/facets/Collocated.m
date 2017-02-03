@@ -19,10 +19,10 @@ run(id<ICECommunicator> communicator)
     ICEObject* d = [TestFacetsDI d];
     ICEObject* f = [TestFacetsFI f];
     ICEObject* h = [TestFacetsHI h];
-    [adapter add:d identity:[communicator stringToIdentity:@"d"]];
-    [adapter addFacet:d identity:[communicator stringToIdentity:@"d"] facet:@"facetABCD"];
-    [adapter addFacet:f identity:[communicator stringToIdentity:@"d"] facet:@"facetEF"];
-    [adapter addFacet:h identity:[communicator stringToIdentity:@"d"] facet:@"facetGH"];
+    [adapter add:d identity:[ICEUtil stringToIdentity:@"d"]];
+    [adapter addFacet:d identity:[ICEUtil stringToIdentity:@"d"] facet:@"facetABCD"];
+    [adapter addFacet:f identity:[ICEUtil stringToIdentity:@"d"] facet:@"facetEF"];
+    [adapter addFacet:h identity:[ICEUtil stringToIdentity:@"d"] facet:@"facetGH"];
 
     id<TestFacetsGPrx> facetsAllTests(id<ICECommunicator>);
     facetsAllTests(communicator);
@@ -31,12 +31,19 @@ run(id<ICECommunicator> communicator)
 }
 
 #if TARGET_OS_IPHONE
-#  define main facetsServer
+#  define main facetsCollocated
 #endif
 
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    ICEregisterIceSSL(YES);
+#if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+    ICEregisterIceIAP(YES);
+#endif
+#endif
+
     int status;
     @autoreleasepool
     {
@@ -46,7 +53,7 @@ main(int argc, char* argv[])
             ICEInitializationData* initData = [ICEInitializationData initializationData];
             initData.properties = defaultServerProperties(&argc, argv);
 #if TARGET_OS_IPHONE
-            initData.prefixTable__ = [NSDictionary dictionaryWithObjectsAndKeys:
+            initData.prefixTable_ = [NSDictionary dictionaryWithObjectsAndKeys:
                                       @"TestFacets", @"::Test",
                                       nil];
 #endif
@@ -61,15 +68,7 @@ main(int argc, char* argv[])
 
         if(communicator)
         {
-            @try
-            {
-                [communicator destroy];
-            }
-            @catch(ICEException* ex)
-            {
-            tprintf("%@\n", ex);
-                status = EXIT_FAILURE;
-            }
+            [communicator destroy];
         }
     }
     return status;

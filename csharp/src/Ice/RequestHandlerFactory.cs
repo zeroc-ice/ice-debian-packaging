@@ -8,7 +8,6 @@
 // **********************************************************************
 
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace IceInternal
 {
@@ -27,7 +26,7 @@ namespace IceInternal
                 Ice.ObjectAdapter adapter = _instance.objectAdapterFactory().findObjectAdapter(proxy);
                 if(adapter != null)
                 {
-                    return proxy.setRequestHandler__(new CollocatedRequestHandler(rf, adapter));
+                    return proxy.iceSetRequestHandler(new CollocatedRequestHandler(rf, adapter));
                 }
             }
 
@@ -55,7 +54,7 @@ namespace IceInternal
             {
                 rf.getConnection(handler);
             }
-            return proxy.setRequestHandler__(handler.connect(proxy));
+            return proxy.iceSetRequestHandler(handler.connect(proxy));
         }
 
         internal void

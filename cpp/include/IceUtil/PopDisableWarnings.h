@@ -10,10 +10,10 @@
 // No pragma once as this file can be included several times in a translation 
 // unit
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 #   pragma warning(pop)
-#endif
-
-#if defined(__GNUC__) && ((__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
+#elif defined(__clang__)
+#   pragma clang diagnostic pop
+#elif defined(__GNUC__)
 #   pragma GCC diagnostic pop
 #endif

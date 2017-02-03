@@ -18,12 +18,12 @@ public class Client extends test.Util.Application
         {
             AllTests.allTests(this);
         }
-        catch(Ice.AdapterAlreadyActiveException ex)
+        catch(com.zeroc.Ice.AdapterAlreadyActiveException ex)
         {
             ex.printStackTrace();
             throw new RuntimeException();
         }
-        catch(Ice.AdapterNotFoundException ex)
+        catch(com.zeroc.Ice.AdapterNotFoundException ex)
         {
             ex.printStackTrace();
             throw new RuntimeException();
@@ -38,12 +38,11 @@ public class Client extends test.Util.Application
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.location");
-        initData.properties.setProperty("Ice.Default.Locator", "locator:default -p 12010");
+        initData.properties.setProperty("Ice.Default.Locator", "locator:" + getTestEndpoint(initData.properties, 0));
         return initData;
     }
 

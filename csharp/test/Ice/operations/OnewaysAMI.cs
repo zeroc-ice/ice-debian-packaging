@@ -10,7 +10,6 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
-using System.Collections.Generic;
 
 public class OnewaysAMI
 {
@@ -18,7 +17,7 @@ public class OnewaysAMI
     {
         if(!b)
         {
-            throw new System.SystemException();
+            throw new SystemException();
         }
     }
 
@@ -35,7 +34,7 @@ public class OnewaysAMI
             {
                 while(!_called)
                 {
-                    System.Threading.Monitor.Wait(this);
+                    Monitor.Wait(this);
                 }
                 _called = false;
             }
@@ -47,7 +46,7 @@ public class OnewaysAMI
             {
                 Debug.Assert(!_called);
                 _called = true;
-                System.Threading.Monitor.Pulse(this);
+                Monitor.Pulse(this);
             }
         }
 
@@ -72,9 +71,20 @@ public class OnewaysAMI
         }
     }
 
-    internal static void onewaysAMI(Ice.Communicator communicator, Test.MyClassPrx proxy)
+    internal static void onewaysAMI(TestCommon.Application app, Test.MyClassPrx proxy)
     {
+        Ice.Communicator communicator = app.communicator();
         Test.MyClassPrx p = Test.MyClassPrxHelper.uncheckedCast(proxy.ice_oneway());
+
+        {
+            Callback cb = new Callback();
+            p.ice_pingAsync(progress:new Progress<bool>(
+                sentSynchronously =>
+                {
+                    cb.sent(sentSynchronously);
+                }));
+            cb.check();
+        }
 
         {
             Callback cb = new Callback();
@@ -100,10 +110,32 @@ public class OnewaysAMI
         {
             try
             {
+                p.ice_isAAsync("::Test::MyClass");
+                test(false);
+            }
+            catch(ArgumentException)
+            {
+            }
+        }
+
+        {
+            try
+            {
                 p.begin_ice_isA("::Test::MyClass");
                 test(false);
             }
-            catch(System.ArgumentException)
+            catch(ArgumentException)
+            {
+            }
+        }
+
+        {
+            try
+            {
+                p.ice_idAsync();
+                test(false);
+            }
+            catch(ArgumentException)
             {
             }
         }
@@ -114,7 +146,7 @@ public class OnewaysAMI
                 p.begin_ice_id();
                 test(false);
             }
-            catch(System.ArgumentException)
+            catch(ArgumentException)
             {
             }
         }
@@ -125,9 +157,19 @@ public class OnewaysAMI
                 p.begin_ice_ids();
                 test(false);
             }
-            catch(System.ArgumentException)
+            catch(ArgumentException)
             {
             }
+        }
+
+        {
+            Callback cb = new Callback();
+            p.opVoidAsync(progress:new Progress<bool>(
+                sentSynchronously =>
+                {
+                    cb.sent(sentSynchronously);
+                }));
+            cb.check();
         }
 
         {
@@ -153,6 +195,16 @@ public class OnewaysAMI
 
         {
             Callback cb = new Callback();
+            p.opIdempotentAsync(progress:new Progress<bool>(
+                sentSynchronously =>
+                {
+                    cb.sent(sentSynchronously);
+                }));
+            cb.check();
+        }
+
+        {
+            Callback cb = new Callback();
             p.begin_opIdempotent().whenCompleted(cb.noException).whenSent(cb.sent);
             cb.check();
         }
@@ -169,6 +221,16 @@ public class OnewaysAMI
                 {
                     cb.sent(sentSynchronously);
                 });
+            cb.check();
+        }
+
+        {
+            Callback cb = new Callback();
+            p.opNonmutatingAsync(progress:new Progress<bool>(
+                sentSynchronously =>
+                {
+                    cb.sent(sentSynchronously);
+                }));
             cb.check();
         }
 
@@ -196,10 +258,21 @@ public class OnewaysAMI
         {
             try
             {
-                p.begin_opByte((byte)0xff, (byte)0x0f);
+                p.opByteAsync(0xff, 0x0f);
                 test(false);
             }
-            catch(System.ArgumentException)
+            catch(ArgumentException)
+            {
+            }
+        }
+
+        {
+            try
+            {
+                p.begin_opByte(0xff, 0x0f);
+                test(false);
+            }
+            catch(ArgumentException)
             {
             }
         }

@@ -7,15 +7,11 @@
 //
 // **********************************************************************
 
-#define TRACE
-
 namespace Ice
 {
     using System.Diagnostics;
     using System.Globalization;
-#if !SILVERLIGHT && !UNITY
     using System.IO;
-#endif
 
     public abstract class LoggerI : Logger
     {
@@ -120,7 +116,6 @@ namespace Ice
         }
     }
 
-#if !SILVERLIGHT && !UNITY
     public sealed class FileLoggerI : LoggerI
     {
         public FileLoggerI(string prefix, string file) :
@@ -145,8 +140,6 @@ namespace Ice
         private TextWriter _writer;
     }
 
-
-#  if !COMPACT
     public class ConsoleListener : TraceListener
     {
         public ConsoleListener()
@@ -177,7 +170,7 @@ namespace Ice
             s.Append(System.DateTime.Now.ToString(_time, CultureInfo.CurrentCulture));
             s.Append(' ');
             s.Append(message);
-            this.WriteLine(s.ToString());
+            WriteLine(s.ToString());
         }
 
         public override void Write(string message)
@@ -259,6 +252,4 @@ namespace Ice
         private bool _console;
         internal static ConsoleListener _consoleListener = new ConsoleListener();
     }
-#  endif
-#endif
 }

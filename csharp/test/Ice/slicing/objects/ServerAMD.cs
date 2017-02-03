@@ -7,61 +7,26 @@
 //
 // **********************************************************************
 
-using System.Diagnostics;
+using System;
 
-public class Server
+public class Server : TestCommon.Application
 {
-    private static int run(string[] args, Ice.Communicator communicator)
+    public override int run(string[] args)
     {
-        Ice.Properties properties = communicator.getProperties();
+        Ice.Properties properties = communicator().getProperties();
         properties.setProperty("Ice.Warn.Dispatch", "0");
-        properties.setProperty("TestAdapter.Endpoints", "default -p 12010 -t 2000");
-        Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
+        properties.setProperty("TestAdapter.Endpoints", getTestEndpoint(0) + " -t 2000");
+        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
         Ice.Object obj = new TestI();
-        adapter.add(obj, communicator.stringToIdentity("Test"));
+        adapter.add(obj, Ice.Util.stringToIdentity("Test"));
         adapter.activate();
-        communicator.waitForShutdown();
+        communicator().waitForShutdown();
         return 0;
     }
 
     public static int Main(string[] args)
     {
-        int status = 0;
-        Ice.Communicator communicator = null;
-
-        try
-        {
-            Ice.InitializationData data = new Ice.InitializationData();
-#if COMPACT
-            //
-            // When using Ice for .NET Compact Framework, we need to specify
-            // the assembly so that Ice can locate classes and exceptions.
-            //
-            data.properties = Ice.Util.createProperties();
-            data.properties.setProperty("Ice.FactoryAssemblies", "serveramd");
-#endif
-            communicator = Ice.Util.initialize(ref args, data);
-            status = run(args, communicator);
-        }
-        catch(System.Exception ex)
-        {
-            System.Console.Error.WriteLine(ex);
-            status = 1;
-        }
-
-        if(communicator != null)
-        {
-            try
-            {
-                communicator.destroy();
-            }
-            catch(Ice.LocalException ex)
-            {
-                System.Console.Error.WriteLine(ex);
-                status = 1;
-            }
-        }
-
-        return status;
+        Server app = new Server();
+        return app.runmain(args);
     }
 }

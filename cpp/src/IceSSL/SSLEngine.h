@@ -19,9 +19,11 @@
 #include <IceUtil/Mutex.h>
 #include <Ice/CommunicatorF.h>
 #include <Ice/Network.h>
+#include <Ice/UniqueRef.h>
 
 #if defined(ICE_USE_SECURE_TRANSPORT)
 #   include <Security/Security.h>
+#   include <Security/SecureTransport.h>
 #elif defined(ICE_USE_SCHANNEL)
 
 //
@@ -39,6 +41,8 @@
 #  include <sspi.h>
 #  include <schannel.h>
 #  undef SECURITY_WIN32
+#elif defined(ICE_OS_UWP)
+#  include <mutex>
 #endif
 
 namespace IceSSL
@@ -72,7 +76,7 @@ public:
     //
     // Verify peer certificate
     //
-    void verifyPeer(SOCKET, const std::string&, const NativeConnectionInfoPtr&);
+    void verifyPeer(const std::string&, const NativeConnectionInfoPtr&, const std::string&);
 
     CertificateVerifierPtr getCertificateVerifier() const;
     PasswordPromptPtr getPasswordPrompt() const;
@@ -80,9 +84,10 @@ public:
     std::string getPassword() const;
     void setPassword(const std::string& password);
 
-    int getVerifyPeer() const { return _verifyPeer; }
-    int securityTraceLevel() const { return _securityTraceLevel; }
-    std::string securityTraceCategory() const { return _securityTraceCategory; }
+    bool getCheckCertName() const;
+    int getVerifyPeer() const;
+    int securityTraceLevel() const;
+    std::string securityTraceCategory() const;
 
 private:
 
@@ -120,19 +125,19 @@ public:
 private:
 
     void parseCiphers(const std::string&);
-    SecKeychainRef openKeychain();
 
     bool _initialized;
-    UniqueRef<CFArrayRef> _certificateAuthorities;
-    UniqueRef<CFArrayRef> _chain;
+    IceInternal::UniqueRef<CFArrayRef> _certificateAuthorities;
+    IceInternal::UniqueRef<CFArrayRef> _chain;
 
     SSLProtocol _protocolVersionMax;
     SSLProtocol _protocolVersionMin;
 
     std::string _defaultDir;
 
+#if TARGET_OS_IPHONE==0
     std::vector<char> _dhParams;
-
+#endif
     std::vector<SSLCipherSuite> _ciphers;
     IceUtil::Mutex _mutex;
 };
@@ -179,6 +184,7 @@ private:
 #   endif
 
 #endif
+
 class SChannelEngine : public SSLEngine
 {
 public:
@@ -219,7 +225,31 @@ private:
     HCERTCHAINENGINE _chainEngine;
     std::vector<ALG_ID> _ciphers;
 };
+
+#elif defined(ICE_OS_UWP)
+
+class UWPEngine : public SSLEngine
+{
+public:
+
+    UWPEngine(const Ice::CommunicatorPtr&);
+
+    virtual void initialize();
+    virtual bool initialized() const;
+    virtual void destroy();
+    //virtual std::shared_ptr<Certificate> ca();
+    virtual std::shared_ptr<Certificate> certificate();
+
+private:
+
+    //std::shared_ptr<Certificate> _ca;
+    std::shared_ptr<Certificate> _certificate;
+    bool _initialized;
+    std::mutex _mutex;
+};
+
 #else // OpenSSL
+
 class OpenSSLEngine : public SSLEngine
 {
 public:
@@ -244,7 +274,6 @@ private:
     void setOptions(int);
     enum Protocols { SSLv3 = 0x01, TLSv1_0 = 0x02, TLSv1_1 = 0x04, TLSv1_2 = 0x08 };
     int parseProtocols(const Ice::StringSeq&) const;
-
 
     bool _initialized;
     SSL_CTX* _ctx;

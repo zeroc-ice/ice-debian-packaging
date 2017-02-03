@@ -26,7 +26,9 @@
 #include <Proxy.h>
 #include <Slice.h>
 #include <Types.h>
+#include <ValueFactoryManager.h>
 #include <Ice/Initialize.h>
+#include <Ice/RegisterPlugins.h>
 
 using namespace std;
 using namespace IcePy;
@@ -59,8 +61,8 @@ static PyMethodDef methods[] =
         PyDoc_STR(STRCAST("createProperties([args]) -> Ice.Properties")) },
     { STRCAST("stringToIdentity"), reinterpret_cast<PyCFunction>(IcePy_stringToIdentity), METH_O,
         PyDoc_STR(STRCAST("stringToIdentity(string) -> Ice.Identity")) },
-    { STRCAST("identityToString"), reinterpret_cast<PyCFunction>(IcePy_identityToString), METH_O,
-        PyDoc_STR(STRCAST("identityToString(Ice.Identity) -> string")) },
+    { STRCAST("identityToString"), reinterpret_cast<PyCFunction>(IcePy_identityToString), METH_VARARGS,
+        PyDoc_STR(STRCAST("identityToString(Ice.Identity, Ice.ToStringMode) -> string")) },
     { STRCAST("getProcessLogger"), reinterpret_cast<PyCFunction>(IcePy_getProcessLogger), METH_NOARGS,
         PyDoc_STR(STRCAST("getProcessLogger() -> Ice.Logger")) },
     { STRCAST("setProcessLogger"), reinterpret_cast<PyCFunction>(IcePy_setProcessLogger), METH_VARARGS,
@@ -82,6 +84,10 @@ static PyMethodDef methods[] =
     { STRCAST("declareClass"), reinterpret_cast<PyCFunction>(IcePy_declareClass), METH_VARARGS,
         PyDoc_STR(STRCAST("internal function")) },
     { STRCAST("defineClass"), reinterpret_cast<PyCFunction>(IcePy_defineClass), METH_VARARGS,
+        PyDoc_STR(STRCAST("internal function")) },
+    { STRCAST("declareValue"), reinterpret_cast<PyCFunction>(IcePy_declareValue), METH_VARARGS,
+        PyDoc_STR(STRCAST("internal function")) },
+    { STRCAST("defineValue"), reinterpret_cast<PyCFunction>(IcePy_defineValue), METH_VARARGS,
         PyDoc_STR(STRCAST("internal function")) },
     { STRCAST("defineException"), reinterpret_cast<PyCFunction>(IcePy_defineException), METH_VARARGS,
         PyDoc_STR(STRCAST("internal function")) },
@@ -109,10 +115,10 @@ static struct PyModuleDef iceModule =
     "The Internet Communications Engine.",
     -1,
     methods,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    ICE_NULLPTR,
+    ICE_NULLPTR,
+    ICE_NULLPTR,
+    ICE_NULLPTR
 };
 
 #else
@@ -121,15 +127,6 @@ static struct PyModuleDef iceModule =
 
 PyDoc_STRVAR(moduleDoc, "The Internet Communications Engine.");
 
-#endif
-
-#ifdef ICE_STATIC_LIBS
-extern "C"
-{
-Ice::Plugin* createIceSSL(const Ice::CommunicatorPtr&, const std::string&, const Ice::StringSeq&);
-Ice::Plugin* createIceDiscovery(const Ice::CommunicatorPtr&, const string&, const Ice::StringSeq&);
-Ice::Plugin* createIceLocatorDiscovery(const Ice::CommunicatorPtr&, const string&, const Ice::StringSeq&);
-}
 #endif
 
 #if defined(__GNUC__) && PY_VERSION_HEX >= 0x03000000
@@ -147,12 +144,9 @@ initIcePy(void)
 {
     PyObject* module;
 
-#ifdef ICE_STATIC_LIBS
-    // Register the plugins manually if we're building with static libraries.
-    Ice::registerPluginFactory("IceSSL", createIceSSL, false);
-    Ice::registerPluginFactory("IceDiscovery", createIceDiscovery, false);
-    Ice::registerPluginFactory("IceLocatorDiscovery", createIceLocatorDiscovery, false);
-#endif
+    Ice::registerIceSSL(false);
+    Ice::registerIceDiscovery(false);
+    Ice::registerIceLocatorDiscovery(false);
 
     //
     // Notify Python that we are a multi-threaded extension.
@@ -231,6 +225,10 @@ initIcePy(void)
         INIT_RETURN;
     }
     if(!initEndpointInfo(module))
+    {
+        INIT_RETURN;
+    }
+    if(!initValueFactoryManager(module))
     {
         INIT_RETURN;
     }

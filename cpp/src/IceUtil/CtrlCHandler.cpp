@@ -51,43 +51,32 @@ Init init;
 }
 
 CtrlCHandlerException::CtrlCHandlerException(const char* file, int line) :
-    Exception(file, line)
+    ExceptionHelper<CtrlCHandlerException>(file, line)
 {
-}
-
-namespace
-{
-
-const char* ctrlCHandlerName = "IceUtil::CtrlCHandlerException";
-
 }
 
 string
-CtrlCHandlerException::ice_name() const
+CtrlCHandlerException::ice_id() const
 {
-    return ctrlCHandlerName;
+    return "::IceUtil::CtrlCHandlerException";
 }
 
+#ifndef ICE_CPP11_MAPPING
 CtrlCHandlerException*
 CtrlCHandlerException::ice_clone() const
 {
     return new CtrlCHandlerException(*this);
 }
+#endif
 
 void
-CtrlCHandlerException::ice_throw() const
-{
-    throw *this;
-}
-
-void 
 CtrlCHandler::setCallback(CtrlCHandlerCallback callback)
 {
     IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(globalMutex);
     _callback = callback;
 }
 
-CtrlCHandlerCallback 
+CtrlCHandlerCallback
 CtrlCHandler::getCallback() const
 {
     IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(globalMutex);
@@ -145,10 +134,10 @@ CtrlCHandler::~CtrlCHandler()
 
 #else
 
-extern "C" 
+extern "C"
 {
 
-static void* 
+static void*
 sigwaitThread(void*)
 {
     sigset_t ctrlCLikeSignals;
@@ -173,7 +162,7 @@ sigwaitThread(void*)
             continue;
         }
         assert(rc == 0);
-        
+
         CtrlCHandlerCallback callback;
         {
             IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(globalMutex);
@@ -216,11 +205,11 @@ CtrlCHandler::CtrlCHandler(CtrlCHandlerCallback callback)
         _handler = this;
 
         lock.release();
-        
+
         // We block these CTRL+C like signals in the main thread,
         // and by default all other threads will inherit this signal
         // mask.
-        
+
         sigset_t ctrlCLikeSignals;
         sigemptyset(&ctrlCLikeSignals);
         sigaddset(&ctrlCLikeSignals, SIGHUP);
@@ -270,4 +259,3 @@ CtrlCHandler::~CtrlCHandler()
 }
 
 #endif
-

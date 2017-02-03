@@ -1,0 +1,150 @@
+# **********************************************************************
+#
+# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+#
+# This copy of Ice is licensed to you under the terms described in the
+# ICE_LICENSE file included in this distribution.
+#
+# **********************************************************************
+
+#
+# Select an installation base directory. The directory will be created
+# if it does not exist.
+#
+prefix			?= /opt/Ice-$(version)
+
+#
+# The "root directory" for runpath embedded in executables. Can be set
+# to change the runpath added to Ice executables.
+#
+# If not set, a runpath relative to the path of the executable is
+# embedded (using @loader_path on OS X and $ORIGIN on Linux).
+#
+#embedded_runpath_prefix ?= /opt/Ice-$(mmversion)
+
+#
+# Define embedded_runpath as no if you don't want any runpath added to
+# the executables. If not set, defaults to to "yes"
+#
+embedded_runpath 	?= yes
+
+#
+# Define new_dtags as yes if you want the linker to enable the new style
+# dtags, this will cause the linker to add a runpath entry instead of
+# a rpath entry. This only aplly to gcc builds on Linux
+#
+new_dtags              ?= no
+
+#
+# Define OPTIMIZE as yes if you want to build with optimization.
+# Otherwise Ice is build with debug information.
+#
+#OPTIMIZE		= yes
+
+#
+# Default Mutex protocol: one of PrioNone or PrioInherit.
+#
+#DEFAULT_MUTEX_PROTOCOL ?= PrioNone
+
+#
+# Define PLATFORMS to the list of platforms to build. This defaults
+# to the first supported platform for this system.
+#
+# Run `make print V=supported-platforms' to see the list of supported
+# platforms on this system.
+#
+PLATFORMS              	?= $(firstword $(supported-platforms))
+
+#
+# Configurations to build. This defaults to the first supported
+# configuration.
+#
+# Run `make print V=supported-configs` to see the list of supported
+# configurations.
+#
+CONFIGS			?= $(firstword $(supported-configs))
+
+#
+# List of binary distributions to build against. Defaults to undefined,
+# i.e. build all source distributions. This is useful for building
+# a language mapping or tests against a binary distribution.
+#
+#ICE_BIN_DIST         ?=
+
+#
+# Third-party libraries (Ice for C++)
+#
+# If a third-party library is not installed in a standard location
+# where the compiler can find it, set the corresponding variable
+# below to the installation directory of the library.
+#
+#MCPP_HOME 		?= /opt/mcpp
+#ICONV_HOME 		?= /opt/iconv
+#EXPAT_HOME 		?= /opt/expat
+#BZ2_HOME 		?= /opt/bz2
+#LMDB_HOME 		?= /opt/lmdb
+
+# ----------------------------------------------------------------------
+# Don't change anything below this line!
+# ----------------------------------------------------------------------
+
+os			?= $(shell uname)
+
+include	$(top_srcdir)/config/Make.rules.$(os)
+include	$(top_srcdir)/config/Make.project.rules
+include	$(top_srcdir)/config/Make.tests.rules
+
+ifneq ($(ICE_BIN_DIST),)
+prefix 			:= $(or $(ICE_HOME),$(if $(filter Darwin,$(os)),/usr/local,/usr))
+bindir			?= $(install_bindir)
+libdir			?= $(install_libdir)
+slicedir 		?= $(install_slicedir)
+includedir		?= $(install_includedir)
+else
+bindir			?= $(call mappingdir,$(or $1,$(currentdir)),bin)
+libdir			?= $(call mappingdir,$(or $1,$(currentdir)),lib)
+slicedir		?= $(top_srcdir)/slice
+includedir		?= $(call mappingdir,$(or $1,$(currentdir)),include)
+endif
+
+srcdir 			?= $(call mappingdir,$(or $1,$(currentdir)),src)
+
+usr_dir_install		:= $(or $(filter yes,$(USR_DIR_INSTALL)),$(filter /usr%,$(prefix)))
+install_bindir	  	?= $(prefix)/bin
+install_libdir	  	?= $(prefix)/lib
+install_slicedir 	?= $(prefix)$(if $(usr_dir_install),/share/ice)/slice
+install_includedir	?= $(prefix)/include
+install_docdir 		?= $(prefix)$(if $(usr_dir_install),/share/ice)
+install_mandir		?= $(prefix)$(if $(usr_dir_install),/share)/man
+install_configdir 	?= $(prefix)$(if $(usr_dir_install),/share/ice,/config)
+
+version     		= 3.7a4
+mmversion		= 3.7
+soversion   		= 37a4
+
+#
+# The compatversion is the lowest patch release with the same API.
+# For example, if 3.7.2 introduces no new API compared to 3.7.1, we
+# would set version to 3.7.2 and compatversion to 3.7.1.
+# Used for OS X libraries.
+#
+compatversion           = $(version)
+
+#
+# Support for 3rd party libraries
+#
+thirdparties		:= mcpp iconv expat bz2 lmdb
+mcpp_home 		:= $(MCPP_HOME)
+iconv_home 		:= $(ICONV_HOME)
+expat_home 		:= $(EXPAT_HOME)
+bz2_home 		:= $(BZ2_HOME)
+lmdb_home 		:= $(LMDB_HOME)
+
+$(foreach l,$(thirdparties),$(eval $(call make-lib,$l)))
+
+#
+# Languages, platforms and configurations to build
+#
+supported-languages	?= cpp java java-compat python js ruby php
+supported-configs	?= shared
+

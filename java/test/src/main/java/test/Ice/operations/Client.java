@@ -17,17 +17,17 @@ public class Client extends test.Util.Application
     public int run(String[] args)
     {
         java.io.PrintWriter out = getWriter();
-        MyClassPrx myClass = AllTests.allTests(this, out);
+        MyClassPrx myClass = AllTests.allTests(this);
 
         out.print("testing server shutdown... ");
         out.flush();
         myClass.shutdown();
         try
         {
-            myClass.opVoid();
+            myClass.ice_timeout(100).ice_ping(); // Use timeout to speed up testing on Windows
             throw new RuntimeException();
         }
-        catch(Ice.LocalException ex)
+        catch(com.zeroc.Ice.LocalException ex)
         {
             out.println("ok");
         }
@@ -36,10 +36,9 @@ public class Client extends test.Util.Application
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.ThreadPool.Client.Size", "2");
         initData.properties.setProperty("Ice.ThreadPool.Client.SizeWarn", "0");
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.operations");

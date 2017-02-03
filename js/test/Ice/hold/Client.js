@@ -49,7 +49,7 @@
                 }
                 catch(err)
                 {
-                    p.fail(err);
+                    p.reject(err);
                     throw err;
                 }
             }
@@ -82,7 +82,7 @@
                 out.write("changing state between active and hold rapidly... ");
 
                 var i;
-                var r = new Ice.Promise().succeed();
+                var r = Ice.Promise.resolve();
                 /*jshint -W083 */
                 // Ignore this since we do not use i and
                 // have only a small number of iterations
@@ -230,7 +230,7 @@
                             ).then(
                                 function(con)
                                 {
-                                    return con.close(false);
+                                    return con.close(Ice.ConnectionClose.CloseGracefullyAndWait);
                                 }
                             );
                         }
@@ -307,12 +307,13 @@
             function()
             {
                 out.writeLine("ok");
-                p.succeed();
+                p.resolve();
             },
             function(ex)
             {
+                console.log(ex);
                 out.writeLine("failed!");
-                p.fail(ex);
+                p.reject(ex);
             });
         return p;
     };
@@ -350,9 +351,9 @@
             }
         );
     };
-    exports.__test__ = run;
-    exports.__runServer__ = true;
+    exports._test = run;
+    exports._runServer = true;
 }
 (typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? module : undefined,
- typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice.__require,
+ typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice._require,
  typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? exports : this));

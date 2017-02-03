@@ -7,98 +7,105 @@
 //
 // **********************************************************************
 
-var Ice = require("../Ice/Class").Ice;
 
+const Ice = require("../Ice/ModuleRegistry").Ice;
 //
 // Ice.EnumBase
 //
-var EnumBase = Ice.Class({
-    __init__: function(name, value)
+class EnumBase
+{
+    constructor(name, value)
     {
         this._name = name;
         this._value = value;
-    },
-    equals: function(rhs)
+    }
+
+    equals(rhs)
     {
         if(this === rhs)
         {
             return true;
         }
 
-        var proto = Object.getPrototypeOf(this);
-        if(!(rhs instanceof proto.constructor))
+        if(!(rhs instanceof Object.getPrototypeOf(this).constructor))
         {
             return false;
         }
 
         return this._value == rhs._value;
-    },
-    hashCode: function()
+    }
+
+    hashCode()
     {
         return this._value;
-    },
-    toString: function()
+    }
+
+    toString()
     {
         return this._name;
     }
-});
+    
+    get name()
+    {
+        return this._name;
+    }
+    
+    get value()
+    {
+        return this._value;
+    }
+}
 Ice.EnumBase = EnumBase;
 
-var prototype = EnumBase.prototype;
-
-Object.defineProperty(prototype, 'name', {
-    enumerable: true,
-    get: function() { return this._name; }
-});
-
-Object.defineProperty(prototype, 'value', {
-    enumerable: true,
-    get: function() { return this._value; }
-});
-
-var EnumHelper = Ice.Class({
-    __init__: function(enumType)
+class EnumHelper
+{
+    constructor(enumType)
     {
         this._enumType = enumType;
-    },
-    write: function(os, v)
-    {
-        this._enumType.__write(os, v);
-    },
-    writeOpt: function(os, tag, v)
-    {
-        this._enumType.__writeOpt(os, tag, v);
-    },
-    read: function(is)
-    {
-        return this._enumType.__read(is);
-    },
-    readOpt: function(is, tag)
-    {
-        return this._enumType.__readOpt(is, tag);
     }
-});
+
+    write(os, v)
+    {
+        this._enumType._write(os, v);
+    }
+
+    writeOptional(os, tag, v)
+    {
+        this._enumType._writeOpt(os, tag, v);
+    }
+
+    read(is)
+    {
+        return this._enumType._read(is);
+    }
+
+    readOptional(is, tag)
+    {
+        return this._enumType._readOpt(is, tag);
+    }
+}
 
 Ice.EnumHelper = EnumHelper;
 
-var Slice = Ice.Slice;
+const Slice = Ice.Slice;
 Slice.defineEnum = function(enumerators)
 {
-    var type = function(n, v)
+    const type = class extends EnumBase
     {
-        EnumBase.call(this, n, v);
+        constructor(n, v)
+        {
+            super(n, v);
+        }
     };
 
-    type.prototype = new EnumBase();
-    type.prototype.constructor = type;
-
-    var enums = [];
-    var maxValue = 0;
-    var firstEnum = null;
-    for(var idx in enumerators)
+    const enums = [];
+    let maxValue = 0;
+    let firstEnum = null;
+    
+    for(let idx in enumerators)
     {
-        var e = enumerators[idx][0], value = enumerators[idx][1];
-        var enumerator = new type(e, value);
+        let e = enumerators[idx][0], value = enumerators[idx][1];
+        let enumerator = new type(e, value);
         enums[value] = enumerator;
         if(!firstEnum)
         {
@@ -118,7 +125,7 @@ Slice.defineEnum = function(enumerators)
         get: function(){ return 1; }
     });
 
-    type.__write = function(os, v)
+    type._write = function(os, v)
     {
         if(v)
         {
@@ -129,26 +136,26 @@ Slice.defineEnum = function(enumerators)
             os.writeEnum(firstEnum);
         }
     };
-    type.__read = function(is)
+    type._read = function(is)
     {
         return is.readEnum(type);
     };
-    type.__writeOpt = function(os, tag, v)
+    type._writeOpt = function(os, tag, v)
     {
         if(v !== undefined)
         {
-            if(os.writeOpt(tag, Ice.OptionalFormat.Size))
+            if(os.writeOptional(tag, Ice.OptionalFormat.Size))
             {
-                type.__write(os, v);
+                type._write(os, v);
             }
         }
     };
-    type.__readOpt = function(is, tag)
+    type._readOpt = function(is, tag)
     {
-        return is.readOptEnum(tag, type);
+        return is.readOptionalEnum(tag, type);
     };
 
-    type.__helper = new EnumHelper(type);
+    type._helper = new EnumHelper(type);
 
     Object.defineProperty(type, 'valueOf', {
         value: function(v) {

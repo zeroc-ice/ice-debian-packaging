@@ -9,10 +9,10 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["ice-prefix", "cpp:header-ext:h"]]
 
-#include <SubscriberRecord.ice>
-#include <LLURecord.ice>
+#include <IceStorm/SubscriberRecord.ice>
+#include <IceStorm/LLURecord.ice>
 
 module IceStormElection
 {

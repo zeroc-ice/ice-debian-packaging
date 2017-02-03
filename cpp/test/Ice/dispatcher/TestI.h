@@ -10,18 +10,23 @@
 #ifndef TEST_I_H
 #define TEST_I_H
 
+#include <IceUtil/IceUtil.h>
 #include <Test.h>
 
 class TestIntfControllerI;
-typedef IceUtil::Handle<TestIntfControllerI> TestIntfControllerIPtr;
+ICE_DEFINE_PTR(TestIntfControllerIPtr, TestIntfControllerI);
 
-class TestIntfI : virtual public Test::TestIntf
+class TestIntfI : public virtual Test::TestIntf
 {
 public:
 
     virtual void op(const Ice::Current&);
     virtual void sleep(Ice::Int, const Ice::Current&);
+#ifdef ICE_CPP11_MAPPING
+    virtual void opWithPayload(Ice::ByteSeq, const Ice::Current&);
+#else
     virtual void opWithPayload(const Ice::ByteSeq&, const Ice::Current&);
+#endif
     virtual void shutdown(const Ice::Current&);
 };
 

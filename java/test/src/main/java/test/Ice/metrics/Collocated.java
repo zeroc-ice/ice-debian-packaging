@@ -16,23 +16,23 @@ public class Collocated extends test.Util.Application
     @Override
     public int run(String[] args)
     {
-        Ice.Communicator communicator = communicator();
+        com.zeroc.Ice.Communicator communicator = communicator();
 
-        Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
-        adapter.add(new MetricsI(), communicator.stringToIdentity("metrics"));
+        com.zeroc.Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
+        adapter.add(new MetricsI(), com.zeroc.Ice.Util.stringToIdentity("metrics"));
         //adapter.activate(); // Don't activate OA to ensure collocation is used.
 
-        communicator.getProperties().setProperty("ControllerAdapter.Endpoints", "default -p 12011");
-        Ice.ObjectAdapter controllerAdapter = communicator.createObjectAdapter("ControllerAdapter");
-        controllerAdapter.add(new ControllerI(adapter), communicator.stringToIdentity("controller"));
+        communicator.getProperties().setProperty("ControllerAdapter.Endpoints", getTestEndpoint(1));
+        com.zeroc.Ice.ObjectAdapter controllerAdapter = communicator.createObjectAdapter("ControllerAdapter");
+        controllerAdapter.add(new ControllerI(adapter), com.zeroc.Ice.Util.stringToIdentity("controller"));
         //controllerAdapter.activate(); // Don't activate OA to ensure collocation is used.
 
         try
         {
-            MetricsPrx metrics = AllTests.allTests(communicator, getWriter(), _observer);
+            MetricsPrx metrics = AllTests.allTests(this, _observer);
             metrics.shutdown();
         }
-        catch(Ice.UserException ex)
+        catch(com.zeroc.Ice.UserException ex)
         {
             ex.printStackTrace();
             assert(false);
@@ -42,10 +42,9 @@ public class Collocated extends test.Util.Application
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData();
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         if(initData.properties.getPropertyAsInt("Ice.ThreadInterruptSafe") > 0)
         {
             // With background IO, collocated invocations are
@@ -57,7 +56,7 @@ public class Collocated extends test.Util.Application
         initData.properties.setProperty("Ice.Admin.Endpoints", "tcp");
         initData.properties.setProperty("Ice.Admin.InstanceName", "client");
         initData.properties.setProperty("Ice.Admin.DelayCreation", "1");
-        initData.properties.setProperty("TestAdapter.Endpoints", "default -p 12010");
+        initData.properties.setProperty("TestAdapter.Endpoints", getTestEndpoint(initData.properties, 0));
         initData.properties.setProperty("Ice.Warn.Connections", "0");
         initData.properties.setProperty("Ice.Warn.Dispatch", "0");
         initData.properties.setProperty("Ice.MessageSizeMax", "50000");

@@ -11,17 +11,7 @@
 #include <TestI.h>
 
 using namespace Test;
-
-BI::BI() :
-    _postUnmarshalInvoked(false)
-{
-}
-
-bool
-BI::postUnmarshalInvoked(const Ice::Current&)
-{
-    return _postUnmarshalInvoked;
-}
+using namespace std;
 
 void
 BI::ice_preMarshal()
@@ -32,18 +22,7 @@ BI::ice_preMarshal()
 void
 BI::ice_postUnmarshal()
 {
-    _postUnmarshalInvoked = true;
-}
-
-CI::CI() :
-    _postUnmarshalInvoked(false)
-{
-}
-
-bool
-CI::postUnmarshalInvoked(const Ice::Current&)
-{
-    return _postUnmarshalInvoked;
+    postUnmarshalInvoked = true;
 }
 
 void
@@ -55,18 +34,7 @@ CI::ice_preMarshal()
 void
 CI::ice_postUnmarshal()
 {
-    _postUnmarshalInvoked = true;
-}
-
-DI::DI() :
-    _postUnmarshalInvoked(false)
-{
-}
-
-bool
-DI::postUnmarshalInvoked(const Ice::Current&)
-{
-    return _postUnmarshalInvoked;
+    postUnmarshalInvoked = true;
 }
 
 void
@@ -78,7 +46,7 @@ DI::ice_preMarshal()
 void
 DI::ice_postUnmarshal()
 {
-    _postUnmarshalInvoked = true;
+    postUnmarshalInvoked = true;
 }
 
 EI::EI() :
@@ -116,10 +84,12 @@ InitialI::InitialI(const Ice::ObjectAdapterPtr& adapter) :
     _e(new EI),
     _f(new FI(_e))
 {
+#ifndef ICE_CPP11_MAPPING
     _b1->ice_collectable(true);
     _b2->ice_collectable(true);
     _c->ice_collectable(true);
     _d->ice_collectable(true);
+#endif
 
     _b1->theA = _b2; // Cyclic reference to another B
     _b1->theB = _b1; // Self reference.
@@ -191,6 +161,34 @@ InitialI::getF(const Ice::Current&)
     return _f;
 }
 
+#ifdef ICE_CPP11_MAPPING
+InitialI::GetMBMarshaledResult
+InitialI::getMB(const Ice::Current& current)
+{
+    return GetMBMarshaledResult(_b1, current);
+}
+
+void
+InitialI::getAMDMBAsync(function<void(const GetAMDMBMarshaledResult&)> response,
+                        function<void(exception_ptr)>,
+                        const Ice::Current& current)
+{
+    response(GetAMDMBMarshaledResult(_b1, current));
+}
+#else
+Test::BPtr
+InitialI::getMB(const Ice::Current&)
+{
+    return _b1;
+}
+
+void
+InitialI::getAMDMB_async(const Test::AMD_Initial_getAMDMBPtr& cb, const Ice::Current&)
+{
+    cb->ice_response(_b1);
+}
+#endif
+
 void
 InitialI::getAll(BPtr& b1, BPtr& b2, CPtr& c, DPtr& d, const Ice::Current&)
 {
@@ -204,6 +202,18 @@ InitialI::getAll(BPtr& b1, BPtr& b2, CPtr& c, DPtr& d, const Ice::Current&)
     d = _d;
 }
 
+#ifdef ICE_CPP11_MAPPING
+shared_ptr<Ice::Value>
+InitialI::getI(const Ice::Current&)
+{
+    return make_shared<II>();
+}
+
+void
+InitialI::setI(ICE_IN(shared_ptr<Ice::Value>), const Ice::Current&)
+{
+}
+#else
 IPtr
 InitialI::getI(const Ice::Current&)
 {
@@ -214,9 +224,10 @@ void
 InitialI::setI(const IPtr&, const Ice::Current&)
 {
 }
+#endif
 
 BaseSeq
-InitialI::opBaseSeq(const BaseSeq& inSeq, BaseSeq& outSeq, const Ice::Current&)
+InitialI::opBaseSeq(ICE_IN(BaseSeq) inSeq, BaseSeq& outSeq, const Ice::Current&)
 {
     outSeq = inSeq;
     return inSeq;
@@ -225,19 +236,19 @@ InitialI::opBaseSeq(const BaseSeq& inSeq, BaseSeq& outSeq, const Ice::Current&)
 CompactPtr
 InitialI::getCompact(const Ice::Current&)
 {
-    return new CompactExt();
+    return ICE_MAKE_SHARED(CompactExt);
 }
 
 Test::Inner::APtr
 InitialI::getInnerA(const Ice::Current&)
 {
-    return new Inner::A(_b1);
+    return ICE_MAKE_SHARED(Inner::A, _b1);
 }
 
 Test::Inner::Sub::APtr
 InitialI::getInnerSubA(const Ice::Current&)
 {
-    return new Inner::Sub::A(new Inner::A(_b1));
+    return ICE_MAKE_SHARED(Inner::Sub::A, ICE_MAKE_SHARED(Inner::A, _b1));
 }
 
 void
@@ -256,6 +267,19 @@ InitialI::throwInnerSubEx(const Ice::Current&)
     throw ex;
 }
 
+#ifdef ICE_CPP11_MAPPING
+shared_ptr<Ice::Value>
+InitialI::getJ(const Ice::Current&)
+{
+    return make_shared<JI>();
+}
+
+shared_ptr<Ice::Value>
+InitialI::getH(const Ice::Current&)
+{
+    return make_shared<HI>();
+}
+#else
 IPtr
 InitialI::getJ(const Ice::Current&)
 {
@@ -267,9 +291,10 @@ InitialI::getH(const Ice::Current&)
 {
     return new HI();
 }
+#endif
 
 D1Ptr
-InitialI::getD1(const Test::D1Ptr& d1, const Ice::Current&)
+InitialI::getD1(ICE_IN(Test::D1Ptr) d1, const Ice::Current&)
 {
     return d1;
 }
@@ -277,7 +302,10 @@ InitialI::getD1(const Test::D1Ptr& d1, const Ice::Current&)
 void
 InitialI::throwEDerived(const Ice::Current&)
 {
-    throw EDerived(new A1("a1"), new A1("a2"), new A1("a3"), new A1("a4"));
+    throw EDerived(ICE_MAKE_SHARED(A1, "a1"),
+                   ICE_MAKE_SHARED(A1, "a2"),
+                   ICE_MAKE_SHARED(A1, "a3"),
+                   ICE_MAKE_SHARED(A1, "a4"));
 }
 
 bool
@@ -286,12 +314,12 @@ UnexpectedObjectExceptionTestI::ice_invoke(const std::vector<Ice::Byte>&,
                                            const Ice::Current& current)
 {
     Ice::CommunicatorPtr communicator = current.adapter->getCommunicator();
-    Ice::OutputStreamPtr out = Ice::createOutputStream(communicator);
-    out->startEncapsulation(current.encoding, Ice::DefaultFormat);
-    AlsoEmptyPtr ae = new AlsoEmpty;
-    out->write(ae);
-    out->writePendingObjects();
-    out->endEncapsulation();
-    out->finished(outParams);
+    Ice::OutputStream out(communicator);
+    out.startEncapsulation(current.encoding, Ice::DefaultFormat);
+    AlsoEmptyPtr obj = ICE_MAKE_SHARED(AlsoEmpty);
+    out.write(obj);
+    out.writePendingValues();
+    out.endEncapsulation();
+    out.finished(outParams);
     return true;
 }

@@ -10,60 +10,34 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Diagnostics;
 
 namespace IceInternal
 {
-    public interface IPatcher
+    public sealed class ParamPatcher<T> where T : Ice.Value
     {
-        void patch(Ice.Object v);
-        string type();
-    }
-
-    public abstract class Patcher : IPatcher, Ice.ReadObjectCallback
-    {
-        public Patcher(string type)
+        public ParamPatcher(string type)
         {
             _type = type;
         }
 
-        public abstract void patch(Ice.Object v);
-
-        public virtual string type()
-        {
-            return _type;
-        }
-
-        public virtual void invoke(Ice.Object v)
-        {
-            patch(v);
-        }
-
-        private string _type;
-    }
-
-    public sealed class ParamPatcher<T> : Patcher
-    {
-        public ParamPatcher(string type) : base(type)
-        {
-        }
-
-        public override void patch(Ice.Object v)
+        public void patch(Ice.Value v)
         {
             if(v != null && !typeof(T).IsAssignableFrom(v.GetType()))
             {
-                IceInternal.Ex.throwUOE(type(), v.ice_id());
+                Ex.throwUOE(_type, v.ice_id());
             }
             value = (T)v;
         }
 
         public T value;
+        private string _type;
     }
 
-    public sealed class CustomSeqPatcher<T> : Patcher
+    public sealed class CustomSeqPatcher<T> where T : Ice.Value
     {
-        public CustomSeqPatcher(string type, IEnumerable<T> seq, int index) : base(type)
+        public CustomSeqPatcher(string type, IEnumerable<T> seq, int index)
         {
+            _type = type;
            _seq = seq;
            _seqType = seq.GetType();
            _index = index;
@@ -71,11 +45,11 @@ namespace IceInternal
            setInvokeInfo(_seqType);
         }
 
-        public override void patch(Ice.Object v)
+        public void patch(Ice.Value v)
         {
             if(v != null && !typeof(T).IsAssignableFrom(v.GetType()))
             {
-                IceInternal.Ex.throwUOE(type(), v.ice_id());
+                Ex.throwUOE(_type, v.ice_id());
             }
 
             InvokeInfo info = getInvokeInfo(_seqType);
@@ -205,46 +179,50 @@ namespace IceInternal
         private static Type[] _params = new Type[] { typeof(T) };
         private static Dictionary<Type, InvokeInfo> _methodTable = new Dictionary<Type, InvokeInfo>();
 
+        private string _type;
         private IEnumerable<T> _seq;
         private Type _seqType;
         private int _index; // The index at which to patch the sequence.
     }
 
-    public sealed class ArrayPatcher<T> : Patcher
+    public sealed class ArrayPatcher<T> where T : Ice.Value
     {
-        public ArrayPatcher(string type, T[] seq, int index) : base(type)
+        public ArrayPatcher(string type, T[] seq, int index)
         {
+            _type = type;
             _seq = seq;
             _index = index;
         }
 
-        public override void patch(Ice.Object v)
+        public void patch(Ice.Value v)
         {
             if(v != null && !typeof(T).IsAssignableFrom(v.GetType()))
             {
-                IceInternal.Ex.throwUOE(type(), v.ice_id());
+                Ex.throwUOE(_type, v.ice_id());
             }
 
             _seq[_index] = (T)v;
         }
 
+        private string _type;
         private T[] _seq;
         private int _index; // The index at which to patch the array.
     }
 
-    public sealed class SequencePatcher<T> : Patcher
+    public sealed class ListPatcher<T> where T : Ice.Value
     {
-        public SequencePatcher(string type, IceInternal.CollectionBase<T> seq, int index) : base(type)
+        public ListPatcher(string type, List<T> seq, int index)
         {
+            _type = type;
             _seq = seq;
             _index = index;
         }
 
-        public override void patch(Ice.Object v)
+        public void patch(Ice.Value v)
         {
             if(v != null && !typeof(T).IsAssignableFrom(v.GetType()))
             {
-                IceInternal.Ex.throwUOE(type(), v.ice_id());
+                Ex.throwUOE(_type, v.ice_id());
             }
 
             int count = _seq.Count;
@@ -262,40 +240,7 @@ namespace IceInternal
             }
         }
 
-        private IceInternal.CollectionBase<T> _seq;
-        private int _index; // The index at which to patch the sequence.
-    }
-
-    public sealed class ListPatcher<T> : Patcher
-    {
-        public ListPatcher(string type, List<T> seq, int index) : base(type)
-        {
-            _seq = seq;
-            _index = index;
-        }
-
-        public override void patch(Ice.Object v)
-        {
-            if(v != null && !typeof(T).IsAssignableFrom(v.GetType()))
-            {
-                IceInternal.Ex.throwUOE(type(), v.ice_id());
-            }
-
-            int count = _seq.Count;
-            if(_index >= count) // Need to grow the sequence.
-            {
-                for(int i = count; i < _index; i++)
-                {
-                    _seq.Add(default(T));
-                }
-                _seq.Add((T)v);
-            }
-            else
-            {
-                _seq[_index] = (T)v;
-            }
-        }
-
+        private string _type;
         private List<T> _seq;
         private int _index; // The index at which to patch the sequence.
     }

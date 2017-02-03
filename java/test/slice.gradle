@@ -35,6 +35,7 @@ task testSliceTask {
                                                      'Ice/location/*.ice',
                                                      'Ice/metrics/*.ice',
                                                      'Ice/networkProxy/*.ice',
+                                                     'Ice/operations/*.ice',
                                                      'Ice/proxy/*.ice',
                                                      'Ice/retry/*.ice',
                                                      'Ice/seqMapping/*.ice',
@@ -47,7 +48,10 @@ task testSliceTask {
                                                      'Ice/throughput/*.ice',
                                                      'Ice/threadPoolPriority/*.ice',
                                                      'Ice/udp/*.ice',
-                                                     'Freeze/complex/*.ice',
+                                                     'Ice/objects/*.ice',
+                                                     'Ice/optional/*.ice',
+                                                     'Ice/stream/*.ice',
+                                                     'Ice/enums/*.ice',
                                                      'Glacier2/router/*.ice',
                                                      'Glacier2/sessionHelper/*.ice',
                                                      'IceDiscovery/simple/*.ice',
@@ -55,78 +59,23 @@ task testSliceTask {
                                                      'IceBox/admin/*.ice',
                                                      'IceBox/configuration/*.ice',
                                                      'IceSSL/configuration/*.ice',
-                                                     'Slice/keyword/*.ice',
+                                                     'Slice/escape/*.ice',
                                                      'Slice/macros/*.ice',
                                                      'Slice/structure/*.ice'])
             }
             set2 {
-                args = "--tie"
-                files = fileTree(dir: testDir, includes:['Ice/operations/*.ice',
-                                                     'Freeze/evictor/*.ice'])
-            }
-            set3 {
-                args = "--stream"
-                files = fileTree(dir: testDir, includes:['Ice/objects/*.ice',
-                                                     'Ice/optional/*.ice',
-                                                     'Ice/stream/*.ice',
-                                                     'Ice/enums/*.ice'])
-            }
-            set4 {
                 args = "--checksum test.Ice.checksum.Test.SliceChecksums"
                 files = fileTree(dir: testDir, includes:['Ice/checksum/Test.ice',
                                                      'Ice/checksum/Types.ice'])
             }
-            set5 {
-                include = ["${testDir}/Ice/packagemd"]
-                files = fileTree(dir: testDir, includes:['Ice/packagemd/*.ice'])
-            }
-            set6 {
+            set3 {
                 args = "--checksum test.Ice.checksum.server.Test.SliceChecksums"
                 files = fileTree(dir: testDir, includes:['Ice/checksum/TestServer.ice',
                                                      'Ice/checksum/TypesServer.ice'])
             }
-        }
-        freezej {
-            files = [file("${testDir}/Freeze/complex/Complex.ice"),
-                     file("${sliceDir}/Ice/Identity.ice")]
-            args = "--ice"
-            dict {
-                ComplexDict {
-                    javaType = "test.Freeze.complex.Complex.ComplexDict"
-                    key = "Complex::Key"
-                    value = "Complex::Node"
-                }
-            }
-            dict {
-                ByteIntMap {
-                    javaType = "test.Freeze.dbmap.ByteIntMap"
-                    key = "byte"
-                    value = "int"
-                    index = [[:]]
-                }
-            }
-            dict {
-                IntIdentityMap {
-                    javaType = "test.Freeze.dbmap.IntIdentityMap"
-                    key = "int"
-                    value = "Ice::Identity"
-                }
-            }
-            dict {
-                IntIdentityMapWithIndex {
-                    javaType = "test.Freeze.dbmap.IntIdentityMapWithIndex"
-                    key = "int"
-                    value = "Ice::Identity"
-                    index = [[ member: 'category']]
-                }
-            }
-            dict {
-                SortedMap {
-                    javaType = "test.Freeze.dbmap.SortedMap"
-                    key = "int"
-                    value = "Ice::Identity"
-                    index = [[ member: 'category']]
-                }
+            set4 {
+                include = ["${testDir}/Ice/packagemd"]
+                files = fileTree(dir: testDir, includes:['Ice/packagemd/*.ice'])
             }
         }
     }

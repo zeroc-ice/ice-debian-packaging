@@ -23,7 +23,7 @@ namespace IceGrid
 //
 // Callback from asynchronous call to adapter->getDirectProxy() invoked in LocatorI::findAdapterById_async().
 //
-class AdapterGetDirectProxyCallback : virtual public IceUtil::Shared
+class AdapterGetDirectProxyCallback : public virtual IceUtil::Shared
 {
 public:
 
@@ -49,7 +49,7 @@ private:
     const LocatorAdapterInfo _adapter;
 };
 
-class AdapterActivateCallback : virtual public IceUtil::Shared
+class AdapterActivateCallback : public virtual IceUtil::Shared
 {
 public:
 
@@ -198,7 +198,7 @@ public:
             return;
         }
 
-        _amdCB->ice_response(proxy->ice_identity(_locator->getCommunicator()->stringToIdentity("dummy")));
+        _amdCB->ice_response(proxy->ice_identity(Ice::stringToIdentity("dummy")));
     }
 
     virtual void
@@ -390,7 +390,7 @@ public:
             return;
         }
 
-        _proxies[id] = proxy->ice_identity(_locator->getCommunicator()->stringToIdentity("dummy"));
+        _proxies[id] = proxy->ice_identity(Ice::stringToIdentity("dummy"));
 
         //
         // If we received all the required proxies, it's time to send the
@@ -454,7 +454,7 @@ private:
     unsigned int _count;
     LocatorAdapterInfoSeq::const_iterator _lastAdapter;
     std::map<std::string, Ice::ObjectPrx> _proxies;
-    IceUtil::UniquePtr<Ice::Exception> _exception;
+    IceInternal::UniquePtr<Ice::Exception> _exception;
 };
 
 class RoundRobinRequest : public LocatorI::Request, SynchronizationCallback, public IceUtil::Mutex
@@ -548,14 +548,14 @@ public:
 
         if(_count > 1)
         {
-            Ice::ObjectPrx p = proxy->ice_identity(_locator->getCommunicator()->stringToIdentity("dummy"));
+            Ice::ObjectPrx p = proxy->ice_identity(Ice::stringToIdentity("dummy"));
             LocatorI::RequestPtr request =
                 new ReplicaGroupRequest(_amdCB, _locator, _id, _encoding, _adapters, _count, p);
             request->execute();
         }
         else
         {
-            _amdCB->ice_response(proxy->ice_identity(_locator->getCommunicator()->stringToIdentity("dummy")));
+            _amdCB->ice_response(proxy->ice_identity(Ice::stringToIdentity("dummy")));
         }
         _adapters.clear();
     }
@@ -752,7 +752,7 @@ private:
     bool _waitForActivation;
     set<string> _failed;
     set<string> _activatingOrFailed;
-    IceUtil::UniquePtr<Ice::Exception> _exception;
+    IceInternal::UniquePtr<Ice::Exception> _exception;
 };
 
 class FindAdapterByIdCallback : public SynchronizationCallback

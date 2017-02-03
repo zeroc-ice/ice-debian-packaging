@@ -9,13 +9,17 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICESTORM_API", "objc:header-dir:objc", "objc:dll-export:ICESTORM_API", "js:ice-build"]]
 [["cpp:include:IceStorm/Config.h"]]
 
 #include <Ice/Identity.ice>
 #include <Ice/SliceChecksumDict.ice>
 
 #include <IceStorm/Metrics.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 /**
  *
@@ -212,7 +216,7 @@ interface Topic
      * @throws AlreadySubscribed Raised if the subscriber object is
      * already subscribed.
      *
-     * @throws NullSubscriber Raised if the subscriber object is null.
+     * @throws InvalidSubscriber Raised if the subscriber object is null.
      *
      * @throws BadQoS Raised if the requested quality of service
      * is unavailable or invalid.
@@ -403,4 +407,3 @@ interface Finder
 };
 
 };
-

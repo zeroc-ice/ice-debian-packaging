@@ -10,6 +10,8 @@
 #ifndef ICE_GC_OBJECT_H
 #define ICE_GC_OBJECT_H
 
+#ifndef ICE_CPP11_MAPPING
+
 #include <Ice/Object.h>
 
 #include <IceUtil/MutexPtrLock.h>
@@ -31,7 +33,7 @@ public:
     virtual bool visit(GCObject*) = 0;
 };
 
-class ICE_API GCObject : virtual public Ice::Object
+class ICE_API GCObject : public virtual Ice::Object
 {
 public:
 
@@ -53,16 +55,16 @@ public:
     //
     // Override Object methods
     //
-    virtual bool __gcVisit(GCVisitor&);
+    virtual bool _iceGcVisit(GCVisitor&);
     virtual void ice_collectable(bool);
 
     //
     // This method is implemented by Slice classes to visit class
     // members.
     //
-    virtual void __gcVisitMembers(IceInternal::GCVisitor&) = 0;
+    virtual void _iceGcVisitMembers(IceInternal::GCVisitor&) = 0;
 
-    int __getRefUnsafe()
+    int _iceGetRefUnsafe()
     {
         return _ref;
     }
@@ -73,5 +75,7 @@ private:
 };
 
 }
+
+#endif
 
 #endif

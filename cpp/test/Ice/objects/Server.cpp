@@ -16,7 +16,17 @@ DEFINE_TEST("server")
 using namespace std;
 using namespace Test;
 
-class MyObjectFactory : public Ice::ObjectFactory
+#ifdef ICE_CPP11_MAPPING
+template<typename T>
+function<shared_ptr<T>(string)> makeFactory()
+{
+    return [](string)
+        {
+            return make_shared<T>();
+        };
+}
+#else
+class MyValueFactory : public Ice::ValueFactory
 {
 public:
 
@@ -39,27 +49,29 @@ public:
         return 0;
     }
 
-    virtual void destroy()
-    {
-        // Nothing to do
-    }
 };
+#endif
 
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    Ice::ObjectFactoryPtr factory = new MyObjectFactory;
-    communicator->addObjectFactory(factory, "::Test::I");
-    communicator->addObjectFactory(factory, "::Test::J");
-    communicator->addObjectFactory(factory, "::Test::H");
+#ifdef ICE_CPP11_MAPPING
+    communicator->getValueFactoryManager()->add(makeFactory<II>(), "::Test::I");
+    communicator->getValueFactoryManager()->add(makeFactory<JI>(), "::Test::J");
+    communicator->getValueFactoryManager()->add(makeFactory<HI>(), "::Test::H");
+#else
+    Ice::ValueFactoryPtr factory = new MyValueFactory;
+    communicator->getValueFactoryManager()->add(factory, "::Test::I");
+    communicator->getValueFactoryManager()->add(factory, "::Test::J");
+    communicator->getValueFactoryManager()->add(factory, "::Test::H");
+#endif
 
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", "default -p 12010");
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0));
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
-    InitialPtr initial = new InitialI(adapter);
-    adapter->add(initial, communicator->stringToIdentity("initial"));
-    adapter->add(new TestIntfI(), communicator->stringToIdentity("test"));
-    UnexpectedObjectExceptionTestIPtr uoet = new UnexpectedObjectExceptionTestI;
-    adapter->add(uoet, communicator->stringToIdentity("uoet"));
+    adapter->add(ICE_MAKE_SHARED(InitialI, adapter), Ice::stringToIdentity("initial"));
+    adapter->add(ICE_MAKE_SHARED(TestIntfI), Ice::stringToIdentity("test"));
+
+    adapter->add(ICE_MAKE_SHARED(UnexpectedObjectExceptionTestI), Ice::stringToIdentity("uoet"));
     adapter->activate();
     TEST_READY
     communicator->waitForShutdown();
@@ -73,32 +85,15 @@ main(int argc, char* argv[])
     Ice::registerIceSSL();
 #endif
 
-    int status;
-    Ice::CommunicatorPtr communicator;
-
     try
     {
-        communicator = Ice::initialize(argc, argv);
-        status = run(argc, argv, communicator);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        return run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
-        status = EXIT_FAILURE;
+        return  EXIT_FAILURE;
     }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
-    }
-
-    return status;
 }

@@ -1,4 +1,4 @@
-<?
+<?php
 // **********************************************************************
 //
 // Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
@@ -17,8 +17,8 @@ if(!extension_loaded("ice"))
 }
 
 $NS = function_exists("Ice\\initialize");
-require_once ($NS ? 'Ice_ns.php' : 'Ice.php');
-require_once 'Test.php';
+require_once('Ice.php');
+require_once('Test.php');
 
 function test($b)
 {
@@ -137,7 +137,7 @@ function twoways($communicator, $p)
              $s10 == $literals[10] &&
              $s10 == $literals[21]);
 
-        test($ss0 == "'\"?\\\007\010\f\n\r\t\v" &&
+        test($ss0 == "'\"?\\\007\010\f\n\r\t\v\6" &&
              $ss0 == $ss1 &&
              $ss1 == $ss2 &&
              $ss0 == $literals[22] &&
@@ -356,13 +356,15 @@ function twoways($communicator, $p)
     }
 
     {
+        $stringToIdentity = $NS ? "Ice\\stringToIdentity" : "Ice_stringToIdentity";
+
         $r = $p->opMyClass($p, $c1, $c2);
         test(Ice_proxyIdentityAndFacetEqual($c1, $p));
         test(!Ice_proxyIdentityAndFacetEqual($c2, $p));
         test(Ice_proxyIdentityAndFacetEqual($r, $p));
-        test($c1->ice_getIdentity() == $communicator->stringToIdentity("test"));
-        test($c2->ice_getIdentity() == $communicator->stringToIdentity("noSuchIdentity"));
-        test($r->ice_getIdentity() == $communicator->stringToIdentity("test"));
+        test($c1->ice_getIdentity() == $stringToIdentity("test"));
+        test($c2->ice_getIdentity() == $stringToIdentity("noSuchIdentity"));
+        test($r->ice_getIdentity() == $stringToIdentity("test"));
         $r->opVoid();
         $c1->opVoid();
         try
@@ -1060,6 +1062,30 @@ function twoways($communicator, $p)
     test(count($p->opByteBoolD1(null)) == 0);
     test(count($p->opStringS2(null)) == 0);
     test(count($p->opByteBoolD2(null)) == 0);
+
+    {
+        $p1 = $p->opMStruct1();
+        $p1->e = $enum3;
+        $p2 = null;
+        $p3 = $p->opMStruct2($p1, $p2);
+        test($p2 == $p1 && $p3 == $p1);
+    }
+
+    {
+        $p->opMSeq1();
+        $p1 = array("test");
+        $p2 = null;
+        $p3 = $p->opMSeq2($p1, $p2);
+        test($p2[0] == "test" && $p3[0] == "test");
+    }
+
+    {
+        $p->opMDict1();
+        $p1 = array("test" => "test");
+        $p2 = null;
+        $p3 = $p->opMDict2($p1, $p2);
+        test($p3["test"] == "test" && $p2["test"] == "test");
+    }
 }
 
 function allTests($communicator)
@@ -1079,7 +1105,8 @@ function allTests($communicator)
     return $cl;
 }
 
-$communicator = Ice_initialize($argv);
+$communicator = $NS ? eval("return Ice\\initialize(\$argv);") : 
+                      eval("return Ice_initialize(\$argv);");
 
 $myClass = allTests($communicator);
 

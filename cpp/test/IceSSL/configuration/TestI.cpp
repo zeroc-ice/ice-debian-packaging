@@ -26,7 +26,7 @@ ServerI::noCert(const Ice::Current& c)
 {
     try
     {
-        IceSSL::NativeConnectionInfoPtr info = IceSSL::NativeConnectionInfoPtr::dynamicCast(c.con->getInfo());
+        IceSSL::NativeConnectionInfoPtr info = ICE_DYNAMIC_CAST(IceSSL::NativeConnectionInfo, c.con->getInfo());
         test(info->nativeCerts.size() == 0);
     }
     catch(const Ice::LocalException& ex)
@@ -37,15 +37,28 @@ ServerI::noCert(const Ice::Current& c)
 }
 
 void
-ServerI::checkCert(const string& subjectDN, const string& issuerDN, const Ice::Current& c)
+ServerI::checkCert(ICE_IN(string) subjectDN, ICE_IN(string) issuerDN, const Ice::Current& c)
 {
     try
     {
-        IceSSL::NativeConnectionInfoPtr info = IceSSL::NativeConnectionInfoPtr::dynamicCast(c.con->getInfo());
+        IceSSL::NativeConnectionInfoPtr info = ICE_DYNAMIC_CAST(IceSSL::NativeConnectionInfo, c.con->getInfo());
         test(info->verified);
-        test(info->nativeCerts.size() == 2 &&
-             info->nativeCerts[0]->getSubjectDN() == IceSSL::DistinguishedName(subjectDN) &&
-             info->nativeCerts[0]->getIssuerDN() == IceSSL::DistinguishedName(issuerDN));
+        test(info->nativeCerts.size() == 2);
+        if(c.ctx.find("uwp") != c.ctx.end())
+        {
+            //
+            // UWP client just provide the subject and issuer CN, and not the full Subject and Issuer DN
+            //
+            string subject(info->nativeCerts[0]->getSubjectDN());
+            test(subject.find(subjectDN) != string::npos);
+            string issuer(info->nativeCerts[0]->getIssuerDN());
+            test(issuer.find(issuerDN) != string::npos);
+        }
+        else
+        {
+            test(info->nativeCerts[0]->getSubjectDN() == IceSSL::DistinguishedName(subjectDN));
+            test(info->nativeCerts[0]->getIssuerDN() == IceSSL::DistinguishedName(issuerDN));
+        }
     }
     catch(const Ice::LocalException&)
     {
@@ -54,11 +67,11 @@ ServerI::checkCert(const string& subjectDN, const string& issuerDN, const Ice::C
 }
 
 void
-ServerI::checkCipher(const string& cipher, const Ice::Current& c)
+ServerI::checkCipher(ICE_IN(string) cipher, const Ice::Current& c)
 {
     try
     {
-        IceSSL::NativeConnectionInfoPtr info = IceSSL::NativeConnectionInfoPtr::dynamicCast(c.con->getInfo());
+        IceSSL::NativeConnectionInfoPtr info = ICE_DYNAMIC_CAST(IceSSL::NativeConnectionInfo, c.con->getInfo());
         test(info->cipher.compare(0, cipher.size(), cipher) == 0);
     }
     catch(const Ice::LocalException&)
@@ -70,12 +83,15 @@ ServerI::checkCipher(const string& cipher, const Ice::Current& c)
 void
 ServerI::destroy()
 {
-    string defaultDir = _communicator->getProperties()->getProperty("IceSSL.DefaultDir");
     _communicator->destroy();
 }
 
-Test::ServerPrx
-ServerFactoryI::createServer(const Test::Properties& props, const Current&)
+ServerFactoryI::ServerFactoryI(const string& defaultDir) : _defaultDir(defaultDir)
+{
+}
+
+Test::ServerPrxPtr
+ServerFactoryI::createServer(ICE_IN(Test::Properties) props, const Current&)
 {
     InitializationData initData;
     initData.properties = createProperties();
@@ -83,19 +99,20 @@ ServerFactoryI::createServer(const Test::Properties& props, const Current&)
     {
         initData.properties->setProperty(p->first, p->second);
     }
+    initData.properties->setProperty("IceSSL.DefaultDir", _defaultDir);
 
     CommunicatorPtr communicator = initialize(initData);
     ObjectAdapterPtr adapter = communicator->createObjectAdapterWithEndpoints("ServerAdapter", "ssl");
-    ServerIPtr server = new ServerI(communicator);
-    ObjectPrx obj = adapter->addWithUUID(server);
+    ServerIPtr server = ICE_MAKE_SHARED(ServerI, communicator);
+    ObjectPrxPtr obj = adapter->addWithUUID(server);
     _servers[obj->ice_getIdentity()] = server;
     adapter->activate();
 
-    return Test::ServerPrx::uncheckedCast(obj);
+    return ICE_UNCHECKED_CAST(Test::ServerPrx, obj);
 }
 
 void
-ServerFactoryI::destroyServer(const Test::ServerPrx& srv, const Ice::Current&)
+ServerFactoryI::destroyServer(ICE_IN(Test::ServerPrxPtr) srv, const Ice::Current&)
 {
     map<Identity, ServerIPtr>::iterator p = _servers.find(srv->ice_getIdentity());
     if(p != _servers.end())

@@ -17,9 +17,14 @@ namespace Ice
 {
 
 class Object;
+#ifdef ICE_CPP11_MAPPING
+using ObjectPtr = ::std::shared_ptr<Object>;
+#else
 ICE_API Object* upCast(Object*);
-typedef IceInternal::Handle< Object > ObjectPtr;
-ICE_API void __patch(ObjectPtr&, const ObjectPtr&);
+typedef IceInternal::Handle<Object> ObjectPtr;
+typedef ObjectPtr ValuePtr;
+ICE_API void _icePatchObjectPtr(ObjectPtr&, const ObjectPtr&);
+#endif
 
 }
 

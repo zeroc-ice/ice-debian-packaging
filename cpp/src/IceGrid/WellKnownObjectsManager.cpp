@@ -7,6 +7,7 @@
 //
 // **********************************************************************
 
+#include <Ice/Endpoint.h>
 #include <Glacier2/PermissionsVerifier.h>
 #include <IceGrid/WellKnownObjectsManager.h>
 #include <IceGrid/Database.h>
@@ -112,7 +113,7 @@ WellKnownObjectsManager::updateReplicatedWellKnownObjects()
     objects.push_back(info);
 
     id.name = "LocatorRegistry";
-    info.type = Ice::Locator::ice_staticId();
+    info.type = Ice::LocatorRegistry::ice_staticId();
     info.proxy = _database->getReplicaCache().getEndpoints("Server", _endpoints["Server"])->ice_identity(id);
     objects.push_back(info);
 

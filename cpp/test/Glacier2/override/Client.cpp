@@ -8,7 +8,7 @@
 // **********************************************************************
 
 #include <IceUtil/IceUtil.h>
-#include <Ice/Application.h>
+#include <Ice/Ice.h>
 #include <Glacier2/Router.h>
 #include <TestCommon.h>
 #include <CallbackI.h>
@@ -16,9 +16,6 @@
 using namespace std;
 using namespace Ice;
 using namespace Test;
-
-static Ice::InitializationData initData;
-
 
 class CallbackClient : public Application
 {
@@ -39,7 +36,7 @@ main(int argc, char* argv[])
     // the router before session establishment, as well as after
     // session destruction. Both will cause a ConnectionLostException.
     //
-    initData.properties = Ice::createProperties(argc, argv);
+    Ice::InitializationData initData = getTestInitData(argc, argv);
     initData.properties->setProperty("Ice.Warn.Connections", "0");
     initData.properties->setProperty("Ice.ThreadPool.Client.Serialize", "1");
 
@@ -50,11 +47,11 @@ main(int argc, char* argv[])
 int
 CallbackClient::run(int, char**)
 {
-    ObjectPrx routerBase = communicator()->stringToProxy("Glacier2/router:default -p 12347");
+    ObjectPrx routerBase = communicator()->stringToProxy("Glacier2/router:" + getTestEndpoint(communicator(), 10));
     Glacier2::RouterPrx router = Glacier2::RouterPrx::checkedCast(routerBase);
     communicator()->setDefaultRouter(router);
 
-    ObjectPrx base = communicator()->stringToProxy("c/callback:tcp -p 12010");
+    ObjectPrx base = communicator()->stringToProxy("c/callback:" + getTestEndpoint(communicator(), 0));
     Glacier2::SessionPrx session = router->createSession("userid", "abc123");
     base->ice_ping();
 
@@ -187,7 +184,14 @@ CallbackClient::run(int, char**)
         IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(200));
         callbackReceiverImpl->activate();
         test(callbackReceiverImpl->callbackWithPayloadOK(3) == 0);
-        test(callbackReceiverImpl->callbackOK(1, 0) == 0);
+        remainingCallbacks = callbackReceiverImpl->callbackOK(1, 0);
+        // Unlikely but sometime we get more than just one callback if the flush
+        // occurs in the middle of our 5 callbacks.
+        test(remainingCallbacks <= 3);
+        if(remainingCallbacks > 0)
+        {
+            test(callbackReceiverImpl->callbackOK(remainingCallbacks, 0) == 0);
+        }
 
         cout << "ok" << endl;
     }
@@ -206,7 +210,8 @@ CallbackClient::run(int, char**)
         }
 
         communicator()->setDefaultRouter(0);
-        ObjectPrx processBase = communicator()->stringToProxy("Glacier2/admin -f Process:tcp -h 127.0.0.1 -p 12348");
+        ObjectPrx processBase = communicator()->stringToProxy("Glacier2/admin -f Process:" +
+                                                              getTestEndpoint(communicator(), 11));
         Ice::ProcessPrx process = Ice::ProcessPrx::checkedCast(processBase);
         process->shutdown();
         try

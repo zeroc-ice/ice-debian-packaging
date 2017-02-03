@@ -13,14 +13,15 @@
 
 //
 // Forward declarations
-// 
+//
 @protocol ICEOutputStream;
 @protocol ICEInputStream;
 
 @class NSCoder;
 
 ICE_API @interface ICEException : NSException
--(NSString*)ice_name;
+-(NSString*)ice_name ICE_DEPRECATED_API("ice_name() is deprecated use ice_id() instead.");
+-(NSString*)ice_id;
 @end
 
 ICE_API @interface ICELocalException : ICEException
@@ -39,9 +40,9 @@ ICE_API @interface ICELocalException : ICEException
 @end
 
 ICE_API @interface ICEUserException : ICEException
--(BOOL)usesClasses__;
--(void)write__:(id<ICEOutputStream>)stream;
--(void) writeImpl__:(id<ICEOutputStream>)os;
--(void)read__:(id<ICEInputStream>)stream;
--(void) readImpl__:(id<ICEInputStream>)is;  
+-(BOOL)iceUsesClasses;
+-(void)iceWrite:(id<ICEOutputStream>)stream;
+-(void) iceWriteImpl:(id<ICEOutputStream>)os;
+-(void)iceRead:(id<ICEInputStream>)stream;
+-(void) iceReadImpl:(id<ICEInputStream>)is;
 @end

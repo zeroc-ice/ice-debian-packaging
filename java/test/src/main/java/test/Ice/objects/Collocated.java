@@ -9,14 +9,14 @@
 
 package test.Ice.objects;
 
-import test.Ice.objects.Test.Initial;
+import test.Ice.objects.Test._InitialDisp;
 
 public class Collocated extends test.Util.Application
 {
-    private static class MyObjectFactory implements Ice.ObjectFactory
+    private static class MyValueFactory implements com.zeroc.Ice.ValueFactory
     {
         @Override
-        public Ice.Object create(String type)
+        public com.zeroc.Ice.Value create(String type)
         {
             if(type.equals("::Test::B"))
             {
@@ -54,46 +54,59 @@ public class Collocated extends test.Util.Application
             assert (false); // Should never be reached
             return null;
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    private static class MyObjectFactory implements com.zeroc.Ice.ObjectFactory
+    {
+        @Override
+        public com.zeroc.Ice.Value create(String type)
+        {
+            return null;
+        }
 
         @Override
         public void destroy()
         {
-            // Nothing to do
+            //
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public int run(String[] args)
     {
-        Ice.Communicator communicator = communicator();
-        Ice.ObjectFactory factory = new MyObjectFactory();
-        communicator.addObjectFactory(factory, "::Test::B");
-        communicator.addObjectFactory(factory, "::Test::C");
-        communicator.addObjectFactory(factory, "::Test::D");
-        communicator.addObjectFactory(factory, "::Test::E");
-        communicator.addObjectFactory(factory, "::Test::F");
-        communicator.addObjectFactory(factory, "::Test::I");
-        communicator.addObjectFactory(factory, "::Test::J");
-        communicator.addObjectFactory(factory, "::Test::H");
+        com.zeroc.Ice.Communicator communicator = communicator();
+        com.zeroc.Ice.ValueFactory factory = new MyValueFactory();
+        communicator.getValueFactoryManager().add(factory, "::Test::B");
+        communicator.getValueFactoryManager().add(factory, "::Test::C");
+        communicator.getValueFactoryManager().add(factory, "::Test::D");
+        communicator.getValueFactoryManager().add(factory, "::Test::E");
+        communicator.getValueFactoryManager().add(factory, "::Test::F");
+        communicator.getValueFactoryManager().add(factory, "::Test::I");
+        communicator.getValueFactoryManager().add(factory, "::Test::J");
+        communicator.getValueFactoryManager().add(factory, "::Test::H");
 
-        communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010");
-        Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
-        Initial initial = new InitialI(adapter);
-        adapter.add(initial, communicator.stringToIdentity("initial"));
+        communicator.addObjectFactory(new MyObjectFactory(), "TestOF");
+
+        communicator.getProperties().setProperty("TestAdapter.Endpoints", getTestEndpoint(0));
+        com.zeroc.Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
+        _InitialDisp initial = new InitialI(adapter);
+        adapter.add(initial, com.zeroc.Ice.Util.stringToIdentity("initial"));
         UnexpectedObjectExceptionTestI object = new UnexpectedObjectExceptionTestI();
-        adapter.add(object, communicator.stringToIdentity("uoet"));
-        AllTests.allTests(communicator, getWriter());
-        // We must call shutdown even in the collocated case for cyclic
-        // dependency cleanup
-        initial.shutdown();
+        adapter.add(object, com.zeroc.Ice.Util.stringToIdentity("uoet"));
+        AllTests.allTests(this);
+        //
+        // We must call shutdown even in the collocated case for cyclic dependency cleanup.
+        //
+        initial.shutdown(null);
         return 0;
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData();
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.objects");
         return initData;
     }

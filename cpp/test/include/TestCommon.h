@@ -10,12 +10,32 @@
 #ifndef TEST_COMMON_H
 #define TEST_COMMON_H
 
-#include <IceUtil/IceUtil.h>
+#include <IceUtil/Config.h>
 
-#if defined(ICE_OS_WINRT) || (TARGET_OS_IPHONE)
+#if defined(_MSC_VER) && !defined(TEST_API_EXPORTS)
+#   pragma comment(lib, ICE_LIBNAME("testcommon"))
+#endif
+
+#include <Ice/CommunicatorF.h>
+#include <Ice/ProxyF.h>
+#include <Ice/Initialize.h>
+
+#if defined(ICE_OS_UWP) || (TARGET_OS_IPHONE != 0)
 #   include <Ice/Initialize.h>
 #   include <Ice/Logger.h>
 #   include <Ice/LocalException.h>
+#endif
+
+#include <IceUtil/IceUtil.h>
+
+#ifndef TEST_API
+#   if defined(ICE_STATIC_LIBS)
+#       define TEST_API /**/
+#   elif defined(TEST_API_EXPORTS)
+#       define TEST_API ICE_DECLSPEC_EXPORT
+#   else
+#       define TEST_API ICE_DECLSPEC_IMPORT
+#   endif
 #endif
 
 void
@@ -30,7 +50,14 @@ inline println(const std::string& msg)
     std::cout << msg << std::endl;
 }
 
-#if !defined(ICE_OS_WINRT) && (TARGET_OS_IPHONE == 0)
+TEST_API std::string getTestEndpoint(const Ice::CommunicatorPtr&, int, const std::string& = std::string());
+TEST_API std::string getTestEndpoint(const Ice::PropertiesPtr&, int, const std::string& = std::string());
+TEST_API std::string getTestProtocol(const Ice::PropertiesPtr&);
+TEST_API std::string getTestHost(const Ice::PropertiesPtr&);
+TEST_API int getTestPort(const Ice::PropertiesPtr&, int);
+TEST_API Ice::InitializationData getTestInitData(int&, char*[]);
+
+#if !defined(ICE_OS_UWP) && (TARGET_OS_IPHONE == 0)
 
 void
 inline testFailed(const char* expr, const char* file, unsigned int line)
@@ -113,19 +140,28 @@ public:
     {
     }
 
+#ifndef ICE_CPP11_COMPILER
     virtual ~TestFailedException() throw()
     {
     }
+#endif
 
-    virtual ::std::string ice_name() const
+    virtual ::std::string ice_id() const
     {
         return "::TestFailedException";
     }
 
+#ifdef ICE_CPP11_MAPPING
+    virtual IceUtil::Exception* ice_cloneImpl() const
+    {
+        return new TestFailedException(*this);
+    }
+#else
     virtual TestFailedException* ice_clone() const
     {
         return new TestFailedException(*this);
     }
+#endif
 
     virtual void ice_throw() const
     {
@@ -152,7 +188,10 @@ inline testFailed(const char* expr, const char* file, unsigned int line)
       { \
           try \
           { \
-             communicatorInstance->destroy(); \
+              if(communicatorInstance) \
+              { \
+                  communicatorInstance->destroy(); \
+              } \
           } \
           catch(const Ice::LocalException&) \
           { \

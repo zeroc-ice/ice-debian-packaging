@@ -13,12 +13,9 @@ def test(b)
     end
 end
 
-class ObjectFactoryI
+class ValueFactoryI
     def create(id)
         return nil
-    end
-
-    def destroy()
     end
 end
 
@@ -29,12 +26,12 @@ def allTests(communicator)
         isWin32 = true
     end
 
-    print "testing object factory registration exception... "
+    print "testing value factory registration exception... "
     STDOUT.flush
-    of = ObjectFactoryI.new
-    communicator.addObjectFactory(of, "x")
+    vf = ValueFactoryI.new
+    communicator.getValueFactoryManager().add(vf, "x")
     begin
-        communicator.addObjectFactory(of, "x")
+        communicator.getValueFactoryManager().add(vf, "x")
         test(false)
     rescue Ice::AlreadyRegisteredException
     end
@@ -291,7 +288,7 @@ def allTests(communicator)
     print "catching object not exist exception... "
     STDOUT.flush
 
-    id = communicator.stringToIdentity("does not exist")
+    id = Ice::stringToIdentity("does not exist")
     begin
         thrower2 = Test::ThrowerPrx::uncheckedCast(thrower.ice_identity(id))
         thrower2.throwAasA(1)

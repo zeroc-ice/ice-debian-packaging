@@ -13,10 +13,30 @@
 
 DEFINE_TEST("collocated")
 
+#ifdef _MSC_VER
+// For 'Ice::Communicator::addObjectFactory()' deprecation
+#pragma warning( disable : 4996 )
+#endif
+
+#if defined(__GNUC__)
+// For 'Ice::Communicator::addObjectFactory()' deprecation
+#   pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 using namespace std;
 using namespace Test;
 
-class MyObjectFactory : public Ice::ObjectFactory
+#ifdef ICE_CPP11_MAPPING
+template<typename T>
+function<shared_ptr<T>(string)> makeFactory()
+{
+    return [](string)
+        {
+            return make_shared<T>();
+        };
+}
+#else
+class MyValueFactory : public Ice::ValueFactory
 {
 public:
 
@@ -59,36 +79,68 @@ public:
         return 0;
     }
 
+};
+#endif
+class MyObjectFactory : public Ice::ObjectFactory
+{
+public:
+    MyObjectFactory() : _destroyed(false)
+    {
+    }
+
+    ~MyObjectFactory()
+    {
+        assert(_destroyed);
+    }
+
+    virtual Ice::ValuePtr create(const string& type)
+    {
+        return ICE_NULLPTR;
+    }
+
     virtual void destroy()
     {
-        // Nothing to do
+        _destroyed = true;
     }
+private:
+    bool _destroyed;
 };
 
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    Ice::ObjectFactoryPtr factory = new MyObjectFactory;
-    communicator->addObjectFactory(factory, "::Test::B");
-    communicator->addObjectFactory(factory, "::Test::C");
-    communicator->addObjectFactory(factory, "::Test::D");
-    communicator->addObjectFactory(factory, "::Test::E");
-    communicator->addObjectFactory(factory, "::Test::F");
-    communicator->addObjectFactory(factory, "::Test::I");
-    communicator->addObjectFactory(factory, "::Test::J");
-    communicator->addObjectFactory(factory, "::Test::H");
+#ifdef ICE_CPP11_MAPPING
+    communicator->getValueFactoryManager()->add(makeFactory<BI>(), "::Test::B");
+    communicator->getValueFactoryManager()->add(makeFactory<CI>(), "::Test::C");
+    communicator->getValueFactoryManager()->add(makeFactory<DI>(), "::Test::D");
+    communicator->getValueFactoryManager()->add(makeFactory<EI>(), "::Test::E");
+    communicator->getValueFactoryManager()->add(makeFactory<FI>(), "::Test::F");
+    communicator->getValueFactoryManager()->add(makeFactory<II>(), "::Test::I");
+    communicator->getValueFactoryManager()->add(makeFactory<JI>(), "::Test::J");
+    communicator->getValueFactoryManager()->add(makeFactory<HI>(), "::Test::H");
+    communicator->addObjectFactory(make_shared<MyObjectFactory>(), "TestOF");
+#else
+    Ice::ValueFactoryPtr factory = new MyValueFactory;
+    communicator->getValueFactoryManager()->add(factory, "::Test::B");
+    communicator->getValueFactoryManager()->add(factory, "::Test::C");
+    communicator->getValueFactoryManager()->add(factory, "::Test::D");
+    communicator->getValueFactoryManager()->add(factory, "::Test::E");
+    communicator->getValueFactoryManager()->add(factory, "::Test::F");
+    communicator->getValueFactoryManager()->add(factory, "::Test::I");
+    communicator->getValueFactoryManager()->add(factory, "::Test::J");
+    communicator->getValueFactoryManager()->add(factory, "::Test::H");
+    communicator->addObjectFactory(new MyObjectFactory(), "TestOF");
+#endif
 
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", "default -p 12010");
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0));
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
-    InitialPtr initial = new InitialI(adapter);
-    adapter->add(initial, communicator->stringToIdentity("initial"));
-    adapter->add(new TestIntfI(), communicator->stringToIdentity("test"));
-    UnexpectedObjectExceptionTestIPtr uoet = new UnexpectedObjectExceptionTestI;
-    adapter->add(uoet, communicator->stringToIdentity("uoet"));
-    InitialPrx allTests(const Ice::CommunicatorPtr&);
-    allTests(communicator);
+    adapter->add(ICE_MAKE_SHARED(InitialI, adapter), Ice::stringToIdentity("initial"));
+    adapter->add(ICE_MAKE_SHARED(TestIntfI), Ice::stringToIdentity("test"));
+    adapter->add(ICE_MAKE_SHARED(UnexpectedObjectExceptionTestI), Ice::stringToIdentity("uoet"));
+    InitialPrxPtr allTests(const Ice::CommunicatorPtr&);
+    InitialPrxPtr initial = allTests(communicator);
     // We must call shutdown even in the collocated case for cyclic dependency cleanup
-    initial->shutdown(Ice::Current());
+    initial->shutdown();
     return EXIT_SUCCESS;
 }
 
@@ -99,32 +151,15 @@ main(int argc, char* argv[])
     Ice::registerIceSSL();
 #endif
 
-    int status;
-    Ice::CommunicatorPtr communicator;
-
     try
     {
-        communicator = Ice::initialize(argc, argv);
-        status = run(argc, argv, communicator);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        return run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
-        status = EXIT_FAILURE;
+        return  EXIT_FAILURE;
     }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
-    }
-
-    return status;
 }

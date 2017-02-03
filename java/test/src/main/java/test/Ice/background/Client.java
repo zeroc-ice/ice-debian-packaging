@@ -6,6 +6,7 @@
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
+
 package test.Ice.background;
 
 import test.Ice.background.PluginFactory.PluginI;
@@ -14,24 +15,18 @@ import test.Ice.background.Test.BackgroundPrx;
 public class Client extends test.Util.Application
 {
     @Override
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
-        Configuration configuration = new Configuration();
         PluginI plugin = (PluginI)communicator().getPluginManager().getPlugin("Test");
-        plugin.setConfiguration(configuration);
-        communicator().getPluginManager().initializePlugins();
-
-        BackgroundPrx background = AllTests.allTests(configuration, communicator(), getWriter());
+        BackgroundPrx background = AllTests.allTests(plugin.getConfiguration(), this);
         background.shutdown();
         return 0;
     }
-    
+
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
 
         // For this test, we want to disable retries.
         //
@@ -53,17 +48,13 @@ public class Client extends test.Util.Application
         initData.properties.setProperty("Ice.Plugin.Test", "test.Ice.background.PluginFactory");
         String defaultProtocol = initData.properties.getPropertyWithDefault("Ice.Default.Protocol", "tcp");
         initData.properties.setProperty("Ice.Default.Protocol", "test-" + defaultProtocol);
-        
+
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.background");
-        
-        // Don't initialize the plugin until I've set the configuration.
-        initData.properties.setProperty("Ice.InitPlugins", "0");
 
         return initData;
     }
 
-    public static void
-    main(String[] args)
+    public static void main(String[] args)
     {
         Client app = new Client();
         int result = app.main("Client", args);

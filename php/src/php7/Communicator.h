@@ -30,10 +30,10 @@ ZEND_FUNCTION(Ice_stringToIdentity);
 namespace IcePHP
 {
 
-bool communicatorInit(TSRMLS_D);
-bool communicatorShutdown(TSRMLS_D);
-bool communicatorRequestInit(TSRMLS_D);
-bool communicatorRequestShutdown(TSRMLS_D);
+bool communicatorInit(void);
+bool communicatorShutdown(void);
+bool communicatorRequestInit(void);
+bool communicatorRequestShutdown(void);
 
 //
 // Class entry.
@@ -47,9 +47,9 @@ class CommunicatorInfo : public IceUtil::Shared
 {
 public:
 
-    virtual void getZval(zval* TSRMLS_DC) = 0;
-    virtual void addRef(TSRMLS_D) = 0;
-    virtual void decRef(TSRMLS_D) = 0;
+    virtual void getZval(zval*) = 0;
+    virtual void addRef(void) = 0;
+    virtual void decRef(void) = 0;
 
     virtual Ice::CommunicatorPtr getCommunicator() const = 0;
 };

@@ -26,15 +26,13 @@ class WSAcceptor : public Acceptor, public NativeInfo
 public:
 
     virtual NativeInfoPtr getNativeInfo();
-#if defined(ICE_USE_IOCP)
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
     virtual AsyncInfo* getAsyncInfo(SocketOperation);
-#elif defined(ICE_OS_WINRT)
-    virtual void setCompletedHandler(SocketOperationCompletedHandler^);
 #endif
 
     virtual void close();
     virtual EndpointIPtr listen();
-#if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
     virtual void startAccept();
     virtual void finishAccept();
 #endif
@@ -42,8 +40,6 @@ public:
     virtual std::string protocol() const;
     virtual std::string toString() const;
     virtual std::string toDetailedString() const;
-
-    virtual AcceptorPtr delegate() const { return _delegate; }
 
 private:
 

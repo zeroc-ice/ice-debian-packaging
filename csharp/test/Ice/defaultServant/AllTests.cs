@@ -15,13 +15,14 @@ public class AllTests
     {
         if(!b)
         {
-            throw new System.Exception();
+            throw new Exception();
         }
     }
 
     public static void
-    allTests(Ice.Communicator communicator)
+    allTests(TestCommon.Application app)
     {
+        Ice.Communicator communicator = app.communicator();
         Ice.ObjectAdapter oa = communicator.createObjectAdapterWithEndpoints("MyOA", "tcp -h localhost");
         oa.activate();
 

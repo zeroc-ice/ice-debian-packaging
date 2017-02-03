@@ -7,15 +7,16 @@
 //
 // **********************************************************************
 
-sourceCompatibility = iceSourceCompatibility
-targetCompatibility = iceTargetCompatibility
+//sourceCompatibility = iceSourceCompatibility
+//targetCompatibility = iceTargetCompatibility
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
 project.ext.displayName = "IceLocatorDiscovery"
 project.ext.description = "Ice plug-in that enables the discovery of IceGrid and custom locators via UDP multicast"
 
 slice {
     java {
-        args = "--ice"
         files = fileTree(dir: "$sliceDir/IceLocatorDiscovery", includes:['*.ice'], excludes:["*F.ice"])
     }
 }

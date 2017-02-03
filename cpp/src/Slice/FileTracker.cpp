@@ -7,7 +7,9 @@
 //
 // **********************************************************************
 
+
 #include <Slice/FileTracker.h>
+#include <IceUtil/ConsoleUtil.h>
 
 #ifdef _WIN32
 #   include <direct.h>
@@ -15,6 +17,7 @@
 #   include <unistd.h>
 #endif
 
+using namespace IceUtilInternal;
 using namespace std;
 
 Slice::FileException::FileException(const char* file, int line, const string& r) :
@@ -23,16 +26,16 @@ Slice::FileException::FileException(const char* file, int line, const string& r)
 {
 }
 
+#ifndef ICE_CPP11_COMPILER
 Slice::FileException::~FileException() throw()
 {
 }
-
-const char* Slice::FileException::_name = "Slice::FileException";
+#endif
 
 string
-Slice::FileException::ice_name() const
+Slice::FileException::ice_id() const
 {
-    return _name;
+    return "::Slice::FileException";
 }
 
 void
@@ -42,11 +45,13 @@ Slice::FileException::ice_print(ostream& out) const
     out << ": " << _reason;
 }
 
+#ifndef ICE_CPP11_MAPPING
 Slice::FileException*
 Slice::FileException::ice_clone() const
 {
     return new FileException(*this);
 }
+#endif
 
 void
 Slice::FileException::ice_throw() const
@@ -147,30 +152,30 @@ Slice::FileTracker::cleanup()
 void
 Slice::FileTracker::dumpxml()
 {
-    cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
+    consoleOut << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
 
-    cout << "<generated>" << endl;
+    consoleOut << "<generated>" << endl;
     for(map<string, string>::const_iterator p = _errors.begin(); p != _errors.end(); ++p)
     {
-        cout << "  <source name=\"" << p->first << "\"";
+        consoleOut << "  <source name=\"" << p->first << "\"";
 
         map<string, list<string> >::const_iterator q = _generated.find(p->first);
         if(q == _generated.end())
         {
-            cout << " error=\"true\">" << endl;
+            consoleOut << " error=\"true\">" << endl;
         }
         else
         {
-            cout << ">" << endl;
+            consoleOut << ">" << endl;
             for(list<string>::const_iterator r = q->second.begin(); r != q->second.end(); ++r)
             {
-                cout << "    <file name=\"" << *r << "\"/>" << endl;
+                consoleOut << "    <file name=\"" << *r << "\"/>" << endl;
             }
         }
-        cout << "    <output>" << escape(p->second) << "</output>" << endl;
-        cout << "  </source>" << endl;
+        consoleOut << "    <output>" << escape(p->second) << "</output>" << endl;
+        consoleOut << "  </source>" << endl;
     }
-    cout << "</generated>" << endl;
+    consoleOut << "</generated>" << endl;
 }
 
 string

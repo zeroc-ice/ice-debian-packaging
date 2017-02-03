@@ -8,18 +8,18 @@
 // **********************************************************************
 
  /* global
-    __runEchoServerOptions__ : false,
-    __test__ : false,
+    _runEchoServerOptions : false,
+    _test : false,
     Test : false,
     URI : false,
     current : false,
-    TestCases : false,
+    TestSuites : false,
     runTest: false
 */
 
 $(document).foundation();
 $(document).ready(
-    function(){
+    function() {
         $("#console").height(120);
 
         var out =
@@ -36,6 +36,17 @@ $(document).ready(
             }
         };
 
+        window.onerror = function(msg, url, line, column, err)
+        {
+            var e = msg + " at " + url + ":" + line + ":" + column;
+            if(err)
+            {
+                e += "\n" + err.stack;
+            }
+            out.writeLine(e);
+            return false;
+        };
+
         var query = new URI(document.location.href).search(true);
 
         $("#language").val(query.language !== undefined ? query.language : "cpp");
@@ -43,12 +54,18 @@ $(document).ready(
         $("#test").val("/test/" + current + "/index.html");
         $("#worker").prop("checked", query.worker == "true");
         $("#loop").prop("checked", query.loop == "true");
-        
+
         function nextTest()
         {
+            var path = $("#test").val();
+            if(document.location.pathname.indexOf("/es5/") !== -1 && path.indexOf("/es5/") === -1)
+            {
+                path = path.replace("/test/", "/test/es5/");
+            }
+
             document.location.assign(new URI()
                 .host(document.location.host)
-                .pathname($("#test").val())
+                .pathname(path)
                 .search(
                     {
                         language: $("#language").val(),
@@ -72,7 +89,7 @@ $(document).ready(
                 updateLocation();
             }
         }
-        
+
         function setRunning(running)
         {
             if(running)
@@ -93,12 +110,18 @@ $(document).ready(
                 $("#run").removeClass("disabled");
             }
         }
-        
+
         function updateLocation()
         {
+            var path = $("#test").val();
+            if(document.location.pathname.indexOf("/es5/") !== -1 && path.indexOf("/es5/") === -1)
+            {
+                path = path.replace("/test/", "/test/es5/");
+            }
+
             document.location.assign(new URI()
                 .host(document.location.host)
-                .pathname($("#test").val())
+                .pathname(path)
                 .search(
                     {
                         language: $("#language").val(),
@@ -126,10 +149,12 @@ $(document).ready(
                         }
                         else if(e.data.type == "TestFinished")
                         {
+                            worker.terminate();
                             setRunning(false);
                             next(e.data.success);
                         }
                     };
+
                     worker.postMessage(
                         {
                             type: "RunTest",
@@ -139,15 +164,25 @@ $(document).ready(
                                 language: $("#language").val(),
                                 defaultHost: document.location.hostname || "127.0.0.1",
                                 protocol: $("#protocol").val(),
-                                configurations: TestCases[current].configurations,
-                                files: TestCases[current].files
+                                testcases: TestSuites[current].testcases,
+                                files: TestSuites[current].files,
+                                es5: document.location.pathname.indexOf("/es5/") !== -1
                             }
                         });
+
+                    worker.onerror = function(e)
+                    {
+                        console.log(e);
+                    };
                 }
                 else
                 {
-                    runTest(current, $("#language").val(), document.location.hostname || "127.0.0.1",
-                            $("#protocol").val(), TestCases[current].configurations, out
+                    runTest(current,
+                            $("#language").val(),
+                            document.location.hostname || "127.0.0.1",
+                            $("#protocol").val(),
+                            TestSuites[current].testcases,
+                            out
                     ).finally(
                         function()
                         {
@@ -176,7 +211,7 @@ $(document).ready(
                               updateLocation();
                               return false;
                           });
-        
+
         $("#worker").on("change",
                           function(e)
                           {

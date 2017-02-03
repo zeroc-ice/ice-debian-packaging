@@ -14,22 +14,22 @@
 #include <Ice/IPEndpointI.h>
 #include <Ice/EndpointFactory.h>
 #include <Ice/Network.h> // for IceIternal::Address
-#include <Ice/WSEndpoint.h>
 
 namespace IceInternal
 {
 
-class TcpEndpointI : public IPEndpointI, public WSEndpointDelegate
+class TcpEndpointI : public IPEndpointI
 {
 public:
 
     TcpEndpointI(const ProtocolInstancePtr&, const std::string&, Ice::Int, const Address&, Ice::Int, const std::string&,
                  bool);
     TcpEndpointI(const ProtocolInstancePtr&);
-    TcpEndpointI(const ProtocolInstancePtr&, BasicStream*);
+    TcpEndpointI(const ProtocolInstancePtr&, Ice::InputStream*);
+
+    virtual void streamWriteImpl(Ice::OutputStream*) const;
 
     virtual Ice::EndpointInfoPtr getInfo() const;
-    virtual Ice::EndpointInfoPtr getWSInfo(const std::string&) const;
 
     virtual Ice::Int timeout() const;
     virtual EndpointIPtr timeout(Ice::Int) const;
@@ -41,16 +41,19 @@ public:
     virtual AcceptorPtr acceptor(const std::string&) const;
     virtual std::string options() const;
 
+#ifdef ICE_CPP11_MAPPING
+    virtual bool operator==(const Ice::Endpoint&) const;
+    virtual bool operator<(const Ice::Endpoint&) const;
+#else
     virtual bool operator==(const Ice::LocalObject&) const;
     virtual bool operator<(const Ice::LocalObject&) const;
-
+#endif
     TcpEndpointIPtr endpoint(const TcpAcceptorPtr&) const;
 
     using IPEndpointI::connectionId;
 
 protected:
 
-    virtual void streamWriteImpl(BasicStream*) const;
     virtual void hashInit(Ice::Int&) const;
     virtual void fillEndpointInfo(Ice::IPEndpointInfo*) const;
     virtual bool checkOption(const std::string&, const std::string&, const std::string&);
@@ -77,10 +80,10 @@ public:
     virtual Ice::Short type() const;
     virtual std::string protocol() const;
     virtual EndpointIPtr create(std::vector<std::string>&, bool) const;
-    virtual EndpointIPtr read(BasicStream*) const;
+    virtual EndpointIPtr read(Ice::InputStream*) const;
     virtual void destroy();
 
-    virtual EndpointFactoryPtr clone(const ProtocolInstancePtr&) const;
+    virtual EndpointFactoryPtr clone(const ProtocolInstancePtr&, const EndpointFactoryPtr&) const;
 
 private:
 

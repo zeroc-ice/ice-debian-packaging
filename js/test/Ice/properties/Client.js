@@ -22,8 +22,7 @@
 
     var run = function(out)
     {
-        return Promise.try(
-            function()
+        return Promise.try(() =>
             {
                 out.write("testing configuration file escapes... ");
                 var props =
@@ -57,7 +56,7 @@
                     //
                     // We are runing with NodeJS we load the properties file from the file system.
                     //
-                    properties.parse(require("fs").readFileSync("escapes.cfg", {encoding: "utf8"}));
+                    properties.parse(require("fs").readFileSync(process.argv[3] + "/config/escapes.cfg", {encoding: "utf8"}));
                     for(var key in props)
                     {
                         test(props[key] == properties.getProperty(key));
@@ -78,38 +77,28 @@
                         /*jshint jquery: true */
                         $.ajax(
                             {
-                                url: "escapes.cfg",
+                                url: "config/escapes.cfg",
                                 //
                                 // Use text data type to avoid problems interpreting the data.
                                 //
                                 dataType: "text"
-                            }).done(
-                                function(data)
+                            }).done(data =>
                                 {
                                     properties.parse(data);
                                     for(var key in props)
                                     {
                                         test(props[key] == properties.getProperty(key));
                                     }
-                                    p.succeed();
-                                }
-                            ).fail(
-                                function()
-                                {
-                                    p.fail();
-                                });
+                                    p.resolve();
+                                }).fail(p.reject);
                         return p;
                     }
                 }
             }
-        ).then(
-            function()
-            {
-                out.writeLine("ok");
-            });
+        ).then(() => out.writeLine("ok"));
     };
-    exports.__test__ = run;
+    exports._test = run;
 }
 (typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? module : undefined,
- typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice.__require,
+ typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice._require,
  typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? exports : this));

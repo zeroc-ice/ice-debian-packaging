@@ -14,8 +14,7 @@ import test.Ice.checksum.Test.*;
 
 public class AllTests
 {
-    private static void
-    test(boolean b)
+    private static void test(boolean b)
     {
         if(!b)
         {
@@ -23,14 +22,16 @@ public class AllTests
         }
     }
 
-    public static ChecksumPrx
-    allTests(Ice.Communicator communicator, boolean collocated, PrintWriter out)
+    public static ChecksumPrx allTests(test.Util.Application app, boolean collocated)
     {
-        String ref = "test:default -p 12010";
-        Ice.ObjectPrx base = communicator.stringToProxy(ref);
+        com.zeroc.Ice.Communicator communicator = app.communicator();
+        PrintWriter out = app.getWriter();
+
+        String ref = "test:" + app.getTestEndpoint(0);
+        com.zeroc.Ice.ObjectPrx base = communicator.stringToProxy(ref);
         test(base != null);
 
-        ChecksumPrx checksum = ChecksumPrxHelper.checkedCast(base);
+        ChecksumPrx checksum = ChecksumPrx.checkedCast(base);
         test(checksum != null);
 
         //

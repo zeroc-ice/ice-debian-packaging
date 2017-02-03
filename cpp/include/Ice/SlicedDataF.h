@@ -17,17 +17,25 @@ namespace Ice
 {
 
 struct SliceInfo;
+class SlicedData;
+class UnknownSlicedValue;
+
+#ifdef ICE_CPP11_MAPPING
+using SliceInfoPtr = ::std::shared_ptr<SliceInfo>;
+using SlicedDataPtr = ::std::shared_ptr<SlicedData>;
+using UnknownSlicedValuePtr = ::std::shared_ptr<UnknownSlicedValue>;
+#else
 ICE_API IceUtil::Shared* upCast(SliceInfo*);
 typedef IceInternal::Handle<SliceInfo> SliceInfoPtr;
-typedef ::std::vector<SliceInfoPtr> SliceInfoSeq;
 
-class SlicedData;
 ICE_API IceUtil::Shared* upCast(SlicedData*);
 typedef IceInternal::Handle<SlicedData> SlicedDataPtr;
 
-class UnknownSlicedObject;
-ICE_API IceUtil::Shared* upCast(UnknownSlicedObject*);
-typedef IceInternal::Handle<UnknownSlicedObject> UnknownSlicedObjectPtr;
+ICE_API IceUtil::Shared* upCast(UnknownSlicedValue*);
+typedef IceInternal::Handle<UnknownSlicedValue> UnknownSlicedValuePtr;
+#endif
+
+typedef ::std::vector<SliceInfoPtr> SliceInfoSeq;
 
 }
 

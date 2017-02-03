@@ -12,8 +12,7 @@
 
 #include <IceUtil/Mutex.h>
 #include <Ice/UserExceptionFactory.h>
-#include <Ice/ObjectFactoryF.h>
-
+#include <Ice/ValueFactory.h>
 
 namespace Ice
 {
@@ -35,13 +34,13 @@ class ICE_API FactoryTable : private IceUtil::noncopyable
 {
 public:
 
-    void addExceptionFactory(const ::std::string&, const IceInternal::UserExceptionFactoryPtr&);
-    IceInternal::UserExceptionFactoryPtr getExceptionFactory(const ::std::string&) const;
+    void addExceptionFactory(const ::std::string&, ICE_IN(ICE_USER_EXCEPTION_FACTORY));
+    ICE_USER_EXCEPTION_FACTORY getExceptionFactory(const ::std::string&) const;
     void removeExceptionFactory(const ::std::string&);
 
-    void addObjectFactory(const ::std::string&, const Ice::ObjectFactoryPtr&);
-    Ice::ObjectFactoryPtr getObjectFactory(const ::std::string&) const;
-    void removeObjectFactory(const ::std::string&);
+    void addValueFactory(const ::std::string&, ICE_IN(ICE_VALUE_FACTORY));
+    ICE_VALUE_FACTORY getValueFactory(const ::std::string&) const;
+    void removeValueFactory(const ::std::string&);
 
     void addTypeId(int, const ::std::string&);
     std::string getTypeId(int) const;
@@ -51,13 +50,13 @@ private:
 
     IceUtil::Mutex _m;
 
-    typedef ::std::pair<IceInternal::UserExceptionFactoryPtr, int> EFPair;
+    typedef ::std::pair<ICE_USER_EXCEPTION_FACTORY, int> EFPair;
     typedef ::std::map< ::std::string, EFPair> EFTable;
     EFTable _eft;
 
-    typedef ::std::pair<Ice::ObjectFactoryPtr, int> OFPair;
-    typedef ::std::map< ::std::string, OFPair> OFTable;
-    OFTable _oft;
+    typedef ::std::pair<ICE_VALUE_FACTORY, int> VFPair;
+    typedef ::std::map< ::std::string, VFPair> VFTable;
+    VFTable _vft;
 
     typedef ::std::pair< ::std::string, int> TypeIdPair;
     typedef ::std::map<int, TypeIdPair> TypeIdTable;

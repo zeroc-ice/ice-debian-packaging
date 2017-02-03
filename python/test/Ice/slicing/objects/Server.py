@@ -11,14 +11,14 @@
 import os, sys, traceback
 
 import Ice
-Ice.loadSlice('-I. --all ServerPrivate.ice Forward.ice')
+Ice.loadSlice('-I. --all ServerPrivate.ice')
 import Test
 
 def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-class TestI(Test.TestIntf):
+class TestI(Test._TestIntfDisp):
     def SBaseAsObject(self, current=None):
         sb = Test.SBase()
         sb.sb = "SBase.sb"
@@ -244,7 +244,7 @@ class TestI(Test.TestIntf):
             test(p.psu == "unknown")
             test(not p.graph)
 
-    def PBSUnknownAsPreservedWithGraph_async(self, cb, current=None):
+    def PBSUnknownAsPreservedWithGraph(self, current=None):
         r = Test.PSUnknown()
         r.pi = 5
         r.ps = "preserved"
@@ -253,8 +253,8 @@ class TestI(Test.TestIntf):
         r.graph.next = Test.PNode()
         r.graph.next.next = Test.PNode()
         r.graph.next.next.next = r.graph
-        cb.ice_response(r)
-        r.graph.next.next.next = None   # Break the cycle.
+        return Ice.Future.completed(r)
+        #r.graph.next.next.next = None   # Break the cycle.
 
     def checkPBSUnknownWithGraph(self, p, current=None):
         if current.encoding == Ice.Encoding_1_0:
@@ -271,13 +271,13 @@ class TestI(Test.TestIntf):
             test(p.graph.next.next.next == p.graph)
             p.graph.next.next.next = None   # Break the cycle.
 
-    def PBSUnknown2AsPreservedWithGraph_async(self, cb, current=None):
+    def PBSUnknown2AsPreservedWithGraph(self, current=None):
         r = Test.PSUnknown2()
         r.pi = 5
         r.ps = "preserved"
         r.pb = r
-        cb.ice_response(r)
-        r.pb = None         # Break the cycle.
+        return Ice.Future.completed(r)
+        #r.pb = None         # Break the cycle.
 
     def checkPBSUnknown2WithGraph(self, p, current=None):
         if current.encoding == Ice.Encoding_1_0:
@@ -344,14 +344,16 @@ class TestI(Test.TestIntf):
         ude.pd2 = d2
         raise ude
 
-    def throwPreservedException_async(self, cb, current=None):
+    def throwPreservedException(self, current=None):
         ue = Test.PSUnknownException()
         ue.p = Test.PSUnknown2()
         ue.p.pi = 5
         ue.p.ps = "preserved"
         ue.p.pb = ue.p
-        cb.ice_exception(ue)
-        ue.p.pb = None      # Break the cycle.
+        f = Ice.Future()
+        f.set_exception(ue)
+        return f
+        #ue.p.pb = None      # Break the cycle.
 
     def useForward(self, current=None):
         f = Test.Forward()
@@ -368,23 +370,16 @@ def run(args, communicator):
     properties.setProperty("TestAdapter.Endpoints", "default -p 12010 -t 10000")
     adapter = communicator.createObjectAdapter("TestAdapter")
     object = TestI()
-    adapter.add(object, communicator.stringToIdentity("Test"))
+    adapter.add(object, Ice.stringToIdentity("Test"))
     adapter.activate()
     communicator.waitForShutdown()
     return True
 
 try:
-    communicator = Ice.initialize(sys.argv)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv) as communicator:
+         status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)
