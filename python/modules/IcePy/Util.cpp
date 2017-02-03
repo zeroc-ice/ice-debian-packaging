@@ -14,7 +14,7 @@
 #include <IceUtil/DisableWarnings.h>
 #include <Ice/LocalException.h>
 #include <Ice/Protocol.h>
-#include <IceUtil/UUID.h>
+#include <Ice/UUID.h>
 #include <Slice/PythonUtil.h>
 #include <compile.h>
 #include <frameobject.h>
@@ -118,13 +118,13 @@ versionToString(PyObject* args, const char* type)
     PyObject* p;
     if(!PyArg_ParseTuple(args, STRCAST("O!"), versionType, &p))
     {
-        return NULL;
+        return ICE_NULLPTR;
     }
 
     T v;
     if(!getVersion<T>(p, v, type))
     {
-        return NULL;
+        return ICE_NULLPTR;
     }
 
     string s;
@@ -135,7 +135,7 @@ versionToString(PyObject* args, const char* type)
     catch(const Ice::Exception& ex)
     {
         IcePy::setPythonException(ex);
-        return NULL;
+        return ICE_NULLPTR;
     }
     return createString(s);
 }
@@ -146,7 +146,7 @@ stringToVersion(PyObject* args, const char* type)
     char* str;
     if(!PyArg_ParseTuple(args, STRCAST("s"), &str))
     {
-        return NULL;
+        return ICE_NULLPTR;
     }
 
     T v;
@@ -157,7 +157,7 @@ stringToVersion(PyObject* args, const char* type)
     catch(const Ice::Exception& ex)
     {
         IcePy::setPythonException(ex);
-        return NULL;
+        return ICE_NULLPTR;
     }
 
     return createVersion<T>(v, type);
@@ -311,7 +311,7 @@ IcePy::PyException::raise()
         }
         else
         {
-            PyObjectHandle name = PyObject_CallMethod(ex.get(), STRCAST("ice_name"), 0);
+            PyObjectHandle name = PyObject_CallMethod(ex.get(), STRCAST("ice_id"), 0);
             PyErr_Clear();
             if(!name.get())
             {
@@ -468,11 +468,12 @@ IcePy::PyException::getTraceback()
     PyObjectHandle str = createString("traceback");
     PyObjectHandle mod = PyImport_Import(str.get());
     assert(mod.get()); // Unable to import traceback module - Python installation error?
-    PyObject* d = PyModule_GetDict(mod.get());
-    PyObject* func = PyDict_GetItemString(d, "format_exception");
+    PyObject* func = PyDict_GetItemString(PyModule_GetDict(mod.get()), "format_exception");
     assert(func); // traceback.format_exception must be present.
     PyObjectHandle args = Py_BuildValue("(OOO)", _type.get(), ex.get(), _tb.get());
+    assert(args.get());
     PyObjectHandle list = PyObject_CallObject(func, args.get());
+    assert(list.get());
 
     string result;
     for(Py_ssize_t i = 0; i < PyList_GET_SIZE(list.get()); ++i)
@@ -818,7 +819,7 @@ convertLocalException(const Ice::LocalException& ex, PyObject* p)
         m = IcePy::createEncodingVersion(e.supported);
         PyObject_SetAttrString(p, STRCAST("supported"), m.get());
     }
-    catch(const Ice::NoObjectFactoryException& e)
+    catch(const Ice::NoValueFactoryException& e)
     {
         IcePy::PyObjectHandle m;
         m = IcePy::createString(e.reason);
@@ -856,6 +857,10 @@ convertLocalException(const Ice::LocalException& ex, PyObject* p)
         IcePy::PyObjectHandle m = IcePy::createString(e.reason);
         PyObject_SetAttrString(p, STRCAST("reason"), m.get());
     }
+    catch(const Ice::ConnectionManuallyClosedException& e)
+    {
+        PyObject_SetAttrString(p, STRCAST("graceful"), e.graceful ? IcePy::getTrue() : IcePy::getFalse());
+    }
     catch(const Ice::LocalException&)
     {
         //
@@ -880,7 +885,7 @@ IcePy::convertException(const Ice::Exception& ex)
     }
     catch(const Ice::LocalException& e)
     {
-        type = lookupType(scopedToName(e.ice_name()));
+        type = lookupType(scopedToName(e.ice_id()));
         if(type)
         {
             p = createExceptionInstance(type);
@@ -1090,6 +1095,60 @@ IcePy::getEncodingVersion(PyObject* args, Ice::EncodingVersion& v)
     return true;
 }
 
+PyObject*
+IcePy::callMethod(PyObject* obj, const string& name, PyObject* arg1, PyObject* arg2)
+{
+    PyObjectHandle method = PyObject_GetAttrString(obj, const_cast<char*>(name.c_str()));
+    if(!method.get())
+    {
+        return 0;
+    }
+    return callMethod(method.get(), arg1, arg2);
+}
+
+PyObject*
+IcePy::callMethod(PyObject* method, PyObject* arg1, PyObject* arg2)
+{
+    PyObjectHandle args;
+    if(arg1 && arg2)
+    {
+        args = PyTuple_New(2);
+        if(!args.get())
+        {
+            return 0;
+        }
+        PyTuple_SET_ITEM(args.get(), 0, incRef(arg1));
+        PyTuple_SET_ITEM(args.get(), 1, incRef(arg2));
+    }
+    else if(arg1)
+    {
+        args = PyTuple_New(1);
+        if(!args.get())
+        {
+            return 0;
+        }
+        PyTuple_SET_ITEM(args.get(), 0, incRef(arg1));
+    }
+    else if(arg2)
+    {
+        args = PyTuple_New(1);
+        if(!args.get())
+        {
+            return 0;
+        }
+        PyTuple_SET_ITEM(args.get(), 0, incRef(arg2));
+    }
+    else
+    {
+        args = PyTuple_New(0);
+        if(!args.get())
+        {
+            return 0;
+        }
+    }
+    return PyObject_Call(method, args.get(), 0);
+}
+
 extern "C"
 PyObject*
 IcePy_stringVersion(PyObject* /*self*/)
@@ -1158,6 +1217,6 @@ extern "C"
 PyObject*
 IcePy_generateUUID(PyObject* /*self*/)
 {
-    string uuid = IceUtil::generateUUID();
+    string uuid = Ice::generateUUID();
     return IcePy::createString(uuid);
 }

@@ -9,6 +9,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Test;
 
 public sealed class TestI : TestIntfDisp_
@@ -17,72 +18,57 @@ public sealed class TestI : TestIntfDisp_
     {
         if(!b)
         {
-            throw new System.Exception();
+            throw new Exception();
         }
     }
 
-    public override void shutdown_async(AMD_TestIntf_shutdown cb, Ice.Current current)
+    public override Task shutdownAsync(Ice.Current current)
     {
         current.adapter.getCommunicator().shutdown();
-        cb.ice_response();
+        return null;
     }
 
-    public override void SBaseAsObject_async(AMD_TestIntf_SBaseAsObject cb, Ice.Current current)
+    public override Task<Ice.Value>
+    SBaseAsObjectAsync(Ice.Current current)
     {
-        SBase sb = new SBase();
-        sb.sb = "SBase.sb";
-        cb.ice_response(sb);
+        return Task.FromResult<Ice.Value>(new SBase("SBase.sb"));
     }
 
-    public override void SBaseAsSBase_async(AMD_TestIntf_SBaseAsSBase cb, Ice.Current current)
+    public override Task<SBase> SBaseAsSBaseAsync(Ice.Current current)
     {
-        SBase sb = new SBase();
-        sb.sb = "SBase.sb";
-        cb.ice_response(sb);
+        return Task.FromResult<SBase>(new SBase("SBase.sb"));
     }
 
-    public override void SBSKnownDerivedAsSBase_async(AMD_TestIntf_SBSKnownDerivedAsSBase cb, Ice.Current current)
+    public override Task<SBase>
+    SBSKnownDerivedAsSBaseAsync(Ice.Current current)
     {
-        SBSKnownDerived sbskd = new SBSKnownDerived();
-        sbskd.sb = "SBSKnownDerived.sb";
-        sbskd.sbskd = "SBSKnownDerived.sbskd";
-        cb.ice_response(sbskd);
+        return Task.FromResult<SBase>(new SBSKnownDerived("SBSKnownDerived.sb", "SBSKnownDerived.sbskd"));
     }
 
-    public override void SBSKnownDerivedAsSBSKnownDerived_async(AMD_TestIntf_SBSKnownDerivedAsSBSKnownDerived cb,
-                                                                Ice.Current current)
+    public override Task<SBSKnownDerived>
+    SBSKnownDerivedAsSBSKnownDerivedAsync(Ice.Current current)
     {
-        SBSKnownDerived sbskd = new SBSKnownDerived();
-        sbskd.sb = "SBSKnownDerived.sb";
-        sbskd.sbskd = "SBSKnownDerived.sbskd";
-        cb.ice_response(sbskd);
+        return Task.FromResult<SBSKnownDerived>(new SBSKnownDerived("SBSKnownDerived.sb", "SBSKnownDerived.sbskd"));
     }
 
-    public override void SBSUnknownDerivedAsSBase_async(AMD_TestIntf_SBSUnknownDerivedAsSBase cb, Ice.Current current)
+    public override Task<SBase>
+    SBSUnknownDerivedAsSBaseAsync(Ice.Current current)
     {
-        SBSUnknownDerived sbsud = new SBSUnknownDerived();
-        sbsud.sb = "SBSUnknownDerived.sb";
-        sbsud.sbsud = "SBSUnknownDerived.sbsud";
-        cb.ice_response(sbsud);
+        return Task.FromResult<SBase>(new SBSUnknownDerived("SBSUnknownDerived.sb", "SBSUnknownDerived.sbsud"));
     }
 
-    public override void SBSUnknownDerivedAsSBaseCompact_async(AMD_TestIntf_SBSUnknownDerivedAsSBaseCompact cb,
-                                                               Ice.Current current)
+    public override Task<SBase>
+    SBSUnknownDerivedAsSBaseCompactAsync(Ice.Current current)
     {
-        SBSUnknownDerived sbsud = new SBSUnknownDerived();
-        sbsud.sb = "SBSUnknownDerived.sb";
-        sbsud.sbsud = "SBSUnknownDerived.sbsud";
-        cb.ice_response(sbsud);
+        return Task.FromResult<SBase>(new SBSUnknownDerived("SBSUnknownDerived.sb", "SBSUnknownDerived.sbsud"));
     }
 
-    public override void SUnknownAsObject_async(AMD_TestIntf_SUnknownAsObject cb, Ice.Current current)
+    public override Task<Ice.Value> SUnknownAsObjectAsync(Ice.Current current)
     {
-        SUnknown su = new SUnknown();
-        su.su = "SUnknown.su";
-        cb.ice_response(su);
+        return Task.FromResult<Ice.Value>(new SUnknown("SUnknown.su"));
     }
 
-    public override void checkSUnknown_async(AMD_TestIntf_checkSUnknown cb, Ice.Object obj, Ice.Current current)
+    public override Task checkSUnknownAsync(Ice.Value obj, Ice.Current current)
     {
         if(current.encoding.Equals(Ice.Util.Encoding_1_0))
         {
@@ -93,18 +79,18 @@ public sealed class TestI : TestIntfDisp_
             SUnknown su = obj as SUnknown;
             test(su.su.Equals("SUnknown.su"));
         }
-        cb.ice_response();
+        return null;
     }
 
-    public override void oneElementCycle_async(AMD_TestIntf_oneElementCycle cb, Ice.Current current)
+    public override Task<B> oneElementCycleAsync(Ice.Current current)
     {
         B b = new B();
         b.sb = "B1.sb";
         b.pb = b;
-        cb.ice_response(b);
+        return Task.FromResult<B>(b);
     }
 
-    public override void twoElementCycle_async(AMD_TestIntf_twoElementCycle cb, Ice.Current current)
+    public override Task<B> twoElementCycleAsync(Ice.Current current)
     {
         B b1 = new B();
         b1.sb = "B1.sb";
@@ -112,10 +98,10 @@ public sealed class TestI : TestIntfDisp_
         b2.sb = "B2.sb";
         b2.pb = b1;
         b1.pb = b2;
-        cb.ice_response(b1);
+        return Task.FromResult<B>(b1);
     }
 
-    public override void D1AsB_async(AMD_TestIntf_D1AsB cb, Ice.Current current)
+    public override Task<B> D1AsBAsync(Ice.Current current)
     {
         D1 d1 = new D1();
         d1.sb = "D1.sb";
@@ -127,10 +113,10 @@ public sealed class TestI : TestIntfDisp_
         d2.pd2 = d1;
         d1.pb = d2;
         d1.pd1 = d2;
-        cb.ice_response(d1);
+        return Task.FromResult<B>(d1);
     }
 
-    public override void D1AsD1_async(AMD_TestIntf_D1AsD1 cb, Ice.Current current)
+    public override Task<D1> D1AsD1Async(Ice.Current current)
     {
         D1 d1 = new D1();
         d1.sb = "D1.sb";
@@ -142,10 +128,10 @@ public sealed class TestI : TestIntfDisp_
         d2.pd2 = d1;
         d1.pb = d2;
         d1.pd1 = d2;
-        cb.ice_response(d1);
+        return Task.FromResult<D1>(d1);
     }
 
-    public override void D2AsB_async(AMD_TestIntf_D2AsB cb, Ice.Current current)
+    public override Task<B> D2AsBAsync(Ice.Current current)
     {
         D2 d2 = new D2();
         d2.sb = "D2.sb";
@@ -157,10 +143,11 @@ public sealed class TestI : TestIntfDisp_
         d1.pd1 = d2;
         d2.pb = d1;
         d2.pd2 = d1;
-        cb.ice_response(d2);
+        return Task.FromResult<B>(d2);
     }
 
-    public override void paramTest1_async(AMD_TestIntf_paramTest1 cb, Ice.Current current)
+    public override Task<TestIntf_ParamTest1Result>
+    paramTest1Async(Ice.Current current)
     {
         D1 d1 = new D1();
         d1.sb = "D1.sb";
@@ -172,10 +159,11 @@ public sealed class TestI : TestIntfDisp_
         d2.pd2 = d1;
         d1.pb = d2;
         d1.pd1 = d2;
-        cb.ice_response(d1, d2);
+        return Task.FromResult<TestIntf_ParamTest1Result>(new TestIntf_ParamTest1Result(d1, d2));
     }
 
-    public override void paramTest2_async(AMD_TestIntf_paramTest2 cb, Ice.Current current)
+    public override Task<TestIntf_ParamTest2Result>
+    paramTest2Async(Ice.Current current)
     {
         D1 d1 = new D1();
         d1.sb = "D1.sb";
@@ -187,10 +175,11 @@ public sealed class TestI : TestIntfDisp_
         d2.pd2 = d1;
         d1.pb = d2;
         d1.pd1 = d2;
-        cb.ice_response(d2, d1);
+        return Task.FromResult<TestIntf_ParamTest2Result>(new TestIntf_ParamTest2Result(d2, d1));
     }
 
-    public override void paramTest3_async(AMD_TestIntf_paramTest3 cb, Ice.Current current)
+    public override Task<TestIntf_ParamTest3Result>
+    paramTest3Async(Ice.Current current)
     {
         D2 d2 = new D2();
         d2.sb = "D2.sb (p1 1)";
@@ -215,10 +204,12 @@ public sealed class TestI : TestIntfDisp_
         d3.sd1 = "D1.sd2 (p2 2)";
         d3.pd1 = null;
         d4.pd2 = d3;
-        cb.ice_response(d3, d2, d4);
+
+        return Task.FromResult<TestIntf_ParamTest3Result>(new TestIntf_ParamTest3Result(d3, d2, d4));
     }
 
-    public override void paramTest4_async(AMD_TestIntf_paramTest4 cb, Ice.Current current)
+    public override Task<TestIntf_ParamTest4Result>
+    paramTest4Async(Ice.Current current)
     {
         D4 d4 = new D4();
         d4.sb = "D4.sb (1)";
@@ -227,10 +218,11 @@ public sealed class TestI : TestIntfDisp_
         d4.p1.sb = "B.sb (1)";
         d4.p2 = new B();
         d4.p2.sb = "B.sb (2)";
-        cb.ice_response(d4.p2, d4);
+        return Task.FromResult<TestIntf_ParamTest4Result>(new TestIntf_ParamTest4Result(d4.p2, d4));
     }
 
-    public override void returnTest1_async(AMD_TestIntf_returnTest1 cb, Ice.Current current)
+    public override Task<TestIntf_ReturnTest1Result>
+    returnTest1Async(Ice.Current current)
     {
         D1 d1 = new D1();
         d1.sb = "D1.sb";
@@ -242,10 +234,11 @@ public sealed class TestI : TestIntfDisp_
         d2.pd2 = d1;
         d1.pb = d2;
         d1.pd1 = d2;
-        cb.ice_response(d2, d2, d1);
+        return Task.FromResult<TestIntf_ReturnTest1Result>(new TestIntf_ReturnTest1Result(d2, d2, d1));
     }
 
-    public override void returnTest2_async(AMD_TestIntf_returnTest2 cb, Ice.Current current)
+    public override Task<TestIntf_ReturnTest2Result>
+    returnTest2Async(Ice.Current current)
     {
         D1 d1 = new D1();
         d1.sb = "D1.sb";
@@ -257,57 +250,58 @@ public sealed class TestI : TestIntfDisp_
         d2.pd2 = d1;
         d1.pb = d2;
         d1.pd1 = d2;
-        cb.ice_response(d1, d1, d2);
+        return Task.FromResult<TestIntf_ReturnTest2Result>(new TestIntf_ReturnTest2Result(d1, d1, d2));
     }
 
-    public override void returnTest3_async(AMD_TestIntf_returnTest3 cb, B p1, B p2, Ice.Current current)
+    public override Task<B>
+    returnTest3Async(B p1, B p2, Ice.Current current)
     {
-        cb.ice_response(p1);
+        return Task.FromResult<B>(p1);
     }
 
-    public override void sequenceTest_async(AMD_TestIntf_sequenceTest cb, SS1 p1, SS2 p2, Ice.Current current)
+    public override Task<SS3>
+    sequenceTestAsync(SS1 p1, SS2 p2, Ice.Current current)
     {
-        SS3 ss = new SS3();
-        ss.c1 = p1;
-        ss.c2 = p2;
-        cb.ice_response(ss);
+        return Task.FromResult<SS3>(new SS3(p1, p2));
     }
 
-    public override void dictionaryTest_async(AMD_TestIntf_dictionaryTest cb, Dictionary<int, B> bin,
-                                              Ice.Current current)
+    public override Task<TestIntf_DictionaryTestResult>
+    dictionaryTestAsync(Dictionary<int, B> bin, Ice.Current current)
     {
-        Dictionary<int, B> bout = new Dictionary<int, B>();
+        var bout = new Dictionary<int, B>();
         int i;
         for(i = 0; i < 10; ++i)
         {
             B b = bin[i];
-            D2 d2 = new D2();
+            var d2 = new D2();
             d2.sb = b.sb;
             d2.pb = b.pb;
             d2.sd2 = "D2";
             d2.pd2 = d2;
             bout[i * 10] = d2;
         }
-        Dictionary<int, B> r = new Dictionary<int, B>();
+        var r = new Dictionary<int, B>();
         for(i = 0; i < 10; ++i)
         {
             string s = "D1." + (i * 20).ToString();
-            D1 d1 = new D1();
+            var d1 = new D1();
             d1.sb = s;
             d1.pb = (i == 0 ? null : r[(i - 1) * 20]);
             d1.sd1 = s;
             d1.pd1 = d1;
             r[i * 20] = d1;
         }
-        cb.ice_response(r, bout);
+        return Task.FromResult<TestIntf_DictionaryTestResult>(new TestIntf_DictionaryTestResult(r, bout));
     }
 
-    public override void exchangePBase_async(AMD_TestIntf_exchangePBase cb, PBase pb, Ice.Current current)
+    public override Task<PBase>
+    exchangePBaseAsync(PBase pb, Ice.Current current)
     {
-        cb.ice_response(pb);
+        return Task.FromResult<PBase>(pb);
     }
 
-    public override void PBSUnknownAsPreserved_async(AMD_TestIntf_PBSUnknownAsPreserved cb, Ice.Current current)
+    public override Task<Preserved>
+    PBSUnknownAsPreservedAsync(Ice.Current current)
     {
         PSUnknown r = new PSUnknown();
         r.pi = 5;
@@ -322,10 +316,11 @@ public sealed class TestI : TestIntfDisp_
             //
             r.cl = new MyClass(15);
         }
-        cb.ice_response(r);
+        return Task.FromResult<Preserved>(r);
     }
 
-    public override void checkPBSUnknown_async(AMD_TestIntf_checkPBSUnknown cb, Preserved p, Ice.Current current)
+    public override Task
+    checkPBSUnknownAsync(Preserved p, Ice.Current current)
     {
         if(current.encoding.Equals(Ice.Util.Encoding_1_0))
         {
@@ -335,20 +330,20 @@ public sealed class TestI : TestIntfDisp_
         }
         else
         {
-            PSUnknown pu = p as PSUnknown;
+            var pu = p as PSUnknown;
             test(pu.pi == 5);
             test(pu.ps.Equals("preserved"));
             test(pu.psu.Equals("unknown"));
             test(pu.graph == null);
             test(pu.cl != null && pu.cl.i == 15);
         }
-        cb.ice_response();
+        return null;
     }
 
-    public override void PBSUnknownAsPreservedWithGraph_async(AMD_TestIntf_PBSUnknownAsPreservedWithGraph cb,
-                                                              Ice.Current current)
+    public override Task<Preserved>
+    PBSUnknownAsPreservedWithGraphAsync(Ice.Current current)
     {
-        PSUnknown r = new PSUnknown();
+        var r = new PSUnknown();
         r.pi = 5;
         r.ps = "preserved";
         r.psu = "unknown";
@@ -356,12 +351,11 @@ public sealed class TestI : TestIntfDisp_
         r.graph.next = new PNode();
         r.graph.next.next = new PNode();
         r.graph.next.next.next = r.graph;
-        cb.ice_response(r);
-        r.graph.next.next.next = null; // Break the cycle.
+        return Task.FromResult<Preserved>(r);
     }
 
-    public override void checkPBSUnknownWithGraph_async(AMD_TestIntf_checkPBSUnknownWithGraph cb,
-                                                        Preserved p, Ice.Current current)
+    public override Task
+    checkPBSUnknownWithGraphAsync(Preserved p, Ice.Current current)
     {
         if(current.encoding.Equals(Ice.Util.Encoding_1_0))
         {
@@ -371,31 +365,29 @@ public sealed class TestI : TestIntfDisp_
         }
         else
         {
-            PSUnknown pu = p as PSUnknown;
+            var pu = p as PSUnknown;
             test(pu.pi == 5);
             test(pu.ps.Equals("preserved"));
             test(pu.psu.Equals("unknown"));
             test(pu.graph != pu.graph.next);
             test(pu.graph.next != pu.graph.next.next);
             test(pu.graph.next.next.next == pu.graph);
-            pu.graph.next.next.next = null;          // Break the cycle.
         }
-        cb.ice_response();
+        return null;
     }
 
-    public override void PBSUnknown2AsPreservedWithGraph_async(AMD_TestIntf_PBSUnknown2AsPreservedWithGraph cb,
-                                                               Ice.Current current)
+    public override Task<Preserved>
+    PBSUnknown2AsPreservedWithGraphAsync(Ice.Current current)
     {
-        PSUnknown2 r = new PSUnknown2();
+        var r = new PSUnknown2();
         r.pi = 5;
         r.ps = "preserved";
         r.pb = r;
-        cb.ice_response(r);
-        r.pb = null; // Break the cycle.
+        return Task.FromResult<Preserved>(r);
     }
 
-    public override void checkPBSUnknown2WithGraph_async(AMD_TestIntf_checkPBSUnknown2WithGraph cb, Preserved p,
-                                                         Ice.Current current)
+    public override Task
+    checkPBSUnknown2WithGraphAsync(Preserved p, Ice.Current current)
     {
         if(current.encoding.Equals(Ice.Util.Encoding_1_0))
         {
@@ -405,31 +397,31 @@ public sealed class TestI : TestIntfDisp_
         }
         else
         {
-            PSUnknown2 pu = p as PSUnknown2;
+            var pu = p as PSUnknown2;
             test(pu.pi == 5);
             test(pu.ps.Equals("preserved"));
             test(pu.pb == pu);
-            pu.pb = null; // Break the cycle.
         }
-        cb.ice_response();
+        return null;
     }
 
-    public override void exchangePNode_async(AMD_TestIntf_exchangePNode cb, PNode pn, Ice.Current current)
+    public override Task<PNode>
+    exchangePNodeAsync(PNode pn, Ice.Current current)
     {
-        cb.ice_response(pn);
+        return Task.FromResult<PNode>(pn);
     }
 
-    public override void throwBaseAsBase_async(AMD_TestIntf_throwBaseAsBase cb, Ice.Current current)
+    public override Task throwBaseAsBaseAsync(Ice.Current current)
     {
-        BaseException be = new BaseException();
+        var be = new BaseException();
         be.sbe = "sbe";
         be.pb = new B();
         be.pb.sb = "sb";
         be.pb.pb = be.pb;
-        cb.ice_exception(be);
+        throw be;
     }
 
-    public override void throwDerivedAsBase_async(AMD_TestIntf_throwDerivedAsBase cb, Ice.Current current)
+    public override Task throwDerivedAsBaseAsync(Ice.Current current)
     {
         DerivedException de = new DerivedException();
         de.sbe = "sbe";
@@ -442,12 +434,13 @@ public sealed class TestI : TestIntfDisp_
         de.pd1.pb = de.pd1;
         de.pd1.sd1 = "sd2";
         de.pd1.pd1 = de.pd1;
-        cb.ice_exception(de);
+        throw de;
     }
 
-    public override void throwDerivedAsDerived_async(AMD_TestIntf_throwDerivedAsDerived cb, Ice.Current current)
+    public override Task
+    throwDerivedAsDerivedAsync(Ice.Current current)
     {
-        DerivedException de = new DerivedException();
+        var de = new DerivedException();
         de.sbe = "sbe";
         de.pb = new B();
         de.pb.sb = "sb1";
@@ -458,42 +451,44 @@ public sealed class TestI : TestIntfDisp_
         de.pd1.pb = de.pd1;
         de.pd1.sd1 = "sd2";
         de.pd1.pd1 = de.pd1;
-        cb.ice_exception(de);
+        throw de;
     }
 
-    public override void throwUnknownDerivedAsBase_async(AMD_TestIntf_throwUnknownDerivedAsBase cb, Ice.Current current)
+    public override Task throwUnknownDerivedAsBaseAsync(Ice.Current current)
     {
-        D2 d2 = new D2();
+        var d2 = new D2();
         d2.sb = "sb d2";
         d2.pb = d2;
         d2.sd2 = "sd2 d2";
         d2.pd2 = d2;
 
-        UnknownDerivedException ude = new UnknownDerivedException();
+        var ude = new UnknownDerivedException();
         ude.sbe = "sbe";
         ude.pb = d2;
         ude.sude = "sude";
         ude.pd2 = d2;
-        cb.ice_exception(ude);
+
+        throw ude;
     }
 
-    public override void throwPreservedException_async(AMD_TestIntf_throwPreservedException cb, Ice.Current current)
+    public override Task throwPreservedExceptionAsync(Ice.Current current)
     {
-        PSUnknownException ue = new PSUnknownException();
+        var ue = new PSUnknownException();
         ue.p = new PSUnknown2();
         ue.p.pi = 5;
         ue.p.ps = "preserved";
         ue.p.pb = ue.p;
-        cb.ice_exception(ue);
-        ue.p.pb = null; // Break the cycle.
+
+        throw ue;
     }
 
-    public override void useForward_async(AMD_TestIntf_useForward cb, Ice.Current current)
+    public override Task<Forward>
+    useForwardAsync(Ice.Current current)
     {
-        Forward f = new Forward();
+        var f = new Forward();
         f = new Forward();
         f.h = new Hidden();
         f.h.f = f;
-        cb.ice_response(f);
+        return Task.FromResult<Forward>(f);
     }
 }

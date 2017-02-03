@@ -10,17 +10,10 @@
 namespace IceInternal
 {
     using System;
-    using System.Collections;
     using System.Collections.Generic;
-    using System.ComponentModel;
-    using System.Diagnostics;
     using System.Net;
-#if !COMPACT && !UNITY
     using System.Net.NetworkInformation;
-#endif
     using System.Net.Sockets;
-    using System.Runtime.InteropServices;
-    using System.Threading;
     using System.Globalization;
 
     public sealed class Network
@@ -30,71 +23,10 @@ namespace IceInternal
         public const int EnableIPv6 = 1;
         public const int EnableBoth = 2;
 
-#if COMPACT
-        public static SocketError socketErrorCode(SocketException ex)
-        {
-            return (SocketError)ex.ErrorCode;
-        }
-#else
         public static SocketError socketErrorCode(SocketException ex)
         {
             return ex.SocketErrorCode;
         }
-#endif
-
-#if COMPACT
-        //
-        // SocketError enumeration isn't available with Silverlight
-        //
-        public enum SocketError
-        {
-            Interrupted = 10004,                    // A blocking Socket call was canceled.
-            //AccessDenied =10013,                  // An attempt was made to access a Socket in a way that is forbidden by its access permissions.
-            Fault = 10014,                          // An invalid pointer address was detected by the underlying socket provider.
-            InvalidArgument = 10022,                // An invalid argument was supplied to a Socket member.
-            TooManyOpenSockets = 10024,             // There are too many open sockets in the underlying socket provider.
-            WouldBlock = 10035,                     // An operation on a nonblocking socket cannot be completed immediately.
-            InProgress = 10036,                     // A blocking operation is in progress.
-            //AlreadyInProgress = 10037,            // The nonblocking Socket already has an operation in progress.
-            //NotSocket = 10038,                    // A Socket operation was attempted on a non-socket.
-            //DestinationAddressRequired = 10039,   // A required address was omitted from an operation on a Socket.
-            MessageSize = 10040,                    // The datagram is too long.
-            //ProtocolType = 10041,                 // The protocol type is incorrect for this Socket.
-            //ProtocolOption = 10042,               // An unknown, invalid, or unsupported option or level was used with a Socket.
-            //ProtocolNotSupported = 10043,         // The protocol is not implemented or has not been configured.
-            //SocketNotSupported = 10044,           // The support for the specified socket type does not exist in this address family.
-            //OperationNotSupported = 10045,        // The address family is not supported by the protocol family.
-            //ProtocolFamilyNotSupported = 10046,   // The protocol family is not implemented or has not been configured.
-            //AddressFamilyNotSupported = 10047,    // The address family specified is not supported.
-            //AddressAlreadyInUse = 10048,          // Only one use of an address is normally permitted.
-            //AddressNotAvailable = 10049,          // The selected IP address is not valid in this context.
-            NetworkDown = 10050,                    // The network is not available.
-            NetworkUnreachable = 10051,             // No route to the remote host exists.
-            NetworkReset = 10052,                   // The application tried to set KeepAlive on a connection that has already timed out.
-            ConnectionAborted = 10053,              // The connection was aborted by the .NET Framework or the underlying socket provider.
-            ConnectionReset = 10054,                // The connection was reset by the remote peer.
-            NoBufferSpaceAvailable = 10055,         // No free buffer space is available for a Socket operation.
-            //IsConnected = 10056,                  // The Socket is already connected.
-            NotConnected = 10057,                   // The application tried to send or receive data, and the Socket is not connected.
-            Shutdown = 10058,                       // A request to send or receive data was disallowed because the Socket has already been closed.
-            TimedOut = 10060,                       // The connection attempt timed out, or the connected host has failed to respond.
-            ConnectionRefused = 10061,              // The remote host is actively refusing a connection.
-            //HostDown = 10064,                     // The operation failed because the remote host is down.
-            HostUnreachable = 10065,                // There is no network route to the specified host.
-            //ProcessLimit = 10067,                 // Too many processes are using the underlying socket provider.
-            //SystemNotReady = 10091,               // The network subsystem is unavailable.
-            //VersionNotSupported = 10092,          // The version of the underlying socket provider is out of range.
-            //NotInitialized = 10093,               // The underlying socket provider has not been initialized.
-            //Disconnecting = 10101,                // A graceful shutdown is in progress.
-            //TypeNotFound = 10109,                 // The specified class was not found.
-            //HostNotFound = 11001,                 // No such host is known. The name is not an official host name or alias.
-            TryAgain = 11002,                       // The name of the host could not be resolved. Try again later.
-            //NoRecovery = 11003,                   // The error is unrecoverable or the requested database cannot be located.
-            //NoData = 11004,                       // The requested name or IP address was not found on the name server.
-            //IOPending = 997,                      // The application has initiated an overlapped operation that cannot be completed immediately.
-            OperationAborted =995                   // The overlapped operation was aborted due to the closure of the Socket.
-        }
-#endif
 
         public static bool interrupted(SocketException ex)
         {
@@ -117,7 +49,7 @@ namespace IceInternal
         {
             SocketError error = socketErrorCode(ex);
             return error == SocketError.NoBufferSpaceAvailable ||
-                      error == SocketError.Fault;
+                   error == SocketError.Fault;
         }
 
         public static bool wouldBlock(SocketException ex)
@@ -166,7 +98,6 @@ namespace IceInternal
                 return connectionLost(ex.InnerException as SocketException);
             }
 
-#if !UNITY
             //
             // In other cases the IOException has no inner exception. We could examine the
             // exception's message, but that is fragile due to localization issues. We
@@ -186,8 +117,6 @@ namespace IceInternal
             {
                 return true;
             }
-#endif
-
             return false;
         }
 
@@ -226,7 +155,7 @@ namespace IceInternal
             return ex.Message.IndexOf("period of time", StringComparison.Ordinal) >= 0;
         }
 
-        public static bool noMoreFds(System.Exception ex)
+        public static bool noMoreFds(Exception ex)
         {
             try
             {
@@ -240,24 +169,20 @@ namespace IceInternal
 
         public static bool isMulticast(IPEndPoint addr)
         {
-#if COMPACT
-            string ip = addr.Address.ToString().ToUpper();
-#else
             string ip = addr.Address.ToString().ToUpperInvariant();
-#endif
             if(addr.AddressFamily == AddressFamily.InterNetwork)
             {
                 char[] splitChars = { '.' };
                 string[] arr = ip.Split(splitChars);
                 try
                 {
-                    int i = System.Int32.Parse(arr[0], CultureInfo.InvariantCulture);
+                    int i = int.Parse(arr[0], CultureInfo.InvariantCulture);
                     if(i >= 223 && i <= 239)
                     {
                         return true;
                     }
                 }
-                catch(System.FormatException)
+                catch(FormatException)
                 {
                     return false;
                 }
@@ -316,12 +241,8 @@ namespace IceInternal
                 try
                 {
                     setTcpNoDelay(socket);
-#if !SILVERLIGHT
                     socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, 1);
-#  if !__MonoCS__
                     setTcpLoopbackFastPath(socket);
-#  endif
-#endif
                 }
                 catch(SocketException ex)
                 {
@@ -335,7 +256,6 @@ namespace IceInternal
         public static Socket createServerSocket(bool udp, AddressFamily family, int protocol)
         {
             Socket socket = createSocket(udp, family);
-#  if !COMPACT && !UNITY && !__MonoCS__ && !SILVERLIGHT && !DOTNET3_5
             //
             // The IPv6Only enumerator was added in .NET 4.
             //
@@ -352,7 +272,6 @@ namespace IceInternal
                     throw new Ice.SocketException(ex);
                 }
             }
-#endif
             return socket;
         }
 
@@ -392,30 +311,25 @@ namespace IceInternal
         {
             try
             {
-#if SILVERLIGHT
-                socket.NoDelay = true;
-#else
                 socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, 1);
-#endif
             }
-            catch(System.Exception ex)
+            catch(Exception ex)
             {
                 closeSocketNoThrow(socket);
                 throw new Ice.SocketException(ex);
             }
         }
 
-#if !SILVERLIGHT
         public static void setTcpLoopbackFastPath(Socket socket)
         {
             const int SIO_LOOPBACK_FAST_PATH = (-1744830448);
 
-            Byte[] OptionInValue = BitConverter.GetBytes(1);
+            byte[] OptionInValue = BitConverter.GetBytes(1);
             try
             {
                 socket.IOControl(SIO_LOOPBACK_FAST_PATH, OptionInValue, null);
             }
-            catch(System.Exception)
+            catch(Exception)
             {
                 // Expected on platforms that do not support TCP Loopback Fast Path
             }
@@ -440,23 +354,18 @@ namespace IceInternal
             {
                 socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, 1);
             }
-            catch(System.Exception ex)
+            catch(Exception ex)
             {
                 closeSocketNoThrow(socket);
                 throw new Ice.SocketException(ex);
             }
         }
-#endif
 
         public static void setSendBufferSize(Socket socket, int sz)
         {
             try
             {
-#if SILVERLIGHT
-                socket.SendBufferSize = sz;
-#else
                 socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer, sz);
-#endif
             }
             catch(SocketException ex)
             {
@@ -470,11 +379,7 @@ namespace IceInternal
             int sz;
             try
             {
-#if SILVERLIGHT
-                sz = socket.SendBufferSize;
-#else
                 sz = (int)socket.GetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer);
-#endif
             }
             catch(SocketException ex)
             {
@@ -488,11 +393,7 @@ namespace IceInternal
         {
             try
             {
-#if SILVERLIGHT
-                socket.ReceiveBufferSize = sz;
-#else
                 socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveBuffer, sz);
-#endif
             }
             catch(SocketException ex)
             {
@@ -506,11 +407,7 @@ namespace IceInternal
             int sz = 0;
             try
             {
-#if SILVERLIGHT
-                sz = socket.ReceiveBufferSize;
-#else
                 sz = (int)socket.GetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveBuffer);
-#endif
             }
             catch(SocketException ex)
             {
@@ -520,7 +417,6 @@ namespace IceInternal
             return sz;
         }
 
-#if !SILVERLIGHT
         public static void setReuseAddress(Socket socket, bool reuse)
         {
             try
@@ -539,22 +435,9 @@ namespace IceInternal
             try
             {
                 int ifaceIndex = getInterfaceIndex(iface, family);
-                if(ifaceIndex == -1)
-                {
-                    try
-                    {
-                        ifaceIndex = System.Int32.Parse(iface, CultureInfo.InvariantCulture);
-                    }
-                    catch(System.FormatException ex)
-                    {
-                        closeSocketNoThrow(socket);
-                        throw new Ice.SocketException(ex);
-                    }
-                }
-
                 if(family == AddressFamily.InterNetwork)
                 {
-                    ifaceIndex = (int)IPAddress.HostToNetworkOrder(ifaceIndex);
+                    ifaceIndex = IPAddress.HostToNetworkOrder(ifaceIndex);
                     socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastInterface, ifaceIndex);
                 }
                 else
@@ -573,37 +456,40 @@ namespace IceInternal
         {
             try
             {
-                int index = getInterfaceIndex(iface, group.AddressFamily);
-                if(group.AddressFamily == AddressFamily.InterNetwork)
+                var indexes = new HashSet<int>();
+                foreach(string intf in getInterfacesForMulticast(iface, group))
                 {
-                    MulticastOption option;
-#if COMPACT
-                    option = new MulticastOption(group);
-#else
-                    if(index == -1)
+                    int index = getInterfaceIndex(intf, group.AddressFamily);
+                    if(!indexes.Contains(index))
                     {
-                        option = new MulticastOption(group);
+                        indexes.Add(index);
+                        if(group.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            MulticastOption option;
+                            if(index == -1)
+                            {
+                                option = new MulticastOption(group);
+                            }
+                            else
+                            {
+                                option = new MulticastOption(group, index);
+                            }
+                            s.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, option);
+                        }
+                        else
+                        {
+                            IPv6MulticastOption option;
+                            if(index == -1)
+                            {
+                                option = new IPv6MulticastOption(group);
+                            }
+                            else
+                            {
+                                option = new IPv6MulticastOption(group, index);
+                            }
+                            s.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.AddMembership, option);
+                        }
                     }
-
-                    else
-                    {
-                        option = new MulticastOption(group, index);
-                    }
-#endif
-                    s.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, option);
-                }
-                else
-                {
-                    IPv6MulticastOption option;
-                    if(index == -1)
-                    {
-                        option = new IPv6MulticastOption(group);
-                    }
-                    else
-                    {
-                        option = new IPv6MulticastOption(group, index);
-                    }
-                    s.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.AddMembership, option);
                 }
             }
             catch(Exception ex)
@@ -612,15 +498,11 @@ namespace IceInternal
                 throw new Ice.SocketException(ex);
             }
         }
-#endif
 
         public static void setMcastTtl(Socket socket, int ttl, AddressFamily family)
         {
             try
             {
-#if SILVERLIGHT
-                socket.Ttl = (short)ttl;
-#else
                 if(family == AddressFamily.InterNetwork)
                 {
                     socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastTimeToLive, ttl);
@@ -629,7 +511,6 @@ namespace IceInternal
                 {
                     socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.MulticastTimeToLive, ttl);
                 }
-#endif
             }
             catch(SocketException ex)
             {
@@ -638,7 +519,6 @@ namespace IceInternal
             }
         }
 
-#if !SILVERLIGHT
         public static IPEndPoint doBind(Socket socket, EndPoint addr)
         {
             try
@@ -673,9 +553,7 @@ namespace IceInternal
                 throw new Ice.SocketException(ex);
             }
         }
-#endif
 
-#if !SILVERLIGHT
         public static bool doConnect(Socket fd, EndPoint addr, EndPoint sourceAddr)
         {
             EndPoint bindAddr = sourceAddr;
@@ -726,19 +604,6 @@ namespace IceInternal
             // after the asynchronous connect. Seems like a bug in .NET.
             //
             setBlock(fd, fd.Blocking);
-
-            if(AssemblyUtil.platform_ == AssemblyUtil.Platform.NonWindows)
-            {
-                //
-                // Prevent self connect (self connect happens on Linux when a client tries to connect to
-                // a server which was just deactivated if the client socket re-uses the same ephemeral
-                // port as the server).
-                //
-                if(addr.Equals(getLocalAddress(fd)))
-                {
-                    throw new Ice.ConnectionRefusedException();
-                }
-            }
             return true;
         }
 
@@ -820,22 +685,7 @@ namespace IceInternal
             // after the asynchronous connect. Seems like a bug in .NET.
             //
             setBlock(fd, fd.Blocking);
-
-            if(AssemblyUtil.platform_ == AssemblyUtil.Platform.NonWindows)
-            {
-                //
-                // Prevent self connect (self connect happens on Linux when a client tries to connect to
-                // a server which was just deactivated if the client socket re-uses the same ephemeral
-                // port as the server).
-                //
-                EndPoint remoteAddr = getRemoteAddress(fd);
-                if(remoteAddr != null && remoteAddr.Equals(getLocalAddress(fd)))
-                {
-                    throw new Ice.ConnectionRefusedException();
-                }
-            }
         }
-#endif
 
         public static EndPoint getAddressForServer(string host, int port, int protocol, bool preferIPv6)
         {
@@ -898,29 +748,13 @@ namespace IceInternal
                 }
                 catch(FormatException)
                 {
-#if !SILVERLIGHT
                     if(!blocking)
                     {
                         return addresses;
                     }
-#endif
                 }
 
-#if SILVERLIGHT
-                if(protocol != EnableIPv6)
-                {
-                    addresses.Add(new DnsEndPoint(host, port, AddressFamily.InterNetwork));
-                }
-                if(protocol != EnableIPv4)
-                {
-                    addresses.Add(new DnsEndPoint(host, port, AddressFamily.InterNetworkV6));
-                }
-#else
-# if COMPACT
-                foreach(IPAddress a in Dns.GetHostEntry(host).AddressList)
-#  else
                 foreach(IPAddress a in Dns.GetHostAddresses(host))
-#  endif
                 {
                     if((a.AddressFamily == AddressFamily.InterNetwork && protocol != EnableIPv6) ||
                        (a.AddressFamily == AddressFamily.InterNetworkV6 && protocol != EnableIPv4))
@@ -928,7 +762,6 @@ namespace IceInternal
                         addresses.Add(new IPEndPoint(a, port));
                     }
                 }
-#endif
 
                 if(selType == Ice.EndpointSelectionType.Random)
                 {
@@ -957,7 +790,7 @@ namespace IceInternal
                 e.host = host;
                 throw e;
             }
-            catch(System.Exception ex)
+            catch(Exception ex)
             {
                 Ice.DNSException e = new Ice.DNSException(ex);
                 e.host = host;
@@ -978,9 +811,6 @@ namespace IceInternal
 
         public static IPAddress[] getLocalAddresses(int protocol, bool includeLoopback)
         {
-#if SILVERLIGHT
-            return new List<IPAddress>().ToArray();
-#else
             List<IPAddress> addresses;
             int retry = 5;
 
@@ -988,7 +818,6 @@ namespace IceInternal
             try
             {
                 addresses = new List<IPAddress>();
-#  if !COMPACT && !UNITY
                 NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
                 foreach(NetworkInterface ni in nics)
                 {
@@ -1006,23 +835,6 @@ namespace IceInternal
                         }
                     }
                 }
-#  else
-#     if COMPACT
-                foreach(IPAddress a in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
-#     else
-                foreach(IPAddress a in Dns.GetHostAddresses(Dns.GetHostName()))
-#     endif
-                {
-                    if((a.AddressFamily == AddressFamily.InterNetwork && protocol != EnableIPv6) ||
-                       (a.AddressFamily == AddressFamily.InterNetworkV6 && protocol != EnableIPv4))
-                    {
-                        if(includeLoopback || !IPAddress.IsLoopback(a))
-                        {
-                            addresses.Add(a);
-                        }
-                    }
-                }
-#  endif
             }
             catch(SocketException ex)
             {
@@ -1034,7 +846,7 @@ namespace IceInternal
                 e.host = "0.0.0.0";
                 throw e;
             }
-            catch(System.Exception ex)
+            catch(Exception ex)
             {
                 Ice.DNSException e = new Ice.DNSException(ex);
                 e.host = "0.0.0.0";
@@ -1042,7 +854,6 @@ namespace IceInternal
             }
 
             return addresses.ToArray();
-#endif
         }
 
         public static bool
@@ -1054,7 +865,7 @@ namespace IceInternal
             }
             else if (addr.AddressFamily == AddressFamily.InterNetwork)
             {
-                Byte[] bytes = addr.GetAddressBytes();
+                byte[] bytes = addr.GetAddressBytes();
                 return bytes[0] == 169 && bytes[1] == 254;
             }
             return false;
@@ -1064,15 +875,8 @@ namespace IceInternal
         setTcpBufSize(Socket socket, ProtocolInstance instance)
         {
             //
-            // By default, on Windows we use a 128KB buffer size. On Unix
-            // platforms, we use the system defaults.
-            //
-            int dfltBufSize = 0;
-            if(AssemblyUtil.platform_ == AssemblyUtil.Platform.Windows)
-            {
-                dfltBufSize = 128 * 1024;
-            }
-
+            // By default, on Windows we use a 128KB buffer size.
+            int dfltBufSize = 128 * 1024;
             int rcvSize = instance.properties().getPropertyAsIntWithDefault("Ice.TCP.RcvSize", dfltBufSize);
             int sndSize = instance.properties().getPropertyAsIntWithDefault("Ice.TCP.SndSize", dfltBufSize);
 
@@ -1131,39 +935,40 @@ namespace IceInternal
 
         public static List<string> getHostsForEndpointExpand(string host, int protocol, bool includeLoopback)
         {
-            bool wildcard = host.Length == 0;
-            bool ipv4Wildcard = false;
-            if(!wildcard)
-            {
-                try
-                {
-                    IPAddress addr = IPAddress.Parse(host);
-                    ipv4Wildcard = addr.Equals(IPAddress.Any);
-                    wildcard = ipv4Wildcard || addr.Equals(IPAddress.IPv6Any);
-                }
-                catch(Exception)
-                {
-                }
-            }
-
             List<string> hosts = new List<string>();
-            if(wildcard)
+            bool ipv4Wildcard = false;
+            if(isWildcard(host, out ipv4Wildcard))
             {
-                IPAddress[] addrs =
-                    getLocalAddresses(ipv4Wildcard ? Network.EnableIPv4 : protocol, includeLoopback);
+                IPAddress[] addrs = getLocalAddresses(ipv4Wildcard ? EnableIPv4 : protocol, includeLoopback);
                 foreach(IPAddress a in addrs)
                 {
-#if COMPACT
-                    if(!IPAddress.IsLoopback(a))
-#else
                     if(!isLinklocal(a))
-#endif
                     {
                         hosts.Add(a.ToString());
                     }
                 }
             }
             return hosts;
+        }
+
+        public static List<string> getInterfacesForMulticast(string intf, IPAddress group)
+        {
+            List<string> interfaces = new List<string>();
+            bool ipv4Wildcard = false;
+            int protocol = group.AddressFamily == AddressFamily.InterNetwork ? EnableIPv4 : EnableIPv6;
+            if(isWildcard(intf, out ipv4Wildcard))
+            {
+                IPAddress[] addrs = getLocalAddresses(ipv4Wildcard ? EnableIPv4 : protocol, true);
+                foreach(IPAddress a in addrs)
+                {
+                    interfaces.Add(a.ToString());
+                }
+            }
+            if(interfaces.Count == 0)
+            {
+                interfaces.Add(intf);
+            }
+            return interfaces;
         }
 
         public static string fdToString(Socket socket, NetworkProxy proxy, EndPoint target)
@@ -1239,11 +1044,7 @@ namespace IceInternal
         {
             if(endpoint == null)
             {
-#if SILVERLIGHT
-                return "<not available>";
-#else
                 return "<not bound>";
-#endif
             }
             return endpointAddressToString(endpoint) + ":" + endpointPort(endpoint);
         }
@@ -1261,8 +1062,6 @@ namespace IceInternal
         public static EndPoint
         getLocalAddress(Socket socket)
         {
-            // Silverlight socket doesn't exposes a local endpoint
-#if !SILVERLIGHT
             try
             {
                 return socket.LocalEndPoint;
@@ -1271,9 +1070,6 @@ namespace IceInternal
             {
                 throw new Ice.SocketException(ex);
             }
-#else
-            return null;
-#endif
         }
 
         public static EndPoint
@@ -1281,7 +1077,7 @@ namespace IceInternal
         {
             try
             {
-                return (EndPoint)socket.RemoteEndPoint;
+                return socket.RemoteEndPoint;
             }
             catch(SocketException)
             {
@@ -1306,13 +1102,12 @@ namespace IceInternal
             //
             try
             {
-                return System.Int32.Parse(iface, CultureInfo.InvariantCulture);
+                return int.Parse(iface, CultureInfo.InvariantCulture);
             }
-            catch(System.FormatException)
+            catch(FormatException)
             {
             }
 
-#if !COMPACT && !SILVERLIGHT && !UNITY
             NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
             try
             {
@@ -1371,24 +1166,50 @@ namespace IceInternal
                     }
                 }
             }
-#endif
-            return -1;
+
+            throw new ArgumentException("couldn't find interface `" + iface + "'");
         }
 
         public static EndPoint
         getNumericAddress(string sourceAddress)
         {
             EndPoint addr = null;
-            if(!String.IsNullOrEmpty(sourceAddress))
+            if(!string.IsNullOrEmpty(sourceAddress))
             {
-                List<EndPoint> addrs = getAddresses(sourceAddress, 0, Network.EnableBoth,
-                                                    Ice.EndpointSelectionType.Ordered, false, false);
+                List<EndPoint> addrs = getAddresses(sourceAddress, 0, EnableBoth, Ice.EndpointSelectionType.Ordered,
+                                                    false, false);
                 if(addrs.Count != 0)
                 {
                     return addrs[0];
                 }
             }
             return addr;
+        }
+
+        private static bool
+        isWildcard(string address, out bool ipv4Wildcard)
+        {
+            ipv4Wildcard = false;
+            if(address.Length == 0)
+            {
+                return true;
+            }
+
+            try
+            {
+                IPAddress addr = IPAddress.Parse(address);
+                if(addr.Equals(IPAddress.Any))
+                {
+                    ipv4Wildcard = true;
+                    return true;
+                }
+                return addr.Equals(IPAddress.IPv6Any);
+            }
+            catch(Exception)
+            {
+            }
+
+            return false;
         }
 
         public static bool
@@ -1418,13 +1239,6 @@ namespace IceInternal
         {
             if(endpoint != null)
             {
-#if SILVERLIGHT
-                if(endpoint is DnsEndPoint)
-                {
-                    DnsEndPoint dnsEndpoint = (DnsEndPoint)endpoint;
-                    return dnsEndpoint.Host;
-                }
-#endif
                 if(endpoint is IPEndPoint)
                 {
                     IPEndPoint ipEndpoint = (IPEndPoint) endpoint;
@@ -1439,13 +1253,6 @@ namespace IceInternal
         {
             if(endpoint != null)
             {
-#if SILVERLIGHT
-                if(endpoint is DnsEndPoint)
-                {
-                    DnsEndPoint dnsEndpoint = (DnsEndPoint)endpoint;
-                    return dnsEndpoint.Port;
-                }
-#endif
                 if(endpoint is IPEndPoint)
                 {
                     IPEndPoint ipEndpoint = (IPEndPoint) endpoint;

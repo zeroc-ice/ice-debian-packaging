@@ -12,44 +12,35 @@ import Ice, Test
 class BI(Test.B):
     def __init__(self):
         self.preMarshalInvoked = False
-        self._postUnmarshalInvoked = False
-
-    def postUnmarshalInvoked(self, current=None):
-        return self._postUnmarshalInvoked
+        self.postUnmarshalInvoked = False
 
     def ice_preMarshal(self):
         self.preMarshalInvoked = True
 
     def ice_postUnmarshal(self):
-        self._postUnmarshalInvoked = True
+        self.postUnmarshalInvoked = True
 
 class CI(Test.C):
     def __init__(self):
         self.preMarshalInvoked = False
-        self._postUnmarshalInvoked = False
-
-    def postUnmarshalInvoked(self, current=None):
-        return self._postUnmarshalInvoked
+        self.postUnmarshalInvoked = False
 
     def ice_preMarshal(self):
         self.preMarshalInvoked = True
 
     def ice_postUnmarshal(self):
-        self._postUnmarshalInvoked = True
+        self.postUnmarshalInvoked = True
 
 class DI(Test.D):
     def __init__(self):
         self.preMarshalInvoked = False
-        self._postUnmarshalInvoked = False
-
-    def postUnmarshalInvoked(self, current=None):
-        return self._postUnmarshalInvoked
+        self.postUnmarshalInvoked = False
 
     def ice_preMarshal(self):
         self.preMarshalInvoked = True
 
     def ice_postUnmarshal(self):
-        self._postUnmarshalInvoked = True
+        self.postUnmarshalInvoked = True
 
 class EI(Test.E):
     def __init__(self):
@@ -65,16 +56,18 @@ class FI(Test.F):
     def checkValues(self, current=None):
         return self._e1 != None and self._e1 == self.e2
 
-class II(Test.I):
-    pass
+class II(Ice.InterfaceByValue):
+    def __init__(self):
+        Ice.InterfaceByValue.__init__(self, "::Test::I")
 
-class JI(Test.J):
-    pass
+class JI(Ice.InterfaceByValue):
+    def __init__(self):
+        Ice.InterfaceByValue.__init__(self, "::Test::J")
 
 class HI(Test.H):
     pass
 
-class InitialI(Test.Initial):
+class InitialI(Test._InitialDisp):
     def __init__(self, adapter):
         self._adapter = adapter
         self._b1 = BI()
@@ -132,6 +125,12 @@ class InitialI(Test.Initial):
     def getF(self, current=None):
         return self._f
 
+    def getMB(self, current):
+        return self._b1
+
+    def getAMDMB(self, current):
+        return Ice.Future.completed(self._b1)
+
     def getAll(self, current=None):
         self._b1.preMarshalInvoked = False
         self._b2.preMarshalInvoked = False
@@ -147,7 +146,7 @@ class InitialI(Test.Initial):
 
     def getH(self, current=None):
         return HI()
-    
+
     def getD1(self, d1, current=None):
         return d1
 
@@ -163,6 +162,18 @@ class InitialI(Test.Initial):
     def getCompact(self, current=None):
         return Test.CompactExt()
 
-class UnexpectedObjectExceptionTestI(Test.UnexpectedObjectExceptionTest):
+    def getInnerA(self, current=None):
+        return Test.Inner.A(self._b1)
+
+    def getInnerSubA(self, current=None):
+        return Test.Inner.Sub.A(Test.Inner.A(self._b1))
+
+    def throwInnerEx(self, current=None):
+        raise Test.Inner.Ex("Inner::Ex")
+
+    def throwInnerSubEx(self, current=None):
+        raise Test.Inner.Sub.Ex("Inner::Sub::Ex")
+
+class UnexpectedObjectExceptionTestI(Test._UnexpectedObjectExceptionTestDisp):
     def op(self, current=None):
         return Test.AlsoEmpty()

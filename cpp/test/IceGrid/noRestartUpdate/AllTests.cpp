@@ -17,7 +17,7 @@ using namespace std;
 using namespace Test;
 using namespace IceGrid;
 
-void 
+void
 addProperty(const CommunicatorDescriptorPtr& communicator, const string& name, const string& value)
 {
     PropertyDescriptor prop;
@@ -66,7 +66,7 @@ createProperty(const string& name, const string& value)
 bool
 hasProperty(const CommunicatorDescriptorPtr& desc, const string& name, const string& value)
 {
-    for(PropertyDescriptorSeq::const_iterator p = desc->propertySet.properties.begin(); 
+    for(PropertyDescriptorSeq::const_iterator p = desc->propertySet.properties.begin();
         p != desc->propertySet.properties.end(); ++p)
     {
         if(p->name == name)
@@ -148,7 +148,7 @@ updateServiceRuntimeProperties(const AdminPrx& admin, const ServiceDescriptorPtr
     }
 }
 
-void 
+void
 allTests(const Ice::CommunicatorPtr& communicator)
 {
     IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
@@ -180,10 +180,10 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
         ServerDescriptorPtr server = new ServerDescriptor();
         server->id = "Server";
-        server->exe = properties->getProperty("TestDir") + "/server";
+        server->exe = properties->getProperty("ServerDir") + "/server";
         server->pwd = ".";
         server->applicationDistrib = false;
-        server->allocatable = false; 
+        server->allocatable = false;
         server->activation = "on-demand";
         addProperty(server, "Ice.Admin.Endpoints", "tcp -h 127.0.0.1");
         AdapterDescriptor adapter;
@@ -193,7 +193,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         adapter.serverLifetime = true;
         addProperty(server, "Server.Endpoints", "default");
         ObjectDescriptor object;
-        object.id = communicator->stringToIdentity("${server}");
+        object.id = Ice::stringToIdentity("${server}");
         object.type = "::Test::TestIntf";
         adapter.objects.push_back(object);
         server->adapters.push_back(adapter);
@@ -204,7 +204,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
         update.nodes[0].servers[0]->id = "Server2";
         update.nodes[0].servers[0]->adapters[0].id = "ServerAdapter2";
-        update.nodes[0].servers[0]->adapters[0].objects[0].id = communicator->stringToIdentity("test2");
+        update.nodes[0].servers[0]->adapters[0].objects[0].id = Ice::stringToIdentity("test2");
         try
         {
             admin->updateApplicationWithoutRestart(update);
@@ -227,7 +227,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         templ.descriptor = new ServerDescriptor();
         server = ServerDescriptorPtr::dynamicCast(templ.descriptor);
         server->id = "${name}";
-        server->exe = "${test.dir}/server";
+        server->exe = "${server.dir}/server";
         server->pwd = ".";
         server->applicationDistrib = false;
         server->allocatable = false;
@@ -240,7 +240,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         adapter.serverLifetime = true;
         addProperty(server, "Server.Endpoints", "default");
         object = ObjectDescriptor();
-        object.id = communicator->stringToIdentity("${server}");
+        object.id = Ice::stringToIdentity("${server}");
         object.type = "::Test::TestIntf";
         adapter.objects.push_back(object);
         server->adapters.push_back(adapter);
@@ -259,8 +259,8 @@ allTests(const Ice::CommunicatorPtr& communicator)
         test(server2Pid == admin->getServerPid("Server2"));
 
         ServerInstanceDescriptor instance;
-        update = empty; 
-        update.variables["test.dir"] = properties->getProperty("TestDir");
+        update = empty;
+        update.variables["server.dir"] = properties->getProperty("ServerDir");
         update.variables["variable"] = "";
         instance = ServerInstanceDescriptor();
         instance._cpp_template = "ServerTemplate";
@@ -279,7 +279,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         int server1Pid = admin->getServerPid("Server1");
         test(serverPid == admin->getServerPid("Server"));
         test(server2Pid == admin->getServerPid("Server2"));
-        
+
         cout << "ok" << endl;
 
         cout << "testing server remove... " << flush;
@@ -324,8 +324,9 @@ allTests(const Ice::CommunicatorPtr& communicator)
         {
             admin->updateApplicationWithoutRestart(update);
         }
-        catch(const DeploymentException&)
+        catch(const DeploymentException& ex)
         {
+            cerr << ex.reason << endl;
             test(false);
         }
         catch(const Ice::Exception& ex)
@@ -456,7 +457,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
             test(info.descriptor);
             test(info.descriptor->adapters.size() == 1);
             object = ObjectDescriptor();
-            object.id = communicator->stringToIdentity("testfoo");
+            object.id = Ice::stringToIdentity("testfoo");
             info.descriptor->adapters[0].objects.push_back(object);
             update = empty;
             update.nodes[0].servers.push_back(info.descriptor);
@@ -478,7 +479,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
             info = admin->getServerInfo("Server");
             test(info.descriptor);
             object = ObjectDescriptor();
-            object.id = communicator->stringToIdentity("test");
+            object.id = Ice::stringToIdentity("test");
             info.descriptor->adapters[0].allocatables.push_back(object);
             update = empty;
             update.nodes[0].servers.push_back(info.descriptor);
@@ -518,7 +519,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
             test(false);
         }
         test(serverPid == admin->getServerPid("Server"));
-        
+
         cout << "ok" << endl;
 
         cout << "testing icebox server add... " << flush;
@@ -527,35 +528,23 @@ allTests(const Ice::CommunicatorPtr& communicator)
         addProperty(service, "Ice.Warn.UnknownProperties", "0");
         //addProperty(service, "Ice.Trace.Admin.Properties", "1");
         service->name = "Service1";
-        service->entry = "./TestService:create";
+
+        service->entry = properties->getProperty("ServiceDir") + "/TestService:create";
+
         adapter = AdapterDescriptor();
         adapter.name = "${service}";
         adapter.id = "${server}.${service}";
         adapter.registerProcess = false;
         adapter.serverLifetime = false;
         addProperty(service, "${service}.Endpoints", "default");
-        object.id = communicator->stringToIdentity("${server}.${service}");
+        object.id = Ice::stringToIdentity("${server}.${service}");
         addProperty(service, "${service}.Identity", "${server}.${service}");
         adapter.objects.push_back(object);
         service->adapters.push_back(adapter);
-        
-        string iceboxExe = "/icebox";
-#if defined(__linux)
-#  if defined(__i386)
-        iceboxExe += "32";
-#  endif
-#  if defined(ICE_CPP11)
-        iceboxExe += "++11";
-#  endif
-#endif
-
-#if defined(_WIN32) && !defined(NDEBUG)
-        iceboxExe += "d";
-#endif
 
         IceBoxDescriptorPtr icebox = new IceBoxDescriptor();
         icebox->id = "IceBox";
-        icebox->exe = properties->getProperty("IceBinDir") + iceboxExe;
+        icebox->exe = properties->getProperty("IceBoxExe");
         icebox->activation = "on-demand";
         icebox->applicationDistrib = false;
         icebox->allocatable = false;
@@ -565,6 +554,9 @@ allTests(const Ice::CommunicatorPtr& communicator)
         service->name = "Service2";
         icebox->services[1].descriptor = ServiceDescriptorPtr::dynamicCast(service->ice_clone());
         service->name = "Service3";
+        // Test also with shared communicator because it uses different proxy name
+        // and thus different branches in code.
+        addProperty(icebox, "IceBox.UseSharedCommunicator.Service3", "1");
         icebox->services[2].descriptor = ServiceDescriptorPtr::dynamicCast(service->ice_clone());
 
         try
@@ -589,7 +581,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         int iceBoxPid = admin->getServerPid("IceBox");
 
         cout << "ok" << endl;
-        
+
         cout << "testing service add... " << flush;
         try
         {
@@ -635,7 +627,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         cout << "testing service update... " << flush;
         try
         {
-            icebox->services[0].descriptor->entry = "TestService:create2";
+            icebox->services[0].descriptor->entry = properties->getProperty("ServiceDir") + "/TestService:create2";
             admin->updateApplicationWithoutRestart(update);
             test(false);
         }

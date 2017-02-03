@@ -13,7 +13,9 @@
 #include <IceUtil/StringConverter.h>
 #include <IceUtil/FileUtil.h>
 #include <IceUtil/UUID.h>
+#include <IceUtil/ConsoleUtil.h>
 #include <algorithm>
+#include <iterator>
 #include <vector>
 #include <fstream>
 #include <sys/types.h>
@@ -26,6 +28,7 @@
 
 using namespace std;
 using namespace Slice;
+using namespace IceUtilInternal;
 
 //
 // mcpp defines
@@ -82,11 +85,9 @@ Slice::Preprocessor::addQuotes(const string& arg)
 {
     //
     // Add quotes around the given argument to ensure that arguments
-    // with spaces will be preserved as a single argument. We also
-    // escape the "\" character to ensure that we don't end up with a
-    // \" at the end of the string.
+    // with spaces will be preserved as a single argument
     //
-    return "\"" + IceUtilInternal::escapeString(arg, "\\") + "\"";
+    return "\"" + escapeString(arg, "", IceUtilInternal::Unicode) + "\"";
 }
 
 string
@@ -140,7 +141,7 @@ namespace
 {
 
 vector<string>
-baseArgs(vector<string> args, bool keepComments, const string& extraArgs, const string& fileName)
+baseArgs(vector<string> args, bool keepComments, const vector<string>& extraArgs, const string& fileName)
 {
     if(keepComments)
     {
@@ -161,10 +162,7 @@ baseArgs(vector<string> args, bool keepComments, const string& extraArgs, const 
         args.push_back(os.str());
     }
 
-    if(!extraArgs.empty())
-    {
-        args.push_back(extraArgs);
-    }
+    copy(extraArgs.begin(), extraArgs.end(), back_inserter(args));
     args.push_back(fileName);
     return args;
 }
@@ -172,7 +170,15 @@ baseArgs(vector<string> args, bool keepComments, const string& extraArgs, const 
 }
 
 FILE*
-Slice::Preprocessor::preprocess(bool keepComments, const string& extraArgs)
+Slice::Preprocessor::preprocess(bool keepComments, const string& extraArg)
+{
+    vector<string> args;
+    args.push_back(extraArg);
+    return preprocess(keepComments, args);
+}
+
+FILE*
+Slice::Preprocessor::preprocess(bool keepComments, const vector<string>& extraArgs)
 {
     if(!checkInputFile())
     {
@@ -236,10 +242,10 @@ Slice::Preprocessor::preprocess(bool keepComments, const string& extraArgs)
         // process call _tempnam before any of them call fopen and
         // they will end up using the same tmp file.
         //
-        char* name = _tempnam(0, ("slice-" + IceUtil::generateUUID()).c_str());
+        wchar_t* name = _wtempnam(0, IceUtil::stringToWstring("slice-" + IceUtil::generateUUID()).c_str());
         if(name)
         {
-            _cppFile = name;
+            _cppFile = IceUtil::wstringToString(name);
             free(name);
             _cppHandle = IceUtilInternal::fopen(_cppFile, "w+");
         }
@@ -270,10 +276,7 @@ Slice::Preprocessor::preprocess(bool keepComments, const string& extraArgs)
         }
         else
         {
-            ostream& os = getErrorStream();
-            os << _path << ": error: could not open temporary file: ";
-            os << _cppFile;
-            os << endl;
+            consoleErr << _path << ": error: could not open temporary file: " << _cppFile << endl;
         }
     }
 
@@ -287,7 +290,17 @@ Slice::Preprocessor::preprocess(bool keepComments, const string& extraArgs)
 
 bool
 Slice::Preprocessor::printMakefileDependencies(ostream& out, Language lang, const vector<string>& includePaths,
-                                               const string& extraArgs, const string& cppSourceExt,
+                                               const string& extraArg, const string& cppSourceExt,
+                                               const string& optValue)
+{
+    vector<string> extraArgs;
+    extraArgs.push_back(extraArg);
+    return printMakefileDependencies(out, lang, includePaths, extraArgs, cppSourceExt, optValue);
+}
+
+bool
+Slice::Preprocessor::printMakefileDependencies(ostream& out, Language lang, const vector<string>& includePaths,
+                                               const vector<string>& extraArgs, const string& cppSourceExt,
                                                const string& optValue)
 {
     if(!checkInputFile())
@@ -365,13 +378,41 @@ Slice::Preprocessor::printMakefileDependencies(ostream& out, Language lang, cons
 
     //
     // We now need to massage the result to get the desired output.
-    // First make it a single line.
+    // First remove the backslash used to escape new lines.
     //
     string::size_type pos;
-    while((pos = unprocessed.find("\\\n")) != string::npos)
+    while((pos = unprocessed.find(" \\\n")) != string::npos)
     {
-        unprocessed.replace(pos, 2, "");
+        unprocessed.replace(pos, 3, "\n");
     }
+
+    //
+    // Split filenames in separate lines:
+    //
+    // /foo/A.ice /foo/B.ice becomes
+    // /foo/A.ice
+    // /foo/B.ice
+    //
+    // C:\foo\A.ice C:\foo\B.ice becomes
+    // C:\foo\A.ice
+    // C:\foo\B.ice
+    //
+    pos = 0;
+#ifdef _WIN32
+    while((pos = unprocessed.find(".ice ", pos)) != string::npos)
+    {
+        if(unprocessed.find(":", pos) == pos + 6)
+        {
+            unprocessed.replace(pos, 5, ".ice\n");
+            pos += 5;
+        }
+    }
+#else
+    while((pos = unprocessed.find(".ice /", pos)) != string::npos)
+    {
+        unprocessed.replace(pos, 5, ".ice\n");
+    }
+#endif
 
     //
     // Get the main output file name.
@@ -389,7 +430,6 @@ Slice::Preprocessor::printMakefileDependencies(ostream& out, Language lang, cons
     }
 
     vector<string> fullIncludePaths;
-
     for(vector<string>::const_iterator p = includePaths.begin(); p != includePaths.end(); ++p)
     {
         fullIncludePaths.push_back(fullPath(*p));
@@ -398,81 +438,83 @@ Slice::Preprocessor::printMakefileDependencies(ostream& out, Language lang, cons
     //
     // Process each dependency.
     //
-
     string sourceFile;
     vector<string> dependencies;
 
     string::size_type end;
-    while((end = unprocessed.find(".ice", pos)) != string::npos)
+    while((end = unprocessed.find("\n", pos)) != string::npos)
     {
-        end += 4;
+        end += 1;
         string file = IceUtilInternal::trim(unprocessed.substr(pos, end - pos));
-        if(IceUtilInternal::isAbsolutePath(file))
+        if(file.rfind(".ice") == file.size() - 4)
         {
-            if(file == _fileName)
+            if(IceUtilInternal::isAbsolutePath(file))
             {
-                file = _shortFileName;
-            }
-            else
-            {
-                //
-                // Transform back full paths generated by mcpp to paths relative to the specified
-                // include paths.
-                //
-                string newFile = file;
-                for(vector<string>::const_iterator p = fullIncludePaths.begin(); p != fullIncludePaths.end(); ++p)
+                if(file == _fileName)
                 {
-                    if(file.compare(0, p->length(), *p) == 0)
+                    file = _shortFileName;
+                }
+                else
+                {
+                    //
+                    // Transform back full paths generated by mcpp to paths relative to the specified
+                    // include paths.
+                    //
+                    string newFile = file;
+                    for(vector<string>::const_iterator p = fullIncludePaths.begin(); p != fullIncludePaths.end(); ++p)
                     {
-                        string s = includePaths[p - fullIncludePaths.begin()] + file.substr(p->length());
-                        if(IceUtilInternal::isAbsolutePath(newFile) || s.size() < newFile.size())
+                        if(file.compare(0, p->length(), *p) == 0)
                         {
-                            newFile = s;
+                            string s = includePaths[p - fullIncludePaths.begin()] + file.substr(p->length());
+                            if(IceUtilInternal::isAbsolutePath(newFile) || s.size() < newFile.size())
+                            {
+                                newFile = s;
+                            }
                         }
                     }
+                    file = newFile;
                 }
-                file = newFile;
             }
-        }
 
-        if(lang == SliceXML)
-        {
-            if(result.size() == 0)
+            if(lang == SliceXML)
             {
-                result = "  <source name=\"" + file + "\">";
+                if(result.size() == 0)
+                {
+                    result = "  <source name=\"" + file + "\">";
+                }
+                else
+                {
+                    result += "\n    <dependsOn name=\"" + file + "\"/>";
+                }
+            }
+            else if(lang == JavaScriptJSON)
+            {
+                if(sourceFile.empty())
+                {
+                    sourceFile = file;
+                }
+                else
+                {
+                    dependencies.push_back(file);
+                }
             }
             else
             {
-                result += "\n    <dependsOn name=\"" + file + "\"/>";
-            }
-        }
-        else if(lang == JavaScriptJSON)
-        {
-            if(sourceFile.empty())
-            {
-                sourceFile = file;
-            }
-            else
-            {
-                dependencies.push_back(file);
-            }
-        }
-        else
-        {
-            //
-            // Escape spaces in the file name.
-            //
-            string::size_type space = 0;
-            while((space = file.find(" ", space)) != string::npos)
-            {
-                file.replace(space, 1, "\\ ");
-                space += 2;
-            }
+                //
+                // Escape spaces in the file name.
+                //
+                string::size_type space = 0;
+                while((space = file.find(" ", space)) != string::npos)
+                {
+                    file.replace(space, 1, "\\ ");
+                    space += 2;
+                }
 
-            //
-            // Add to result
-            //
-            result += " \\\n " + file;
+                //
+                // Add to result
+                //
+                result += " \\\n " + file;
+            }
         }
         pos = end;
     }
@@ -675,7 +717,7 @@ Slice::Preprocessor::printMakefileDependencies(ostream& out, Language lang, cons
         }
         default:
         {
-            abort();
+            assert(false);
             break;
         }
     }
@@ -721,14 +763,14 @@ Slice::Preprocessor::checkInputFile()
     }
     if(suffix != ".ice")
     {
-        getErrorStream() << _path << ": error: input files must end with `.ice'" << endl;
+        consoleErr << _path << ": error: input files must end with `.ice'" << endl;
         return false;
     }
 
-    ifstream test(_fileName.c_str());
+    ifstream test(IceUtilInternal::streamFilename(_fileName).c_str());
     if(!test)
     {
-        getErrorStream() << _path << ": error: cannot open `" << _fileName << "' for reading" << endl;
+        consoleErr << _path << ": error: cannot open `" << _fileName << "' for reading" << endl;
         return false;
     }
     test.close();

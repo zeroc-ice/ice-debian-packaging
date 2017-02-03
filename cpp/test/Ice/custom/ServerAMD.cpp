@@ -20,10 +20,11 @@ DEFINE_TEST("serveramd")
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0));
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
-    adapter->add(new TestIntfI(communicator), communicator->stringToIdentity("test"));
-    adapter->add(new Test1::WstringClassI, communicator->stringToIdentity("wstring1"));
-    adapter->add(new Test2::WstringClassI, communicator->stringToIdentity("wstring2"));
+    adapter->add(ICE_MAKE_SHARED(TestIntfI,communicator), Ice::stringToIdentity("TEST"));
+    adapter->add(ICE_MAKE_SHARED(Test1::WstringClassI), Ice::stringToIdentity("WSTRING1"));
+    adapter->add(ICE_MAKE_SHARED(Test2::WstringClassI), Ice::stringToIdentity("WSTRING2"));
 
     adapter->activate();
     TEST_READY
@@ -43,13 +44,10 @@ main(int argc, char** argv)
 
     try
     {
-        IceUtil::setProcessStringConverter(new Test::StringConverterI());
-        IceUtil::setProcessWstringConverter(new Test::WstringConverterI());
+        setProcessStringConverter(ICE_MAKE_SHARED(Test::StringConverterI));
+        setProcessWstringConverter(ICE_MAKE_SHARED(Test::WstringConverterI));
 
-        Ice::InitializationData initData;
-        initData.properties = Ice::createProperties(argc, argv);
-
-        initData.properties->setProperty("TestAdapter.Endpoints", "default -p 12010");
+        Ice::InitializationData initData = getTestInitData(argc, argv);
         communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator);
     }
@@ -61,15 +59,7 @@ main(int argc, char** argv)
 
     if(communicator)
     {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
+        communicator->destroy();
     }
 
     return status;

@@ -24,7 +24,7 @@ run(int, char**, const Ice::CommunicatorPtr& comm)
     //
     // Shutdown the IceBox server.
     //
-    Ice::ProcessPrx::uncheckedCast(comm->stringToProxy("DemoIceBox/admin -f Process:default -p 9996"))->shutdown();
+    ICE_UNCHECKED_CAST(Ice::ProcessPrx, comm->stringToProxy("DemoIceBox/admin -f Process:default -p 9996"))->shutdown();
 
     return EXIT_SUCCESS;
 }
@@ -38,8 +38,7 @@ main(int argc, char* argv[])
 
     try
     {
-        Ice::InitializationData initData;
-        initData.properties = Ice::createProperties(argc, argv);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
         initData.properties->setProperty("Ice.Default.Host", "127.0.0.1");
         communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator);
@@ -52,15 +51,7 @@ main(int argc, char* argv[])
 
     if(communicator)
     {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
+        communicator->destroy();
     }
 
     return status;

@@ -14,7 +14,8 @@
 #include <IceUtil/Mutex.h>
 #include <IceUtil/ArgVector.h>
 #include <IceUtil/FileUtil.h>
-#include <IceUtil/StringConverter.h>
+#include <Ice/ConsoleUtil.h>
+#include <Ice/StringConverter.h>
 #include <Ice/Service.h>
 #include <Ice/LoggerI.h>
 #include <Ice/Initialize.h>
@@ -37,6 +38,7 @@
 
 using namespace std;
 using namespace Ice;
+using namespace IceInternal;
 
 Ice::Service* Ice::Service::_instance = 0;
 static IceUtil::CtrlCHandler* _ctrlCHandler = 0;
@@ -196,7 +198,7 @@ public:
     virtual Ice::LoggerPtr
     cloneWithPrefix(const string& prefix)
     {
-        return new SMEventLoggerIWrapper(_logger, prefix);
+        return ICE_MAKE_SHARED(SMEventLoggerIWrapper, _logger, prefix);
     }
 
 private:
@@ -209,14 +211,14 @@ class SMEventLoggerI : public SMEventLogger
 {
 public:
 
-    SMEventLoggerI(const string& source, const IceUtil::StringConverterPtr& stringConverter) :
+    SMEventLoggerI(const string& source, const StringConverterPtr& stringConverter) :
         _stringConverter(stringConverter)
     {
         //
         // Don't need to use a wide string converter as the wide string is passed
         // to Windows API.
         //
-        _source = RegisterEventSourceW(0, IceUtil::stringToWstring(mangleSource(source), _stringConverter).c_str());
+        _source = RegisterEventSourceW(0, stringToWstring(mangleSource(source), _stringConverter).c_str());
         if(_source == 0)
         {
             SyscallException ex(__FILE__, __LINE__);
@@ -232,7 +234,7 @@ public:
     }
 
     static void
-    addKeys(const string& source, const IceUtil::StringConverterPtr& stringConverter)
+    addKeys(const string& source, const StringConverterPtr& stringConverter)
     {
         HKEY hKey;
         DWORD d;
@@ -241,7 +243,7 @@ public:
         // to Windows API.
         //
         LONG err = RegCreateKeyExW(HKEY_LOCAL_MACHINE,
-                                   IceUtil::stringToWstring(createKey(source), stringConverter).c_str(),
+                                   stringToWstring(createKey(source), stringConverter).c_str(),
                                    0, const_cast<wchar_t*>(L"REG_SZ"), REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, 0, &hKey, &d);
 
         if(err != ERROR_SUCCESS)
@@ -294,14 +296,14 @@ public:
     }
 
     static void
-    removeKeys(const string& source, const IceUtil::StringConverterPtr& stringConverter)
+    removeKeys(const string& source, const StringConverterPtr& stringConverter)
     {
         //
         // Don't need to use a wide string converter as the wide string is passed
         // to Windows API.
         //
         LONG err = RegDeleteKeyW(HKEY_LOCAL_MACHINE,
-			IceUtil::stringToWstring(createKey(source), stringConverter).c_str());
+            stringToWstring(createKey(source), stringConverter).c_str());
         if(err != ERROR_SUCCESS)
         {
             SyscallException ex(__FILE__, __LINE__);
@@ -330,7 +332,7 @@ public:
         // Don't need to use a wide string converter as the wide string is passed
         // to Windows API.
         //
-        wstring msg = IceUtil::stringToWstring(message, _stringConverter);
+        wstring msg = stringToWstring(message, _stringConverter);
         const wchar_t* messages[1];
         messages[0] = msg.c_str();
         //
@@ -368,7 +370,7 @@ public:
         // Don't need to use a wide string converter as the wide string is passed
         // to Windows API.
         //
-        wstring msg = IceUtil::stringToWstring(s, _stringConverter);
+        wstring msg = stringToWstring(s, _stringConverter);
         const wchar_t* messages[1];
         messages[0] = msg.c_str();
         //
@@ -398,7 +400,7 @@ public:
         // Don't need to use a wide string converter as the wide string is passed
         // to Windows API.
         //
-        wstring msg = IceUtil::stringToWstring(message, _stringConverter);
+        wstring msg = stringToWstring(message, _stringConverter);
         const wchar_t* messages[1];
         messages[0] = msg.c_str();
         //
@@ -428,7 +430,7 @@ public:
         // Don't need to use a wide string converter as the wide string is passed
         // to Windows API.
         //
-        wstring msg = IceUtil::stringToWstring(message, _stringConverter);
+        wstring msg = stringToWstring(message, _stringConverter);
         const wchar_t* messages[1];
         messages[0] = msg.c_str();
         //
@@ -471,7 +473,7 @@ private:
         return "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\" + mangleSource(name);
     }
 
-    IceUtil::StringConverterPtr _stringConverter;
+    StringConverterPtr _stringConverter;
     HANDLE _source;
     static HMODULE _module;
 };
@@ -567,7 +569,7 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
     string name;
     string eventLogSource;
     int idx = 1;
-    const IceUtil::StringConverterPtr stringConverter = IceUtil::getProcessStringConverter();
+    const StringConverterPtr stringConverter = getProcessStringConverter();
     while(idx < argc)
     {
         if(strcmp(argv[idx], "--service") == 0)
@@ -585,10 +587,10 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
             // our own logger.
             //
             _logger = getProcessLogger();
-            if(LoggerIPtr::dynamicCast(_logger))
+            if(ICE_DYNAMIC_CAST(LoggerI, _logger))
             {
                 string eventLogSource = initData.properties->getPropertyWithDefault("Ice.EventLog.Source", name);
-                _logger = new SMEventLoggerIWrapper(new SMEventLoggerI(eventLogSource, stringConverter), "");
+                _logger = ICE_MAKE_SHARED(SMEventLoggerIWrapper, new SMEventLoggerI(eventLogSource, stringConverter), "");
                 setProcessLogger(_logger);
             }
 
@@ -660,9 +662,9 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
             {
                 if(argv[0])
                 {
-                    cerr << argv[0] << ": ";
+                    consoleErr << argv[0] << ": ";
                 }
-                cerr << "--pidfile must be followed by an argument" << endl;
+                consoleErr << "--pidfile must be followed by an argument" << endl;
                 return EXIT_FAILURE;
             }
 
@@ -682,9 +684,9 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
     {
         if(argv[0])
         {
-            cerr << argv[0] << ": ";
+            consoleErr << argv[0] << ": ";
         }
-        cerr << "--noclose must be used with --daemon" << endl;
+        consoleErr << "--noclose must be used with --daemon" << endl;
         return EXIT_FAILURE;
     }
 
@@ -692,9 +694,9 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
     {
         if(argv[0])
         {
-            cerr << argv[0] << ": ";
+            consoleErr << argv[0] << ": ";
         }
-        cerr << "--pidfile <file> must be used with --daemon" << endl;
+        consoleErr << "--pidfile <file> must be used with --daemon" << endl;
         return EXIT_FAILURE;
     }
 
@@ -712,14 +714,13 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
     if(!_logger)
     {
         _logger = getProcessLogger();
-        if(LoggerIPtr::dynamicCast(_logger))
+        if(ICE_DYNAMIC_CAST(LoggerI, _logger))
         {
             const bool convert =
                 initData.properties->getPropertyAsIntWithDefault("Ice.LogStdErr.Convert", 1) > 0 &&
                 initData.properties->getProperty("Ice.StdErr").empty();
 
-            _logger = new LoggerI(initData.properties->getProperty("Ice.ProgramName"), "", convert,
-                                  IceUtil::getProcessStringConverter());
+            _logger = ICE_MAKE_SHARED(LoggerI, initData.properties->getProperty("Ice.ProgramName"), "", convert);
             setProcessLogger(_logger);
         }
     }
@@ -882,13 +883,7 @@ Ice::Service::run(int& argc, char* argv[], const InitializationData& initData)
 
     if(_communicator)
     {
-        try
-        {
-            _communicator->destroy();
-        }
-        catch(...)
-        {
-        }
+        _communicator->destroy();
     }
 
     return status;
@@ -984,15 +979,15 @@ Ice::Service::syserror(const string& msg)
     {
         if(!_name.empty())
         {
-            cerr << _name << ": ";
+            consoleErr << _name << ": ";
         }
         if(!msg.empty())
         {
-            cerr << msg << endl;
+            consoleErr << msg << endl;
         }
         if(!errmsg.empty())
         {
-            cerr << errmsg;
+            consoleErr << errmsg;
         }
     }
 }
@@ -1008,9 +1003,9 @@ Ice::Service::error(const string& msg)
     {
         if(!_name.empty())
         {
-            cerr << _name << ": ";
+            consoleErr << _name << ": ";
         }
-        cerr << "error: " << msg << endl;
+        consoleErr << "error: " << msg << endl;
     }
 }
 
@@ -1025,9 +1020,9 @@ Ice::Service::warning(const string& msg)
     {
         if(!_name.empty())
         {
-            cerr << _name << ": ";
+            consoleErr << _name << ": ";
         }
-        cerr << "warning: " << msg << endl;
+        consoleErr << "warning: " << msg << endl;
     }
 }
 
@@ -1040,7 +1035,7 @@ Ice::Service::trace(const string& msg)
     }
     else
     {
-        cerr << msg << endl;
+        consoleErr << msg << endl;
     }
 }
 
@@ -1053,7 +1048,7 @@ Ice::Service::print(const string& msg)
     }
     else
     {
-        cerr << msg << endl;
+        consoleErr << msg << endl;
     }
 }
 
@@ -1106,7 +1101,7 @@ Ice::Service::runService(int argc, char* argv[], const InitializationData& initD
     SERVICE_TABLE_ENTRYW ste[] =
     {
         { const_cast<wchar_t*>(
-		    IceUtil::stringToWstring(_name, IceUtil::getProcessStringConverter()).c_str()),
+            stringToWstring(_name, getProcessStringConverter()).c_str()),
             Ice_Service_ServiceMain },
         { 0, 0 },
     };
@@ -1287,14 +1282,14 @@ Ice::Service::serviceMain(int argc, wchar_t* argv[])
     //
     // Merge the executable's arguments with the service's arguments.
     //
-    const IceUtil::StringConverterPtr converter(IceUtil::getProcessStringConverter());
+    const StringConverterPtr converter(getProcessStringConverter());
 
     //
     // Don't need to pass a wide string converter in the bellow argv conversions
     // as argv come from Windows API.
     //
     char** args = new char*[_serviceArgs.size() + argc];
-	args[0] = const_cast<char*>(IceUtil::wstringToString(argv[0], converter).c_str());
+    args[0] = const_cast<char*>(wstringToString(argv[0], converter).c_str());
     int i = 1;
     for(vector<string>::iterator p = _serviceArgs.begin(); p != _serviceArgs.end(); ++p)
     {
@@ -1302,7 +1297,7 @@ Ice::Service::serviceMain(int argc, wchar_t* argv[])
     }
     for(int j = 1; j < argc; ++j)
     {
-		args[i++] = const_cast<char*>(IceUtil::wstringToString(argv[j], converter).c_str());
+        args[i++] = const_cast<char*>(wstringToString(argv[j], converter).c_str());
     }
     argc += static_cast<int>(_serviceArgs.size());
 
@@ -1385,14 +1380,8 @@ Ice::Service::serviceMain(int argc, wchar_t* argv[])
 
     delete[] args;
 
-    try
-    {
-        assert(_communicator);
-        _communicator->destroy();
-    }
-    catch(...)
-    {
-    }
+    assert(_communicator);
+    _communicator->destroy();
 
     terminateService(status);
 }
@@ -1533,9 +1522,9 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
     {
         if(argv[0])
         {
-            cerr << argv[0] << ": ";
+            consoleErr << argv[0] << ": ";
         }
-        cerr << strerror(errno) << endl;
+        consoleErr << strerror(errno) << endl;
         return EXIT_FAILURE;
     }
 
@@ -1566,9 +1555,9 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
 
                 if(argv[0])
                 {
-                    cerr << argv[0] << ": ";
+                    consoleErr << argv[0] << ": ";
                 }
-                cerr << strerror(errno) << endl;
+                consoleErr << strerror(errno) << endl;
                 _exit(EXIT_FAILURE);
             }
             break;
@@ -1593,9 +1582,9 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
 
                     if(argv[0])
                     {
-                        cerr << ": ";
+                        consoleErr << ": ";
                     }
-                    cerr << "I/O error while reading error message from child:\n" << strerror(errno) << endl;
+                    consoleErr << "I/O error while reading error message from child:\n" << strerror(errno) << endl;
                     _exit(EXIT_FAILURE);
                 }
                 pos += n;
@@ -1603,14 +1592,14 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
             }
             if(argv[0])
             {
-                cerr << argv[0] << ": ";
+                consoleErr << argv[0] << ": ";
             }
-            cerr << "failure occurred in daemon";
+            consoleErr << "failure occurred in daemon";
             if(strlen(msg) > 0)
             {
-                cerr << ':' << endl << msg;
+                consoleErr << ':' << endl << msg;
             }
-            cerr << endl;
+            consoleErr << endl;
             _exit(EXIT_FAILURE);
         }
 
@@ -1776,7 +1765,7 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
         //
         if(_pidFile.size() > 0)
         {
-            IceUtilInternal::ofstream of(_pidFile);
+            ofstream of(_pidFile.c_str());
             of << getpid() << endl;
 
             if(!of)
@@ -1882,13 +1871,7 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
 
     if(_communicator)
     {
-        try
-        {
-            _communicator->destroy();
-        }
-        catch(...)
-        {
-        }
+        _communicator->destroy();
     }
 
     return status;

@@ -7,9 +7,9 @@
 #
 # **********************************************************************
 
-import Ice, Test, threading
+import Ice, Test, threading, time
 
-class TestIntfI(Test.TestIntf):
+class TestIntfI(Test._TestIntfDisp):
     def __init__(self):
         self._cond = threading.Condition()
         self._batchCount = 0
@@ -27,33 +27,27 @@ class TestIntfI(Test.TestIntf):
         pass
 
     def opBatch(self, current=None):
-        self._cond.acquire()
-        try:
+        with self._cond:
             self._batchCount += 1
             self._cond.notify()
-        finally:
-            self._cond.release()
 
     def opBatchCount(self, current=None):
-        self._cond.acquire()
-        try:
+        with self._cond:
             return self._batchCount
-        finally:
-            self._cond.release()
 
     def waitForBatch(self, count, current=None):
-        self._cond.acquire()
-        try:
+        with self._cond:
             while self._batchCount < count:
                 self._cond.wait(5)
             result = count == self._batchCount
             self._batchCount = 0
             return result
-        finally:
-            self._cond.release()
 
-    def close(self, force, current=None):
-        current.con.close(force)
+    def close(self, mode, current=None):
+        current.con.close(Ice.ConnectionClose.valueOf(mode.value))
+
+    def sleep(self, ms, current=None):
+        time.sleep(ms / 1000.0)
 
     def shutdown(self, current=None):
         current.adapter.getCommunicator().shutdown()
@@ -61,7 +55,7 @@ class TestIntfI(Test.TestIntf):
     def supportsFunctionalTests(self, current=None):
         return False
 
-class TestIntfControllerI(Test.TestIntfController):
+class TestIntfControllerI(Test._TestIntfControllerDisp):
     def __init__(self, adapter):
         self._adapter = adapter
 

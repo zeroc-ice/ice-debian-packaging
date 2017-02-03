@@ -9,23 +9,23 @@
 
 namespace IceInternal
 {
-
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Globalization;
 
     sealed class TraceUtil
     {
-        internal static void traceSend(BasicStream str, Ice.Logger logger, TraceLevels tl)
+        internal static void traceSend(Ice.OutputStream str, Ice.Logger logger, TraceLevels tl)
         {
             if(tl.protocol >= 1)
             {
                 int p = str.pos();
-                str.pos(0);
+                Ice.InputStream iss = new Ice.InputStream(str.instance(), str.getEncoding(), str.getBuffer(), false);
+                iss.pos(0);
 
                 using(System.IO.StringWriter s = new System.IO.StringWriter(CultureInfo.CurrentCulture))
                 {
-                    byte type = printMessage(s, str);
+                    byte type = printMessage(s, iss);
 
                     logger.trace(tl.protocolCat, "sending " + getMessageTypeAsString(type) + " " + s.ToString());
                 }
@@ -33,7 +33,7 @@ namespace IceInternal
             }
         }
 
-        internal static void traceRecv(BasicStream str, Ice.Logger logger, TraceLevels tl)
+        internal static void traceRecv(Ice.InputStream str, Ice.Logger logger, TraceLevels tl)
         {
             if(tl.protocol >= 1)
             {
@@ -50,7 +50,26 @@ namespace IceInternal
             }
         }
 
-        internal static void trace(string heading, BasicStream str, Ice.Logger logger, TraceLevels tl)
+        internal static void trace(string heading, Ice.OutputStream str, Ice.Logger logger, TraceLevels tl)
+        {
+            if(tl.protocol >= 1)
+            {
+                int p = str.pos();
+                Ice.InputStream iss = new Ice.InputStream(str.instance(), str.getEncoding(), str.getBuffer(), false);
+                iss.pos(0);
+
+                using(System.IO.StringWriter s = new System.IO.StringWriter(CultureInfo.CurrentCulture))
+                {
+                    s.Write(heading);
+                    printMessage(s, iss);
+
+                    logger.trace(tl.protocolCat, s.ToString());
+                }
+                str.pos(p);
+            }
+        }
+
+        internal static void trace(string heading, Ice.InputStream str, Ice.Logger logger, TraceLevels tl)
         {
             if(tl.protocol >= 1)
             {
@@ -72,7 +91,7 @@ namespace IceInternal
 
         internal static void traceSlicing(string kind, string typeId, string slicingCat, Ice.Logger logger)
         {
-            lock(typeof(IceInternal.TraceUtil))
+            lock(typeof(TraceUtil))
             {
                 if(slicingIds.Add(typeId))
                 {
@@ -85,7 +104,7 @@ namespace IceInternal
             }
         }
 
-        public static void dumpStream(BasicStream stream)
+        public static void dumpStream(Ice.InputStream stream)
         {
             int pos = stream.pos();
             stream.pos(0);
@@ -107,7 +126,7 @@ namespace IceInternal
                 {
                     if(j < data.Length)
                     {
-                        int n = (int)data[j];
+                        int n = data[j];
                         if(n < 0)
                         {
                             n += 256;
@@ -138,7 +157,7 @@ namespace IceInternal
                 for(int j = i; j < data.Length && j - i < inc; j++)
                 {
                     // TODO: this needs fixing
-                    if(data[j] >= (byte)32 && data[j] < (byte)127)
+                    if(data[j] >= 32 && data[j] < 127)
                     {
                         System.Console.Out.Write((char) data[j]);
                     }
@@ -152,19 +171,25 @@ namespace IceInternal
             }
         }
 
-        private static void printIdentityFacetOperation(System.IO.StringWriter s, BasicStream str)
+        private static void printIdentityFacetOperation(System.IO.StringWriter s, Ice.InputStream str)
         {
             try
             {
+                Ice.ToStringMode toStringMode = Ice.ToStringMode.Unicode;
+                if(str.instance() != null)
+                {
+                    toStringMode = str.instance().toStringMode();
+                }
+
                 Ice.Identity identity = new Ice.Identity();
-                identity.read__(str);
-                s.Write("\nidentity = " + str.instance().identityToString(identity));
+                identity.ice_readMembers(str);
+                s.Write("\nidentity = " + Ice.Util.identityToString(identity, toStringMode));
 
                 string[] facet = str.readStringSeq();
                 s.Write("\nfacet = ");
                 if(facet.Length > 0)
                 {
-                    s.Write(IceUtilInternal.StringUtil.escapeString(facet[0], ""));
+                    s.Write(IceUtilInternal.StringUtil.escapeString(facet[0], "", toStringMode));
                 }
 
                 string operation = str.readString();
@@ -176,7 +201,7 @@ namespace IceInternal
             }
         }
 
-        private static void printRequest(System.IO.StringWriter s, BasicStream str)
+        private static void printRequest(System.IO.StringWriter s, Ice.InputStream str)
         {
             int requestId = str.readInt();
             s.Write("\nrequest id = " + requestId);
@@ -188,7 +213,7 @@ namespace IceInternal
             printRequestHeader(s, str);
         }
 
-        private static void printBatchRequest(System.IO.StringWriter s, BasicStream str)
+        private static void printBatchRequest(System.IO.StringWriter s, Ice.InputStream str)
         {
             int batchRequestNum = str.readInt();
             s.Write("\nnumber of requests = " + batchRequestNum);
@@ -200,7 +225,7 @@ namespace IceInternal
             }
         }
 
-        private static void printReply(System.IO.StringWriter s, BasicStream str)
+        private static void printReply(System.IO.StringWriter s, Ice.InputStream str)
         {
             int requestId = str.readInt();
             s.Write("\nrequest id = " + requestId);
@@ -302,7 +327,7 @@ namespace IceInternal
 
             if(replyStatus == ReplyStatus.replyOK || replyStatus == ReplyStatus.replyUserException)
             {
-                Ice.EncodingVersion v = str.skipEncaps();
+                Ice.EncodingVersion v = str.skipEncapsulation();
                 if(!v.Equals(Ice.Util.Encoding_1_0))
                 {
                     s.Write("\nencoding = ");
@@ -311,7 +336,7 @@ namespace IceInternal
             }
         }
 
-        private static void printRequestHeader(System.IO.StringWriter s, BasicStream str)
+        private static void printRequestHeader(System.IO.StringWriter s, Ice.InputStream str)
         {
             printIdentityFacetOperation(s, str);
 
@@ -359,7 +384,7 @@ namespace IceInternal
                     }
                 }
 
-                Ice.EncodingVersion v = str.skipEncaps();
+                Ice.EncodingVersion v = str.skipEncapsulation();
                 if(!v.Equals(Ice.Util.Encoding_1_0))
                 {
                     s.Write("\nencoding = ");
@@ -372,7 +397,7 @@ namespace IceInternal
             }
         }
 
-        private static byte printHeader(System.IO.StringWriter s, BasicStream str)
+        private static byte printHeader(System.IO.StringWriter s, Ice.InputStream str)
         {
             try
             {
@@ -396,19 +421,19 @@ namespace IceInternal
                 s.Write("\ncompression status = " + (int)compress + ' ');
                 switch(compress)
                 {
-                case (byte)0:
+                case 0:
                 {
                     s.Write("(not compressed; do not compress response, if any)");
                     break;
                 }
 
-                case (byte)1:
+                case 1:
                 {
                     s.Write("(not compressed; compress response, if any)");
                     break;
                 }
 
-                case (byte)2:
+                case 2:
                 {
                     s.Write("(compressed; compress response, if any)");
                     break;
@@ -432,7 +457,7 @@ namespace IceInternal
             }
         }
 
-        private static byte printMessage(System.IO.StringWriter s, BasicStream str)
+        private static byte printMessage(System.IO.StringWriter s, Ice.InputStream str)
         {
             byte type = printHeader(s, str);
 
@@ -473,7 +498,7 @@ namespace IceInternal
             return type;
         }
 
-        internal static void traceHeader(string heading, BasicStream str, Ice.Logger logger, TraceLevels tl)
+        internal static void traceHeader(string heading, Ice.InputStream str, Ice.Logger logger, TraceLevels tl)
         {
             if(tl.protocol >= 1)
             {

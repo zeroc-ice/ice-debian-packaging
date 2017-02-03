@@ -46,9 +46,9 @@ namespace Ice
         public byte[] bytes;
 
         /// <summary>
-        /// The Ice objects referenced by this slice.
+        /// The class instances referenced by this slice.
         /// </summary>
-        public Ice.Object[] objects;
+        public Value[] instances;
 
         /// <summary>
         /// Whether or not the slice contains optional members.

@@ -20,6 +20,11 @@ using namespace IceInternal;
 
 IceUtil::Shared* IceInternal::upCast(ProtocolInstance* p) { return p; }
 
+IceInternal::ProtocolInstance::~ProtocolInstance()
+{
+    // Out of line to avoid weak vtable
+}
+
 IceInternal::ProtocolInstance::ProtocolInstance(const CommunicatorPtr& com, Short type, const string& protocol,
                                                  bool secure) :
     _instance(getInstance(com)),
@@ -42,6 +47,30 @@ IceInternal::ProtocolInstance::ProtocolInstance(const InstancePtr& instance, Sho
     _type(type),
     _secure(secure)
 {
+}
+
+const LoggerPtr&
+IceInternal::ProtocolInstance::logger() const
+{
+    return _instance->initializationData().logger;
+}
+
+BufSizeWarnInfo
+IceInternal::ProtocolInstance::getBufSizeWarn(Short type)
+{
+    return _instance->getBufSizeWarn(type);
+}
+
+void
+IceInternal::ProtocolInstance::setSndBufSizeWarn(Short type, int size)
+{
+    _instance->setSndBufSizeWarn(type, size);
+}
+
+void
+IceInternal::ProtocolInstance::setRcvBufSizeWarn(Short type, int size)
+{
+    _instance->setRcvBufSizeWarn(type, size);
 }
 
 bool

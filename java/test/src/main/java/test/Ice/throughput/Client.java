@@ -18,29 +18,19 @@ import test.Ice.throughput.Demo.StringDouble;
 import test.Ice.throughput.Demo.StringDoubleSeqSize;
 import test.Ice.throughput.Demo.StringSeqSize;
 import test.Ice.throughput.Demo.ThroughputPrx;
-import test.Ice.throughput.Demo.ThroughputPrxHelper;
 
 public class Client extends test.Util.Application
 {
     class ShutdownHook extends Thread
     {
         @Override
-        public void
-        run()
+        public void run()
         {
-            try
-            {
-                communicator().destroy();
-            }
-            catch(Ice.LocalException ex)
-            {
-                ex.printStackTrace();
-            }
+            communicator().destroy();
         }
     }
 
-    private static void
-    menu()
+    private static void menu()
     {
         System.out.println(
         "usage:\n" +
@@ -64,8 +54,7 @@ public class Client extends test.Util.Application
     }
 
     @Override
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
         PrintWriter out = getWriter();
         PrintWriter err = out;
@@ -80,13 +69,13 @@ public class Client extends test.Util.Application
         // Application installed interrupt callback and install our
         // own shutdown hook.
         //
-        ThroughputPrx throughput = ThroughputPrxHelper.checkedCast(communicator().propertyToProxy("Throughput.Proxy"));
+        ThroughputPrx throughput = ThroughputPrx.checkedCast(communicator().propertyToProxy("Throughput.Proxy"));
         if(throughput == null)
         {
             err.println("invalid proxy");
             return 1;
         }
-        ThroughputPrx throughputOneway = ThroughputPrxHelper.uncheckedCast(throughput.ice_oneway());
+        ThroughputPrx throughputOneway = throughput.ice_oneway();
 
         byte[] byteSeq = new byte[ByteSeqSize.value];
 
@@ -144,14 +133,14 @@ public class Client extends test.Util.Application
                 throughput.recvStringSeq();
                 throughput.recvStructSeq();
                 throughput.recvFixedSeq();
-                
+
                 throughput.echoByteSeq(emptyBytes);
                 throughput.echoStringSeq(emptyStrings);
                 throughput.echoStructSeq(emptyStructs);
                 throughput.echoFixedSeq(emptyFixed);
             }
             throughput.endWarmup();
-            
+
             out.println(" ok");
         }
 */
@@ -163,7 +152,7 @@ public class Client extends test.Util.Application
 
         // Initial ping to setup the connection.
         throughput.ice_ping();
-        
+
         String[] input = { "t", "o", "r", "e", "s", "x", null };
         int inputIndex = 0;
         String line = null;
@@ -223,20 +212,20 @@ public class Client extends test.Util.Application
                             out.print("sending");
                             break;
                         }
-                        
+
                         case 'r':
                         {
                             out.print("receiving");
                             break;
                         }
-                        
+
                         case 'e':
                         {
                             out.print("sending and receiving");
                             break;
                         }
                     }
-                    
+
                     out.print(" " + repetitions);
                     switch(currentType)
                     {
@@ -264,17 +253,17 @@ public class Client extends test.Util.Application
                             break;
                         }
                     }
-                    
+
                     out.print(" sequences of size " + seqSize);
-                    
+
                     if(c == 'o')
                     {
                         out.print(" as oneway");
                     }
-                    
+
                     out.println("...");
                     out.flush();
-                    
+
                     for(int i = 0; i < repetitions; ++i)
                     {
                         switch(currentType)
@@ -288,19 +277,19 @@ public class Client extends test.Util.Application
                                         throughput.sendByteSeq(byteSeq);
                                         break;
                                     }
-                            
+
                                     case 'o':
                                     {
                                         throughputOneway.sendByteSeq(byteSeq);
                                         break;
                                     }
-                            
+
                                     case 'r':
                                     {
                                         throughput.recvByteSeq();
                                         break;
                                     }
-                            
+
                                     case 'e':
                                     {
                                         throughput.echoByteSeq(byteSeq);
@@ -319,19 +308,19 @@ public class Client extends test.Util.Application
                                         throughput.sendStringSeq(stringSeq);
                                         break;
                                     }
-                            
+
                                     case 'o':
                                     {
                                         throughputOneway.sendStringSeq(stringSeq);
                                         break;
                                     }
-                            
+
                                     case 'r':
                                     {
                                         throughput.recvStringSeq();
                                         break;
                                     }
-                            
+
                                     case 'e':
                                     {
                                         throughput.echoStringSeq(stringSeq);
@@ -350,19 +339,19 @@ public class Client extends test.Util.Application
                                         throughput.sendStructSeq(structSeq);
                                         break;
                                     }
-                            
+
                                     case 'o':
                                     {
                                         throughputOneway.sendStructSeq(structSeq);
                                         break;
                                     }
-                            
+
                                     case 'r':
                                     {
                                         throughput.recvStructSeq();
                                         break;
                                     }
-                            
+
                                     case 'e':
                                     {
                                         throughput.echoStructSeq(structSeq);
@@ -381,19 +370,19 @@ public class Client extends test.Util.Application
                                         throughput.sendFixedSeq(fixedSeq);
                                         break;
                                     }
-                            
+
                                     case 'o':
                                     {
                                         throughputOneway.sendFixedSeq(fixedSeq);
                                         break;
                                     }
-                            
+
                                     case 'r':
                                     {
                                         throughput.recvFixedSeq();
                                         break;
                                     }
-                            
+
                                     case 'e':
                                     {
                                         throughput.echoFixedSeq(fixedSeq);
@@ -463,7 +452,7 @@ public class Client extends test.Util.Application
                     menu();
                 }
             }
-            catch(Ice.LocalException ex)
+            catch(com.zeroc.Ice.LocalException ex)
             {
                 ex.printStackTrace();
             }
@@ -472,12 +461,11 @@ public class Client extends test.Util.Application
 
         return 0;
     }
-    
+
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Demo", "test.Ice.throughput");
         initData.properties.setProperty("Throughput.Proxy", "throughput:default -p 10000 -h 127.0.0.1");
         return initData;

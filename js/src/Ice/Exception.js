@@ -7,10 +7,9 @@
 //
 // **********************************************************************
 
-var Ice = require("../Ice/Class").Ice;
-var Class = Ice.Class;
+const Ice = require("../Ice/ModuleRegistry").Ice;
 
-var toString = function(key, object, objectTable, ident)
+const toString = function(key, object, objectTable, ident)
 {
     ident += "  ";
     if(object === null)
@@ -35,8 +34,8 @@ var toString = function(key, object, objectTable, ident)
     }
 
     objectTable.push(object);
-    var s = "\n" + ident + key + ":";
-    for(var k in object)
+    let s = "\n" + ident + key + ":";
+    for(let k in object)
     {
         if(key.indexOf("_") === 0)
         {
@@ -55,19 +54,23 @@ var toString = function(key, object, objectTable, ident)
 //
 // Ice.Exception
 //
-var Exception = Class(Error, {
-    __init__: function(cause)
+class Exception extends Error
+{
+    constructor(cause)
     {
+        super();
         if(cause)
         {
             this.ice_cause = cause;
         }
-    },
-    ice_name: function()
+    }
+
+    ice_name()
     {
         return "Ice::Exception";
-    },
-    toString: function()
+    }
+
+    toString()
     {
         //
         // We have a guard here to prevent being re-entered. With some browsers (IE), accessing
@@ -80,8 +83,8 @@ var Exception = Class(Error, {
         }
 
         this._inToStringAlready = true;
-        var s = this.ice_name();
-        for(var key in this)
+        let s = this.ice_name();
+        for(let key in this)
         {
             if(key != "_inToStringAlready")
             {
@@ -89,106 +92,106 @@ var Exception = Class(Error, {
             }
         }
 
-        if(Ice.__printStackTraces === true && this.stack)
+        if(Ice._printStackTraces === true && this.stack)
         {
             s += "\n" + this.stack;
         }
         this._inToStringAlready = false;
         return s;
     }
-});
-
-Exception.captureStackTrace = function(object)
-{
-    var stack = new Error().stack;
-    //
-    // In IE 10 and greater the stack will be filled once the Error is throw
-    // we don't need to do anything.
-    //
-    if(stack !== undefined)
+    
+    static captureStackTrace(object)
     {
-        Object.defineProperty(object, "stack", {
-            get: function(){
-                return stack;
-            }
-        });
+        const stack = new Error().stack;
+        //
+        // In IE 10 and greater the stack will be filled once the Error is throw
+        // we don't need to do anything.
+        //
+        if(stack !== undefined)
+        {
+            Object.defineProperty(object, "stack", {
+                get: function()
+                    {
+                        return stack; 
+                    }
+            });
+        }
     }
-};
+}
 
 Ice.Exception = Exception;
 
 //
 // Ice.LocalException
 //
-var LocalException = Class(Exception, {
-    __init__: function(cause)
+class LocalException extends Exception
+{
+    constructor(cause)
     {
-        Exception.call(this, cause);
+        super(cause);
         Exception.captureStackTrace(this);
-    },
-    ice_name: function()
+    }
+
+    ice_name()
     {
         return "Ice::LocalException";
     }
-});
+}
 
 Ice.LocalException = LocalException;
-
-var Slice = Ice.Slice;
-Slice.defineLocalException = function(constructor, base, name)
-{
-    var ex = constructor;
-    ex.prototype = new base();
-    ex.prototype.constructor = ex;
-    ex.prototype.ice_name = function()
-    {
-        return name;
-    };
-    return ex;
-};
 
 //
 // Ice.UserException
 //
-var UserException = Class(Exception, {
-    __init__: function(cause)
+class UserException extends Exception
+{
+    constructor(cause)
     {
-        Exception.call(this, cause);
+        super(cause);
         Exception.captureStackTrace(this);
-    },
-    ice_name: function()
+    }
+
+    ice_name()
     {
         return "Ice::UserException";
-    },
-    __write: function(os)
+    }
+
+    _write(os)
     {
-        os.startWriteException(null);
-        __writeImpl(this, os, this.__mostDerivedType());
-        os.endWriteException();
-    },
-    __read: function(is)
+        os.startException(null);
+        writeImpl(this, os, this._mostDerivedType());
+        os.endException();
+    }
+
+    _read(is)
     {
-        is.startReadException();
-        __readImpl(this, is, this.__mostDerivedType());
-        is.endReadException(false);
-    },
-    __usesClasses: function()
+        is.startException();
+        readImpl(this, is, this._mostDerivedType());
+        is.endException(false);
+    }
+
+    _usesClasses()
     {
         return false;
     }
-});
+
+    _mostDerivedType()
+    {
+        return Ice.UserException;
+    }
+}
 Ice.UserException = UserException;
 
 //
 // Private methods
 //
 
-var __writeImpl = function(obj, os, type)
+const writeImpl = function(obj, os, type)
 {
     //
-    // The __writeImpl method is a recursive method that goes down the
+    // The writeImpl method is a recursive method that goes down the
     // class hierarchy to marshal each slice of the class using the
-    // generated __writeMemberImpl method.
+    // generated _writeMemberImpl method.
     //
 
     if(type === undefined || type === UserException)
@@ -196,21 +199,21 @@ var __writeImpl = function(obj, os, type)
         return; // Don't marshal anything for Ice.UserException
     }
 
-    os.startWriteSlice(type.__id, -1, type.__parent === UserException);
-    if(type.prototype.__writeMemberImpl)
+    os.startSlice(type._id, -1, type._parent === UserException);
+    if(type.prototype._writeMemberImpl)
     {
-        type.prototype.__writeMemberImpl.call(obj, os);
+        type.prototype._writeMemberImpl.call(obj, os);
     }
-    os.endWriteSlice();
-    __writeImpl(obj, os, type.__parent);
+    os.endSlice();
+    writeImpl(obj, os, type._parent);
 };
 
-var __readImpl = function(obj, is, type)
+const readImpl = function(obj, is, type)
 {
     //
-    // The __readImpl method is a recursive method that goes down the
+    // The readImpl method is a recursive method that goes down the
     // class hierarchy to marshal each slice of the class using the
-    // generated __readMemberImpl method.
+    // generated _readMemberImpl method.
     //
 
     if(type === undefined || type === UserException)
@@ -218,66 +221,41 @@ var __readImpl = function(obj, is, type)
         return; // Don't marshal anything for UserException
     }
 
-    is.startReadSlice();
-    if(type.prototype.__readMemberImpl)
+    is.startSlice();
+    if(type.prototype._readMemberImpl)
     {
-        type.prototype.__readMemberImpl.call(obj, is);
+        type.prototype._readMemberImpl.call(obj, is);
     }
-    is.endReadSlice();
-    __readImpl(obj, is, type.__parent);
+    is.endSlice();
+    readImpl(obj, is, type._parent);
 };
 
-var __writePreserved = function(os)
+const writePreserved = function(os)
 {
     //
     // For Slice exceptions which are marked "preserved", the implementation of this method
-    // replaces the Ice.Object.prototype.__write method.
+    // replaces the Ice.UserException.prototype._write method.
     //
-    os.startWriteException(this.__slicedData);
-    __writeImpl(this, os, this.__mostDerivedType());
-    os.endWriteException();
+    os.startException(this._slicedData);
+    writeImpl(this, os, this._mostDerivedType());
+    os.endException();
 };
 
-var __readPreserved = function(is)
+const readPreserved = function(is)
 {
     //
     // For Slice exceptions which are marked "preserved", the implementation of this method
-    // replaces the Ice.Object.prototype.__read method.
+    // replaces the Ice.UserException.prototype._read method.
     //
-    is.startReadException();
-    __readImpl(this, is, this.__mostDerivedType());
-    this.__slicedData = is.endReadException(true);
+    is.startException();
+    readImpl(this, is, this._mostDerivedType());
+    this._slicedData = is.endException(true);
 };
 
-Slice.defineUserException = function(constructor, base, name, writeImpl, readImpl, preserved, usesClasses)
+Ice.Slice.PreservedUserException = function(ex)
 {
-    var ex = constructor;
-    ex.__parent = base;
-    ex.prototype = new base();
-    ex.__id = "::" + name;
-    ex.prototype.ice_name = function()
-    {
-        return name;
-    };
-
-    ex.prototype.constructor = ex;
-    ex.prototype.__mostDerivedType = function() { return ex; };
-    if(preserved)
-    {
-        ex.prototype.__write = __writePreserved;
-        ex.prototype.__read = __readPreserved;
-    }
-    ex.prototype.__writeMemberImpl = writeImpl;
-    ex.prototype.__readMemberImpl = readImpl;
-
-    if(usesClasses)
-    {
-        ex.prototype.__usesClasses = function()
-        {
-            return true;
-        };
-    }
-
-    return ex;
+    ex.prototype._write = writePreserved;
+    ex.prototype._read = readPreserved;
 };
+
 module.exports.Ice = Ice;

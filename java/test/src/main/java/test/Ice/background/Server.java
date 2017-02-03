@@ -6,112 +6,107 @@
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
+
 package test.Ice.background;
+
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 
 import test.Ice.background.PluginFactory.PluginI;
 
 public class Server extends test.Util.Application
 {
-    static public class LocatorI extends Ice._LocatorDisp
+    static public class LocatorI implements com.zeroc.Ice.Locator
     {
         @Override
-        public void
-        findAdapterById_async(Ice.AMD_Locator_findAdapterById response, String adapter, Ice.Current current)
-            throws Ice.AdapterNotFoundException
+        public CompletionStage<com.zeroc.Ice.ObjectPrx> findAdapterByIdAsync(String adapter,
+                                                                             com.zeroc.Ice.Current current)
         {
             _controller.checkCallPause(current);
-            Ice.Communicator communicator = current.adapter.getCommunicator();
-            response.ice_response(current.adapter.createDirectProxy(communicator.stringToIdentity("dummy")));
+            com.zeroc.Ice.Communicator communicator = current.adapter.getCommunicator();
+            return CompletableFuture.completedFuture(
+                current.adapter.createDirectProxy(com.zeroc.Ice.Util.stringToIdentity("dummy")));
         }
 
         @Override
-        public void
-        findObjectById_async(Ice.AMD_Locator_findObjectById response, Ice.Identity id, Ice.Current current)
-            throws Ice.ObjectNotFoundException
+        public CompletionStage<com.zeroc.Ice.ObjectPrx> findObjectByIdAsync(com.zeroc.Ice.Identity id,
+                                                                            com.zeroc.Ice.Current current)
         {
             _controller.checkCallPause(current);
-            response.ice_response(current.adapter.createDirectProxy(id));
+            return CompletableFuture.completedFuture(current.adapter.createDirectProxy(id));
         }
-    
+
         @Override
-        public Ice.LocatorRegistryPrx
-        getRegistry(Ice.Current current)
+        public com.zeroc.Ice.LocatorRegistryPrx getRegistry(com.zeroc.Ice.Current current)
         {
             return null;
         }
-        
+
         LocatorI(BackgroundControllerI controller)
         {
             _controller = controller;
         }
-        
+
         final private BackgroundControllerI _controller;
     }
 
-    static public class RouterI extends Ice._RouterDisp
+    static public class RouterI implements com.zeroc.Ice.Router
     {
         @Override
-        public Ice.ObjectPrx 
-        getClientProxy(Ice.Current current)
+        public com.zeroc.Ice.ObjectPrx getClientProxy(com.zeroc.Ice.Current current)
         {
             _controller.checkCallPause(current);
             return null;
         }
 
         @Override
-        public Ice.ObjectPrx 
-        getServerProxy(Ice.Current current)
+        public com.zeroc.Ice.ObjectPrx getServerProxy(com.zeroc.Ice.Current current)
         {
             _controller.checkCallPause(current);
             return null;
         }
 
         @Override
-        public Ice.ObjectPrx[]
-        addProxies(Ice.ObjectPrx[] proxies, Ice.Current current)
+        public com.zeroc.Ice.ObjectPrx[] addProxies(com.zeroc.Ice.ObjectPrx[] proxies, com.zeroc.Ice.Current current)
         {
-            return new Ice.ObjectPrx[0];
+            return new com.zeroc.Ice.ObjectPrx[0];
         }
 
         RouterI(BackgroundControllerI controller)
         {
             _controller = controller;
         }
-        
+
         final private BackgroundControllerI _controller;
     }
 
     @Override
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
-        Configuration configuration = new Configuration();
         PluginI plugin = (PluginI)communicator().getPluginManager().getPlugin("Test");
-        plugin.setConfiguration(configuration);
-        communicator().getPluginManager().initializePlugins();
-        
-        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
-        Ice.ObjectAdapter adapter2 = communicator().createObjectAdapter("ControllerAdapter");
+        Configuration configuration = plugin.getConfiguration();
+
+        com.zeroc.Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
+        com.zeroc.Ice.ObjectAdapter adapter2 = communicator().createObjectAdapter("ControllerAdapter");
 
         BackgroundControllerI backgroundController = new BackgroundControllerI(configuration, adapter);
 
-        adapter.add(new BackgroundI(backgroundController), communicator().stringToIdentity("background"));
-        adapter.add(new LocatorI(backgroundController), communicator().stringToIdentity("locator"));
-        adapter.add(new RouterI(backgroundController), communicator().stringToIdentity("router"));
+        adapter.add(new BackgroundI(backgroundController), com.zeroc.Ice.Util.stringToIdentity("background"));
+        adapter.add(new LocatorI(backgroundController), com.zeroc.Ice.Util.stringToIdentity("locator"));
+        adapter.add(new RouterI(backgroundController), com.zeroc.Ice.Util.stringToIdentity("router"));
         adapter.activate();
 
-        adapter2.add(backgroundController, communicator().stringToIdentity("backgroundController"));
+        adapter2.add(backgroundController, com.zeroc.Ice.Util.stringToIdentity("backgroundController"));
         adapter2.activate();
 
         return WAIT;
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
-        
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
+
         //
         // This test kills connections, so we don't want warnings.
         //
@@ -128,21 +123,18 @@ public class Server extends test.Util.Application
         initData.properties.setProperty("Ice.Plugin.Test", "test.Ice.background.PluginFactory");
         String defaultProtocol = initData.properties.getPropertyWithDefault("Ice.Default.Protocol", "tcp");
         initData.properties.setProperty("Ice.Default.Protocol", "test-" + defaultProtocol);
-        
+
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.background");
 
-        initData.properties.setProperty("TestAdapter.Endpoints", "default -p 12010");
-        initData.properties.setProperty("ControllerAdapter.Endpoints", "tcp -p 12011");
+        initData.properties.setProperty("TestAdapter.Endpoints", getTestEndpoint(initData.properties, 0));
+        initData.properties.setProperty("ControllerAdapter.Endpoints",
+                                          getTestEndpoint(initData.properties, 1, "tcp"));
         initData.properties.setProperty("ControllerAdapter.ThreadPool.Size", "1");
-        
-        // Don't initialize the plugin until I've set the configuration.
-        initData.properties.setProperty("Ice.InitPlugins", "0");
-        
+
         return initData;
     }
 
-    public static void
-    main(String[] args)
+    public static void main(String[] args)
     {
         Server app = new Server();
         int result = app.main("Server", args);

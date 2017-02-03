@@ -16,20 +16,20 @@ using namespace std;
 using namespace IceUtil;
 
 IceUtilInternal::APIException::APIException(const char* file, int line, const string& r)
-    : IceUtil::Exception(file, line), reason(r)
+    : IceUtil::ExceptionHelper<APIException>(file, line), reason(r)
 {
 }
 
+#ifndef ICE_CPP11_COMPILER
 IceUtilInternal::APIException::~APIException() throw()
 {
 }
-
-const char* IceUtilInternal::APIException::_name = "IceUtilInternal::APIException";
+#endif
 
 string
-IceUtilInternal::APIException::ice_name() const
+IceUtilInternal::APIException::ice_id() const
 {
-    return _name;
+    return "::IceUtilInternal::APIException";
 }
 
 void
@@ -42,17 +42,13 @@ IceUtilInternal::APIException::ice_print(ostream& out) const
     }
 }
 
+#ifndef ICE_CPP11_MAPPING
 IceUtilInternal::APIException*
 IceUtilInternal::APIException::ice_clone() const
 {
     return new APIException(*this);
 }
-
-void
-IceUtilInternal::APIException::ice_throw() const
-{
-    throw *this;
-}
+#endif
 
 ostream&
 IceUtilInternal::operator<<(ostream& out, const IceUtilInternal::APIException& ex)
@@ -62,20 +58,20 @@ IceUtilInternal::operator<<(ostream& out, const IceUtilInternal::APIException& e
 }
 
 IceUtilInternal::BadOptException::BadOptException(const char* file, int line, const string& r)
-    : IceUtil::Exception(file, line), reason(r)
+    : IceUtil::ExceptionHelper<BadOptException>(file, line), reason(r)
 {
 }
 
+#ifndef ICE_CPP11_COMPILER
 IceUtilInternal::BadOptException::~BadOptException() throw()
 {
 }
-
-const char* IceUtilInternal::BadOptException::_name = "IceUtilInternal::BadOptException";
+#endif
 
 string
-IceUtilInternal::BadOptException::ice_name() const
+IceUtilInternal::BadOptException::ice_id() const
 {
-    return _name;
+    return "::IceUtilInternal::BadOptException";
 }
 
 void
@@ -88,17 +84,13 @@ IceUtilInternal::BadOptException::ice_print(ostream& out) const
     }
 }
 
+#ifndef ICE_CPP11_MAPPING
 IceUtilInternal::BadOptException*
 IceUtilInternal::BadOptException::ice_clone() const
 {
     return new BadOptException(*this);
 }
-
-void
-IceUtilInternal::BadOptException::ice_throw() const
-{
-    throw *this;
-}
+#endif
 
 ostream&
 IceUtilInternal::operator<<(ostream& out, const IceUtilInternal::BadOptException& ex)
@@ -174,7 +166,7 @@ void
 IceUtilInternal::Options::addOpt(const string& shortOpt, const string& longOpt, ArgType at, string dflt, RepeatType rt)
 {
     RecMutex::Lock sync(_m);
-    
+
     if(parseCalled)
     {
         throw APIException(__FILE__, __LINE__, "cannot add options after parse() was called");
@@ -465,7 +457,7 @@ IceUtilInternal::Options::split(const string& line)
 
                                 Int64 ull = 0;
                                 string::size_type j;
-                                for(j = i + 1; j < i + 3 && j < l.size() && 
+                                for(j = i + 1; j < i + 3 && j < l.size() &&
                                     isxdigit(static_cast<unsigned char>(c = l[j])); ++j)
                                 {
                                     ull *= 16;

@@ -8,26 +8,19 @@
 // **********************************************************************
 
 buildscript {
-    def env = System.getenv()
-    ext.iceMavenRepo = env['ICE_MAVEN_REPOSITORY']
-    if (ext.iceMavenRepo == null) {
-        ext.iceMavenRepo = "repo.zeroc.com"
-    }
-
     //
     // If iceBuilderHome is set add its lib directory it to the local maven repositories
     // so we can build using a local plugin version
     //
     if (iceBuilderHome) {
         def builder  = new File([iceBuilderHome, "build", "libs"].join(File.separator))
-
         if(builder.exists()) {
             repositories {
                 flatDir dirs: "file://${builder.getCanonicalPath()}"
             }
         }
     }
-    
+
     if(new File("/usr/share/maven-repo").exists()){
         repositories {
             maven {
@@ -40,11 +33,11 @@ buildscript {
         mavenCentral()
 
         maven {
-            url "https://${iceMavenRepo}/nexus/content/repositories/releases"
+            url "https://repo.zeroc.com/nexus/content/repositories/releases"
         }
     }
     dependencies {
-        classpath group: 'com.zeroc.gradle.ice-builder', name: 'slice', version: '1.3.6'
+        classpath group: 'com.zeroc.gradle.ice-builder', name: 'slice', version: "${iceBuilderVersion}"
     }
 }
 
@@ -52,23 +45,23 @@ if (!project.plugins.findPlugin(com.zeroc.gradle.icebuilder.slice.SlicePlugin)) 
     project.apply(plugin: com.zeroc.gradle.icebuilder.slice.SlicePlugin)
 }
 
-if(System.env.USE_BIN_DIST != "yes") {
-    slice {
-        iceHome = new File([project(':ice').projectDir, "..", "..", ".."].join(File.separator)).getCanonicalPath()
+slice {
+    cppConfiguration = this.cppConfiguration
+    cppPlatform = this.cppPlatform
+    if(!System.env.ICE_BIN_DIST?.split(" ").find{ it == 'all' || it.contains('java')}) {
+        iceHome =  this.hasProperty('iceHome') ? this.iceHome
+            : new File([rootProject.projectDir, ".."].join(File.separator)).getCanonicalPath()
     }
 }
 
 ext.generatedDir = "$project.buildDir/generated"
 ext.useLocalOnly = false
 
-def android = false
-try {
+// Android does not have a compileJava task
+if(!(project.hasProperty('android') && project.android.sourceSets)) {
     compileJava {
         options.debug = debug
     }
-} catch(MissingMethodException ex) {
-    // For Android builds: thrown if compileJava isn't available.
-    android = true
 }
 
 def env = System.getenv()
@@ -134,95 +127,10 @@ ext.searchFile = { List<Closure> places, List<String> searchPaths ->
     }
 }
 
-
-
-def localDependency(artifactId) {
+ext.localDependency = { artifactId ->
     if (project.slice.srcDist) {
         return project(":${artifactId}")
     } else {
         return "com.zeroc:${artifactId}:${project.version}"
-    }
-}
-ext {
-    localDependency = this.&localDependency
-}
-
-def localappdata
-def nuget
-def dbVersion
-def dbPackage
-
-if (isWindows) {
-nuget = "${System.env.LOCALAPPDATA}/ZeroC/nuget/nuget.exe"
-dbVersion = "5.3.28.1"
-dbPackage = "${iceCppDir}/third-party-packages/berkeley.db.java7"
-
-task nugetDirectory() {
-    def nugetDir = new File("${localappdata}/ZeroC/nuget")
-    if(!nugetDir.exists()) {
-        nugetDir.mkdirs()
-    }
-}
-
-task nugetInstall(type:Exec, dependsOn:nugetDirectory) {
-  commandLine 'cmd', '/c', 'powershell', '-Command', "(New-Object Net.WebClient).DownloadFile('http://nuget.org/nuget.exe', '${nuget}')"
-}
-
-task nugetInstallBerkeleyDb(type:Exec) {
-  commandLine 'cmd', '/c', nuget, 'install', 'berkeley.db.java7', '-OutputDirectory', "${iceCppDir}/third-party-packages/", '-ExcludeVersion'
-}
-
-}
-
-if (!android) {
-    //
-    // Find BerkeleyDB JAR
-    //
-    if(dbHome) {
-        ext.dbJar = "${dbHome}/db.jar"
-    } else if(env['DB_HOME']) {
-        def dbHomeDir = env['DB_HOME']
-        ext.dbJar = "${dbHomeDir}/lib/db.jar"
-    } else {
-        def subdirs
-        if (isWindows) {
-            if(slice.srcDist){
-                if(!new File(nuget).exists()) {
-                    nugetInstall.execute()
-                }
-                if(!new File("${dbPackage}/berkeley.db.java7.nupkg").exists()) {
-                    nugetInstallBerkeleyDb.execute()
-                }
-                subdirs = [ "${dbPackage}/build/native/lib/" ]
-            } else {
-                subdirs = [ "${slice.iceHome}/lib/" ]
-            }
-        } else {
-            subdirs = [
-                "/usr/local/opt/ice/libexec/lib/",
-                "/usr/local/opt/berkeley-db53/lib/",
-                "/usr/local/lib/",
-                "/usr/share/java/",
-                "/opt/Ice-${project.version}/lib/",
-                "/opt/db/lib/",
-                "/usr/lib/"
-            ]
-        }
-
-        def candidates = ["db-5.3.28.jar", "db-5.3.21.jar", "db.jar"].collect {
-            def dbJarName = it
-            subdirs.collect {
-                it.concat(dbJarName)
-            }
-        }.flatten()
-
-        ext.dbJar = candidates.find {
-            new File(it).exists()
-        }
-    }
-
-
-    if(!ext.dbJar || !new File(ext.dbJar).exists()) {
-        throw new GradleException("Unable to locate the required third party BerkeleyDB jar file `db.jar'.")
     }
 }

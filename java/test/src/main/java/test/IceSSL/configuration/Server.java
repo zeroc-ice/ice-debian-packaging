@@ -9,17 +9,21 @@
 
 package test.IceSSL.configuration;
 
-
 public class Server extends test.Util.Application
 {
     @Override
     public int run(String[] args)
     {
-        Ice.Communicator communicator = communicator();
-        communicator.getProperties().setProperty("TestAdapter.Endpoints", "tcp -p 12010");
-        Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
-        Ice.Identity id = communicator.stringToIdentity("factory");
-        adapter.add(new ServerFactoryI(), id);
+        if(args.length < 1)
+        {
+            System.out.println("Usage: server testdir");
+            return 1;
+        }
+        com.zeroc.Ice.Communicator communicator = communicator();
+        communicator.getProperties().setProperty("TestAdapter.Endpoints", getTestEndpoint(0, "tcp"));
+        com.zeroc.Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
+        com.zeroc.Ice.Identity id = com.zeroc.Ice.Util.stringToIdentity("factory");
+        adapter.add(new ServerFactoryI(args[0] + "/../certs"), id);
         adapter.activate();
 
         communicator.waitForShutdown();
@@ -27,10 +31,9 @@ public class Server extends test.Util.Application
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.IceSSL.configuration");
         return initData;
     }

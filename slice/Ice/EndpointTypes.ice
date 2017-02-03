@@ -9,8 +9,11 @@
 
 #pragma once
 
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build"]]
 
-[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:ICE"]
 module Ice
@@ -22,7 +25,8 @@ module Ice
  * in a proxy when establishing a connection.
  *
  **/
-enum EndpointSelectionType
+["cpp:unscoped"]
+local enum EndpointSelectionType
 {
     /**
      * <tt>Random</tt> causes the endpoints to be arranged in a random order.
@@ -36,4 +40,3 @@ enum EndpointSelectionType
 };
 
 };
-

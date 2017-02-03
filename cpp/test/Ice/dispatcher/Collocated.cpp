@@ -19,19 +19,19 @@ using namespace std;
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", "default -p 12010");
-    communicator->getProperties()->setProperty("ControllerAdapter.Endpoints", "tcp -p 12011");
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0));
+    communicator->getProperties()->setProperty("ControllerAdapter.Endpoints", getTestEndpoint(communicator, 1, "tcp"));
     communicator->getProperties()->setProperty("ControllerAdapter.ThreadPool.Size", "1");
 
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
     Ice::ObjectAdapterPtr adapter2 = communicator->createObjectAdapter("ControllerAdapter");
 
-    TestIntfControllerIPtr testController = new TestIntfControllerI(adapter);
+    TestIntfControllerIPtr testController = ICE_MAKE_SHARED(TestIntfControllerI, adapter);
 
-    adapter->add(new TestIntfI(), communicator->stringToIdentity("test"));
+    adapter->add(ICE_MAKE_SHARED(TestIntfI), Ice::stringToIdentity("test"));
     //adapter->activate(); // Don't activate OA to ensure collocation is used.
 
-    adapter2->add(testController, communicator->stringToIdentity("testController"));
+    adapter2->add(testController, Ice::stringToIdentity("testController"));
     //adapter2->activate(); // Don't activate OA to ensure collocation is used.
 
     void allTests(const Ice::CommunicatorPtr&);
@@ -46,42 +46,25 @@ main(int argc, char* argv[])
     Ice::registerIceSSL();
 #endif
     int status;
-    Ice::CommunicatorPtr communicator;
-
     try
     {
-        Ice::InitializationData initData;
-        initData.properties = Ice::createProperties(argc, argv);
-#ifdef ICE_CPP11
-        Ice::DispatcherPtr dispatcher = new Dispatcher();
-        initData.dispatcher = Ice::newDispatcher(
-            [=](const Ice::DispatcherCallPtr& call, const Ice::ConnectionPtr& conn)
-                {
-                    dispatcher->dispatch(call, conn);
-                });
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+#ifdef ICE_CPP11_MAPPING
+        IceUtil::Handle<Dispatcher> dispatcher = new Dispatcher;
+        initData.dispatcher = [=](function<void()> call, const shared_ptr<Ice::Connection>& conn)
+            {
+                dispatcher->dispatch(make_shared<DispatcherCall>(call), conn);
+            };
 #else
         initData.dispatcher = new Dispatcher();
 #endif
-        communicator = Ice::initialize(argc, argv, initData);
-        status = run(argc, argv, communicator);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        status = run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
         status = EXIT_FAILURE;
-    }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
     }
     Dispatcher::terminate();
     return status;

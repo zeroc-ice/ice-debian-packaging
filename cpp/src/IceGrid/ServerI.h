@@ -12,7 +12,6 @@
 
 #include <IceUtil/Mutex.h>
 #include <IceUtil/Timer.h>
-#include <Freeze/EvictorF.h>
 #include <IceGrid/Activator.h>
 #include <IceGrid/Internal.h>
 #include <set>
@@ -74,16 +73,16 @@ public:
 
     void waitForApplicationUpdateCompleted(const Ice::AsyncResultPtr&);
 
-    virtual void start_async(const AMD_Server_startPtr&, const ::Ice::Current& = Ice::Current());
-    virtual void stop_async(const AMD_Server_stopPtr&, const ::Ice::Current& = Ice::Current());
+    virtual void start_async(const AMD_Server_startPtr&, const ::Ice::Current& = Ice::noExplicitCurrent);
+    virtual void stop_async(const AMD_Server_stopPtr&, const ::Ice::Current& = Ice::noExplicitCurrent);
     virtual void sendSignal(const std::string&, const ::Ice::Current&);
     virtual void writeMessage(const std::string&, Ice::Int, const ::Ice::Current&);
 
-    virtual ServerState getState(const ::Ice::Current& = Ice::Current()) const;
-    virtual Ice::Int getPid(const ::Ice::Current& = Ice::Current()) const;
-   
+    virtual ServerState getState(const ::Ice::Current& = Ice::noExplicitCurrent) const;
+    virtual Ice::Int getPid(const ::Ice::Current& = Ice::noExplicitCurrent) const;
+
     virtual void setEnabled(bool, const ::Ice::Current&);
-    virtual bool isEnabled(const ::Ice::Current& = Ice::Current()) const;
+    virtual bool isEnabled(const ::Ice::Current& = Ice::noExplicitCurrent) const;
     virtual void setProcess_async(const AMD_Server_setProcessPtr&, const ::Ice::ProcessPrx&, const ::Ice::Current&);
 
     virtual Ice::Long getOffsetFromEnd(const std::string&, int, const Ice::Current&) const;
@@ -126,7 +125,7 @@ public:
     void updateRuntimePropertiesCallback(const Ice::Exception&, const InternalServerDescriptorPtr&);
 
 private:
-    
+
     void updateImpl(const InternalServerDescriptorPtr&);
     void checkRevision(const std::string&, const std::string&, int) const;
     void checkNoRestart(const InternalServerDescriptorPtr&);
@@ -139,8 +138,7 @@ private:
     void setState(InternalServerState, const std::string& = std::string());
     ServerCommandPtr nextCommand();
     void setStateNoSync(InternalServerState, const std::string& = std::string());
-    
-    void createOrUpdateDirectory(const std::string&);
+
     ServerState toServerState(InternalServerState) const;
     ServerActivation toServerActivation(const std::string&) const;
     ServerDynamicInfo getDynamicInfo() const;
@@ -181,7 +179,7 @@ private:
     LoadCommandPtr _load;
     PatchCommandPtr _patch;
     StartCommandPtr _start;
-    
+
     int _pid;
 };
 typedef IceUtil::Handle<ServerI> ServerIPtr;
@@ -329,7 +327,7 @@ private:
     std::vector<AMD_Node_loadServerPtr> _loadCB;
     bool _clearDir;
     InternalServerDescriptorPtr _desc;
-    IceUtil::UniquePtr<DeploymentException> _exception;
+    IceInternal::UniquePtr<DeploymentException> _exception;
     InternalServerDescriptorPtr _runtime;
     bool _updating;
     TraceLevelsPtr _traceLevels;

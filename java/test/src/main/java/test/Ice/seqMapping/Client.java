@@ -14,12 +14,11 @@ import test.Ice.seqMapping.Test.*;
 public class Client extends test.Util.Application
 {
     @Override
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
         java.io.PrintWriter out = getWriter();
 
-        MyClassPrx myClass = AllTests.allTests(communicator(), false, out);
+        MyClassPrx myClass = AllTests.allTests(this, false);
 
         out.print("shutting down server... ");
         out.flush();
@@ -30,10 +29,9 @@ public class Client extends test.Util.Application
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.seqMapping");
         return initData;
     }

@@ -9,28 +9,30 @@
 
 import Ice, Test, TestI, sys
 
+def MyValueFactory(type):
+    if type == '::Test::B':
+        return TestI.BI()
+    elif type == '::Test::C':
+        return TestI.CI()
+    elif type == '::Test::D':
+        return TestI.DI()
+    elif type == '::Test::E':
+        return TestI.EI()
+    elif type == '::Test::F':
+        return TestI.FI()
+    elif type == '::Test::I':
+        return TestI.II()
+    elif type == '::Test::J':
+        return TestI.JI()
+    elif type == '::Test::H':
+        return TestI.HI()
+    assert(False) # Should never be reached
+
 class MyObjectFactory(Ice.ObjectFactory):
     def create(self, type):
-        if type == '::Test::B':
-            return TestI.BI()
-        elif type == '::Test::C':
-            return TestI.CI()
-        elif type == '::Test::D':
-            return TestI.DI()
-        elif type == '::Test::E':
-            return TestI.EI()
-        elif type == '::Test::F':
-            return TestI.FI()
-        elif type == '::Test::I':
-            return TestI.II()
-        elif type == '::Test::J':
-            return TestI.JI()
-        elif type == '::Test::H':
-            return TestI.HI()
-        assert(False) # Should never be reached
+        return None
 
-    def destroy(self):
-        # Nothing to do
+    def destroy():
         pass
 
 def test(b):
@@ -38,15 +40,16 @@ def test(b):
         raise RuntimeError('test assertion failed')
 
 def allTests(communicator):
-    factory = MyObjectFactory()
-    communicator.addObjectFactory(factory, '::Test::B')
-    communicator.addObjectFactory(factory, '::Test::C')
-    communicator.addObjectFactory(factory, '::Test::D')
-    communicator.addObjectFactory(factory, '::Test::E')
-    communicator.addObjectFactory(factory, '::Test::F')
-    communicator.addObjectFactory(factory, '::Test::I')
-    communicator.addObjectFactory(factory, '::Test::J')
-    communicator.addObjectFactory(factory, '::Test::H')
+    communicator.getValueFactoryManager().add(MyValueFactory, '::Test::B')
+    communicator.getValueFactoryManager().add(MyValueFactory, '::Test::C')
+    communicator.getValueFactoryManager().add(MyValueFactory, '::Test::D')
+    communicator.getValueFactoryManager().add(MyValueFactory, '::Test::E')
+    communicator.getValueFactoryManager().add(MyValueFactory, '::Test::F')
+    communicator.getValueFactoryManager().add(MyValueFactory, '::Test::I')
+    communicator.getValueFactoryManager().add(MyValueFactory, '::Test::J')
+    communicator.getValueFactoryManager().add(MyValueFactory, '::Test::H')
+
+    communicator.addObjectFactory(MyObjectFactory(), "TestOF")
 
     sys.stdout.write("testing stringToProxy... ")
     sys.stdout.flush()
@@ -67,19 +70,19 @@ def allTests(communicator):
     b1 = initial.getB1()
     test(b1)
     print("ok")
-    
+
     sys.stdout.write("getting B2... ")
     sys.stdout.flush()
     b2 = initial.getB2()
     test(b2)
     print("ok")
-    
+
     sys.stdout.write("getting C... ")
     sys.stdout.flush()
     c = initial.getC()
     test(c)
     print("ok")
-    
+
     sys.stdout.write("getting D... ")
     sys.stdout.flush()
     d = initial.getD()
@@ -97,26 +100,26 @@ def allTests(communicator):
     test(f.e2.checkValues())
     test(f._e1.checkValues())
     print("ok")
-    
+
     sys.stdout.write("getting I, J, H... ")
     sys.stdout.flush()
     i = initial.getI()
     test(i)
     j = initial.getJ()
-    test(isinstance(j, Test.J))
+    test(isinstance(j, TestI.JI))
     h = initial.getH()
     test(isinstance(h, Test.H))
     print("ok")
-    
+
     sys.stdout.write("getting D1... ")
     sys.stdout.flush()
-    d1 = initial.getD1(Test.D1(Test.A1("a1"), Test.A1("a2"), Test.A1("a3"), Test.A1("a4")));
+    d1 = initial.getD1(Test.D1(Test.A1("a1"), Test.A1("a2"), Test.A1("a3"), Test.A1("a4")))
     test(d1.a1.name == "a1")
     test(d1.a2.name == "a2")
     test(d1.a3.name == "a3")
     test(d1.a4.name == "a4")
     print("ok")
-    
+
     sys.stdout.write("throw EDerived... ")
     sys.stdout.flush()
     try:
@@ -135,7 +138,7 @@ def allTests(communicator):
     initial.setI(TestI.JI())
     initial.setI(TestI.HI())
     print("ok")
-    
+
     sys.stdout.write("checking consistency... ")
     sys.stdout.flush()
     test(b1 != b2)
@@ -152,11 +155,11 @@ def allTests(communicator):
     test(b1.theA.theC)
     test(b1.theA.theC.theB == b1.theA)
     test(b1.preMarshalInvoked)
-    test(b1.postUnmarshalInvoked())
+    test(b1.postUnmarshalInvoked)
     test(b1.theA.preMarshalInvoked)
-    test(b1.theA.postUnmarshalInvoked())
+    test(b1.theA.postUnmarshalInvoked)
     test(b1.theA.theC.preMarshalInvoked)
-    test(b1.theA.theC.postUnmarshalInvoked())
+    test(b1.theA.theC.postUnmarshalInvoked)
     # More tests possible for b2 and d, but I think this is already sufficient.
     test(b2.theA == b2)
     test(d.theC == None)
@@ -170,7 +173,7 @@ def allTests(communicator):
     test(c)
     test(d)
     print("ok")
-    
+
     sys.stdout.write("checking consistency... ")
     sys.stdout.flush()
     test(b1 != b2)
@@ -190,13 +193,13 @@ def allTests(communicator):
     test(d.theB == b2)
     test(d.theC == None)
     test(d.preMarshalInvoked)
-    test(d.postUnmarshalInvoked())
+    test(d.postUnmarshalInvoked)
     test(d.theA.preMarshalInvoked)
-    test(d.theA.postUnmarshalInvoked())
+    test(d.theA.postUnmarshalInvoked)
     test(d.theB.preMarshalInvoked)
-    test(d.theB.postUnmarshalInvoked())
+    test(d.theB.postUnmarshalInvoked)
     test(d.theB.theC.preMarshalInvoked)
-    test(d.theB.theC.postUnmarshalInvoked())
+    test(d.theB.theC.postUnmarshalInvoked)
     print("ok")
 
     sys.stdout.write("testing sequences... ")
@@ -219,8 +222,16 @@ def allTests(communicator):
         pass
     print("ok")
 
+    sys.stdout.write("testing marshaled results...")
+    sys.stdout.flush()
+    b1 = initial.getMB()
+    test(b1 != None and b1.theB == b1)
+    b1 = initial.getAMDMBAsync().result()
+    test(b1 != None and b1.theB == b1)
+    print("ok")
+
     # Don't run this test with collocation, this should work with collocation
-    # but the test isn't written to support it (we'd need support for the 
+    # but the test isn't written to support it (we'd need support for the
     # streaming interface)
     if initial.ice_getConnection():
         sys.stdout.write("testing UnexpectedObjectException... ")
@@ -243,5 +254,15 @@ def allTests(communicator):
             print(sys.exc_info())
             test(False)
         print("ok")
+
+    sys.stdout.write("testing getting ObjectFactory... ")
+    sys.stdout.flush()
+    test(communicator.findObjectFactory("TestOF") != None)
+    print("ok")
+
+    sys.stdout.write("testing getting ObjectFactory as ValueFactory... ")
+    sys.stdout.flush()
+    test(communicator.getValueFactoryManager().find("TestOF") != None)
+    print("ok")
 
     return initial

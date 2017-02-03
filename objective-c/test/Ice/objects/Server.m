@@ -11,55 +11,46 @@
 #import <TestCommon.h>
 #import <objects/TestI.h>
 
-@interface ServerMyObjectFactory : NSObject<ICEObjectFactory>
-@end
-
-@implementation ServerMyObjectFactory
-// Note that the object factory must not autorelease the
+// Note that the factory must not autorelease the
 // returned objects.
--(ICEObject*) create:(NSString*)type
+static ICEValueFactory factory = ^ICEObject* (NSString* type)
 {
     if([type isEqualToString:@"::Test::I"])
     {
-        return [[TestObjectsI alloc] init];
+        return ICE_AUTORELEASE([[TestObjectsI alloc] init]);
     }
     else if([type isEqualToString:@"::Test::J"])
     {
-        return [[TestObjectsJI alloc] init];
+        return ICE_AUTORELEASE([[TestObjectsJI alloc] init]);
     }
     else if([type isEqualToString:@"::Test::H"])
     {
-        return [[TestObjectsHI alloc] init];
+        return ICE_AUTORELEASE([[TestObjectsHI alloc] init]);
     }
     else
     {
         test(NO); // Should never be reached
     }
     return nil;
-}
-
--(void) destroy
-{
-    // Nothing to do
-}
-@end
+};
 
 static int
 run(id<ICECommunicator> communicator)
 {
-    id<ICEObjectFactory> factory = ICE_AUTORELEASE([[ServerMyObjectFactory alloc] init]);
-
-    [communicator addObjectFactory:factory sliceId:@"::Test::I"];
-    [communicator addObjectFactory:factory sliceId:@"::Test::J"];
-    [communicator addObjectFactory:factory sliceId:@"::Test::H"];
+    [[communicator getValueFactoryManager] add:factory sliceId:@"::Test::I"];
+    [[communicator getValueFactoryManager] add:factory sliceId:@"::Test::J"];
+    [[communicator getValueFactoryManager] add:factory sliceId:@"::Test::H"];
 
     [[communicator getProperties] setProperty:@"TestAdapter.Endpoints" value:@"default -p 12010"];
     id<ICEObjectAdapter> adapter = [communicator createObjectAdapter:@"TestAdapter"];
     ICEObject* initial = [TestObjectsInitialI initial];
-    [adapter add:initial identity:[communicator stringToIdentity:@"initial"]];
+    [adapter add:initial identity:[ICEUtil stringToIdentity:@"initial"]];
+
+    ICEObject* testObj = ICE_AUTORELEASE([[TestObjectsTestIntfI alloc] init]);
+    [adapter add:testObj identity:[ICEUtil stringToIdentity:@"test"]];
 
     ICEObject* uoet = ICE_AUTORELEASE([[UnexpectedObjectExceptionTestI alloc] init]);
-    [adapter add:uoet identity:[communicator stringToIdentity:@"uoet"]];
+    [adapter add:uoet identity:[ICEUtil stringToIdentity:@"uoet"]];
     [adapter activate];
 
     serverReady(communicator);
@@ -75,6 +66,13 @@ run(id<ICECommunicator> communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    ICEregisterIceSSL(YES);
+#if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+    ICEregisterIceIAP(YES);
+#endif
+#endif
+
     int status;
     @autoreleasepool
     {
@@ -84,7 +82,7 @@ main(int argc, char* argv[])
             ICEInitializationData* initData = [ICEInitializationData initializationData];
             initData.properties = defaultServerProperties(&argc, argv);
 #if TARGET_OS_IPHONE
-            initData.prefixTable__ = [NSDictionary dictionaryWithObjectsAndKeys:
+            initData.prefixTable_ = [NSDictionary dictionaryWithObjectsAndKeys:
                                       @"TestObjects", @"::Test",
                                       nil];
 #endif
@@ -99,15 +97,7 @@ main(int argc, char* argv[])
 
         if(communicator)
         {
-            @try
-            {
-                [communicator destroy];
-            }
-            @catch(ICEException* ex)
-            {
-                tprintf("%@\n", ex);
-                status = EXIT_FAILURE;
-            }
+            [communicator destroy];
         }
     }
     return status;

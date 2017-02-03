@@ -8,7 +8,6 @@
 // **********************************************************************
 
 using System;
-using System.Diagnostics;
 using System.Reflection;
 
 [assembly: CLSCompliant(true)]
@@ -17,62 +16,36 @@ using System.Reflection;
 [assembly: AssemblyDescription("IceDiscovery test")]
 [assembly: AssemblyCompany("ZeroC, Inc.")]
 
-public class Server
+public class Server : TestCommon.Application
 {
-    private static int run(string[] args, Ice.Communicator communicator)
+    public override int run(string[] args)
     {
-        Ice.Properties properties = communicator.getProperties();
+        Ice.Properties properties = communicator().getProperties();
 
         int num = 0;
         try
         {
-            num =  System.Int32.Parse(args[0]);
+            num =  Int32.Parse(args[0]);
         }
-        catch(System.FormatException)
+        catch(FormatException)
         {
         }
 
-        properties.setProperty("ControlAdapter.Endpoints", "default -p " + (12010 + num));
+        properties.setProperty("ControlAdapter.Endpoints", getTestEndpoint(num));
         properties.setProperty("ControlAdapter.AdapterId", "control" + num);
         properties.setProperty("ControlAdapter.ThreadPool.Size", "1");
 
-        Ice.ObjectAdapter adapter = communicator.createObjectAdapter("ControlAdapter");
-        adapter.add(new ControllerI(), communicator.stringToIdentity("controller" + num));
+        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("ControlAdapter");
+        adapter.add(new ControllerI(), Ice.Util.stringToIdentity("controller" + num));
         adapter.activate();
 
-        communicator.waitForShutdown();
+        communicator().waitForShutdown();
         return 0;
     }
 
     public static int Main(string[] args)
     {
-        int status = 0;
-        Ice.Communicator communicator = null;
-
-        try
-        {
-            communicator = Ice.Util.initialize(ref args);
-            status = run(args, communicator);
-        }
-        catch(System.Exception ex)
-        {
-            System.Console.Error.WriteLine(ex);
-            status = 1;
-        }
-
-        if(communicator != null)
-        {
-            try
-            {
-                communicator.destroy();
-            }
-            catch(Ice.LocalException ex)
-            {
-                System.Console.Error.WriteLine(ex);
-                status = 1;
-            }
-        }
-
-        return status;
+        Server app = new Server();
+        return app.runmain(args);
     }
 }

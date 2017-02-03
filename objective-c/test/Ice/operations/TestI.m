@@ -54,8 +54,8 @@
 }
 
 -(ICELong) opShortIntLong:(ICEShort)p1 p2:(ICEInt)p2 p3:(ICELong)p3
-                          p4:(ICEShort *)p4 p5:(ICEInt *)p5 p6:(ICELong *)p6
-		          current:(ICECurrent *)current
+                       p4:(ICEShort *)p4 p5:(ICEInt *)p5 p6:(ICELong *)p6
+                  current:(ICECurrent *)current
 {
     *p4 = p1;
     *p5 = p2;
@@ -64,7 +64,7 @@
 }
 
 -(ICEDouble) opFloatDouble:(ICEFloat)p1 p2:(ICEDouble)p2 p3:(ICEFloat *)p3 p4:(ICEDouble *)p4
-                           current:(ICECurrent *)current
+                   current:(ICECurrent *)current
 {
     *p3 = p1;
     *p4 = p2;
@@ -97,8 +97,7 @@
 {
     *p2 = p1;
     *p3 = [TestOperationsMyClassPrx uncheckedCast:[current.adapter
-                                           createProxy:[[current.adapter getCommunicator]
-                                                           stringToIdentity:@"noSuchIdentity"]]];
+                                           createProxy:[ICEUtil stringToIdentity:@"noSuchIdentity"]]];
     return [TestOperationsMyClassPrx uncheckedCast:[current.adapter createProxy:[current id_]]];
 }
 
@@ -145,7 +144,7 @@
 
 -(TestOperationsLongS *) opShortIntLongS:(TestOperationsMutableShortS *)p1 p2:(TestOperationsMutableIntS *)p2 p3:(TestOperationsMutableLongS *)p3
                                p4:(TestOperationsShortS **)p4 p5:(TestOperationsIntS **)p5 p6:(TestOperationsLongS **)p6
-			       current:(ICECurrent *)current
+                               current:(ICECurrent *)current
 {
     *p4 = [TestOperationsMutableShortS dataWithData:p1];
     *p5 = [TestOperationsMutableIntS dataWithLength:[p2 length]];
@@ -265,7 +264,7 @@
 
 -(TestOperationsLongSS *) opShortIntLongSS:(TestOperationsMutableShortSS *)p1 p2:(TestOperationsMutableIntSS *)p2 p3:(TestOperationsMutableLongSS *)p3
                                  p4:(TestOperationsShortSS **)p4 p5:(TestOperationsIntSS **)p5 p6:(TestOperationsLongSS **)p6
-			         current:(ICECurrent *)current
+                                 current:(ICECurrent *)current
 {
     *p4 = [TestOperationsShortSS arrayWithArray:p1];
     *p5 = [TestOperationsMutableIntSS array];
@@ -609,7 +608,7 @@
     int *target = (int *)[r bytes];
     while(count-- > 0)
     {
-	*target++ = -*src++;
+        *target++ = -*src++;
     }
     return r;
 }
@@ -649,7 +648,7 @@
     int i;
     for(i = 0; i < [p2 length] / sizeof(ICEDouble); ++i)
     {
-	test(p[i] == d);
+        test(p[i] == d);
     }
 }
 
@@ -762,6 +761,41 @@
 -(TestOperationsStringS *) opWStringLiterals:(ICECurrent *)current
 {
     return [self opStringLiterals:current];
+}
+
+-(TestOperationsStructure*) opMStruct1:(ICECurrent *)current
+{
+    return [TestOperationsStructure structure];
+}
+-(TestOperationsStructure*) opMStruct2:(TestOperationsStructure*)p1 p2:(TestOperationsStructure**)p2
+                               current:(ICECurrent *)current
+{
+    *p2 = p1;
+    return p1;
+}
+
+-(TestOperationsStringS*) opMSeq1:(ICECurrent *)current
+{
+    return [TestOperationsStringS array];
+}
+
+-(TestOperationsStringS*) opMSeq2:(TestOperationsMutableStringS*)p1 p2:(TestOperationsStringS**)p2
+                          current:(ICECurrent *)current
+{
+    *p2 = p1;
+    return p1;
+}
+
+-(TestOperationsStringStringD*) opMDict1:(ICECurrent *)current
+{
+    return [TestOperationsStringStringD dictionary];
+}
+
+-(TestOperationsStringStringD*) opMDict2:(TestOperationsMutableStringStringD*)p1 p2:(TestOperationsStringStringD**)p2
+                                 current:(ICECurrent *)current
+{
+    *p2 = p1;
+    return p1;
 }
 
 -(TestOperationsMyClass1*) opMyClass1:(TestOperationsMyClass1*)p current:(ICECurrent*)current

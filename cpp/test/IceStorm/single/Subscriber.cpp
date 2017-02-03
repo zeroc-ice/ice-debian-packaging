@@ -123,6 +123,21 @@ run(int, char* argv[], const CommunicatorPtr& communicator)
 
     ObjectAdapterPtr adapter = communicator->createObjectAdapterWithEndpoints("SingleAdapter", "default:udp");
 
+    //
+    // Test topic name that is too long
+    //
+    if(string(argv[1]) != "transient")
+    {
+        try
+        {
+            manager->create(string(512, 'A'));
+            test(false);
+        }
+        catch(const Ice::UnknownException&)
+        {
+        }
+    }
+
     TopicPrx topic;
     try
     {
@@ -132,6 +147,22 @@ run(int, char* argv[], const CommunicatorPtr& communicator)
     {
         cerr << argv[0] << ": NoSuchTopic: " << e.name << endl;
         return EXIT_FAILURE;
+    }
+
+    //
+    // Test subscriber identity that is too long
+    //
+    if(string(argv[1]) != "transient")
+    {
+        try
+        {
+            Ice::ObjectPrx object = communicator->stringToProxy(string(512, 'A') + ":default -p 10000");
+            topic->subscribeAndGetPublisher(IceStorm::QoS(), object);
+            test(false);
+        }
+        catch(const Ice::UnknownException&)
+        {
+        }
     }
 
     //
@@ -220,7 +251,8 @@ main(int argc, char* argv[])
 
     try
     {
-        communicator = initialize(argc, argv);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        communicator = initialize(argc, argv, initData);
         status = run(argc, argv, communicator);
     }
     catch(const Exception& ex)
@@ -231,15 +263,7 @@ main(int argc, char* argv[])
 
     if(communicator)
     {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
+        communicator->destroy();
     }
 
     return status;

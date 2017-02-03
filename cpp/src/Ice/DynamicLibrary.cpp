@@ -9,10 +9,14 @@
 
 #include <Ice/DynamicLibrary.h>
 #include <IceUtil/StringUtil.h>
-#include <IceUtil/StringConverter.h>
+#include <Ice/StringConverter.h>
 
 #ifndef _WIN32
 #   include <dlfcn.h>
+#endif
+
+#if defined(ICE_CPP11) && defined(__GNUC__) && (__GNUC__ < 6) && defined(__GLIBCXX__)
+#   define ICE_LIBSUFFIX "++11"
 #endif
 
 using namespace Ice;
@@ -22,7 +26,7 @@ using namespace std;
 IceUtil::Shared* IceInternal::upCast(DynamicLibrary* p) { return p; }
 IceUtil::Shared* IceInternal::upCast(DynamicLibraryList* p) { return p; }
 
-IceInternal::DynamicLibrary::DynamicLibrary() : 
+IceInternal::DynamicLibrary::DynamicLibrary() :
     _hnd(0)
 {
 }
@@ -89,24 +93,23 @@ IceInternal::DynamicLibrary::loadEntryPoint(const string& entryPoint, bool useIc
     if(comma == string::npos)
     {
         libName = libSpec;
-#  if defined(ICE_CPP11) && defined(__GLIBCXX__)
+#  if defined(ICE_CPP11_MAPPING) && !defined(_WIN32)
         libName += "++11";
 #  endif
         if(useIceVersion)
         {
             int majorVersion = (ICE_INT_VERSION / 10000);
             int minorVersion = (ICE_INT_VERSION / 100) - majorVersion * 100;
+            int patchVersion = ICE_INT_VERSION % 100;
             ostringstream os;
             os << majorVersion * 10 + minorVersion;
-
-            int patchVersion = ICE_INT_VERSION % 100;
-            if(patchVersion > 50)
+            if(patchVersion >= 60)
             {
-                os << 'b';
-                if(patchVersion >= 52)
-                {
-                    os << (patchVersion - 50);
-                }
+                os << 'b' << (patchVersion - 60);
+            }
+            else if(patchVersion >= 50)
+            {
+                os << 'a' << (patchVersion - 50);
             }
             version = os.str();
         }
@@ -119,7 +122,7 @@ IceInternal::DynamicLibrary::loadEntryPoint(const string& entryPoint, bool useIc
             return 0;
         }
         libName = libSpec.substr(0, comma);
-#  if defined(ICE_CPP11) && defined(__GLIBCXX__)
+#  if defined(ICE_CPP11_MAPPING) && !defined(_WIN32)
         libName += "++11";
 #  endif
         version = libSpec.substr(comma + 1);
@@ -130,6 +133,13 @@ IceInternal::DynamicLibrary::loadEntryPoint(const string& entryPoint, bool useIc
 #ifdef _WIN32
     lib += libName;
     lib += version;
+#  ifdef ICE_OS_UWP
+    lib += "uwp";
+#  endif
+
+#  ifdef ICE_CPP11_MAPPING
+    lib += "++11";
+#  endif
 
 #   if defined(_DEBUG) && !defined(__MINGW32__)
     lib += 'd';
@@ -207,10 +217,10 @@ IceInternal::DynamicLibrary::load(const string& lib)
     // Don't need to use a wide string converter as the wide string is passed
     // to Windows API.
     //
-#ifdef ICE_OS_WINRT
-    _hnd = LoadPackagedLibrary(IceUtil::stringToWstring(lib, IceUtil::getProcessStringConverter()).c_str(), 0);
+#ifdef ICE_OS_UWP
+    _hnd = LoadPackagedLibrary(stringToWstring(lib, getProcessStringConverter()).c_str(), 0);
 #elif defined(_WIN32)
-    _hnd = LoadLibraryW(IceUtil::stringToWstring(lib, IceUtil::getProcessStringConverter()).c_str());
+    _hnd = LoadLibraryW(stringToWstring(lib, getProcessStringConverter()).c_str());
 #else
 
     int flags = RTLD_NOW | RTLD_GLOBAL;
@@ -273,9 +283,13 @@ IceInternal::DynamicLibrary::getErrorMessage() const
     return _err;
 }
 
+IceInternal::DynamicLibraryList::~DynamicLibraryList()
+{
+    // Out of line to avoid weak vtable
+}
+
 void
 IceInternal::DynamicLibraryList::add(const DynamicLibraryPtr& library)
 {
     _libraries.push_back(library);
 }
-

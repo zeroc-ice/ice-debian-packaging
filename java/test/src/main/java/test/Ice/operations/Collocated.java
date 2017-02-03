@@ -14,10 +14,10 @@ public class Collocated extends test.Util.Application
     @Override
     public int run(String[] args)
     {
-        communicator().getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010:udp");
+        communicator().getProperties().setProperty("TestAdapter.Endpoints", getTestEndpoint(0) + ":udp");
         java.io.PrintWriter out = getWriter();
-        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
-        Ice.ObjectPrx prx = adapter.add(new MyDerivedClassI(), communicator().stringToIdentity("test"));
+        com.zeroc.Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
+        com.zeroc.Ice.ObjectPrx prx = adapter.add(new MyDerivedClassI(), com.zeroc.Ice.Util.stringToIdentity("test"));
         //adapter.activate(); // Don't activate OA to ensure collocation is used.
 
         if(prx.ice_getConnection() != null)
@@ -25,16 +25,15 @@ public class Collocated extends test.Util.Application
             throw new RuntimeException();
         }
 
-        AllTests.allTests(this, out);
+        AllTests.allTests(this);
 
         return 0;
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData();
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         if(initData.properties.getPropertyAsInt("Ice.ThreadInterruptSafe") > 0 || isAndroid())
         {
             initData.properties.setProperty("Ice.ThreadPool.Server.Size", "2");

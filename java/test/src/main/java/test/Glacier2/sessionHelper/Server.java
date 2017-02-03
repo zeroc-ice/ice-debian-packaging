@@ -11,32 +11,28 @@ package test.Glacier2.sessionHelper;
 
 public class Server extends test.Util.Application
 {
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
-        communicator().getProperties().setProperty("DeactivatedAdapter.Endpoints", "default -p 12011");
+        communicator().getProperties().setProperty("DeactivatedAdapter.Endpoints", getTestEndpoint(1));
         communicator().createObjectAdapter("DeactivatedAdapter");
 
-        communicator().getProperties().setProperty("CallbackAdapter.Endpoints", "default -p 12010");
-        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("CallbackAdapter");
-        adapter.add(new CallbackI(), communicator().stringToIdentity("callback"));
+        communicator().getProperties().setProperty("CallbackAdapter.Endpoints", getTestEndpoint(0));
+        com.zeroc.Ice.ObjectAdapter adapter = communicator().createObjectAdapter("CallbackAdapter");
+        adapter.add(new CallbackI(), com.zeroc.Ice.Util.stringToIdentity("callback"));
         adapter.activate();
         communicator().waitForShutdown();
         return 0;
     }
 
-
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    @Override
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Glacier2.router");
-
         return initData;
     }
 
-    public static void
-    main(String[] args)
+    public static void main(String[] args)
     {
         Server c = new Server();
         int status = c.main("Server", args);

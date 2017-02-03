@@ -10,15 +10,17 @@
 namespace Ice
 {
     using System;
-    using System.Collections;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Text;
     using System.Threading;
-    using Ice.Instrumentation;
+    using System.Threading.Tasks;
+    using System.Linq;
 
-    public sealed class ConnectionI :
-        IceInternal.EventHandler, IceInternal.ResponseHandler, IceInternal.CancellationHandler, Connection
+    using Instrumentation;
+    using IceInternal;
+
+    public sealed class ConnectionI : IceInternal.EventHandler, ResponseHandler, CancellationHandler, Connection
     {
         public interface StartCallback
         {
@@ -26,7 +28,7 @@ namespace Ice
             void connectionStartFailed(ConnectionI connection, LocalException ex);
         }
 
-        private class TimeoutCallback : IceInternal.TimerTask
+        private class TimeoutCallback : TimerTask
         {
             public TimeoutCallback(ConnectionI connection)
             {
@@ -38,7 +40,7 @@ namespace Ice
                 _connection.timedOut();
             }
 
-            private Ice.ConnectionI _connection;
+            private ConnectionI _connection;
         }
 
         public void start(StartCallback callback)
@@ -56,7 +58,7 @@ namespace Ice
                         throw _exception;
                     }
 
-                    if(!initialize(IceInternal.SocketOperation.None) || !validate(IceInternal.SocketOperation.None))
+                    if(!initialize(SocketOperation.None) || !validate(SocketOperation.None))
                     {
                         _startCallback = callback;
                         return;
@@ -93,14 +95,14 @@ namespace Ice
                         throw _exception;
                     }
 
-                    if(!initialize(IceInternal.SocketOperation.None) || !validate(IceInternal.SocketOperation.None))
+                    if(!initialize(SocketOperation.None) || !validate(SocketOperation.None))
                     {
                         //
                         // Wait for the connection to be validated.
                         //
                         while(_state <= StateNotValidated)
                         {
-                            System.Threading.Monitor.Wait(this);
+                            Monitor.Wait(this);
                         }
 
                         if(_state >= StateClosing)
@@ -135,7 +137,7 @@ namespace Ice
 
                 if(_acmLastActivity > -1)
                 {
-                    _acmLastActivity = IceInternal.Time.currentMonotonicTimeMillis();
+                    _acmLastActivity = Time.currentMonotonicTimeMillis();
                 }
                 setState(StateActive);
             }
@@ -179,29 +181,31 @@ namespace Ice
             }
         }
 
-        public void close(bool force)
+        public void close(ConnectionClose mode)
         {
             lock(this)
             {
-                if(force)
+                if(mode == ConnectionClose.CloseForcefully)
                 {
-                    setState(StateClosed, new ForcedCloseConnectionException());
+                    setState(StateClosed, new ConnectionManuallyClosedException(false));
+                }
+                else if(mode == ConnectionClose.CloseGracefully)
+                {
+                    setState(StateClosing, new ConnectionManuallyClosedException(true));
                 }
                 else
                 {
+                    Debug.Assert(mode == ConnectionClose.CloseGracefullyAndWait);
+
                     //
-                    // If we do a graceful shutdown, then we wait until all
-                    // outstanding requests have been completed. Otherwise,
-                    // the CloseConnectionException will cause all outstanding
-                    // requests to be retried, regardless of whether the
-                    // server has processed them or not.
+                    // Wait until all outstanding requests have been completed.
                     //
                     while(_asyncRequests.Count != 0)
                     {
-                        System.Threading.Monitor.Wait(this);
+                        Monitor.Wait(this);
                     }
 
-                    setState(StateClosing, new CloseConnectionException());
+                    setState(StateClosing, new ConnectionManuallyClosedException(true));
                 }
             }
         }
@@ -221,7 +225,7 @@ namespace Ice
             // threads operating in this connection object, connection
             // destruction is considered as not yet finished.
             //
-            if(!System.Threading.Monitor.TryEnter(this))
+            if(!Monitor.TryEnter(this))
             {
                 return false;
             }
@@ -238,7 +242,7 @@ namespace Ice
             }
             finally
             {
-                System.Threading.Monitor.Exit(this);
+                Monitor.Exit(this);
             }
         }
 
@@ -260,7 +264,7 @@ namespace Ice
             {
                 while(_state < StateHolding || _dispatchCount > 0)
                 {
-                    System.Threading.Monitor.Wait(this);
+                    Monitor.Wait(this);
                 }
             }
         }
@@ -277,7 +281,7 @@ namespace Ice
                 //
                 while(_state < StateFinished || _dispatchCount > 0)
                 {
-                    System.Threading.Monitor.Wait(this);
+                    Monitor.Wait(this);
                 }
 
                 Debug.Assert(_state == StateFinished);
@@ -315,7 +319,7 @@ namespace Ice
             }
         }
 
-        public void monitor(long now, IceInternal.ACMConfig acm)
+        public void monitor(long now, ACMConfig acm)
         {
             lock(this)
             {
@@ -328,13 +332,13 @@ namespace Ice
                 // We send a heartbeat if there was no activity in the last
                 // (timeout / 4) period. Sending a heartbeat sooner than
                 // really needed is safer to ensure that the receiver will
-                // receive in time the heartbeat. Sending the heartbeat if
+                // receive the heartbeat in time. Sending the heartbeat if
                 // there was no activity in the last (timeout / 2) period
                 // isn't enough since monitor() is called only every (timeout
                 // / 2) period.
                 //
                 // Note that this doesn't imply that we are sending 4 heartbeats
-                // per timeout period because the monitor() method is sill only
+                // per timeout period because the monitor() method is still only
                 // called every (timeout / 2) period.
                 //
                 if(acm.heartbeat == ACMHeartbeat.HeartbeatAlways ||
@@ -343,11 +347,11 @@ namespace Ice
                 {
                     if(acm.heartbeat != ACMHeartbeat.HeartbeatOnInvocation || _dispatchCount > 0)
                     {
-                        heartbeat();
+                        sendHeartbeatNow();
                     }
                 }
 
-                if(_readStream.size() > IceInternal.Protocol.headerSize || !_writeStream.isEmpty())
+                if(_readStream.size() > Protocol.headerSize || !_writeStream.isEmpty())
                 {
                     //
                     // If writing or reading, nothing to do, the connection
@@ -382,21 +386,21 @@ namespace Ice
             }
         }
 
-        public bool sendAsyncRequest(IceInternal.OutgoingAsyncBase og, bool compress, bool response,
-                                     int batchRequestNum, out Ice.AsyncCallback sentCallback)
+        public int sendAsyncRequest(OutgoingAsyncBase og, bool compress, bool response,
+                                    int batchRequestNum)
         {
-            IceInternal.BasicStream os = og.getOs();
+            OutputStream os = og.getOs();
 
             lock(this)
             {
+                //
+                // If the exception is closed before we even have a chance
+                // to send our request, we always try to send the request
+                // again.
+                //
                 if(_exception != null)
                 {
-                    //
-                    // If the connection is closed before we even have a chance
-                    // to send our request, we always try to send the request
-                    // again.
-                    //
-                    throw new IceInternal.RetryException(_exception);
+                    throw new RetryException(_exception);
                 }
 
                 Debug.Assert(_state > StateNotValidated);
@@ -413,7 +417,6 @@ namespace Ice
                 // This will throw if the request is canceled.
                 //
                 og.cancelable(this);
-
                 int requestId = 0;
                 if(response)
                 {
@@ -430,23 +433,22 @@ namespace Ice
                     //
                     // Fill in the request ID.
                     //
-                    os.pos(IceInternal.Protocol.headerSize);
+                    os.pos(Protocol.headerSize);
                     os.writeInt(requestId);
                 }
                 else if(batchRequestNum > 0)
                 {
-                    os.pos(IceInternal.Protocol.headerSize);
+                    os.pos(Protocol.headerSize);
                     os.writeInt(batchRequestNum);
                 }
 
                 og.attachRemoteObserver(initConnectionInfo(), _endpoint, requestId);
 
-                bool sent;
+                int status = OutgoingAsyncBase.AsyncStatusQueued;
                 try
                 {
-                    OutgoingMessage msg = new OutgoingMessage(og, os, compress, requestId);
-                    sent = sendMessage(msg);
-                    sentCallback = msg.sentCallback;
+                    OutgoingMessage message = new OutgoingMessage(og, os, compress, requestId);
+                    status = sendMessage(message);
                 }
                 catch(LocalException ex)
                 {
@@ -462,52 +464,92 @@ namespace Ice
                     //
                     _asyncRequests[requestId] = og;
                 }
-                return sent;
+                return status;
             }
         }
 
-        public IceInternal.BatchRequestQueue getBatchRequestQueue()
+        public BatchRequestQueue getBatchRequestQueue()
         {
             return _batchRequestQueue;
         }
 
         public void flushBatchRequests()
         {
-            end_flushBatchRequests(begin_flushBatchRequests());
+            flushBatchRequestsAsync().Wait();
         }
 
-        public AsyncResult begin_flushBatchRequests()
+        private class ConnectionFlushBatchCompletionCallback : AsyncResultCompletionCallback
         {
-            return begin_flushBatchRequestsInternal(null, null);
+            public ConnectionFlushBatchCompletionCallback(Connection connection,
+                                                          Communicator communicator,
+                                                          Instance instance,
+                                                          string op,
+                                                          object cookie,
+                                                          AsyncCallback callback)
+                : base(communicator, instance, op, cookie, callback)
+            {
+                _connection = connection;
+            }
+
+            public override Connection getConnection()
+            {
+                return _connection;
+            }
+
+            protected override AsyncCallback getCompletedCallback()
+            {
+                return (AsyncResult result) =>
+                {
+                    try
+                    {
+                        result.throwLocalException();
+                    }
+                    catch(Exception ex)
+                    {
+                        if(exceptionCallback_ != null)
+                        {
+                            exceptionCallback_.Invoke(ex);
+                        }
+                    }
+                };
+            }
+
+            private Connection _connection;
         }
 
-        public AsyncResult begin_flushBatchRequests(AsyncCallback cb, object cookie)
+        public Task flushBatchRequestsAsync(IProgress<bool> progress = null,
+                                            CancellationToken cancel = new CancellationToken())
         {
-            return begin_flushBatchRequestsInternal(cb, cookie);
+            var completed = new FlushBatchTaskCompletionCallback(progress, cancel);
+            var outgoing = new ConnectionFlushBatchAsync(this, _instance, completed);
+            outgoing.invoke(_flushBatchRequests_name);
+            return completed.Task;
+        }
+
+        public AsyncResult begin_flushBatchRequests(AsyncCallback cb = null, object cookie = null)
+        {
+            var result = new ConnectionFlushBatchCompletionCallback(this, _communicator, _instance,
+                                                                    _flushBatchRequests_name, cookie, cb);
+            var outgoing = new ConnectionFlushBatchAsync(this, _instance, result);
+            outgoing.invoke(_flushBatchRequests_name);
+            return result;
         }
 
         public void end_flushBatchRequests(AsyncResult r)
         {
-            IceInternal.ConnectionFlushBatch outAsync =
-                IceInternal.ConnectionFlushBatch.check(r, this, __flushBatchRequests_name);
-            outAsync.wait();
-        }
-
-        private const string __flushBatchRequests_name = "flushBatchRequests";
-
-        private AsyncResult begin_flushBatchRequestsInternal(AsyncCallback cb, object cookie)
-        {
-            IceInternal.ConnectionFlushBatch result =
-                new IceInternal.ConnectionFlushBatch(this, _communicator, _instance, __flushBatchRequests_name, cookie);
-            if(cb != null)
+            if(r != null && r.getConnection() != this)
             {
-                result.whenCompletedWithAsyncCallback(cb);
+                const string msg = "Connection for call to end_" + _flushBatchRequests_name +
+                                   " does not match connection that was used to call corresponding begin_" +
+                                   _flushBatchRequests_name + " method";
+                throw new ArgumentException(msg);
             }
-            result.invoke();
-            return result;
+            AsyncResultI.check(r, _flushBatchRequests_name).wait();
         }
 
-        public void setCallback(ConnectionCallback callback)
+        private const string _flushBatchRequests_name = "flushBatchRequests";
+
+        public void setCloseCallback(CloseCallback callback)
         {
             lock(this)
             {
@@ -519,7 +561,7 @@ namespace Ice
                         {
                             try
                             {
-                                callback.closed(this);
+                                callback(this);
                             }
                             catch(System.Exception ex)
                             {
@@ -530,9 +572,160 @@ namespace Ice
                 }
                 else
                 {
-                    _callback = callback;
+                    _closeCallback = callback;
                 }
             }
+        }
+
+        public void setHeartbeatCallback(HeartbeatCallback callback)
+        {
+            lock(this)
+            {
+                _heartbeatCallback = callback;
+            }
+        }
+
+        public void heartbeat()
+        {
+            heartbeatAsync().Wait();
+        }
+
+        private class HeartbeatCompletionCallback : AsyncResultCompletionCallback
+        {
+            public HeartbeatCompletionCallback(Ice.Connection connection,
+                                               Ice.Communicator communicator,
+                                               Instance instance,
+                                               object cookie,
+                                               Ice.AsyncCallback callback)
+                : base(communicator, instance, "heartbeat", cookie, callback)
+            {
+                _connection = connection;
+            }
+
+            public override Ice.Connection getConnection()
+            {
+                return _connection;
+            }
+
+            protected override Ice.AsyncCallback getCompletedCallback()
+            {
+                return (Ice.AsyncResult result) =>
+                {
+                    try
+                    {
+                        result.throwLocalException();
+                    }
+                    catch(Ice.Exception ex)
+                    {
+                        if(exceptionCallback_ != null)
+                        {
+                            exceptionCallback_.Invoke(ex);
+                        }
+                    }
+                };
+            }
+
+            private Ice.Connection _connection;
+        }
+
+        private class HeartbeatTaskCompletionCallback : TaskCompletionCallback<object>
+        {
+            public HeartbeatTaskCompletionCallback(System.IProgress<bool> progress,
+                                                   CancellationToken cancellationToken) :
+                base(progress, cancellationToken)
+            {
+            }
+
+            public override bool handleResponse(bool ok, OutgoingAsyncBase og)
+            {
+                SetResult(null);
+                return false;
+            }
+        }
+
+        private class HeartbeatAsync : OutgoingAsyncBase
+        {
+            public HeartbeatAsync(Ice.ConnectionI connection,
+                                  Instance instance,
+                                  OutgoingAsyncCompletionCallback completionCallback) :
+                base(instance, completionCallback)
+            {
+                _connection = connection;
+            }
+
+            public void invoke()
+            {
+                try
+                {
+                    os_.writeBlob(IceInternal.Protocol.magic);
+                    ProtocolVersion.ice_write(os_, Ice.Util.currentProtocol);
+                    EncodingVersion.ice_write(os_, Ice.Util.currentProtocolEncoding);
+                    os_.writeByte(IceInternal.Protocol.validateConnectionMsg);
+                    os_.writeByte((byte)0);
+                    os_.writeInt(IceInternal.Protocol.headerSize); // Message size.
+
+                    int status = _connection.sendAsyncRequest(this, false, false, 0);
+
+                    if((status & AsyncStatusSent) != 0)
+                    {
+                        sentSynchronously_ = true;
+                        if((status & AsyncStatusInvokeSentCallback) != 0)
+                        {
+                            invokeSent();
+                        }
+                    }
+                }
+                catch(RetryException ex)
+                {
+                    try
+                    {
+                        throw ex.get();
+                    }
+                    catch(Ice.LocalException ee)
+                    {
+                        if(exception(ee))
+                        {
+                            invokeExceptionAsync();
+                        }
+                    }
+                }
+                catch(Ice.Exception ex)
+                {
+                    if(exception(ex))
+                    {
+                        invokeExceptionAsync();
+                    }
+                }
+            }
+
+            private readonly Ice.ConnectionI _connection;
+        }
+
+        public Task heartbeatAsync(IProgress<bool> progress = null, CancellationToken cancel = new CancellationToken())
+        {
+            var completed = new HeartbeatTaskCompletionCallback(progress, cancel);
+            var outgoing = new HeartbeatAsync(this, _instance, completed);
+            outgoing.invoke();
+            return completed.Task;
+        }
+
+        public AsyncResult begin_heartbeat(AsyncCallback cb = null, object cookie = null)
+        {
+            var result = new HeartbeatCompletionCallback(this, _communicator, _instance, cookie, cb);
+            var outgoing = new HeartbeatAsync(this, _instance, result);
+            outgoing.invoke();
+            return result;
+        }
+
+        public void end_heartbeat(AsyncResult r)
+        {
+            if(r != null && r.getConnection() != this)
+            {
+                const string msg = "Connection for call to end_heartbeat does not match connection that was used " +
+                    "to call corresponding begin_heartbeat method";
+                throw new ArgumentException(msg);
+            }
+            AsyncResultI.check(r, "heartbeat").wait();
         }
 
         public void setACM(Optional<int> timeout, Optional<ACMClose> close, Optional<ACMHeartbeat> heartbeat)
@@ -556,7 +749,7 @@ namespace Ice
                 }
                 else if(_state == StateActive && _acmLastActivity == -1)
                 {
-                    _acmLastActivity = IceInternal.Time.currentMonotonicTimeMillis();
+                    _acmLastActivity = Time.currentMonotonicTimeMillis();
                 }
 
                 if(_state == StateActive)
@@ -574,7 +767,7 @@ namespace Ice
             }
         }
 
-        public void asyncRequestCanceled(IceInternal.OutgoingAsyncBase outAsync, Ice.LocalException ex)
+        public void asyncRequestCanceled(OutgoingAsyncBase outAsync, LocalException ex)
         {
             //
             // NOTE: This isn't called from a thread pool thread.
@@ -587,59 +780,58 @@ namespace Ice
                     return; // The request has already been or will be shortly notified of the failure.
                 }
 
-                LinkedListNode<OutgoingMessage> p;
-                for(p = _sendStreams.First; p != null; p = p.Next)
-                {
-                    OutgoingMessage o = p.Value;
-                    if(o.outAsync == outAsync)
-                    {
-                        if(o.requestId > 0)
-                        {
-                            _asyncRequests.Remove(o.requestId);
-                        }
 
-                        if(ex is Ice.ConnectionTimeoutException)
+                OutgoingMessage o = _sendStreams.FirstOrDefault(m => m.outAsync == outAsync);
+                if(o != null)
+                {
+                    if(o.requestId > 0)
+                    {
+                        _asyncRequests.Remove(o.requestId);
+                    }
+
+                    if(ex is ConnectionTimeoutException)
+                    {
+                        setState(StateClosed, ex);
+                    }
+                    else
+                    {
+                        //
+                        // If the request is being sent, don't remove it from the send streams,
+                        // it will be removed once the sending is finished.
+                        //
+                        if(o == _sendStreams.First.Value)
                         {
-                            setState(StateClosed, ex);
+                            o.canceled();
                         }
                         else
                         {
-                            //
-                            // If the request is being sent, don't remove it from the send streams,
-                            // it will be removed once the sending is finished.
-                            //
                             o.canceled();
-                            if(o != _sendStreams.First.Value)
-                            {
-                                _sendStreams.Remove(p);
-                            }
-                            Ice.AsyncCallback cb = outAsync.completed(ex);
-                            if(cb != null)
-                            {
-                                outAsync.invokeCompletedAsync(cb);
-                            }
+                            _sendStreams.Remove(o);
                         }
-                        return;
+                        if(outAsync.exception(ex))
+                        {
+                            outAsync.invokeExceptionAsync();
+                        }
                     }
+                    return;
                 }
 
-                if(outAsync is IceInternal.OutgoingAsync)
+                if(outAsync is OutgoingAsync)
                 {
-                    foreach(KeyValuePair<int, IceInternal.OutgoingAsyncBase> kvp in _asyncRequests)
+                    foreach(KeyValuePair<int, OutgoingAsyncBase> kvp in _asyncRequests)
                     {
                         if(kvp.Value == outAsync)
                         {
-                            if(ex is Ice.ConnectionTimeoutException)
+                            if(ex is ConnectionTimeoutException)
                             {
                                 setState(StateClosed, ex);
                             }
                             else
                             {
                                 _asyncRequests.Remove(kvp.Key);
-                                Ice.AsyncCallback cb = outAsync.completed(ex);
-                                if(cb != null)
+                                if(outAsync.exception(ex))
                                 {
-                                    outAsync.invokeCompletedAsync(cb);
+                                    outAsync.invokeExceptionAsync();
                                 }
                             }
                             return;
@@ -649,7 +841,7 @@ namespace Ice
             }
         }
 
-        public void sendResponse(int requestId, IceInternal.BasicStream os, byte compressFlag, bool amd)
+        public void sendResponse(int requestId, OutputStream os, byte compressFlag, bool amd)
         {
             lock(this)
             {
@@ -663,7 +855,7 @@ namespace Ice
                         {
                             reap();
                         }
-                        System.Threading.Monitor.PulseAll(this);
+                        Monitor.PulseAll(this);
                     }
 
                     if(_state >= StateClosed)
@@ -672,7 +864,7 @@ namespace Ice
                         throw _exception;
                     }
 
-                    sendMessage(new OutgoingMessage(os, compressFlag != 0, true));
+                    sendMessage(new OutgoingMessage(os, compressFlag > 0, true));
 
                     if(_state == StateClosing && _dispatchCount == 0)
                     {
@@ -700,7 +892,7 @@ namespace Ice
                         {
                             reap();
                         }
-                        System.Threading.Monitor.PulseAll(this);
+                        Monitor.PulseAll(this);
                     }
 
                     if(_state >= StateClosed)
@@ -721,7 +913,7 @@ namespace Ice
             }
         }
 
-        public bool systemException(int requestId, Ice.SystemException ex, bool amd)
+        public bool systemException(int requestId, SystemException ex, bool amd)
         {
             return false; // System exceptions aren't marshalled.
         }
@@ -747,18 +939,18 @@ namespace Ice
                         {
                             reap();
                         }
-                        System.Threading.Monitor.PulseAll(this);
+                        Monitor.PulseAll(this);
                     }
                 }
             }
         }
 
-        public IceInternal.EndpointI endpoint()
+        public EndpointI endpoint()
         {
             return _endpoint; // No mutex protection necessary, _endpoint is immutable.
         }
 
-        public IceInternal.Connector connector()
+        public Connector connector()
         {
             return _connector; // No mutex protection necessary, _endpoint is immutable.
         }
@@ -828,7 +1020,7 @@ namespace Ice
 
             try
             {
-                if((operation & IceInternal.SocketOperation.Write) != 0)
+                if((operation & SocketOperation.Write) != 0)
                 {
                     if(_observer != null)
                     {
@@ -843,7 +1035,7 @@ namespace Ice
                         _sendStreams.First.Value.isSent = true;
                     }
                 }
-                else if((operation & IceInternal.SocketOperation.Read) != 0)
+                else if((operation & SocketOperation.Read) != 0)
                 {
                     if(_observer != null && !_readHeader)
                     {
@@ -853,7 +1045,7 @@ namespace Ice
                     completedSynchronously = _transceiver.startRead(_readStream.getBuffer(), cb, this);
                 }
             }
-            catch(Ice.LocalException ex)
+            catch(LocalException ex)
             {
                 setState(StateClosed, ex);
                 return false;
@@ -865,7 +1057,7 @@ namespace Ice
         {
             try
             {
-                if((operation & IceInternal.SocketOperation.Write) != 0)
+                if((operation & SocketOperation.Write) != 0)
                 {
                     IceInternal.Buffer buf = _writeStream.getBuffer();
                     int start = buf.b.position();
@@ -891,7 +1083,7 @@ namespace Ice
                         observerFinishWrite(_writeStream.getBuffer());
                     }
                 }
-                else if((operation & IceInternal.SocketOperation.Read) != 0)
+                else if((operation & SocketOperation.Read) != 0)
                 {
                     IceInternal.Buffer buf = _readStream.getBuffer();
                     int start = buf.b.position();
@@ -922,21 +1114,21 @@ namespace Ice
                     }
                 }
             }
-            catch(Ice.LocalException ex)
+            catch(LocalException ex)
             {
                 setState(StateClosed, ex);
             }
             return _state < StateClosed;
         }
 
-        public override void message(ref IceInternal.ThreadPoolCurrent current)
+        public override void message(ref ThreadPoolCurrent current)
         {
             StartCallback startCB = null;
             Queue<OutgoingMessage> sentCBs = null;
             MessageInfo info = new MessageInfo();
             int dispatchCount = 0;
 
-            IceInternal.ThreadPoolMessage msg = new IceInternal.ThreadPoolMessage(this);
+            ThreadPoolMessage msg = new ThreadPoolMessage(this);
             try
             {
                 lock(this)
@@ -956,22 +1148,22 @@ namespace Ice
                     {
                         unscheduleTimeout(current.operation);
 
-                        int writeOp = IceInternal.SocketOperation.None;
-                        int readOp = IceInternal.SocketOperation.None;
-                        if((readyOp & IceInternal.SocketOperation.Write) != 0)
+                        int writeOp = SocketOperation.None;
+                        int readOp = SocketOperation.None;
+                        if((readyOp & SocketOperation.Write) != 0)
                         {
                             if(_observer != null)
                             {
                                 observerStartWrite(_writeStream.getBuffer());
                             }
                             writeOp = write(_writeStream.getBuffer());
-                            if(_observer != null && (writeOp & IceInternal.SocketOperation.Write) == 0)
+                            if(_observer != null && (writeOp & SocketOperation.Write) == 0)
                             {
                                 observerFinishWrite(_writeStream.getBuffer());
                             }
                         }
 
-                        while((readyOp & IceInternal.SocketOperation.Read) != 0)
+                        while((readyOp & SocketOperation.Read) != 0)
                         {
                             IceInternal.Buffer buf = _readStream.getBuffer();
 
@@ -981,7 +1173,7 @@ namespace Ice
                             }
 
                             readOp = read(buf);
-                            if((readOp & IceInternal.SocketOperation.Read) != 0)
+                            if((readOp & SocketOperation.Read) != 0)
                             {
                                 break;
                             }
@@ -997,16 +1189,16 @@ namespace Ice
 
                                 if(_observer != null)
                                 {
-                                    _observer.receivedBytes(IceInternal.Protocol.headerSize);
+                                    _observer.receivedBytes(Protocol.headerSize);
                                 }
 
                                 int pos = _readStream.pos();
-                                if(pos < IceInternal.Protocol.headerSize)
+                                if(pos < Protocol.headerSize)
                                 {
                                     //
                                     // This situation is possible for small UDP packets.
                                     //
-                                    throw new Ice.IllegalMessageSizeException();
+                                    throw new IllegalMessageSizeException();
                                 }
 
                                 _readStream.pos(0);
@@ -1015,35 +1207,35 @@ namespace Ice
                                 m[1] = _readStream.readByte();
                                 m[2] = _readStream.readByte();
                                 m[3] = _readStream.readByte();
-                                if(m[0] != IceInternal.Protocol.magic[0] || m[1] != IceInternal.Protocol.magic[1] ||
-                                   m[2] != IceInternal.Protocol.magic[2] || m[3] != IceInternal.Protocol.magic[3])
+                                if(m[0] != Protocol.magic[0] || m[1] != Protocol.magic[1] ||
+                                   m[2] != Protocol.magic[2] || m[3] != Protocol.magic[3])
                                 {
-                                    Ice.BadMagicException ex = new Ice.BadMagicException();
+                                    BadMagicException ex = new BadMagicException();
                                     ex.badMagic = m;
                                     throw ex;
                                 }
 
                                 ProtocolVersion pv  = new ProtocolVersion();
-                                pv.read__(_readStream);
-                                IceInternal.Protocol.checkSupportedProtocol(pv);
+                                pv.ice_readMembers(_readStream);
+                                Protocol.checkSupportedProtocol(pv);
                                 EncodingVersion ev = new EncodingVersion();
-                                ev.read__(_readStream);
-                                IceInternal.Protocol.checkSupportedProtocolEncoding(ev);
+                                ev.ice_readMembers(_readStream);
+                                Protocol.checkSupportedProtocolEncoding(ev);
 
                                 _readStream.readByte(); // messageType
                                 _readStream.readByte(); // compress
                                 int size = _readStream.readInt();
-                                if(size < IceInternal.Protocol.headerSize)
+                                if(size < Protocol.headerSize)
                                 {
-                                    throw new Ice.IllegalMessageSizeException();
+                                    throw new IllegalMessageSizeException();
                                 }
                                 if(size > _messageSizeMax)
                                 {
-                                    IceInternal.Ex.throwMemoryLimitException(size, _messageSizeMax);
+                                    Ex.throwMemoryLimitException(size, _messageSizeMax);
                                 }
                                 if(size > _readStream.size())
                                 {
-                                    _readStream.resize(size, true);
+                                    _readStream.resize(size);
                                 }
                                 _readStream.pos(pos);
                             }
@@ -1052,7 +1244,7 @@ namespace Ice
                             {
                                 if(_endpoint.datagram())
                                 {
-                                    throw new Ice.DatagramLimitException(); // The message was truncated.
+                                    throw new DatagramLimitException(); // The message was truncated.
                                 }
                                 continue;
                             }
@@ -1110,13 +1302,13 @@ namespace Ice
                             // We parse messages first, if we receive a close
                             // connection message we won't send more messages.
                             //
-                            if((readyOp & IceInternal.SocketOperation.Read) != 0)
+                            if((readyOp & SocketOperation.Read) != 0)
                             {
                                 newOp |= parseMessage(ref info);
                                 dispatchCount += info.messageDispatchCount;
                             }
 
-                            if((readyOp & IceInternal.SocketOperation.Write) != 0)
+                            if((readyOp & SocketOperation.Write) != 0)
                             {
                                 newOp |= sendNextMessage(out sentCBs);
                                 if(sentCBs != null)
@@ -1134,7 +1326,7 @@ namespace Ice
 
                         if(_acmLastActivity > -1)
                         {
-                            _acmLastActivity = IceInternal.Time.currentMonotonicTimeMillis();
+                            _acmLastActivity = Time.currentMonotonicTimeMillis();
                         }
 
                         if(dispatchCount == 0)
@@ -1150,9 +1342,9 @@ namespace Ice
                     {
                         if(_warnUdp)
                         {
-                            _logger.warning("maximum datagram size of " + _readStream.pos() + " exceeded");
+                            _logger.warning(string.Format("maximum datagram size of {0} exceeded", _readStream.pos()));
                         }
-                        _readStream.resize(IceInternal.Protocol.headerSize, true);
+                        _readStream.resize(Protocol.headerSize);
                         _readStream.pos(0);
                         _readHeader = true;
                         return;
@@ -1168,10 +1360,9 @@ namespace Ice
                         {
                             if(_warn)
                             {
-                                String s = "datagram connection exception:\n" + ex + '\n' + _desc;
-                                _logger.warning(s);
+                                _logger.warning(string.Format("datagram connection exception:\n{0}\n{1}", ex, _desc));
                             }
-                            _readStream.resize(IceInternal.Protocol.headerSize, true);
+                            _readStream.resize(Protocol.headerSize);
                             _readStream.pos(0);
                             _readHeader = true;
                         }
@@ -1182,7 +1373,7 @@ namespace Ice
                         return;
                     }
 
-                    IceInternal.ThreadPoolCurrent c = current;
+                    ThreadPoolCurrent c = current;
                     _threadPool.dispatch(() =>
                     {
                         dispatch(startCB, sentCBs, info);
@@ -1218,17 +1409,16 @@ namespace Ice
             {
                 foreach(OutgoingMessage m in sentCBs)
                 {
-                    if(m.sentCallback != null)
+                    if(m.invokeSent)
                     {
-                        m.outAsync.invokeSent(m.sentCallback);
+                        m.outAsync.invokeSent();
                     }
                     if(m.receivedReply)
                     {
-                        IceInternal.OutgoingAsync outAsync = (IceInternal.OutgoingAsync)m.outAsync;
-                        Ice.AsyncCallback cb = outAsync.completed();
-                        if(cb != null)
+                        OutgoingAsync outAsync = (OutgoingAsync)m.outAsync;
+                        if(outAsync.response())
                         {
-                            outAsync.invokeCompleted(cb);
+                            outAsync.invokeResponse();
                         }
                     }
                 }
@@ -1241,7 +1431,7 @@ namespace Ice
             //
             if(info.outAsync != null)
             {
-                info.outAsync.invokeCompleted(info.completedCallback);
+                info.outAsync.invokeResponse();
                 ++dispatchedCount;
             }
 
@@ -1249,7 +1439,7 @@ namespace Ice
             {
                 try
                 {
-                    info.heartbeatCallback.heartbeat(this);
+                    info.heartbeatCallback(this);
                 }
                 catch(System.Exception ex)
                 {
@@ -1305,18 +1495,18 @@ namespace Ice
                         {
                             reap();
                         }
-                        System.Threading.Monitor.PulseAll(this);
+                        Monitor.PulseAll(this);
                     }
                 }
             }
         }
 
-        public override void finished(ref IceInternal.ThreadPoolCurrent current)
+        public override void finished(ref ThreadPoolCurrent current)
         {
             lock(this)
             {
                 Debug.Assert(_state == StateClosed);
-                unscheduleTimeout(IceInternal.SocketOperation.Read | IceInternal.SocketOperation.Write);
+                unscheduleTimeout(SocketOperation.Read | SocketOperation.Write);
             }
 
             //
@@ -1324,7 +1514,8 @@ namespace Ice
             // to call code that will potentially block (this avoids promoting a new leader and
             // unecessary thread creation, especially if this is called on shutdown).
             //
-            if(_startCallback == null && _sendStreams.Count == 0 && _asyncRequests.Count == 0 && _callback == null)
+            if(_startCallback == null && _sendStreams.Count == 0 && _asyncRequests.Count == 0 &&
+               _closeCallback == null && _heartbeatCallback == null)
             {
                 finish();
                 return;
@@ -1369,7 +1560,7 @@ namespace Ice
                     // Trace the cause of unexpected connection closures
                     //
                     if(!(_exception is CloseConnectionException ||
-                         _exception is ForcedCloseConnectionException ||
+                         _exception is ConnectionManuallyClosedException ||
                          _exception is ConnectionTimeoutException ||
                          _exception is CommunicatorDestroyedException ||
                          _exception is ObjectAdapterDeactivatedException))
@@ -1406,40 +1597,38 @@ namespace Ice
                     //
                     if(message.isSent || message.receivedReply)
                     {
-                        if(message.sent() && message.sentCallback != null)
+                        if(message.sent() && message.invokeSent)
                         {
-                            message.outAsync.invokeSent(message.sentCallback);
+                            message.outAsync.invokeSent();
                         }
                         if(message.receivedReply)
                         {
-                            IceInternal.OutgoingAsync outAsync = (IceInternal.OutgoingAsync)message.outAsync;
-                            Ice.AsyncCallback cb = outAsync.completed();
-                            if(cb != null)
+                            OutgoingAsync outAsync = (OutgoingAsync)message.outAsync;
+                            if(outAsync.response())
                             {
-                                outAsync.invokeCompleted(cb);
+                                outAsync.invokeResponse();
                             }
                         }
                         _sendStreams.RemoveFirst();
                     }
                 }
 
-                foreach(OutgoingMessage m in _sendStreams)
+                foreach (OutgoingMessage o in _sendStreams)
                 {
-                    m.completed(_exception);
-                    if(m.requestId > 0) // Make sure finished isn't called twice.
+                    o.completed(_exception);
+                    if(o.requestId > 0) // Make sure finished isn't called twice.
                     {
-                        _asyncRequests.Remove(m.requestId);
+                        _asyncRequests.Remove(o.requestId);
                     }
                 }
-                _sendStreams.Clear();
+                _sendStreams.Clear(); // Must be cleared before _requests because of Outgoing* references in OutgoingMessage
             }
 
-            foreach(IceInternal.OutgoingAsyncBase o in _asyncRequests.Values)
+            foreach(OutgoingAsyncBase o in _asyncRequests.Values)
             {
-                Ice.AsyncCallback cb = o.completed(_exception);
-                if(cb != null)
+                if(o.exception(_exception))
                 {
-                    o.invokeCompleted(cb);
+                    o.invokeException();
                 }
             }
             _asyncRequests.Clear();
@@ -1453,18 +1642,20 @@ namespace Ice
             _readStream.getBuffer().clear();
             _incomingCache = null;
 
-            if(_callback != null)
+            if(_closeCallback != null)
             {
                 try
                 {
-                    _callback.closed(this);
+                    _closeCallback(this);
                 }
                 catch(System.Exception ex)
                 {
                     _logger.error("connection callback exception:\n" + ex + '\n' + _desc);
                 }
-                _callback = null;
+                _closeCallback = null;
             }
+
+            _heartbeatCallback = null;
 
             //
             // This must be done last as this will cause waitUntilFinished() to return (and communicator
@@ -1555,12 +1746,11 @@ namespace Ice
 
         static ConnectionI()
         {
-            _compressionSupported = IceInternal.BasicStream.compressible();
+            _compressionSupported = IceInternal.BZip2.supported();
         }
 
-        internal ConnectionI(Communicator communicator, IceInternal.Instance instance,
-                             IceInternal.ACMMonitor monitor, IceInternal.Transceiver transceiver,
-                             IceInternal.Connector connector, IceInternal.EndpointI endpoint, ObjectAdapterI adapter)
+        internal ConnectionI(Communicator communicator, Instance instance, ACMMonitor monitor, Transceiver transceiver,
+                             Connector connector, EndpointI endpoint, ObjectAdapterI adapter)
         {
             _communicator = communicator;
             _instance = instance;
@@ -1584,7 +1774,7 @@ namespace Ice
             _cacheBuffers = instance.cacheMessageBuffers() > 0;
             if(_monitor != null && _monitor.getACM().timeout > 0)
             {
-                _acmLastActivity = IceInternal.Time.currentMonotonicTimeMillis();
+                _acmLastActivity = Time.currentMonotonicTimeMillis();
             }
             else
             {
@@ -1592,11 +1782,11 @@ namespace Ice
             }
             _nextRequestId = 1;
             _messageSizeMax = adapter != null ? adapter.messageSizeMax() : instance.messageSizeMax();
-            _batchRequestQueue = new IceInternal.BatchRequestQueue(instance, _endpoint.datagram());
-            _readStream = new IceInternal.BasicStream(instance, Util.currentProtocolEncoding);
+            _batchRequestQueue = new BatchRequestQueue(instance, _endpoint.datagram());
+            _readStream = new InputStream(instance, Util.currentProtocolEncoding);
             _readHeader = false;
             _readStreamPos = -1;
-            _writeStream = new IceInternal.BasicStream(instance, Util.currentProtocolEncoding);
+            _writeStream = new OutputStream(instance, Util.currentProtocolEncoding);
             _writeStreamPos = -1;
             _dispatchCount = 0;
             _state = StateNotInitialized;
@@ -1678,7 +1868,7 @@ namespace Ice
                     // Don't warn about certain expected exceptions.
                     //
                     if(!(_exception is CloseConnectionException ||
-                         _exception is ForcedCloseConnectionException ||
+                         _exception is ConnectionManuallyClosedException ||
                          _exception is ConnectionTimeoutException ||
                          _exception is CommunicatorDestroyedException ||
                          _exception is ObjectAdapterDeactivatedException ||
@@ -1751,7 +1941,7 @@ namespace Ice
                     {
                         return;
                     }
-                    _threadPool.register(this, IceInternal.SocketOperation.Read);
+                    _threadPool.register(this, SocketOperation.Read);
                     break;
                 }
 
@@ -1767,7 +1957,7 @@ namespace Ice
                     }
                     if(_state == StateActive)
                     {
-                        _threadPool.unregister(this, IceInternal.SocketOperation.Read);
+                        _threadPool.unregister(this, SocketOperation.Read);
                     }
                     break;
                 }
@@ -1807,7 +1997,7 @@ namespace Ice
                 }
                 }
             }
-            catch(Ice.LocalException ex)
+            catch(LocalException ex)
             {
                 _logger.error("unexpected connection exception:\n" + ex + "\n" + _transceiver.ToString());
             }
@@ -1824,7 +2014,7 @@ namespace Ice
                 {
                     if(_acmLastActivity > -1)
                     {
-                        _acmLastActivity = IceInternal.Time.currentMonotonicTimeMillis();
+                        _acmLastActivity = Time.currentMonotonicTimeMillis();
                     }
                     _monitor.add(this);
                 }
@@ -1857,19 +2047,19 @@ namespace Ice
                 if(_observer != null && state == StateClosed && _exception != null)
                 {
                     if(!(_exception is CloseConnectionException ||
-                         _exception is ForcedCloseConnectionException ||
+                         _exception is ConnectionManuallyClosedException ||
                          _exception is ConnectionTimeoutException ||
                          _exception is CommunicatorDestroyedException ||
                          _exception is ObjectAdapterDeactivatedException ||
                          (_exception is ConnectionLostException && _state >= StateClosing)))
                     {
-                        _observer.failed(_exception.ice_name());
+                        _observer.failed(_exception.ice_id());
                     }
                 }
             }
             _state = state;
 
-            System.Threading.Monitor.PulseAll(this);
+            Monitor.PulseAll(this);
 
             if(_state == StateClosing && _dispatchCount == 0)
             {
@@ -1886,8 +2076,7 @@ namespace Ice
 
         private void initiateShutdown()
         {
-            Debug.Assert(_state == StateClosing);
-            Debug.Assert(_dispatchCount == 0);
+            Debug.Assert(_state == StateClosing && _dispatchCount == 0);
 
             if(_shutdownInitiated)
             {
@@ -1900,20 +2089,20 @@ namespace Ice
                 //
                 // Before we shut down, we send a close connection message.
                 //
-                IceInternal.BasicStream os = new IceInternal.BasicStream(_instance, Util.currentProtocolEncoding);
-                os.writeBlob(IceInternal.Protocol.magic);
-                Ice.Util.currentProtocol.write__(os);
-                Ice.Util.currentProtocolEncoding.write__(os);
-                os.writeByte(IceInternal.Protocol.closeConnectionMsg);
+                OutputStream os = new OutputStream(_instance, Util.currentProtocolEncoding);
+                os.writeBlob(Protocol.magic);
+                Util.currentProtocol.ice_writeMembers(os);
+                Util.currentProtocolEncoding.ice_writeMembers(os);
+                os.writeByte(Protocol.closeConnectionMsg);
                 os.writeByte(_compressionSupported ? (byte)1 : (byte)0);
-                os.writeInt(IceInternal.Protocol.headerSize); // Message size.
+                os.writeInt(Protocol.headerSize); // Message size.
 
-                if(sendMessage(new OutgoingMessage(os, false, false)))
+                if((sendMessage(new OutgoingMessage(os, false, false)) & OutgoingAsyncBase.AsyncStatusSent) != 0)
                 {
                     setState(StateClosingPending);
 
                     //
-                    // Notify the the transceiver of the graceful connection closure.
+                    // Notify the transceiver of the graceful connection closure.
                     //
                     int op = _transceiver.closing(true, _exception);
                     if(op != 0)
@@ -1925,25 +2114,24 @@ namespace Ice
             }
         }
 
-        private void heartbeat()
+        private void sendHeartbeatNow()
         {
             Debug.Assert(_state == StateActive);
 
             if(!_endpoint.datagram())
             {
-                IceInternal.BasicStream os = new IceInternal.BasicStream(_instance, Util.currentProtocolEncoding);
-                os.writeBlob(IceInternal.Protocol.magic);
-                Ice.Util.currentProtocol.write__(os);
-                Ice.Util.currentProtocolEncoding.write__(os);
-                os.writeByte(IceInternal.Protocol.validateConnectionMsg);
-                os.writeByte((byte)0);
-                os.writeInt(IceInternal.Protocol.headerSize); // Message size.
+                OutputStream os = new OutputStream(_instance, Util.currentProtocolEncoding);
+                os.writeBlob(Protocol.magic);
+                Util.currentProtocol.ice_writeMembers(os);
+                Util.currentProtocolEncoding.ice_writeMembers(os);
+                os.writeByte(Protocol.validateConnectionMsg);
+                os.writeByte(0);
+                os.writeInt(Protocol.headerSize); // Message size.
                 try
                 {
-                    OutgoingMessage message = new OutgoingMessage(os, false, false);
-                    sendMessage(message);
+                    sendMessage(new OutgoingMessage(os, false, false));
                 }
-                catch(Ice.LocalException ex)
+                catch(LocalException ex)
                 {
                     setState(StateClosed, ex);
                     Debug.Assert(_exception != null);
@@ -1954,7 +2142,7 @@ namespace Ice
         private bool initialize(int operation)
         {
             int s = _transceiver.initialize(_readStream.getBuffer(), _writeStream.getBuffer(), ref _hasMoreData);
-            if(s != IceInternal.SocketOperation.None)
+            if(s != SocketOperation.None)
             {
                 scheduleTimeout(s);
                 _threadPool.update(this, operation, s);
@@ -1979,13 +2167,13 @@ namespace Ice
                 {
                     if(_writeStream.size() == 0)
                     {
-                        _writeStream.writeBlob(IceInternal.Protocol.magic);
-                        Ice.Util.currentProtocol.write__(_writeStream);
-                        Ice.Util.currentProtocolEncoding.write__(_writeStream);
-                        _writeStream.writeByte(IceInternal.Protocol.validateConnectionMsg);
-                        _writeStream.writeByte((byte)0); // Compression status (always zero for validate connection).
-                        _writeStream.writeInt(IceInternal.Protocol.headerSize); // Message size.
-                        IceInternal.TraceUtil.traceSend(_writeStream, _logger, _traceLevels);
+                        _writeStream.writeBlob(Protocol.magic);
+                        Util.currentProtocol.ice_writeMembers(_writeStream);
+                        Util.currentProtocolEncoding.ice_writeMembers(_writeStream);
+                        _writeStream.writeByte(Protocol.validateConnectionMsg);
+                        _writeStream.writeByte(0); // Compression status (always zero for validate connection).
+                        _writeStream.writeInt(Protocol.headerSize); // Message size.
+                        TraceUtil.traceSend(_writeStream, _logger, _traceLevels);
                         _writeStream.prepareWrite();
                     }
 
@@ -2014,7 +2202,7 @@ namespace Ice
                 {
                     if(_readStream.size() == 0)
                     {
-                        _readStream.resize(IceInternal.Protocol.headerSize, true);
+                        _readStream.resize(Protocol.headerSize);
                         _readStream.pos(0);
                     }
 
@@ -2039,11 +2227,11 @@ namespace Ice
                         observerFinishRead(_readStream.getBuffer());
                     }
 
-                    Debug.Assert(_readStream.pos() == IceInternal.Protocol.headerSize);
+                    Debug.Assert(_readStream.pos() == Protocol.headerSize);
                     _readStream.pos(0);
                     byte[] m = _readStream.readBlob(4);
-                    if(m[0] != IceInternal.Protocol.magic[0] || m[1] != IceInternal.Protocol.magic[1] ||
-                       m[2] != IceInternal.Protocol.magic[2] || m[3] != IceInternal.Protocol.magic[3])
+                    if(m[0] != Protocol.magic[0] || m[1] != Protocol.magic[1] ||
+                       m[2] != Protocol.magic[2] || m[3] != Protocol.magic[3])
                     {
                         BadMagicException ex = new BadMagicException();
                         ex.badMagic = m;
@@ -2051,34 +2239,34 @@ namespace Ice
                     }
 
                     ProtocolVersion pv  = new ProtocolVersion();
-                    pv.read__(_readStream);
-                    IceInternal.Protocol.checkSupportedProtocol(pv);
+                    pv.ice_readMembers(_readStream);
+                    Protocol.checkSupportedProtocol(pv);
 
                     EncodingVersion ev = new EncodingVersion();
-                    ev.read__(_readStream);
-                    IceInternal.Protocol.checkSupportedProtocolEncoding(ev);
+                    ev.ice_readMembers(_readStream);
+                    Protocol.checkSupportedProtocolEncoding(ev);
 
                     byte messageType = _readStream.readByte();
-                    if(messageType != IceInternal.Protocol.validateConnectionMsg)
+                    if(messageType != Protocol.validateConnectionMsg)
                     {
                         throw new ConnectionNotValidatedException();
                     }
                     _readStream.readByte(); // Ignore compression status for validate connection.
                     int size = _readStream.readInt();
-                    if(size != IceInternal.Protocol.headerSize)
+                    if(size != Protocol.headerSize)
                     {
                         throw new IllegalMessageSizeException();
                     }
-                    IceInternal.TraceUtil.traceRecv(_readStream, _logger, _traceLevels);
+                    TraceUtil.traceRecv(_readStream, _logger, _traceLevels);
 
                     _validated = true;
                 }
             }
 
-            _writeStream.resize(0, false);
+            _writeStream.resize(0);
             _writeStream.pos(0);
 
-            _readStream.resize(IceInternal.Protocol.headerSize, true);
+            _readStream.resize(Protocol.headerSize);
             _readStream.pos(0);
             _readHeader = true;
 
@@ -2114,14 +2302,14 @@ namespace Ice
 
             if(_sendStreams.Count == 0)
             {
-                return IceInternal.SocketOperation.None;
+                return SocketOperation.None;
             }
             else if(_state == StateClosingPending && _writeStream.pos() == 0)
             {
                 // Message wasn't sent, empty the _writeStream, we're not going to send more data.
                 OutgoingMessage message = _sendStreams.First.Value;
                 _writeStream.swap(message.stream);
-                return IceInternal.SocketOperation.None;
+                return SocketOperation.None;
             }
 
             Debug.Assert(!_writeStream.isEmpty() && _writeStream.pos() == _writeStream.size());
@@ -2161,7 +2349,7 @@ namespace Ice
                     //
                     if(_state >= StateClosingPending)
                     {
-                        return IceInternal.SocketOperation.None;
+                        return SocketOperation.None;
                     }
 
                     //
@@ -2169,20 +2357,13 @@ namespace Ice
                     //
                     message = _sendStreams.First.Value;
                     Debug.Assert(!message.prepared);
-                    IceInternal.BasicStream stream = message.stream;
+                    OutputStream stream = message.stream;
 
                     message.stream = doCompress(message.stream, message.compress);
                     message.stream.prepareWrite();
                     message.prepared = true;
 
-                    if(message.outAsync != null)
-                    {
-                        IceInternal.TraceUtil.trace("sending asynchronous request", stream, _logger, _traceLevels);
-                    }
-                    else
-                    {
-                        IceInternal.TraceUtil.traceSend(stream, _logger, _traceLevels);
-                    }
+                    TraceUtil.traceSend(stream, _logger, _traceLevels);
                     _writeStream.swap(message.stream);
 
                     //
@@ -2220,14 +2401,14 @@ namespace Ice
                     }
                 }
             }
-            catch(Ice.LocalException ex)
+            catch(LocalException ex)
             {
                 setState(StateClosed, ex);
             }
-            return IceInternal.SocketOperation.None;
+            return SocketOperation.None;
         }
 
-        private bool sendMessage(OutgoingMessage message)
+        private int sendMessage(OutgoingMessage message)
         {
             Debug.Assert(_state < StateClosed);
 
@@ -2235,7 +2416,7 @@ namespace Ice
             {
                 message.adopt();
                 _sendStreams.AddLast(message);
-                return false;
+                return OutgoingAsyncBase.AsyncStatusQueued;
             }
 
             //
@@ -2246,20 +2427,13 @@ namespace Ice
 
             Debug.Assert(!message.prepared);
 
-            IceInternal.BasicStream stream = message.stream;
+            OutputStream stream = message.stream;
 
             message.stream = doCompress(stream, message.compress);
             message.stream.prepareWrite();
             message.prepared = true;
 
-            if(message.outAsync != null)
-            {
-                IceInternal.TraceUtil.trace("sending asynchronous request", stream, _logger, _traceLevels);
-            }
-            else
-            {
-                IceInternal.TraceUtil.traceSend(stream, _logger, _traceLevels);
-            }
+            TraceUtil.traceSend(stream, _logger, _traceLevels);
 
             //
             // Send the message without blocking.
@@ -2276,13 +2450,17 @@ namespace Ice
                     observerFinishWrite(message.stream.getBuffer());
                 }
 
-                message.sent();
+                int status = OutgoingAsyncBase.AsyncStatusSent;
+                if(message.sent())
+                {
+                    status = status | OutgoingAsyncBase.AsyncStatusInvokeSentCallback;
+                }
 
                 if(_acmLastActivity > -1)
                 {
-                    _acmLastActivity = IceInternal.Time.currentMonotonicTimeMillis();
+                    _acmLastActivity = Time.currentMonotonicTimeMillis();
                 }
-                return true;
+                return status;
             }
 
             message.adopt();
@@ -2291,10 +2469,10 @@ namespace Ice
             _sendStreams.AddLast(message);
             scheduleTimeout(op);
             _threadPool.register(this, op);
-            return false;
+            return OutgoingAsyncBase.AsyncStatusQueued;
         }
 
-        private IceInternal.BasicStream doCompress(IceInternal.BasicStream uncompressed, bool compress)
+        private OutputStream doCompress(OutputStream uncompressed, bool compress)
         {
             if(_compressionSupported)
             {
@@ -2303,14 +2481,18 @@ namespace Ice
                     //
                     // Do compression.
                     //
-                    IceInternal.BasicStream cstream = null;
-                    if(uncompressed.compress(ref cstream, IceInternal.Protocol.headerSize, _compressionLevel))
+                    IceInternal.Buffer cbuf = BZip2.compress(uncompressed.getBuffer(), Protocol.headerSize,
+                                                             _compressionLevel);
+                    if(cbuf != null)
                     {
+                        OutputStream cstream =
+                            new OutputStream(uncompressed.instance(), uncompressed.getEncoding(), cbuf, true);
+
                         //
                         // Set compression status.
                         //
                         cstream.pos(9);
-                        cstream.writeByte((byte)2);
+                        cstream.writeByte(2);
 
                         //
                         // Write the size of the compressed stream into the header.
@@ -2323,7 +2505,7 @@ namespace Ice
                         // uncompressed stream -- we need this to trace requests correctly.
                         //
                         uncompressed.pos(9);
-                        uncompressed.writeByte((byte)2);
+                        uncompressed.writeByte(2);
                         uncompressed.writeInt(cstream.size());
 
                         return cstream;
@@ -2345,15 +2527,14 @@ namespace Ice
 
         private struct MessageInfo
         {
-            public IceInternal.BasicStream stream;
+            public InputStream stream;
             public int invokeNum;
             public int requestId;
             public byte compress;
-            public IceInternal.ServantManager servantManager;
+            public ServantManager servantManager;
             public ObjectAdapter adapter;
-            public IceInternal.OutgoingAsyncBase outAsync;
-            public Ice.AsyncCallback completedCallback;
-            public ConnectionCallback heartbeatCallback;
+            public OutgoingAsyncBase outAsync;
+            public HeartbeatCallback heartbeatCallback;
             public int messageDispatchCount;
         }
 
@@ -2361,9 +2542,9 @@ namespace Ice
         {
             Debug.Assert(_state > StateNotValidated && _state < StateClosed);
 
-            info.stream = new IceInternal.BasicStream(_instance, Util.currentProtocolEncoding);
+            info.stream = new InputStream(_instance, Util.currentProtocolEncoding);
             _readStream.swap(info.stream);
-            _readStream.resize(IceInternal.Protocol.headerSize, true);
+            _readStream.resize(Protocol.headerSize);
             _readStream.pos(0);
             _readHeader = true;
 
@@ -2385,11 +2566,13 @@ namespace Ice
                 info.stream.pos(8);
                 byte messageType = info.stream.readByte();
                 info.compress = info.stream.readByte();
-                if(info.compress == (byte)2)
+                if(info.compress == 2)
                 {
                     if(_compressionSupported)
                     {
-                        info.stream = info.stream.uncompress(IceInternal.Protocol.headerSize, _messageSizeMax);
+                        IceInternal.Buffer ubuf = BZip2.uncompress(info.stream.getBuffer(), Protocol.headerSize,
+                                                                   _messageSizeMax);
+                        info.stream = new InputStream(info.stream.instance(), info.stream.getEncoding(), ubuf, true);
                     }
                     else
                     {
@@ -2398,13 +2581,13 @@ namespace Ice
                         throw ex;
                     }
                 }
-                info.stream.pos(IceInternal.Protocol.headerSize);
+                info.stream.pos(Protocol.headerSize);
 
                 switch(messageType)
                 {
-                    case IceInternal.Protocol.closeConnectionMsg:
+                    case Protocol.closeConnectionMsg:
                     {
-                        IceInternal.TraceUtil.traceRecv(info.stream, _logger, _traceLevels);
+                        TraceUtil.traceRecv(info.stream, _logger, _traceLevels);
                         if(_endpoint.datagram())
                         {
                             if(_warn)
@@ -2417,7 +2600,7 @@ namespace Ice
                             setState(StateClosingPending, new CloseConnectionException());
 
                             //
-                            // Notify the the transceiver of the graceful connection closure.
+                            // Notify the transceiver of the graceful connection closure.
                             //
                             int op = _transceiver.closing(false, _exception);
                             if(op != 0)
@@ -2429,17 +2612,17 @@ namespace Ice
                         break;
                     }
 
-                    case IceInternal.Protocol.requestMsg:
+                    case Protocol.requestMsg:
                     {
                         if(_state >= StateClosing)
                         {
-                            IceInternal.TraceUtil.trace("received request during closing\n" +
-                                                        "(ignored by server, client will retry)", info.stream, _logger,
-                                                        _traceLevels);
+                            TraceUtil.trace("received request during closing\n" +
+                                            "(ignored by server, client will retry)", info.stream, _logger,
+                                            _traceLevels);
                         }
                         else
                         {
-                            IceInternal.TraceUtil.traceRecv(info.stream, _logger, _traceLevels);
+                            TraceUtil.traceRecv(info.stream, _logger, _traceLevels);
                             info.requestId = info.stream.readInt();
                             info.invokeNum = 1;
                             info.servantManager = _servantManager;
@@ -2449,17 +2632,17 @@ namespace Ice
                         break;
                     }
 
-                    case IceInternal.Protocol.requestBatchMsg:
+                    case Protocol.requestBatchMsg:
                     {
                         if(_state >= StateClosing)
                         {
-                            IceInternal.TraceUtil.trace("received batch request during closing\n" +
-                                                        "(ignored by server, client will retry)", info.stream, _logger,
-                                                        _traceLevels);
+                            TraceUtil.trace("received batch request during closing\n" +
+                                            "(ignored by server, client will retry)", info.stream, _logger,
+                                            _traceLevels);
                         }
                         else
                         {
-                            IceInternal.TraceUtil.traceRecv(info.stream, _logger, _traceLevels);
+                            TraceUtil.traceRecv(info.stream, _logger, _traceLevels);
                             info.invokeNum = info.stream.readInt();
                             if(info.invokeNum < 0)
                             {
@@ -2473,16 +2656,15 @@ namespace Ice
                         break;
                     }
 
-                    case IceInternal.Protocol.replyMsg:
+                    case Protocol.replyMsg:
                     {
-                        IceInternal.TraceUtil.traceRecv(info.stream, _logger, _traceLevels);
+                        TraceUtil.traceRecv(info.stream, _logger, _traceLevels);
                         info.requestId = info.stream.readInt();
-                        IceInternal.OutgoingAsyncBase outAsync = null;
-                        if(_asyncRequests.TryGetValue(info.requestId, out outAsync))
+                        if(_asyncRequests.TryGetValue(info.requestId, out info.outAsync))
                         {
                             _asyncRequests.Remove(info.requestId);
 
-                            outAsync.getIs().swap(info.stream);
+                            info.outAsync.getIs().swap(info.stream);
 
                             //
                             // If we just received the reply for a request which isn't acknowledge as
@@ -2490,30 +2672,29 @@ namespace Ice
                             // will be processed once the write callback is invoked for the message.
                             //
                             OutgoingMessage message = _sendStreams.Count > 0 ? _sendStreams.First.Value : null;
-                            if(message != null && message.outAsync == outAsync)
+                            if(message != null && message.outAsync == info.outAsync)
                             {
                                 message.receivedReply = true;
                             }
+                            else if(info.outAsync.response())
+                            {
+                                ++info.messageDispatchCount;
+                            }
                             else
                             {
-                                info.completedCallback = outAsync.completed();
-                                if(info.completedCallback != null)
-                                {
-                                    info.outAsync = outAsync;
-                                    ++info.messageDispatchCount;
-                                }
+                                info.outAsync = null;
                             }
-                            System.Threading.Monitor.PulseAll(this); // Notify threads blocked in close(false)
+                            Monitor.PulseAll(this); // Notify threads blocked in close()
                         }
                         break;
                     }
 
-                    case IceInternal.Protocol.validateConnectionMsg:
+                    case Protocol.validateConnectionMsg:
                     {
-                        IceInternal.TraceUtil.traceRecv(info.stream, _logger, _traceLevels);
-                        if(_callback != null)
+                        TraceUtil.traceRecv(info.stream, _logger, _traceLevels);
+                        if(_heartbeatCallback != null)
                         {
-                            info.heartbeatCallback = _callback;
+                            info.heartbeatCallback = _heartbeatCallback;
                             ++info.messageDispatchCount;
                         }
                         break;
@@ -2521,8 +2702,8 @@ namespace Ice
 
                     default:
                     {
-                        IceInternal.TraceUtil.trace("received unknown message\n(invalid, closing connection)",
-                                                    info.stream, _logger, _traceLevels);
+                        TraceUtil.trace("received unknown message\n(invalid, closing connection)",
+                                        info.stream, _logger, _traceLevels);
                         throw new UnknownMessageException();
                     }
                 }
@@ -2542,18 +2723,18 @@ namespace Ice
                 }
             }
 
-            return _state == StateHolding ? IceInternal.SocketOperation.None : IceInternal.SocketOperation.Read;
+            return _state == StateHolding ? SocketOperation.None : SocketOperation.Read;
         }
 
-        private void invokeAll(IceInternal.BasicStream stream, int invokeNum, int requestId, byte compress,
-                               IceInternal.ServantManager servantManager, ObjectAdapter adapter)
+        private void invokeAll(InputStream stream, int invokeNum, int requestId, byte compress,
+                               ServantManager servantManager, ObjectAdapter adapter)
         {
             //
             // Note: In contrast to other private or protected methods, this
             // operation must be called *without* the mutex locked.
             //
 
-            IceInternal.Incoming inc = null;
+            Incoming inc = null;
             try
             {
                 while(invokeNum > 0)
@@ -2597,7 +2778,7 @@ namespace Ice
             int timeout;
             if(_state < StateActive)
             {
-                IceInternal.DefaultsAndOverrides defaultsAndOverrides = _instance.defaultsAndOverrides();
+                DefaultsAndOverrides defaultsAndOverrides = _instance.defaultsAndOverrides();
                 if(defaultsAndOverrides.overrideConnectTimeout)
                 {
                     timeout = defaultsAndOverrides.overrideConnectTimeoutValue;
@@ -2611,13 +2792,13 @@ namespace Ice
             {
                 if(_readHeader) // No timeout for reading the header.
                 {
-                    status &= ~IceInternal.SocketOperation.Read;
+                    status &= ~SocketOperation.Read;
                 }
                 timeout = _endpoint.timeout();
             }
             else
             {
-                IceInternal.DefaultsAndOverrides defaultsAndOverrides = _instance.defaultsAndOverrides();
+                DefaultsAndOverrides defaultsAndOverrides = _instance.defaultsAndOverrides();
                 if(defaultsAndOverrides.overrideCloseTimeout)
                 {
                     timeout = defaultsAndOverrides.overrideCloseTimeoutValue;
@@ -2633,7 +2814,7 @@ namespace Ice
                 return;
             }
 
-            if((status & IceInternal.SocketOperation.Read) != 0)
+            if((status & SocketOperation.Read) != 0)
             {
                 if(_readTimeoutScheduled)
                 {
@@ -2642,7 +2823,7 @@ namespace Ice
                 _timer.schedule(_readTimeout, timeout);
                 _readTimeoutScheduled = true;
             }
-            if((status & (IceInternal.SocketOperation.Write | IceInternal.SocketOperation.Connect)) != 0)
+            if((status & (SocketOperation.Write | SocketOperation.Connect)) != 0)
             {
                 if(_writeTimeoutScheduled)
                 {
@@ -2655,12 +2836,12 @@ namespace Ice
 
         private void unscheduleTimeout(int status)
         {
-            if((status & IceInternal.SocketOperation.Read) != 0 && _readTimeoutScheduled)
+            if((status & SocketOperation.Read) != 0 && _readTimeoutScheduled)
             {
                 _timer.cancel(_readTimeout);
                 _readTimeoutScheduled = false;
             }
-            if((status & (IceInternal.SocketOperation.Write | IceInternal.SocketOperation.Connect)) != 0 &&
+            if((status & (SocketOperation.Write | SocketOperation.Connect)) != 0 &&
                _writeTimeoutScheduled)
             {
                 _timer.cancel(_writeTimeout);
@@ -2679,13 +2860,16 @@ namespace Ice
             {
                 _info = _transceiver.getInfo();
             }
-            catch(Ice.LocalException)
+            catch(LocalException)
             {
                 _info = new ConnectionInfo();
             }
-            _info.connectionId = _endpoint.connectionId();
-            _info.adapterName = _adapter != null ? _adapter.getName() : "";
-            _info.incoming = _connector == null;
+            for(ConnectionInfo info = _info; info != null; info = info.underlying)
+            {
+                info.connectionId = _endpoint.connectionId();
+                info.adapterName = _adapter != null ? _adapter.getName() : "";
+                info.incoming = _connector == null;
+            }
             return _info;
         }
 
@@ -2755,9 +2939,9 @@ namespace Ice
             _writeStreamPos = -1;
         }
 
-        private IceInternal.Incoming getIncoming(ObjectAdapter adapter, bool response, byte compress, int requestId)
+        private Incoming getIncoming(ObjectAdapter adapter, bool response, byte compress, int requestId)
         {
-            IceInternal.Incoming inc = null;
+            Incoming inc = null;
 
             if(_cacheBuffers)
             {
@@ -2765,7 +2949,7 @@ namespace Ice
                 {
                     if(_incomingCache == null)
                     {
-                        inc = new IceInternal.Incoming(_instance, this, this, adapter, response, compress, requestId);
+                        inc = new Incoming(_instance, this, this, adapter, response, compress, requestId);
                     }
                     else
                     {
@@ -2778,24 +2962,20 @@ namespace Ice
             }
             else
             {
-                inc = new IceInternal.Incoming(_instance, this, this, adapter, response, compress, requestId);
+                inc = new Incoming(_instance, this, this, adapter, response, compress, requestId);
             }
 
             return inc;
         }
 
-        private void reclaimIncoming(IceInternal.Incoming inc)
+        internal void reclaimIncoming(Incoming inc)
         {
-            if(_cacheBuffers)
+            if(_cacheBuffers && inc.reclaim())
             {
                 lock(_incomingCacheMutex)
                 {
                     inc.next = _incomingCache;
                     _incomingCache = inc;
-                    //
-                    // Clear references to Ice objects as soon as possible.
-                    //
-                    _incomingCache.reclaim();
                 }
             }
         }
@@ -2850,28 +3030,24 @@ namespace Ice
 
         private class OutgoingMessage
         {
-            internal OutgoingMessage(IceInternal.BasicStream stream, bool compress, bool adopt)
+            internal OutgoingMessage(OutputStream stream, bool compress, bool adopt)
             {
                 this.stream = stream;
                 this.compress = compress;
-                this._adopt = adopt;
-                this.isSent = false;
-                this.requestId = 0;
+                _adopt = adopt;
             }
 
-            internal OutgoingMessage(IceInternal.OutgoingAsyncBase outAsync, IceInternal.BasicStream stream,
-                                     bool compress, int requestId)
+            internal OutgoingMessage(OutgoingAsyncBase outAsync, OutputStream stream, bool compress, int requestId)
             {
+                this.outAsync = outAsync;
                 this.stream = stream;
                 this.compress = compress;
-                this.outAsync = outAsync;
                 this.requestId = requestId;
-                this.isSent = false;
             }
 
             internal void canceled()
             {
-                Debug.Assert(outAsync != null);
+                Debug.Assert(outAsync != null); // Only requests can timeout.
                 outAsync = null;
             }
 
@@ -2879,8 +3055,7 @@ namespace Ice
             {
                 if(_adopt)
                 {
-                    IceInternal.BasicStream stream = new IceInternal.BasicStream(this.stream.instance(),
-                                                                                 Util.currentProtocolEncoding);
+                    OutputStream stream = new OutputStream(this.stream.instance(), Util.currentProtocolEncoding);
                     stream.swap(this.stream);
                     this.stream = stream;
                     _adopt = false;
@@ -2889,56 +3064,58 @@ namespace Ice
 
             internal bool sent()
             {
+                stream = null;
                 if(outAsync != null)
                 {
-                    sentCallback = outAsync.sent();
+                    invokeSent = outAsync.sent();
+                    return invokeSent ||receivedReply;
                 }
-                return sentCallback != null || receivedReply;
+                return false;
             }
 
             internal void completed(LocalException ex)
             {
                 if(outAsync != null)
                 {
-                    Ice.AsyncCallback cb = outAsync.completed(ex);
-                    if(cb != null)
+                    if(outAsync.exception(ex))
                     {
-                        outAsync.invokeCompleted(cb);
+                        outAsync.invokeException();
                     }
                 }
+                stream = null;
             }
 
-            internal IceInternal.BasicStream stream;
-            internal IceInternal.OutgoingAsyncBase outAsync;
-            internal bool receivedReply;
+            internal OutputStream stream;
+            internal OutgoingAsyncBase outAsync;
             internal bool compress;
             internal int requestId;
             internal bool _adopt;
             internal bool prepared;
             internal bool isSent;
-            internal Ice.AsyncCallback sentCallback = null;
+            internal bool invokeSent;
+            internal bool receivedReply;
         }
 
         private Communicator _communicator;
-        private IceInternal.Instance _instance;
-        private IceInternal.ACMMonitor _monitor;
-        private IceInternal.Transceiver _transceiver;
+        private Instance _instance;
+        private ACMMonitor _monitor;
+        private Transceiver _transceiver;
         private string _desc;
         private string _type;
-        private IceInternal.Connector _connector;
-        private IceInternal.EndpointI _endpoint;
+        private Connector _connector;
+        private EndpointI _endpoint;
 
         private ObjectAdapter _adapter;
-        private IceInternal.ServantManager _servantManager;
+        private ServantManager _servantManager;
 
         private Logger _logger;
-        private IceInternal.TraceLevels _traceLevels;
+        private TraceLevels _traceLevels;
         private IceInternal.ThreadPool _threadPool;
 
         private IceInternal.Timer _timer;
-        private IceInternal.TimerTask _writeTimeout;
+        private TimerTask _writeTimeout;
         private bool _writeTimeoutScheduled;
-        private IceInternal.TimerTask _readTimeout;
+        private TimerTask _readTimeout;
         private bool _readTimeoutScheduled;
 
         private StartCallback _startCallback = null;
@@ -2952,19 +3129,18 @@ namespace Ice
 
         private int _nextRequestId;
 
-        private Dictionary<int, IceInternal.OutgoingAsyncBase> _asyncRequests =
-            new Dictionary<int, IceInternal.OutgoingAsyncBase>();
+        private Dictionary<int, OutgoingAsyncBase> _asyncRequests = new Dictionary<int, OutgoingAsyncBase>();
 
         private LocalException _exception;
 
         private readonly int _messageSizeMax;
-        private IceInternal.BatchRequestQueue _batchRequestQueue;
+        private BatchRequestQueue _batchRequestQueue;
 
         private LinkedList<OutgoingMessage> _sendStreams = new LinkedList<OutgoingMessage>();
 
-        private IceInternal.BasicStream _readStream;
+        private InputStream _readStream;
         private bool _readHeader;
-        private IceInternal.BasicStream _writeStream;
+        private OutputStream _writeStream;
 
         private ConnectionObserver _observer;
         private int _readStreamPos;
@@ -2977,16 +3153,17 @@ namespace Ice
         private bool _initialized = false;
         private bool _validated = false;
 
-        private IceInternal.Incoming _incomingCache;
+        private Incoming _incomingCache;
         private object _incomingCacheMutex = new object();
 
         private static bool _compressionSupported;
 
         private bool _cacheBuffers;
 
-        private Ice.ConnectionInfo _info;
+        private ConnectionInfo _info;
 
-        private Ice.ConnectionCallback _callback;
+        private CloseCallback _closeCallback;
+        private HeartbeatCallback _heartbeatCallback;
 
         private static ConnectionState[] connectionStateMap = new ConnectionState[] {
             ConnectionState.ConnectionStateValidating,   // StateNotInitialized

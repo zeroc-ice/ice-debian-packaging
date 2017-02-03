@@ -8,9 +8,13 @@
 // **********************************************************************
 
 #pragma once
-[["cpp:header-ext:h", "objc:header-dir:objc"]]
+[["ice-prefix", "cpp:header-ext:h", "objc:header-dir:objc"]]
 
 #include <Ice/Identity.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 module IceDiscovery
 {

@@ -16,7 +16,7 @@ class RemoteCommunicatorI : public Test::RemoteCommunicator
 {
 public:
 
-    virtual Test::RemoteObjectAdapterPrx createObjectAdapter(int, int, int, const Ice::Current&);
+    virtual Test::RemoteObjectAdapterPrxPtr createObjectAdapter(int, int, int, const Ice::Current&);
     virtual void shutdown(const Ice::Current&);
 };
 
@@ -26,7 +26,7 @@ public:
 
     RemoteObjectAdapterI(const Ice::ObjectAdapterPtr&);
 
-    virtual Test::TestIntfPrx getTestIntf(const Ice::Current&);
+    virtual Test::TestIntfPrxPtr getTestIntf(const Ice::Current&);
     virtual void activate(const Ice::Current&);
     virtual void hold(const Ice::Current&);
     virtual void deactivate(const Ice::Current&);
@@ -34,7 +34,7 @@ public:
 private:
 
     const Ice::ObjectAdapterPtr _adapter;
-    const Test::TestIntfPrx _testIntf;
+    const Test::TestIntfPrxPtr _testIntf;
 };
 
 class TestI : public Test::TestIntf, private IceUtil::Monitor<IceUtil::Mutex>
@@ -44,7 +44,51 @@ public:
     virtual void sleep(int, const Ice::Current&);
     virtual void sleepAndHold(int, const Ice::Current&);
     virtual void interruptSleep(const Ice::Current&);
-    virtual void waitForHeartbeat(int, const Ice::Current&);
+    virtual void startHeartbeatCount(const Ice::Current&);
+    virtual void waitForHeartbeatCount(int, const Ice::Current&);
+
+private:
+
+    class HeartbeatCallbackI :
+#ifdef ICE_CPP11_MAPPING
+                                public std::enable_shared_from_this<HeartbeatCallbackI>,
+#else
+                                public Ice::HeartbeatCallback,
+#endif
+                                private IceUtil::Monitor<IceUtil::Mutex>
+    {
+    public:
+
+        HeartbeatCallbackI() :
+            _count(0)
+        {
+        }
+
+        void
+        waitForCount(int count)
+        {
+            Lock sync(*this);
+            while(_count < count)
+            {
+                wait();
+            }
+        }
+
+        virtual void
+        heartbeat(const Ice::ConnectionPtr&)
+        {
+            Lock sync(*this);
+            ++_count;
+            notifyAll();
+        }
+
+    private:
+
+        int _count;
+    };
+    ICE_DEFINE_PTR(HeartbeatCallbackIPtr, HeartbeatCallbackI);
+
+    HeartbeatCallbackIPtr _callback;
 };
 
 #endif

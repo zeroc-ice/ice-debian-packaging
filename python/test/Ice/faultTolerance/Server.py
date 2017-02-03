@@ -17,7 +17,7 @@ import Test
 def usage(n):
     sys.stderr.write("Usage: " + n + " port\n")
 
-class TestI(Test.TestIntf):
+class TestI(Test._TestIntfDisp):
     def shutdown(self, current=None):
         current.adapter.getCommunicator().shutdown()
 
@@ -43,7 +43,7 @@ def run(args, communicator):
             usage(args[0])
             return False
 
-        port = int(arg)
+        port = 12010 + int(arg)
 
     if port <= 0:
         sys.stderr.write(args[0] + ": no port specified\n")
@@ -54,7 +54,7 @@ def run(args, communicator):
     communicator.getProperties().setProperty("TestAdapter.Endpoints", endpts)
     adapter = communicator.createObjectAdapter("TestAdapter")
     object = TestI()
-    adapter.add(object, communicator.stringToIdentity("test"))
+    adapter.add(object, Ice.stringToIdentity("test"))
     adapter.activate()
     communicator.waitForShutdown()
     return True
@@ -69,17 +69,10 @@ try:
     initData.properties = Ice.createProperties(sys.argv)
     initData.properties.setProperty("Ice.ServerIdleTime", "120") # Two minutes.
 
-    communicator = Ice.initialize(sys.argv, initData)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv, initData) as communicator:
+        status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

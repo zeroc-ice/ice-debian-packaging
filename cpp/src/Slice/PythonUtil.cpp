@@ -12,8 +12,6 @@
 #include <Slice/Util.h>
 #include <IceUtil/IceUtil.h>
 #include <IceUtil/StringUtil.h>
-#include <IceUtil/InputUtil.h>
-#include <IceUtil/Unicode.h>
 #include <climits>
 #include <iterator>
 
@@ -21,6 +19,27 @@ using namespace std;
 using namespace Slice;
 using namespace IceUtil;
 using namespace IceUtilInternal;
+
+namespace
+{
+
+string
+getEscapedParamName(const OperationPtr& p, const string& name)
+{
+    ParamDeclList params = p->parameters();
+
+    for(ParamDeclList::const_iterator i = params.begin(); i != params.end(); ++i)
+    {
+        if((*i)->name() == name)
+        {
+            return name + "_";
+        }
+    }
+    return name;
+}
+
+}
+
 
 namespace Slice
 {
@@ -49,7 +68,7 @@ private:
     //
     // Validates sequence metadata.
     //
-    void validateSequence(const string&, const string&, const TypePtr&, const StringList&);
+    StringList validateSequence(const string&, const string&, const TypePtr&, const StringList&);
 
     //
     // Checks a definition that doesn't currently support Python metadata.
@@ -105,9 +124,14 @@ public:
 private:
 
     //
+    // Emit Python code for the class operations
+    //
+    void writeOperations(const ClassDefPtr&);
+
+    //
     // Return a Python symbol for the given parser element.
     //
-    string getSymbol(const ContainedPtr&, const string& = string());
+    string getSymbol(const ContainedPtr&, const string& = "", const string& = "");
 
     //
     // Emit Python code to assign the given symbol in the current module.
@@ -183,7 +207,7 @@ private:
     };
     bool parseOpComment(const string&, OpComment&);
 
-    enum DocstringMode { DocSync, DocAsyncBegin, DocAsyncEnd, DocDispatch, DocAsyncDispatch };
+    enum DocstringMode { DocSync, DocAsync, DocAsyncBegin, DocAsyncEnd, DocDispatch, DocAsyncDispatch };
 
     void writeDocstring(const OperationPtr&, DocstringMode, bool);
 
@@ -250,7 +274,7 @@ splitScopedName(const string& scoped)
 }
 
 static string
-getDictLookup(const ContainedPtr& cont, const string& suffix = string())
+getDictLookup(const ContainedPtr& cont, const string& suffix = "", const string& prefix = "")
 {
     string scope = Slice::Python::scopedToName(cont->scope());
     assert(!scope.empty());
@@ -261,7 +285,7 @@ getDictLookup(const ContainedPtr& cont, const string& suffix = string())
         scope = package + "." + scope;
     }
 
-    return "'" + suffix + Slice::Python::fixIdent(cont->name()) + "' not in _M_" + scope + "__dict__";
+    return "'" + suffix + Slice::Python::fixIdent(cont->name() + prefix) + "' not in _M_" + scope + "__dict__";
 }
 
 //
@@ -318,7 +342,8 @@ Slice::Python::ModuleVisitor::visitModuleStart(const ModulePtr& p)
 // CodeVisitor implementation.
 //
 Slice::Python::CodeVisitor::CodeVisitor(Output& out, set<string>& moduleHistory) :
-    _out(out), _moduleHistory(moduleHistory)
+    _out(out),
+    _moduleHistory(moduleHistory)
 {
 }
 
@@ -402,10 +427,15 @@ Slice::Python::CodeVisitor::visitClassDecl(const ClassDeclPtr& p)
     {
         _out << sp << nl << "if " << getDictLookup(p) << ':';
         _out.inc();
-        string type = getAbsolute(p, "_t_");
-        _out << nl << "_M_" << type << " = IcePy.declareClass('" << scoped << "')";
-        if(!p->isLocal())
+
+        if(!p->isInterface() || p->isLocal())
         {
+            _out << nl << "_M_" << getAbsolute(p, "_t_") << " = IcePy.declareValue('" << scoped << "')";
+        }
+        
+        if(!p->isLocal() && (p->isInterface() || p->definition()->allOperations().size()))
+        {
+            _out << nl << "_M_" << getAbsolute(p, "_t_", "Disp") << " = IcePy.declareClass('" << scoped << "')";
             _out << nl << "_M_" << getAbsolute(p, "_t_", "Prx") << " = IcePy.declareProxy('" << scoped << "')";
         }
         _out.dec();
@@ -413,122 +443,497 @@ Slice::Python::CodeVisitor::visitClassDecl(const ClassDeclPtr& p)
     }
 }
 
+void
+Slice::Python::CodeVisitor::writeOperations(const ClassDefPtr& p)
+{
+    OperationList ops = p->operations();
+    if(!ops.empty())
+    {
+        //
+        // Emit a placeholder for each operation.
+        //
+        for(OperationList::iterator oli = ops.begin(); oli != ops.end(); ++oli)
+        {
+            string fixedOpName = fixIdent((*oli)->name());
+            if(!p->isLocal())
+            {
+                _out << sp << nl << "def " << fixedOpName << "(self";
+
+                ParamDeclList params = (*oli)->parameters();
+
+                for(ParamDeclList::iterator pli = params.begin(); pli != params.end(); ++pli)
+                {
+                    if(!(*pli)->isOutParam())
+                    {
+                        _out << ", " << fixIdent((*pli)->name());
+                    }
+                }
+               
+                if(!p->isLocal())
+                {
+                    const string currentParamName = getEscapedParamName(*oli, "current");
+                    _out << ", " << currentParamName << "=None";
+                }
+                _out << "):";
+                _out.inc();
+
+                writeDocstring(*oli, DocAsyncDispatch, false);
+
+                _out << nl << "pass";
+                _out.dec();
+            }
+            else
+            {
+                _out << sp << nl << "def " << fixedOpName << "(self";
+
+                ParamDeclList params = (*oli)->parameters();
+
+                for(ParamDeclList::iterator pli = params.begin(); pli != params.end(); ++pli)
+                {
+                    if(!(*pli)->isOutParam())
+                    {
+                        _out << ", " << fixIdent((*pli)->name());
+                    }
+                }
+                if(!p->isLocal())
+                {
+                    const string currentParamName = getEscapedParamName(*oli, "current");
+                    _out << ", " << currentParamName << "=None";
+                }
+                _out << "):";
+                _out.inc();
+                writeDocstring(*oli, DocDispatch, p->isLocal());
+                _out << nl << "pass";
+                _out.dec();
+            }
+        }
+    }
+}
+
 bool
 Slice::Python::CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
 {
+    bool isLocal = p->isLocal();
+    bool isInterface = p->isInterface();
+    bool isAbstract = isInterface || p->allOperations().size() > 0; // Don't use isAbstract() - see bug 3739
+
     string scoped = p->scoped();
     string type = getAbsolute(p, "_t_");
+    string classType = getAbsolute(p, "_t_", "Disp");
     string abs = getAbsolute(p);
-    string name = fixIdent(p->name());
+    string className = isLocal ? fixIdent(p->name()) : isAbstract ? fixIdent("_" + p->name() + "Disp") : "None";
+    string classAbs = getAbsolute(p, "_", "Disp");
+    string valueName = (isInterface && !isLocal) ? "Ice.Value" : fixIdent(p->name());
     string prxAbs = getAbsolute(p, "", "Prx");
     string prxName = fixIdent(p->name() + "Prx");
     string prxType = getAbsolute(p, "_t_", "Prx");
     ClassList bases = p->bases();
     ClassDefPtr base;
-    OperationList ops = p->operations();
-    bool isAbstract = p->isInterface() || p->allOperations().size() > 0; // Don't use isAbstract() - see bug 3739
+    
+    if(!bases.empty() && !bases.front()->isInterface())
+    {
+        base = bases.front();
+    }
 
     //
-    // Define the class.
+    // Define a class type for Value types or local classes.
     //
-    _out << sp << nl << "if " << getDictLookup(p) << ':';
-    _out.inc();
-    _out << nl << "_M_" << abs << " = Ice.createTempClass()";
-    _out << nl << "class " << name << '(';
-    if(bases.empty())
+    if(isLocal || !isInterface)
     {
-        if(p->isLocal())
+        _out << sp << nl << "if " << getDictLookup(p) << ':';
+        _out.inc();
+        _out << nl << "_M_" << abs << " = Ice.createTempClass()";
+        _out << nl << "class " << valueName << '(';
+        if(isLocal)
         {
-            _out << "object";
+            if(bases.empty())
+            {
+                _out << "object";
+            }
+            else
+            {
+                for(ClassList::const_iterator q = bases.begin(); q != bases.end(); ++q)
+                {
+                    if(q != bases.begin())
+                    {
+                        _out << ", ";
+                    }
+                    _out << getSymbol(*q);
+                }
+            }
         }
         else
         {
-            _out << "Ice.Object";
+            if(bases.empty() || bases.front()->isInterface())
+            {
+                _out << "Ice.Value";
+            }
+            else
+            {
+                _out << getSymbol(bases.front());
+            }
         }
-    }
-    else
-    {
-        for(ClassList::const_iterator q = bases.begin(); q != bases.end(); ++q)
+        _out << "):";
+
+        _out.inc();
+
+        writeDocstring(p->comment(), p->dataMembers());
+
+        //
+        // __init__
+        //
+        _out << nl << "def __init__(self";
+        MemberInfoList allMembers;
+        collectClassMembers(p, allMembers, false);
+        writeConstructorParams(allMembers);
+        _out << "):";
+        _out.inc();
+        if(!base && !p->hasDataMembers() && (!isAbstract || !isLocal))
         {
-            if(q != bases.begin())
+            _out << nl << "pass";
+        }
+        else
+        {
+            if(isAbstract && isLocal)
+            {
+                _out << nl << "if Ice.getType(self) == _M_" << abs << ':';
+                _out.inc();
+                _out << nl << "raise RuntimeError('" << abs << " is an abstract class')";
+                _out.dec();
+            }
+            if(base)
+            {
+                _out << nl << getSymbol(base) << ".__init__(self";
+                for(MemberInfoList::iterator q = allMembers.begin(); q != allMembers.end(); ++q)
+                {
+                    if(q->inherited)
+                    {
+                        _out << ", " << q->fixedName;
+                    }
+                }
+                _out << ')';
+            }
+            for(MemberInfoList::iterator q = allMembers.begin(); q != allMembers.end(); ++q)
+            {
+                if(!q->inherited)
+                {
+                    writeAssign(*q);
+                }
+            }
+        }
+        _out.dec();
+        
+        if(!isLocal)
+        {
+            //
+            // ice_id
+            //
+            _out << sp << nl << "def ice_id(self):";
+            _out.inc();
+            _out << nl << "return '" << scoped << "'";
+            _out.dec();
+
+            //
+            // ice_staticId
+            //
+            _out << sp << nl << "@staticmethod";
+            _out << nl << "def ice_staticId():";
+            _out.inc();
+            _out << nl << "return '" << scoped << "'";
+            _out.dec();
+        }
+        else
+        {
+            writeOperations(p);
+        }
+        
+        //
+        // __str__
+        //
+        _out << sp << nl << "def __str__(self):";
+        _out.inc();
+        _out << nl << "return IcePy.stringify(self, _M_" << type << ")";
+        _out.dec();
+        _out << sp << nl << "__repr__ = __str__";
+
+        _out.dec();
+        
+        if(_classHistory.count(scoped) == 0 && p->canBeCyclic())
+        {
+            //
+            // Emit a forward declaration for the class in case a data member refers to this type.
+            //
+            _out << sp << nl << "_M_" << type << " = IcePy.declareValue('" << scoped << "')";
+        }
+        DataMemberList members = p->dataMembers();
+        _out << sp << nl << "_M_" << type << " = IcePy.defineValue('" << scoped << "', " << valueName
+             << ", " << p->compactId() << ", ";
+        writeMetaData(p->getMetaData());
+        const bool preserved = p->hasMetaData("preserve-slice") || p->inheritsMetaData("preserve-slice");
+        _out << ", " << (preserved ? "True" : "False") << ", " << (isInterface ? "True" : "False") << ", ";
+        if(!base)
+        {
+            _out << "None";
+        }
+        else
+        {
+            _out << "_M_" << getAbsolute(base, "_t_");
+        }
+        _out << ", (";
+        //
+        // Members
+        //
+        // Data members are represented as a tuple:
+        //
+        //   ('MemberName', MemberMetaData, MemberType, Optional, Tag)
+        //
+        // where MemberType is either a primitive type constant (T_INT, etc.) or the id of a constructed type.
+        //
+        if(members.size() > 1)
+        {
+            _out.inc();
+            _out << nl;
+        }
+        bool isProtected = p->hasMetaData("protected");
+        for(DataMemberList::iterator r = members.begin(); r != members.end(); ++r)
+        {
+            if(r != members.begin())
+            {
+                _out << ',' << nl;
+            }
+            _out << "('";
+            if(isProtected || (*r)->hasMetaData("protected"))
+            {
+                _out << '_';
+            }
+            _out << fixIdent((*r)->name()) << "', ";
+            writeMetaData((*r)->getMetaData());
+            _out << ", ";
+            writeType((*r)->type());
+            _out << ", " << ((*r)->optional() ? "True" : "False") << ", "
+                 << ((*r)->optional() ? (*r)->tag() : 0) << ')';
+        }
+        if(members.size() == 1)
+        {
+            _out << ',';
+        }
+        else if(members.size() > 1)
+        {
+            _out.dec();
+            _out << nl;
+        }
+        _out << "))";
+        _out << nl << valueName << "._ice_type = _M_" << type;
+        
+        registerName(valueName);
+        
+        _out.dec();
+    }
+    else if(!isLocal && isInterface)
+    {
+        _out << sp << nl << "_M_" << type << " = IcePy.defineValue('" << scoped << "', Ice.Value, -1, ";
+        writeMetaData(p->getMetaData());
+        _out << ", False, True, None, ())";
+    }
+
+    if(!isLocal && isAbstract)
+    {
+        _out << sp << nl << "if " << getDictLookup(p, "", "Prx") << ':';
+        _out.inc();
+
+        // Define the proxy class
+        _out << nl << "_M_" << prxAbs << " = Ice.createTempClass()";
+        _out << nl << "class " << prxName << '(';
+        
+        {
+            vector<string> baseClasses;
+            for(ClassList::const_iterator q = bases.begin(); q != bases.end(); ++q)
+            {
+                ClassDefPtr d = *q;
+                if(d->isInterface() || d->allOperations().size() > 0)
+                {
+                    baseClasses.push_back(getSymbol(*q, "", "Prx"));
+                }
+            }
+            
+            if(baseClasses.empty())
+            {
+                _out << "Ice.ObjectPrx";
+            }
+            else
+            {
+                vector<string>::const_iterator q = baseClasses.begin();
+                while(q != baseClasses.end())
+                {
+                    _out << *q;
+                    
+                    if(++q != baseClasses.end())
+                    {
+                        _out << ", ";
+                    }
+                }
+            }
+        }
+        _out << "):";
+        _out.inc();
+        
+        OperationList ops = p->operations();
+        for(OperationList::iterator oli = ops.begin(); oli != ops.end(); ++oli)
+        {
+            string fixedOpName = fixIdent((*oli)->name());
+            if(fixedOpName == "checkedCast" || fixedOpName == "uncheckedCast")
+            {
+                fixedOpName.insert(0, "_");
+            }
+            TypePtr ret = (*oli)->returnType();
+            ParamDeclList paramList = (*oli)->parameters();
+            string inParams;
+
+            for(ParamDeclList::const_iterator q = paramList.begin(); q != paramList.end(); ++q)
+            {
+                if(!(*q)->isOutParam())
+                {
+                    if(!inParams.empty())
+                    {
+                        inParams.append(", ");
+                    }
+                    inParams.append(fixIdent((*q)->name()));
+                }
+            }
+
+            _out << sp;
+            writeDocstring(*oli, DocSync, false);
+            _out << nl << "def " << fixedOpName << "(self";
+            if(!inParams.empty())
+            {
+                _out << ", " << inParams;
+            }
+            const string contextParamName = getEscapedParamName(*oli, "context");
+            _out << ", " << contextParamName << "=None):";
+            _out.inc();
+            _out << nl << "return _M_" << classAbs << "._op_" << (*oli)->name() << ".invoke(self, ((" << inParams;
+            if(!inParams.empty() && inParams.find(',') == string::npos)
             {
                 _out << ", ";
             }
-            _out << getSymbol(*q);
-        }
-        if(!bases.front()->isInterface())
-        {
-            base = bases.front();
-        }
-    }
-    _out << "):";
+            _out << "), " << contextParamName << "))";
+            _out.dec();
 
-    _out.inc();
-
-    writeDocstring(p->comment(), p->dataMembers());
-
-    //
-    // __init__
-    //
-    _out << nl << "def __init__(self";
-    MemberInfoList allMembers;
-    collectClassMembers(p, allMembers, false);
-    writeConstructorParams(allMembers);
-    _out << "):";
-    _out.inc();
-    if(!base && !p->hasDataMembers() && !isAbstract)
-    {
-        _out << nl << "pass";
-    }
-    else
-    {
-        if(isAbstract)
-        {
-            _out << nl << "if Ice.getType(self) == _M_" << abs << ':';
+            //
+            // Async operations.
+            //
+            _out << sp;
+            writeDocstring(*oli, DocAsync, false);
+            _out << nl << "def " << (*oli)->name() << "Async(self";
+            if(!inParams.empty())
+            {
+                _out << ", " << inParams;
+            }
+            _out << ", " << contextParamName << "=None):";
             _out.inc();
-            _out << nl << "raise RuntimeError('" << abs << " is an abstract class')";
+            _out << nl << "return _M_" << classAbs << "._op_" << (*oli)->name() << ".invokeAsync(self, ((" << inParams;
+            if(!inParams.empty() && inParams.find(',') == string::npos)
+            {
+                _out << ", ";
+            }
+            _out << "), " << contextParamName << "))";
+            _out.dec();
+
+            _out << sp;
+            writeDocstring(*oli, DocAsyncBegin, false);
+            _out << nl << "def begin_" << (*oli)->name() << "(self";
+            if(!inParams.empty())
+            {
+                _out << ", " << inParams;
+            }
+            _out << ", _response=None, _ex=None, _sent=None, " << contextParamName << "=None):";
+            _out.inc();
+            _out << nl << "return _M_" << classAbs << "._op_" << (*oli)->name() << ".begin(self, ((" << inParams;
+            if(!inParams.empty() && inParams.find(',') == string::npos)
+            {
+                _out << ", ";
+            }
+            _out << "), _response, _ex, _sent, " << contextParamName << "))";
+            _out.dec();
+
+            _out << sp;
+            writeDocstring(*oli, DocAsyncEnd, false);
+            _out << nl << "def end_" << (*oli)->name() << "(self, _r):";
+            _out.inc();
+            _out << nl << "return _M_" << classAbs << "._op_" << (*oli)->name() << ".end(self, _r)";
             _out.dec();
         }
-        if(base)
+
+        _out << sp << nl << "@staticmethod";
+        _out << nl << "def checkedCast(proxy, facetOrContext=None, context=None):";
+        _out.inc();
+        _out << nl << "return _M_" << prxAbs << ".ice_checkedCast(proxy, '" << scoped << "', facetOrContext, context)";
+        _out.dec();
+
+        _out << sp << nl << "@staticmethod";
+        _out << nl << "def uncheckedCast(proxy, facet=None):";
+        _out.inc();
+        _out << nl << "return _M_" << prxAbs << ".ice_uncheckedCast(proxy, facet)";
+        _out.dec();
+
+
+        //
+        // ice_staticId
+        //
+        _out << sp << nl << "@staticmethod";
+        _out << nl << "def ice_staticId():";
+        _out.inc();
+        _out << nl << "return '" << scoped << "'";
+        _out.dec();
+
+        _out.dec(); // end prx class
+                
+        _out << nl << "_M_" << prxType << " = IcePy.defineProxy('" << scoped << "', " << prxName << ")";
+
+        registerName(prxName);
+
+        // Define the servant class
+        _out << sp << nl << "_M_" << classAbs << " = Ice.createTempClass()";
+        _out << nl << "class " << className << '(';
         {
-            _out << nl << getSymbol(base) << ".__init__(self";
-            for(MemberInfoList::iterator q = allMembers.begin(); q != allMembers.end(); ++q)
+            vector<string> baseClasses;
+            for(ClassList::const_iterator q = bases.begin(); q != bases.end(); ++q)
             {
-                if(q->inherited)
+                ClassDefPtr d = *q;
+                if(d->isInterface() || d->allOperations().size() > 0)
                 {
-                    _out << ", " << q->fixedName;
+                    baseClasses.push_back(getSymbol(*q, "_", "Disp"));
                 }
             }
-            _out << ')';
-        }
-        for(MemberInfoList::iterator q = allMembers.begin(); q != allMembers.end(); ++q)
-        {
-            if(!q->inherited)
+            
+            if(baseClasses.empty())
             {
-                writeAssign(*q);
+                _out << "Ice.Object";
+            }
+            else
+            {
+                vector<string>::const_iterator q = baseClasses.begin();
+                while(q != baseClasses.end())
+                {
+                    _out << *q;
+                    
+                    if(++q != baseClasses.end())
+                    {
+                        _out << ", ";
+                    }
+                }
             }
         }
-    }
-    _out.dec();
+        _out << "):";
 
-    if(!p->isLocal())
-    {
+        _out.inc();
+        
         //
         // ice_ids
         //
         ClassList allBases = p->allBases();
         StringList ids;
-#if defined(__IBMCPP__) && defined(NDEBUG)
-//
-// VisualAge C++ 6.0 does not see that ClassDef is a Contained,
-// when inlining is on. The code below issues a warning: better
-// than an error!
-//
-        transform(allBases.begin(), allBases.end(), back_inserter(ids),
-                  IceUtil::constMemFun<string,ClassDef>(&Contained::scoped));
-#else
         transform(allBases.begin(), allBases.end(), back_inserter(ids), IceUtil::constMemFun(&Contained::scoped));
-#endif
         StringList other;
         other.push_back(scoped);
         other.push_back("::Ice::Object");
@@ -560,303 +965,70 @@ Slice::Python::CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
         //
         // ice_staticId
         //
-        _out << sp << nl << "def ice_staticId():";
+        _out << sp << nl << "@staticmethod";
+        _out << nl << "def ice_staticId():";
         _out.inc();
         _out << nl << "return '" << scoped << "'";
         _out.dec();
-        _out << nl << "ice_staticId = staticmethod(ice_staticId)";
-    }
-
-    if(!ops.empty())
-    {
+        
+        writeOperations(p);
+        
         //
-        // Emit a placeholder for each operation.
+        // __str__
         //
-        for(OperationList::iterator oli = ops.begin(); oli != ops.end(); ++oli)
+        _out << sp << nl << "def __str__(self):";
+        _out.inc();
+        _out << nl << "return IcePy.stringify(self, _M_" << getAbsolute(p, "_t_", "Disp") << ")";
+        _out.dec();
+        _out << sp << nl << "__repr__ = __str__";
+
+        _out.dec();
+        
+        _out << sp << nl << "_M_" << classType << " = IcePy.defineClass('" << scoped << "', " << className
+             << ", ";
+        writeMetaData(p->getMetaData());
+        _out << ", ";
+        if(!base || (!base->isInterface() && base->allOperations().size() == 0))
         {
-            string fixedOpName = fixIdent((*oli)->name());
-            if(!p->isLocal() && (p->hasMetaData("amd") || (*oli)->hasMetaData("amd")))
-            {
-                _out << sp << nl << "def " << (*oli)->name() << "_async(self, _cb";
-
-                ParamDeclList params = (*oli)->parameters();
-
-                for(ParamDeclList::iterator pli = params.begin(); pli != params.end(); ++pli)
-                {
-                    if(!(*pli)->isOutParam())
-                    {
-                        _out << ", " << fixIdent((*pli)->name());
-                    }
-                }
-                if(!p->isLocal())
-                {
-                    _out << ", current=None";
-                }
-                _out << "):";
-                _out.inc();
-
-                writeDocstring(*oli, DocAsyncDispatch, false);
-
-                _out << nl << "pass";
-                _out.dec();
-            }
-            else
-            {
-                _out << sp << nl << "def " << fixedOpName << "(self";
-
-                ParamDeclList params = (*oli)->parameters();
-
-                for(ParamDeclList::iterator pli = params.begin(); pli != params.end(); ++pli)
-                {
-                    if(!(*pli)->isOutParam())
-                    {
-                        _out << ", " << fixIdent((*pli)->name());
-                    }
-                }
-                if(!p->isLocal())
-                {
-                    _out << ", current=None";
-                }
-                _out << "):";
-                _out.inc();
-                writeDocstring(*oli, DocDispatch, p->isLocal());
-                _out << nl << "pass";
-                _out.dec();
-            }
-        }
-    }
-
-    //
-    // __str__
-    //
-    _out << sp << nl << "def __str__(self):";
-    _out.inc();
-    _out << nl << "return IcePy.stringify(self, _M_" << getAbsolute(p, "_t_") << ")";
-    _out.dec();
-    _out << sp << nl << "__repr__ = __str__";
-
-    _out.dec();
-
-    //
-    // Define the proxy class.
-    //
-    if(!p->isLocal())
-    {
-        _out << sp << nl << "_M_" << prxAbs << " = Ice.createTempClass()";
-        _out << nl << "class " << prxName << "(";
-        if(bases.empty())
-        {
-            _out << "Ice.ObjectPrx";
+            _out << "None";
         }
         else
         {
-            ClassList::const_iterator q = bases.begin();
-            while(q != bases.end())
+            _out << "_M_" << getAbsolute(base, "_t_", "Disp");
+        }
+        _out << ", (";
+        //
+        // Interfaces
+        //
+        int interfaceCount = 0;
+        for(ClassList::const_iterator q = bases.begin(); q != bases.end(); ++q)
+        {
+            if((*q)->isInterface())
             {
-                _out << getSymbol(*q, "Prx");
-                if(++q != bases.end())
+                if(interfaceCount > 0)
                 {
                     _out << ", ";
                 }
+                _out << "_M_" << getAbsolute(*q, "_t_", "Disp");
+                ++interfaceCount;
             }
         }
-        _out << "):";
-        _out.inc();
-
-        for(OperationList::iterator oli = ops.begin(); oli != ops.end(); ++oli)
+        if(interfaceCount == 1)
         {
-            string fixedOpName = fixIdent((*oli)->name());
-            if(fixedOpName == "checkedCast" || fixedOpName == "uncheckedCast")
-            {
-                fixedOpName.insert(0, "_");
-            }
-            TypePtr ret = (*oli)->returnType();
-            ParamDeclList paramList = (*oli)->parameters();
-            string inParams;
-
-            for(ParamDeclList::const_iterator q = paramList.begin(); q != paramList.end(); ++q)
-            {
-                if(!(*q)->isOutParam())
-                {
-                    if(!inParams.empty())
-                    {
-                        inParams.append(", ");
-                    }
-                    inParams.append(fixIdent((*q)->name()));
-                }
-            }
-
-            _out << sp;
-            writeDocstring(*oli, DocSync, false);
-            _out << nl << "def " << fixedOpName << "(self";
-            if(!inParams.empty())
-            {
-                _out << ", " << inParams;
-            }
-            _out << ", _ctx=None):";
-            _out.inc();
-            _out << nl << "return _M_" << abs << "._op_" << (*oli)->name() << ".invoke(self, ((" << inParams;
-            if(!inParams.empty() && inParams.find(',') == string::npos)
-            {
-                _out << ", ";
-            }
-            _out << "), _ctx))";
-            _out.dec();
-
-            //
-            // Async operations.
-            //
-            _out << sp;
-            writeDocstring(*oli, DocAsyncBegin, false);
-            _out << nl << "def begin_" << (*oli)->name() << "(self";
-            if(!inParams.empty())
-            {
-                _out << ", " << inParams;
-            }
-            _out << ", _response=None, _ex=None, _sent=None, _ctx=None):";
-            _out.inc();
-            _out << nl << "return _M_" << abs << "._op_" << (*oli)->name() << ".begin(self, ((" << inParams;
-            if(!inParams.empty() && inParams.find(',') == string::npos)
-            {
-                _out << ", ";
-            }
-            _out << "), _response, _ex, _sent, _ctx))";
-            _out.dec();
-
-            _out << sp;
-            writeDocstring(*oli, DocAsyncEnd, false);
-            _out << nl << "def end_" << (*oli)->name() << "(self, _r):";
-            _out.inc();
-            _out << nl << "return _M_" << abs << "._op_" << (*oli)->name() << ".end(self, _r)";
-            _out.dec();
+            _out << ',';
         }
-
-        _out << sp << nl << "def checkedCast(proxy, facetOrCtx=None, _ctx=None):";
-        _out.inc();
-        _out << nl << "return _M_" << prxAbs << ".ice_checkedCast(proxy, '" << scoped << "', facetOrCtx, _ctx)";
-        _out.dec();
-        _out << nl << "checkedCast = staticmethod(checkedCast)";
-
-        _out << sp << nl << "def uncheckedCast(proxy, facet=None):";
-        _out.inc();
-        _out << nl << "return _M_" << prxAbs << ".ice_uncheckedCast(proxy, facet)";
-        _out.dec();
-        _out << nl << "uncheckedCast = staticmethod(uncheckedCast)";
-
-
-	//
-        // ice_staticId
+        _out << "))";
+        _out << nl << className << "._ice_type = _M_" << classType;
+        
+        
+         //
+        // Define each operation. The arguments to the IcePy.Operation constructor are:
         //
-        _out << sp << nl << "def ice_staticId():";
-        _out.inc();
-        _out << nl << "return '" << scoped << "'";
-        _out.dec();
-        _out << nl << "ice_staticId = staticmethod(ice_staticId)";
-
-	_out.dec();
-
-        _out << sp << nl << "_M_" << prxType << " = IcePy.defineProxy('" << scoped << "', " << prxName << ")";
-    }
-
-    if(_classHistory.count(scoped) == 0 && p->canBeCyclic())
-    {
+        // 'opName', Mode, SendMode, AMD, Format, MetaData, (InParams), (OutParams), ReturnParam, (Exceptions)
         //
-        // Emit a forward declaration for the class in case a data member refers to this type.
+        // where InParams and OutParams are tuples of type descriptions, and Exceptions
+        // is a tuple of exception type ids.
         //
-        _out << sp << nl << "_M_" << type << " = IcePy.declareClass('" << scoped << "')";
-    }
-
-    DataMemberList members = p->dataMembers();
-    _out << sp << nl << "_M_" << type << " = IcePy.defineClass('" << scoped << "', " << name << ", " << p->compactId()
-         << ", ";
-    writeMetaData(p->getMetaData());
-    const bool preserved = p->hasMetaData("preserve-slice") || p->inheritsMetaData("preserve-slice");
-    _out << ", " << (isAbstract ? "True" : "False") << ", " << (preserved ? "True" : "False") << ", ";
-    if(!base)
-    {
-        _out << "None";
-    }
-    else
-    {
-        _out << "_M_" << getAbsolute(base, "_t_");
-    }
-    _out << ", (";
-    //
-    // Interfaces
-    //
-    int interfaceCount = 0;
-    for(ClassList::const_iterator q = bases.begin(); q != bases.end(); ++q)
-    {
-        if((*q)->isInterface())
-        {
-            if(interfaceCount > 0)
-            {
-                _out << ", ";
-            }
-            _out << "_M_" << getAbsolute(*q, "_t_");
-            ++interfaceCount;
-        }
-    }
-    if(interfaceCount == 1)
-    {
-        _out << ',';
-    }
-    //
-    // Members
-    //
-    // Data members are represented as a tuple:
-    //
-    //   ('MemberName', MemberMetaData, MemberType, Optional, Tag)
-    //
-    // where MemberType is either a primitive type constant (T_INT, etc.) or the id of a constructed type.
-    //
-    _out << "), (";
-    if(members.size() > 1)
-    {
-        _out.inc();
-        _out << nl;
-    }
-    bool isProtected = p->hasMetaData("protected");
-    for(DataMemberList::iterator r = members.begin(); r != members.end(); ++r)
-    {
-        if(r != members.begin())
-        {
-            _out << ',' << nl;
-        }
-        _out << "('";
-        if(isProtected || (*r)->hasMetaData("protected"))
-        {
-            _out << '_';
-        }
-        _out << fixIdent((*r)->name()) << "', ";
-        writeMetaData((*r)->getMetaData());
-        _out << ", ";
-        writeType((*r)->type());
-        _out << ", " << ((*r)->optional() ? "True" : "False") << ", "
-             << ((*r)->optional() ? (*r)->tag() : 0) << ')';
-    }
-    if(members.size() == 1)
-    {
-        _out << ',';
-    }
-    else if(members.size() > 1)
-    {
-        _out.dec();
-        _out << nl;
-    }
-    _out << "))";
-    _out << nl << name << "._ice_type = _M_" << type;
-
-    //
-    // Define each operation. The arguments to the IcePy.Operation constructor are:
-    //
-    // 'opName', Mode, SendMode, AMD, Format, MetaData, (InParams), (OutParams), ReturnParam, (Exceptions)
-    //
-    // where InParams and OutParams are tuples of type descriptions, and Exceptions
-    // is a tuple of exception type ids.
-    //
-    if(!p->isLocal())
-    {
         if(!ops.empty())
         {
             _out << sp;
@@ -880,10 +1052,10 @@ Slice::Python::CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
                 break;
             }
 
-            _out << nl << name << "._op_" << (*s)->name() << " = IcePy.Operation('" << (*s)->name() << "', "
-                 << getOperationMode((*s)->mode()) << ", " << getOperationMode((*s)->sendMode()) << ", "
-                 << ((p->hasMetaData("amd") || (*s)->hasMetaData("amd")) ? "True" : "False") << ", "
-                 << format << ", ";
+            _out << nl << className << "._op_" << (*s)->name() << " = IcePy.Operation('" << (*s)->name() << "', "
+                << getOperationMode((*s)->mode()) << ", " << getOperationMode((*s)->sendMode()) << ", "
+                << ((p->hasMetaData("amd") || (*s)->hasMetaData("amd")) ? "True" : "False") << ", "
+                << format << ", ";
             writeMetaData((*s)->getMetaData());
             _out << ", (";
             for(t = params.begin(), count = 0; t != params.end(); ++t)
@@ -921,7 +1093,7 @@ Slice::Python::CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
                     _out << ", ";
                     writeType((*t)->type());
                     _out << ", " << ((*t)->optional() ? "True" : "False") << ", "
-                         << ((*t)->optional() ? (*t)->tag() : 0) << ')';
+                        << ((*t)->optional() ? (*t)->tag() : 0) << ')';
                     ++count;
                 }
             }
@@ -972,19 +1144,13 @@ Slice::Python::CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
                 {
                     msg = deprecateMetadata.substr(pos + 1);
                 }
-                _out << nl << name << "._op_" << (*s)->name() << ".deprecate(\"" << msg << "\")";
+                _out << nl << className << "._op_" << (*s)->name() << ".deprecate(\"" << msg << "\")";
             }
         }
+
+        registerName(className);
+        _out.dec();
     }
-
-    registerName(name);
-
-    if(!p->isLocal())
-    {
-        registerName(prxName);
-    }
-
-    _out.dec();
 
     if(_classHistory.count(scoped) == 0)
     {
@@ -1074,9 +1240,9 @@ Slice::Python::CodeVisitor::visitExceptionStart(const ExceptionPtr& p)
     _out << sp << nl << "__repr__ = __str__";
 
     //
-    // _ice_name
+    // _ice_id
     //
-    _out << sp << nl << "_ice_name = '" << scoped.substr(2) << "'";
+    _out << sp << nl << "_ice_id = '" << scoped << "'";
 
     _out.dec();
 
@@ -1558,12 +1724,12 @@ Slice::Python::CodeVisitor::visitConst(const ConstPtr& p)
 }
 
 string
-Slice::Python::CodeVisitor::getSymbol(const ContainedPtr& p, const string& nameSuffix)
+Slice::Python::CodeVisitor::getSymbol(const ContainedPtr& p, const string& prefix, const string& suffix)
 {
     //
     // An explicit reference to another type must always be prefixed with "_M_".
     //
-    return "_M_" + getAbsolute(p, "", nameSuffix);
+    return "_M_" + getAbsolute(p, prefix, suffix);
 }
 
 void
@@ -1623,8 +1789,9 @@ Slice::Python::CodeVisitor::writeType(const TypePtr& p)
                 break;
             }
             case Builtin::KindObject:
+            case Builtin::KindValue:
             {
-                _out << "IcePy._t_Object";
+                _out << "IcePy._t_Value";
                 break;
             }
             case Builtin::KindObjectProxy:
@@ -1644,7 +1811,15 @@ Slice::Python::CodeVisitor::writeType(const TypePtr& p)
     ProxyPtr prx = ProxyPtr::dynamicCast(p);
     if(prx)
     {
-        _out << "_M_" << getAbsolute(prx->_class(), "_t_", "Prx");
+        ClassDefPtr def = prx->_class()->definition();
+        if(def->isInterface() || def->allOperations().size() > 0)
+        {
+            _out << "_M_" << getAbsolute(prx->_class(), "_t_", "Prx");
+        }
+        else
+        {
+            _out << "IcePy._t_ObjectPrx";
+        }
         return;
     }
 
@@ -1686,6 +1861,7 @@ Slice::Python::CodeVisitor::writeInitializer(const DataMemberPtr& m)
                 _out << "''";
                 break;
             }
+            case Builtin::KindValue:
             case Builtin::KindObject:
             case Builtin::KindObjectProxy:
             case Builtin::KindLocalObject:
@@ -1847,152 +2023,17 @@ Slice::Python::CodeVisitor::writeConstantValue(const TypePtr& type, const Syntax
             }
             case Slice::Builtin::KindString:
             {
-                //
-                // Expand strings into the basic source character set. We can't use isalpha() and the like
-                // here because they are sensitive to the current locale.
-                //
-                static const string basicSourceChars = "abcdefghijklmnopqrstuvwxyz"
-                                                       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                                       "0123456789"
-                                                       "_{}[]#()<>%:;.?*+-/^&|~!=, '";
-                static const set<char> charSet(basicSourceChars.begin(), basicSourceChars.end());
+                string sv2 = toStringLiteral(value, "\a\b\f\n\r\t\v", "", Octal, 0);
+                string sv3 = toStringLiteral(value, "\a\b\f\n\r\t\v", "", UCN, 0);
 
-                _out << "\"";                                       // Opening "
-
-                for(size_t i = 0; i < value.size();)
+                _out << "\"" << sv2<< "\"";
+                if(sv2 != sv3)
                 {
-                    char c = value[i];
-                    switch(c)
-                    {
-                        case '"':
-                        {
-                            _out << "\\\"";
-                            break;
-                        }
-                        case '\\':
-                        {
-                            string s = "\\";
-                            size_t j = i + 1;
-                            for(; j < value.size(); ++j)
-                            {
-                                if(value[j] != '\\')
-                                {
-                                    break;
-                                }
-                                s += "\\";
-                            }
-
-                            //
-                            // An even number of slash \ will escape the backslash and
-                            // the codepoint will be interpreted as its charaters
-                            //
-                            // \\u00000041  - ['\\', 'u', '0', '0', '0', '0', '0', '0', '4', '1']
-                            // \\\u00000041 - ['\\', 'A'] (41 is the codepoint for 'A')
-                            //
-                            if(s.size() % 2 != 0 && (value[j] == 'U' || value[j] == 'u'))
-                            {
-                                //
-                                // Convert codepoint to UTF8 bytes and write the escaped bytes
-                                //
-                                _out << s.substr(0, s.size() - 1);
-
-                                size_t sz = value[j] == 'U' ? 8 : 4;
-                                string codepoint = value.substr(j + 1, sz);
-                                assert(codepoint.size() ==  sz);
-
-                                IceUtil::Int64 v = IceUtilInternal::strToInt64(codepoint.c_str(), 0, 16);
-
-                                vector<unsigned int> u32buffer;
-                                u32buffer.push_back(static_cast<unsigned int>(v));
-
-                                vector<unsigned char> u8buffer;
-                                IceUtilInternal::ConversionResult result = convertUTF32ToUTF8(u32buffer, u8buffer, IceUtil::lenientConversion);
-                                switch(result)
-                                {
-                                    case conversionOK:
-                                        break;
-                                    case sourceExhausted:
-                                        throw IceUtil::IllegalConversionException(__FILE__, __LINE__, "string source exhausted");
-                                    case sourceIllegal:
-                                        throw IceUtil::IllegalConversionException(__FILE__, __LINE__, "string source illegal");
-                                    default:
-                                    {
-                                        assert(0);
-                                        throw IceUtil::IllegalConversionException(__FILE__, __LINE__);
-                                    }
-                                }
-
-                                ostringstream s;
-                                for(vector<unsigned char>::const_iterator q = u8buffer.begin(); q != u8buffer.end(); ++q)
-                                {
-                                    s << "\\";
-                                    s.fill('0');
-                                    s.width(3);
-                                    s << oct;
-                                    s << static_cast<unsigned int>(*q);
-                                }
-                                _out << s.str();
-
-                                i = j + 1 + sz;
-                            }
-                            else
-                            {
-                                _out << s;
-                                i = j;
-                            }
-                            continue;
-                        }
-                        case '\r':
-                        {
-                            _out << "\\r";
-                            break;
-                        }
-                        case '\n':
-                        {
-                            _out << "\\n";
-                            break;
-                        }
-                        case '\t':
-                        {
-                            _out << "\\t";
-                            break;
-                        }
-                        case '\b':
-                        {
-                            _out << "\\b";
-                            break;
-                        }
-                        case '\f':
-                        {
-                            _out << "\\f";
-                            break;
-                        }
-                        default:
-                        {
-                            if(charSet.find(c) == charSet.end())
-                            {
-                                unsigned char uc = c;               // Char may be signed, so make it positive.
-                                stringstream s;
-                                s << "\\";                          // Print as octal if not in basic source character set.
-                                s.flags(ios_base::oct);
-                                s.width(3);
-                                s.fill('0');
-                                s << static_cast<unsigned>(uc);
-                                _out << s.str();
-                            }
-                            else
-                            {
-                                _out << c;                          // Print normally if in basic source character set.
-                            }
-                            break;
-                        }
-                    }
-                    ++i;
+                    _out << " if _version_info_[0] < 3 else \"" << sv3 << "\"";
                 }
-
-                _out << "\"";                                       // Closing "
                 break;
             }
+            case Slice::Builtin::KindValue:
             case Slice::Builtin::KindObject:
             case Slice::Builtin::KindObjectProxy:
             case Slice::Builtin::KindLocalObject:
@@ -2291,14 +2332,10 @@ Slice::Python::CodeVisitor::writeDocstring(const string& comment, const string& 
 
     for(StringVec::const_iterator q = lines.begin(); q != lines.end(); ++q)
     {
-        if(q != lines.begin())
-        {
-            _out << nl;
-        }
-        _out << *q;
+        _out << nl << *q;
     }
 
-    _out << "\"\"\"";
+    _out << nl << "\"\"\"";
 }
 
 void
@@ -2314,11 +2351,7 @@ Slice::Python::CodeVisitor::writeDocstring(const string& comment, const DataMemb
 
     for(StringVec::const_iterator q = lines.begin(); q != lines.end(); ++q)
     {
-        if(q != lines.begin())
-        {
-            _out << nl;
-        }
-        _out << *q;
+        _out << nl << *q;
     }
 
     if(!members.empty())
@@ -2360,7 +2393,7 @@ Slice::Python::CodeVisitor::writeDocstring(const string& comment, const DataMemb
         }
     }
 
-    _out << "\"\"\"";
+    _out << nl << "\"\"\"";
 }
 
 void
@@ -2376,11 +2409,7 @@ Slice::Python::CodeVisitor::writeDocstring(const string& comment, const Enumerat
 
     for(StringVec::const_iterator q = lines.begin(); q != lines.end(); ++q)
     {
-        if(q != lines.begin())
-        {
-            _out << nl;
-        }
-        _out << *q;
+        _out << nl << *q;
     }
 
     if(!enums.empty())
@@ -2422,7 +2451,7 @@ Slice::Python::CodeVisitor::writeDocstring(const string& comment, const Enumerat
         }
     }
 
-    _out << "\"\"\"";
+    _out << nl << "\"\"\"";
 }
 
 bool
@@ -2643,7 +2672,7 @@ Slice::Python::CodeVisitor::writeDocstring(const OperationPtr& op, DocstringMode
         {
             return;
         }
-        else if(mode == DocAsyncBegin && inParams.empty())
+        else if((mode == DocAsync || mode == DocAsyncBegin) && inParams.empty())
         {
             return;
         }
@@ -2665,11 +2694,7 @@ Slice::Python::CodeVisitor::writeDocstring(const OperationPtr& op, DocstringMode
     {
         for(StringVec::const_iterator q = comment.description.begin(); q != comment.description.end(); ++q)
         {
-            if(q != comment.description.begin())
-            {
-                _out << nl;
-            }
-            _out << *q;
+            _out << nl << *q;
         }
     }
 
@@ -2680,6 +2705,7 @@ Slice::Python::CodeVisitor::writeDocstring(const OperationPtr& op, DocstringMode
     switch(mode)
     {
     case DocSync:
+    case DocAsync:
     case DocAsyncBegin:
     case DocDispatch:
         needArgs = !local || !inParams.empty();
@@ -2693,10 +2719,6 @@ Slice::Python::CodeVisitor::writeDocstring(const OperationPtr& op, DocstringMode
     if(needArgs)
     {
         _out << nl << "Arguments:";
-        if(mode == DocAsyncDispatch)
-        {
-            _out << nl << "_cb -- The asynchronous callback object.";
-        }
         for(vector<string>::iterator q = inParams.begin(); q != inParams.end(); ++q)
         {
             string fixed = fixIdent(*q);
@@ -2717,13 +2739,15 @@ Slice::Python::CodeVisitor::writeDocstring(const OperationPtr& op, DocstringMode
                  << nl << "_ex -- The asynchronous exception callback."
                  << nl << "_sent -- The asynchronous sent callback.";
         }
-        if(!local && (mode == DocSync || mode == DocAsyncBegin))
+        if(!local && (mode == DocSync || mode == DocAsync || mode == DocAsyncBegin))
         {
-            _out << nl << "_ctx -- The request context for the invocation.";
+             const string contextParamName = getEscapedParamName(op, "context");
+            _out << nl << contextParamName << " -- The request context for the invocation.";
         }
         if(!local && (mode == DocDispatch || mode == DocAsyncDispatch))
         {
-            _out << nl << "current -- The Current object for the invocation.";
+            const string currentParamName = getEscapedParamName(op, "current");
+            _out << nl << currentParamName << " -- The Current object for the invocation.";
         }
     }
     else if(mode == DocAsyncEnd)
@@ -2735,6 +2759,10 @@ Slice::Python::CodeVisitor::writeDocstring(const OperationPtr& op, DocstringMode
     //
     // Emit return value(s).
     //
+    if(mode == DocAsync || mode == DocAsyncDispatch)
+    {
+        _out << nl << "Returns: A future object for the invocation.";
+    }
     if(mode == DocAsyncBegin)
     {
         _out << nl << "Returns: An asynchronous result object for the invocation.";
@@ -2798,15 +2826,17 @@ Slice::Python::CodeVisitor::writeDocstring(const OperationPtr& op, DocstringMode
             _out << nl << r->first << " -- " << r->second;
         }
     }
-    _out << "\"\"\"";
+    _out << nl << "\"\"\"";
 }
 
 void
-Slice::Python::generate(const UnitPtr& un, bool all, bool checksum, const vector<string>& includePaths, Output& out)
+Slice::Python::generate(const UnitPtr& un, bool all, bool checksum, const vector<string>& includePaths,
+                        Output& out)
 {
     Slice::Python::MetaDataVisitor visitor;
     un->visit(&visitor, false);
 
+    out << nl << "from sys import version_info as _version_info_";
     out << nl << "import Ice, IcePy";
 
     if(!all)
@@ -2929,14 +2959,7 @@ Slice::Python::getAbsolute(const ContainedPtr& cont, const string& suffix, const
         }
     }
 
-    if(suffix.empty())
-    {
-        return scope + fixIdent(cont->name() + nameSuffix);
-    }
-    else
-    {
-        return scope + suffix + fixIdent(cont->name() + nameSuffix);
-    }
+    return scope + suffix + fixIdent(cont->name() + nameSuffix);
 }
 
 void
@@ -2968,30 +2991,32 @@ Slice::Python::MetaDataVisitor::visitUnitStart(const UnitPtr& p)
     // Validate global metadata in the top-level file and all included files.
     //
     StringList files = p->allFiles();
-
     for(StringList::iterator q = files.begin(); q != files.end(); ++q)
     {
         string file = *q;
         DefinitionContextPtr dc = p->findDefinitionContext(file);
         assert(dc);
+        bool emitWarnings = !dc->suppressWarning("invalid-metadata");
         StringList globalMetaData = dc->getMetaData();
-        for(StringList::const_iterator r = globalMetaData.begin(); r != globalMetaData.end(); ++r)
+        for(StringList::const_iterator r = globalMetaData.begin(); r != globalMetaData.end();)
         {
-            string s = *r;
-            if(_history.count(s) == 0)
+            string s = *r++;
+            if(s.find(prefix) == 0)
             {
-                _history.insert(s);
-                if(s.find(prefix) == 0)
+                static const string packagePrefix = "python:package:";
+                if(s.find(packagePrefix) == 0 && s.size() > packagePrefix.size())
                 {
-                    static const string packagePrefix = "python:package:";
-                    if(s.find(packagePrefix) == 0 && s.size() > packagePrefix.size())
-                    {
-                        continue;
-                    }
+                    continue;
+                }
+
+                if(emitWarnings)
+                {
                     emitWarning(file, "", "ignoring invalid global metadata `" + s + "'");
                 }
+                globalMetaData.remove(s);
             }
         }
+        dc->setMetaData(globalMetaData);
     }
     return true;
 }
@@ -3059,6 +3084,12 @@ Slice::Python::MetaDataVisitor::visitSequence(const SequencePtr& p)
     StringList metaData = p->getMetaData();
     const string file = p->file();
     const string line = p->line();
+    StringList protobufMetaData;
+    const UnitPtr unit = p->unit();
+    const DefinitionContextPtr dc = unit->findDefinitionContext(file);
+    assert(dc);
+    bool emitWarnings = !dc->suppressWarning("invalid-metadata");
+
     for(StringList::const_iterator q = metaData.begin(); q != metaData.end(); )
     {
         string s = *q++;
@@ -3068,17 +3099,25 @@ Slice::Python::MetaDataVisitor::visitSequence(const SequencePtr& p)
             // Remove from list so validateSequence does not try to handle as well.
             //
             metaData.remove(s);
-
             BuiltinPtr builtin = BuiltinPtr::dynamicCast(p->type());
             if(!builtin || builtin->kind() != Builtin::KindByte)
             {
-                emitWarning(file, line, "ignoring invalid metadata `" + s + ": " +
-                            "`protobuf' encoding must be a byte sequence");
+                if(emitWarnings)
+                {
+                    emitWarning(file, line, "ignoring invalid metadata `" + s + ": " +
+                                "`protobuf' encoding must be a byte sequence");
+                }
+            }
+            else
+            {
+                protobufMetaData.push_back(s);
             }
         }
     }
 
-    validateSequence(file, line, p, metaData);
+    metaData = validateSequence(file, line, p, metaData);
+    metaData.insert(metaData.end(), protobufMetaData.begin(), protobufMetaData.end());
+    p->setMetaData(metaData);
 }
 
 void
@@ -3099,15 +3138,20 @@ Slice::Python::MetaDataVisitor::visitConst(const ConstPtr& p)
     reject(p);
 }
 
-void
+StringList
 Slice::Python::MetaDataVisitor::validateSequence(const string& file, const string& line,
-                                                 const TypePtr& type, const StringList& meta)
+                                                 const TypePtr& type, const StringList& metaData)
 {
-    static const string prefix = "python:";
+    const UnitPtr unit = type->unit();
+    const DefinitionContextPtr dc = unit->findDefinitionContext(file);
+    assert(dc);
+    bool emitWarnings = !dc->suppressWarning("invalid-metadata");
 
-    for(StringList::const_iterator p = meta.begin(); p != meta.end(); ++p)
+    static const string prefix = "python:";
+    StringList newMetaData = metaData;
+    for(StringList::const_iterator p = newMetaData.begin(); p != newMetaData.end();)
     {
-        string s = *p;
+        string s = *p++;
         if(s.find(prefix) == 0)
         {
             string::size_type pos = s.find(':', prefix.size());
@@ -3123,9 +3167,14 @@ Slice::Python::MetaDataVisitor::validateSequence(const string& file, const strin
                     }
                 }
             }
-            emitWarning(file, line, "ignoring invalid metadata `" + s + "'");
+            if(emitWarnings)
+            {
+                emitWarning(file, line, "ignoring invalid metadata `" + s + "'");
+            }
+            newMetaData.remove(s);
         }
     }
+    return newMetaData;
 }
 
 void
@@ -3133,11 +3182,23 @@ Slice::Python::MetaDataVisitor::reject(const ContainedPtr& cont)
 {
     StringList localMetaData = cont->getMetaData();
     static const string prefix = "python:";
-    for(StringList::const_iterator p = localMetaData.begin(); p != localMetaData.end(); ++p)
+
+    const UnitPtr unit = cont->unit();
+    const DefinitionContextPtr dc = unit->findDefinitionContext(cont->file());
+    assert(dc);
+    bool emitWarnings = !dc->suppressWarning("invalid-metadata");
+
+    for(StringList::const_iterator p = localMetaData.begin(); p != localMetaData.end();)
     {
-        if(p->find(prefix) == 0)
+        string s = *p++;
+        if(s.find(prefix) == 0)
         {
-            emitWarning(cont->file(), cont->line(), "ignoring invalid metadata `" + *p + "'");
+            if(emitWarnings)
+            {
+                emitWarning(cont->file(), cont->line(), "ignoring invalid metadata `" + s + "'");
+            }
+            localMetaData.remove(s);
         }
     }
+    cont->setMetaData(localMetaData);
 }

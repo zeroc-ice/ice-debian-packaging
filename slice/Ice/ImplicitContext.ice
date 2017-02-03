@@ -9,10 +9,14 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API"]]
 
 #include <Ice/LocalException.ice>
 #include <Ice/Current.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:ICE"]
 module Ice
@@ -22,8 +26,8 @@ module Ice
  *
  * An interface to associate implict contexts with communicators.
  *
- * When you make a remote invocation without an explicit {@link Context} parameter,
- * Ice uses the per-proxy {@link Context} (if any) combined with the <tt>ImplicitContext</tt>
+ * When you make a remote invocation without an explicit context parameter,
+ * Ice uses the per-proxy context (if any) combined with the <tt>ImplicitContext</tt>
  * associated with the communicator.</p>
  * <p>Ice provides several implementations of <tt>ImplicitContext</tt>. The implementation
  * used depends on the value of the <tt>Ice.ImplicitContext</tt> property.
@@ -31,10 +35,9 @@ module Ice
  * <dt><tt>None</tt> (default)</dt>
  * <dd>No implicit context at all.</dd>
  * <dt><tt>PerThread</tt></dt>
- * <dd>The implementation maintains a {@link Context} per thread.</dd>
+ * <dd>The implementation maintains a context per thread.</dd>
  * <dt><tt>Shared</tt></dt>
- * <dd>The implementation maintains a single {@link Context} shared 
- * by all threads.</dd>
+ * <dd>The implementation maintains a single context shared by all threads.</dd>
  * </dl><p>
  *  
  * <tt>ImplicitContext</tt> also provides a number of operations to create, update or retrieve
@@ -94,7 +97,7 @@ local interface ImplicitContext
      * @return The previous value associated with the key, if any.
      *
      **/
-    string put(string key, string value);
+    string put(string key, string \value);
 
     /**
      * Remove the entry for the given key in the underlying context.
@@ -107,4 +110,3 @@ local interface ImplicitContext
     string remove(string key);
 };
 };
-

@@ -211,7 +211,7 @@ public:
             cout << "ok" << endl;
             instance->notify();
         }
-        catch(...)
+        catch(const Ice::LocalException&)
         {
             test(false);
         }
@@ -273,10 +273,11 @@ public:
     int run(int argc, char* argv[])
     {
         instance = this;
-        string protocol = communicator()->getProperties()->getPropertyWithDefault("Ice.Default.Protocol", "tcp");
-        string host = communicator()->getProperties()->getPropertyWithDefault("Ice.Default.Host", "127.0.0.1");
+        string protocol = getTestProtocol(communicator()->getProperties());
+        string host = getTestHost(communicator()->getProperties());
         _initData.properties = Ice::createProperties(argc, argv, communicator()->getProperties());
-        _initData.properties->setProperty("Ice.Default.Router", "Glacier2/router:default -p 12347");
+        _initData.properties->setProperty("Ice.Default.Router", "Glacier2/router:" +
+                                          getTestEndpoint(communicator(), 10));
 
         DispatcherPtr dispatcher = new Dispatcher();
         dispatcher->start();
@@ -298,7 +299,9 @@ public:
             //
             // Wait for connectFailed callback
             //
-            _monitor.wait();
+            _monitor.timedWait(IceUtil::Time::seconds(30));
+
+            test(!_session->isConnected());
         }
         _factory->destroy();
 
@@ -313,7 +316,7 @@ public:
             IceUtil::Monitor<IceUtil::Mutex>::Lock lock(_monitor);
             cout << "testing SessionHelper connect interrupt... " << flush;
             _factory->setRouterHost(host);
-            _factory->setPort(12011);
+            _factory->setPort(getTestPort(_initData.properties, 1));
             _factory->setProtocol(protocol);
             _session = _factory->connect("userid", "abc123");
 
@@ -323,7 +326,8 @@ public:
             //
             // Wait for connectFailed callback
             //
-            _monitor.wait();
+            _monitor.timedWait(IceUtil::Time::seconds(30));
+            test(!_session->isConnected());
         }
         _factory->destroy();
 
@@ -333,14 +337,14 @@ public:
             IceUtil::Monitor<IceUtil::Mutex>::Lock lock(_monitor);
             cout << "testing SessionHelper connect... " << flush;
             _factory->setRouterHost(host);
-            _factory->setPort(12347);
+            _factory->setPort(getTestPort(_initData.properties, 10));
             _factory->setProtocol(protocol);
             _session = _factory->connect("userid", "abc123");
 
             //
             // Wait for connect callback
             //
-            _monitor.wait();
+            _monitor.timedWait(IceUtil::Time::seconds(30));
 
             cout << "testing SessionHelper isConnected after connect... " << flush;
             test(_session->isConnected());
@@ -367,7 +371,8 @@ public:
 //             }
 
             cout << "testing stringToProxy for server object... " << flush;
-            Ice::ObjectPrx base = _session->communicator()->stringToProxy("callback:default -p 12010");
+            Ice::ObjectPrx base = _session->communicator()->stringToProxy("callback:" +
+                                                                          getTestEndpoint(_session->communicator(), 0));
             cout << "ok" << endl;
 
             cout << "pinging server after session creation... " << flush;
@@ -450,7 +455,8 @@ public:
             Ice::ObjectPrx processBase;
             {
                 cout << "testing stringToProxy for process object... " << flush;
-                processBase = communicator()->stringToProxy("Glacier2/admin -f Process:default -h \"" + host + "\" -p 12348");
+                processBase = communicator()->stringToProxy("Glacier2/admin -f Process:" +
+                                                            getTestEndpoint(communicator(), 11));
                 cout << "ok" << endl;
             }
 
@@ -490,7 +496,7 @@ public:
             IceUtil::Monitor<IceUtil::Mutex>::Lock lock(_monitor);
             cout << "testing SessionHelper connect after router shutdown... " << flush;
             _factory->setRouterHost(host);
-            _factory->setPort(12347);
+            _factory->setPort(getTestPort(_initData.properties, 10));
             _factory->setProtocol(protocol);
             _session = _factory->connect("userid", "abc123");
 
@@ -557,5 +563,6 @@ main(int argc, char* argv[])
 #endif
 
     SessionHelperClient c;
-    return c.main(argc, argv);
+    Ice::InitializationData initData = getTestInitData(argc, argv);
+    return c.main(argc, argv, initData);
 }

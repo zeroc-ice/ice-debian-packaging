@@ -16,16 +16,18 @@ DEFINE_TEST("client")
 using namespace std;
 
 int
-run(int, char**, const Ice::CommunicatorPtr& communicator, const Ice::InitializationData&)
+run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    Test::MyClassPrx allTests(const Ice::CommunicatorPtr&);
-    Test::MyClassPrx myClass = allTests(communicator);
+    Test::MyClassPrxPtr allTests(const Ice::CommunicatorPtr&);
+    Test::MyClassPrxPtr myClass = allTests(communicator);
 
-#ifndef ICE_OS_WINRT
-    cout << "testing server shutdown... " << flush;
     myClass->shutdown();
+    cout << "testing server shutdown... " << flush;
     try
     {
+#ifdef _WIN32
+        myClass = myClass->ice_timeout(100); // Workaround to speed up testing
+#endif
         myClass->opVoid();
         test(false);
     }
@@ -33,13 +35,7 @@ run(int, char**, const Ice::CommunicatorPtr& communicator, const Ice::Initializa
     {
         cout << "ok" << endl;
     }
-#else
-    //
-    // When using SSL the run.py script starts a new server after shutdown
-    // and the call to opVoid will success.
-    //
-    myClass->shutdown();
-#endif
+
     return EXIT_SUCCESS;
 }
 
@@ -48,10 +44,10 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL();
+#   if defined(__linux)
+    Ice::registerIceBT();
+#   endif
 #endif
-
-    int status;
-    Ice::CommunicatorPtr communicator;
 
     try
     {
@@ -59,34 +55,17 @@ main(int argc, char* argv[])
         // In this test, we need at least two threads in the
         // client side thread pool for nested AMI.
         //
-        Ice::InitializationData initData;
-        initData.properties = Ice::createProperties(argc, argv);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
         initData.properties->setProperty("Ice.ThreadPool.Client.Size", "2");
         initData.properties->setProperty("Ice.ThreadPool.Client.SizeWarn", "0");
-
         initData.properties->setProperty("Ice.BatchAutoFlushSize", "100");
 
-        communicator = Ice::initialize(argc, argv, initData);
-        status = run(argc, argv, communicator, initData);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        return run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
-        status = EXIT_FAILURE;
+        return EXIT_FAILURE;
     }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
-    }
-
-    return status;
 }

@@ -9,11 +9,15 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEGRID_API", "objc:header-dir:objc", "objc:dll-export:ICEGRID_API", "js:ice-build"]]
 [["cpp:include:IceGrid/Config.h"]]
 
 #include <Glacier2/Session.ice>
 #include <IceGrid/Exception.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:ICEGRID"]
 module IceGrid
@@ -22,12 +26,11 @@ module IceGrid
 /**
  *
  * A session object is used by IceGrid clients to allocate and
- * release objects. Client sessions are either created with the
- * {@link Registry} object or the registry client {@link Glacier2.SessionManager}
+ * release objects. Client sessions are created either via the
+ * {@link Registry} object or via the registry client <tt>SessionManager</tt>
  * object.
  *
  * @see Registry
- * @see Glacier2.SessionManager
  *
  **/
 interface Session extends Glacier2::Session
@@ -75,8 +78,6 @@ interface Session extends Glacier2::Session
      *
      * @return The proxy of the allocated object.
      *
-     * @throws ObjectNotRegisteredException Raised if no objects with the given type can be allocated.
-     *
      * @throws AllocationException Raised if the object could not be allocated.
      *
      * @see #setAllocationTimeout
@@ -88,7 +89,8 @@ interface Session extends Glacier2::Session
 
     /**
      *
-     * Release an object.
+     * Release an object that was allocated using <tt>allocateObjectById</tt> or
+     * <tt>allocateObjectByType</tt>.
      *
      * @param id The identity of the object to release.
      *
@@ -99,9 +101,6 @@ interface Session extends Glacier2::Session
      * released. This might happen if the object isn't allocatable or
      * isn't allocated by the session.
      *
-     * @see #allocateObjectById
-     * @see #allocateObjectByType
-     *
      **/
     void releaseObject(Ice::Identity id)
         throws ObjectNotRegisteredException, AllocationException;
@@ -109,17 +108,14 @@ interface Session extends Glacier2::Session
     /**
      *
      * Set the allocation timeout. If no objects are available for an
-     * allocation request, the request will hang for the duration of
-     * this timeout.
+     * allocation request, a call to <tt>allocateObjectById</tt> or
+     * <tt>allocateObjectByType</tt> will block for the duration of this
+     * timeout.
      *
      * @param timeout The timeout in milliseconds.
-     *
-     * @see #allocateObjectById
-     * @see #allocateObjectByType
      *
      **/
     idempotent void setAllocationTimeout(int timeout);
 };
 
 };
-

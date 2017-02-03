@@ -7,8 +7,6 @@
 //
 // **********************************************************************
 
-using System.Diagnostics;
-
 namespace Ice
 {
     /// <summary>
@@ -19,50 +17,21 @@ namespace Ice
     /// A dispatch interceptor is useful particularly to automatically retry requests
     /// that have failed due to a recoverable error condition.
     /// </summary>
-    public abstract class DispatchInterceptor : Ice.ObjectImpl
+    public abstract class DispatchInterceptor : ObjectImpl
     {
         /// <summary>
         /// Called by the Ice run time to dispatch an incoming request. The implementation
         /// of <code>dispatch</code> must dispatch the request to the actual servant.
         /// </summary>
         /// <param name="request">The details of the incoming request.</param>
-        /// <returns>For synchronous dispatch, the return value must be whatever is
-        /// returned ice_dispatch. For asynchronous dispatch, the return
-        /// value must be DispatchAsync.</returns>
-        public abstract DispatchStatus 
+        /// <returns>The task if dispatched asynchronously, null otherwise.</returns>
+        public abstract System.Threading.Tasks.Task<OutputStream>
         dispatch(Request request);
 
-        public override DispatchStatus
-        dispatch__(IceInternal.Incoming inc, Current current)
+        public override System.Threading.Tasks.Task<OutputStream>
+        iceDispatch(IceInternal.Incoming inc, Current current)
         {
-            try
-            {
-                DispatchStatus status = dispatch(inc);
-                if(status != DispatchStatus.DispatchAsync)
-                {
-                    //
-                    // Make sure 'inc' owns the connection etc.
-                    //
-                    inc.killAsync();
-                }
-                return status;
-            }
-            catch(ResponseSentException)
-            {
-                return DispatchStatus.DispatchAsync;
-            }
-            catch(System.Exception)
-            {
-                try
-                {
-                    inc.killAsync();
-                    throw;
-                }
-                catch(ResponseSentException)
-                {
-                    return DispatchStatus.DispatchAsync;
-                }
-            }
+            return dispatch(inc);
         }
     }
 }

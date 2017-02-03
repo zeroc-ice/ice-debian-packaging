@@ -11,6 +11,7 @@
 #include <IceUtil/FileUtil.h>
 #include <expat.h>
 #include <list>
+#include <fstream>
 
 using namespace std;
 using namespace IceXML;
@@ -19,25 +20,25 @@ using namespace IceXML;
 // ParserException
 //
 IceXML::ParserException::ParserException(const string& reason) :
-    IceUtil::Exception(), _reason(reason)
+    _reason(reason)
 {
 }
 
 IceXML::ParserException::ParserException(const char* file, int line, const string& reason) :
-    IceUtil::Exception(file, line), _reason(reason)
+    IceUtil::ExceptionHelper<ParserException>(file, line), _reason(reason)
 {
 }
 
+#ifndef ICE_CPP11_COMPILER
 IceXML::ParserException::~ParserException() throw()
 {
 }
-
-const char* IceXML::ParserException::_name = "IceXML::ParserException";
+#endif
 
 string
-IceXML::ParserException::ice_name() const
+IceXML::ParserException::ice_id() const
 {
-    return _name;
+    return "::IceXML::ParserException";
 }
 
 void
@@ -54,17 +55,13 @@ IceXML::ParserException::ice_print(std::ostream& out) const
     }
 }
 
+#ifndef ICE_CPP11_MAPPING
 IceXML::ParserException*
 IceXML::ParserException::ice_clone() const
 {
     return new ParserException(*this);
 }
-
-void
-IceXML::ParserException::ice_throw() const
-{
-    throw *this;
-}
+#endif
 
 string
 IceXML::ParserException::reason() const
@@ -126,6 +123,12 @@ IceXML::Node::addChild(const NodePtr&)
     return false;
 }
 
+void
+IceXML::Node::destroy()
+{
+    _parent = 0;
+}
+
 int
 IceXML::Node::getLine() const
 {
@@ -181,6 +184,16 @@ IceXML::Element::addChild(const NodePtr& child)
     return true;
 }
 
+void
+IceXML::Element::destroy()
+{
+    Node::destroy();
+    for(NodeList::iterator p = _children.begin(); p != _children.end(); ++p)
+    {
+        (*p)->destroy();
+    }
+}
+
 //
 // Text
 //
@@ -218,6 +231,16 @@ IceXML::Document::addChild(const NodePtr& child)
     return true;
 }
 
+void
+IceXML::Document::destroy()
+{
+    Node::destroy();
+    for(NodeList::iterator p = _children.begin(); p != _children.end(); ++p)
+    {
+        (*p)->destroy();
+    }
+}
+
 //
 // Handler
 //
@@ -242,6 +265,7 @@ namespace IceXML
 class DocumentBuilder : public Handler
 {
 public:
+
     DocumentBuilder();
 
     virtual void startElement(const string&, const Attributes&, int, int);
@@ -251,6 +275,7 @@ public:
     DocumentPtr getDocument() const;
 
 private:
+
     list<NodePtr> _nodeStack;
     DocumentPtr _document;
 };
@@ -371,7 +396,7 @@ IceXML::Parser::parse(istream& in)
 void
 IceXML::Parser::parse(const string& file, Handler& handler) // The given filename must be UTF-8 encoded
 {
-    IceUtilInternal::ifstream in(file);
+    ifstream in(IceUtilInternal::streamFilename(file).c_str());
     if(!in.good())
     {
         ostringstream out;
@@ -384,7 +409,7 @@ IceXML::Parser::parse(const string& file, Handler& handler) // The given filenam
 void
 IceXML::Parser::parse(istream& in, Handler& handler)
 {
-    XML_Parser parser = XML_ParserCreate(NULL);
+    XML_Parser parser = XML_ParserCreate(ICE_NULLPTR);
     CallbackData cb;
     cb.parser = parser;
     cb.handler = &handler;
@@ -405,7 +430,7 @@ IceXML::Parser::parse(istream& in, Handler& handler)
             }
             if(XML_Parse(parser, buff, static_cast<int>(in.gcount()), isFinal) != 1)
             {
-                handler.error(XML_ErrorString(XML_GetErrorCode(parser)), 
+                handler.error(XML_ErrorString(XML_GetErrorCode(parser)),
                               static_cast<int>(XML_GetCurrentLineNumber(parser)),
                               static_cast<int>(XML_GetCurrentColumnNumber(parser)));
                 return;

@@ -11,6 +11,7 @@
 #include <IceUtil/CtrlCHandler.h>
 #include <IceUtil/Mutex.h>
 #include <IceUtil/MutexPtrLock.h>
+#include <IceUtil/ConsoleUtil.h>
 #include <Slice/Preprocessor.h>
 #include <Slice/FileTracker.h>
 #include <Slice/Util.h>
@@ -19,12 +20,12 @@
 
 using namespace std;
 using namespace Slice;
-using namespace IceUtil;
+using namespace IceUtilInternal;
 
 namespace
 {
 
-IceUtil::Mutex* mutex = 0;
+IceUtil::Mutex* globalMutex = 0;
 bool interrupted = false;
 
 class Init
@@ -33,13 +34,13 @@ public:
 
     Init()
     {
-        mutex = new IceUtil::Mutex;
+        globalMutex = new IceUtil::Mutex;
     }
 
     ~Init()
     {
-        delete mutex;
-        mutex = 0;
+        delete globalMutex;
+        globalMutex = 0;
     }
 };
 
@@ -72,20 +73,20 @@ splitCommas(string& str)
 void
 interruptedCallback(int signal)
 {
-    IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(mutex);
+    IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(globalMutex);
 
     interrupted = true;
 }
 
 void
-usage(const char* n)
+usage(const string& n)
 {
-    getErrorStream() << "Usage: " << n << " [options] slice-files...\n";
-    getErrorStream() <<
+    consoleErr << "Usage: " << n << " [options] slice-files...\n";
+    consoleErr <<
         "Options:\n"
         "-h, --help           Show this message.\n"
         "-v, --version        Display the Ice version.\n"
-        "--validate               Validate command line options.\n"
+        "--validate           Validate command line options.\n"
         "-DNAME               Define NAME as 1.\n"
         "-DNAME=DEF           Define NAME as DEF.\n"
         "-UNAME               Remove any definition for NAME.\n"
@@ -103,13 +104,15 @@ usage(const char* n)
         "--index NUM          Generate subindex if it has at least NUM entries (0 for no index, default=1).\n"
         "--summary NUM        Print a warning if a summary sentence exceeds NUM characters.\n"
         "-d, --debug          Print debug messages.\n"
-        "--ice                Allow reserved Ice prefix in Slice identifiers.\n"
-        "--underscore         Allow underscores in Slice identifiers.\n"
+        "--ice                Allow reserved Ice prefix in Slice identifiers\n"
+        "                     deprecated: use instead [[\"ice-prefix\"]] metadata.\n"
+        "--underscore         Allow underscores in Slice identifiers\n"
+        "                     deprecated: use instead [[\"underscore\"]] metadata.\n"
         ;
 }
 
 int
-compile(int argc, char* argv[])
+compile(const vector<string>& argv)
 {
     IceUtilInternal::Options opts;
     opts.addOpt("h", "help");
@@ -134,24 +137,15 @@ compile(int argc, char* argv[])
     opts.addOpt("", "ice");
     opts.addOpt("", "underscore");
 
-    bool validate = false;
-    for(int i = 0; i < argc; ++i)
-    {
-        if(string(argv[i]) == "--validate")
-        {
-            validate = true;
-            break;
-        }
-    }
-
+    bool validate = find(argv.begin(), argv.end(), "--validate") != argv.end();
     vector<string> args;
     try
     {
-        args = opts.parse(argc, (const char**)argv);
+        args = opts.parse(argv);
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
-        getErrorStream() << argv[0] << ": error: " << e.reason << endl;
+        consoleErr << argv[0] << ": error: " << e.reason << endl;
         if(!validate)
         {
             usage(argv[0]);
@@ -167,7 +161,7 @@ compile(int argc, char* argv[])
 
     if(opts.isSet("version"))
     {
-        getErrorStream() << ICE_STRING_VERSION << endl;
+        consoleErr << ICE_STRING_VERSION << endl;
         return EXIT_SUCCESS;
     }
 
@@ -214,8 +208,8 @@ compile(int argc, char* argv[])
         s >>  indexCount;
         if(!s)
         {
-            getErrorStream() << argv[0] << ": error: the --index operation requires a positive integer argument"
-                             << endl;
+            consoleErr << argv[0] << ": error: the --index operation requires a positive integer argument"
+                       << endl;
             if(!validate)
             {
                 usage(argv[0]);
@@ -238,8 +232,8 @@ compile(int argc, char* argv[])
         s >>  summaryCount;
         if(!s)
         {
-            getErrorStream() << argv[0] << ": error: the --summary operation requires a positive integer argument"
-                             << endl;
+            consoleErr << argv[0] << ": error: the --summary operation requires a positive integer argument"
+                       << endl;
             if(!validate)
             {
                 usage(argv[0]);
@@ -256,7 +250,7 @@ compile(int argc, char* argv[])
 
     if(args.empty())
     {
-        getErrorStream() << argv[0] << ": error: no input file" << endl;
+        consoleErr << argv[0] << ": error: no input file" << endl;
         if(!validate)
         {
             usage(argv[0]);
@@ -289,7 +283,7 @@ compile(int argc, char* argv[])
         if(preprocess)
         {
             char buf[4096];
-            while(fgets(buf, static_cast<int>(sizeof(buf)), cppHandle) != NULL)
+            while(fgets(buf, static_cast<int>(sizeof(buf)), cppHandle) != ICE_NULLPTR)
             {
                 if(fputs(buf, stdout) == EOF)
                 {
@@ -310,7 +304,7 @@ compile(int argc, char* argv[])
         }
 
         {
-            IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(mutex);
+            IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(globalMutex);
 
             if(interrupted)
             {
@@ -332,19 +326,19 @@ compile(int argc, char* argv[])
             // created files.
             FileTracker::instance()->cleanup();
             p->destroy();
-            getErrorStream() << argv[0] << ": error: " << ex.reason() << endl;
+            consoleErr << argv[0] << ": error: " << ex.reason() << endl;
             return EXIT_FAILURE;
         }
         catch(const string& err)
         {
             FileTracker::instance()->cleanup();
-            getErrorStream() << argv[0] << ": error: " << err << endl;
+            consoleErr << argv[0] << ": error: " << err << endl;
             status = EXIT_FAILURE;
         }
         catch(const char* err)
         {
             FileTracker::instance()->cleanup();
-            getErrorStream() << argv[0] << ": error: " << err << endl;
+            consoleErr << argv[0] << ": error: " << err << endl;
             status = EXIT_FAILURE;
         }
     }
@@ -352,7 +346,7 @@ compile(int argc, char* argv[])
     p->destroy();
 
     {
-        IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(mutex);
+        IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(globalMutex);
 
         if(interrupted)
         {
@@ -364,31 +358,35 @@ compile(int argc, char* argv[])
     return status;
 }
 
-int
-main(int argc, char* argv[])
+#ifdef _WIN32
+int wmain(int argc, wchar_t* argv[])
+#else
+int main(int argc, char* argv[])
+#endif
 {
+    vector<string> args = Slice::argvToArgs(argc, argv);
     try
     {
-        return compile(argc, argv);
+        return compile(args);
     }
     catch(const std::exception& ex)
     {
-        getErrorStream() << argv[0] << ": error:" << ex.what() << endl;
+        consoleErr << args[0] << ": error:" << ex.what() << endl;
         return EXIT_FAILURE;
     }
     catch(const std::string& msg)
     {
-        getErrorStream() << argv[0] << ": error:" << msg << endl;
+        consoleErr << args[0] << ": error:" << msg << endl;
         return EXIT_FAILURE;
     }
     catch(const char* msg)
     {
-        getErrorStream() << argv[0] << ": error:" << msg << endl;
+        consoleErr << args[0] << ": error:" << msg << endl;
         return EXIT_FAILURE;
     }
     catch(...)
     {
-        getErrorStream() << argv[0] << ": error:" << "unknown exception" << endl;
+        consoleErr << args[0] << ": error:" << "unknown exception" << endl;
         return EXIT_FAILURE;
     }
 }

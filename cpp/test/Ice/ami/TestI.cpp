@@ -35,8 +35,14 @@ TestIntfI::opWithUE(const Ice::Current&)
     throw Test::TestIntfException();
 }
 
+int
+TestIntfI::opWithResultAndUE(const Ice::Current&)
+{
+    throw Test::TestIntfException();
+}
+
 void
-TestIntfI::opWithPayload(const Ice::ByteSeq&, const Ice::Current&)
+TestIntfI::opWithPayload(ICE_IN(Ice::ByteSeq), const Ice::Current&)
 {
 }
 
@@ -87,9 +93,16 @@ TestIntfI::waitForBatch(Ice::Int count, const Ice::Current&)
 }
 
 void
-TestIntfI::close(bool force, const Ice::Current& current)
+TestIntfI::close(Test::CloseMode mode, const Ice::Current& current)
 {
-    current.con->close(force);
+    current.con->close(static_cast<ConnectionClose>(mode));
+}
+
+void
+TestIntfI::sleep(Ice::Int ms, const Ice::Current& current)
+{
+    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
+    timedWait(IceUtil::Time::milliSeconds(ms));
 }
 
 void

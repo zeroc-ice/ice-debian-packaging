@@ -13,11 +13,11 @@ def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-class TestFacetI(Test.TestFacet):
+class TestFacetI(Test._TestFacetDisp):
     def op(self, current = None):
         return
 
-class RemoteCommunicatorI(Test.RemoteCommunicator, Ice.PropertiesAdminUpdateCallback):
+class RemoteCommunicatorI(Test._RemoteCommunicatorDisp, Ice.PropertiesAdminUpdateCallback):
     def __init__(self, communicator):
         self.communicator = communicator
         self.called = False
@@ -27,8 +27,7 @@ class RemoteCommunicatorI(Test.RemoteCommunicator, Ice.PropertiesAdminUpdateCall
         return self.communicator.getAdmin()
 
     def getChanges(self, current = None):
-        self.m.acquire()
-        try:
+        with self.m:
             #
             # The client calls PropertiesAdmin::setProperties() and then invokes
             # this operation. Since setProperties() is implemented using AMD, the
@@ -42,8 +41,6 @@ class RemoteCommunicatorI(Test.RemoteCommunicator, Ice.PropertiesAdminUpdateCall
             self.called = False
             
             return self.changes
-        finally:
-            self.m.release()
 
     def shutdown(self, current = None):
         self.communicator.shutdown()
@@ -59,15 +56,12 @@ class RemoteCommunicatorI(Test.RemoteCommunicator, Ice.PropertiesAdminUpdateCall
         self.communicator.destroy()
 
     def updated(self, changes):
-        self.m.acquire()
-        try:
+        with self.m:
             self.changes = changes
             self.called = True
             self.m.notify()
-        finally:
-            self.m.release()
 
-class RemoteCommunicatorFactoryI(Test.RemoteCommunicatorFactory):
+class RemoteCommunicatorFactoryI(Test._RemoteCommunicatorFactoryDisp):
 
     def createCommunicator(self, props, current = None):
         #

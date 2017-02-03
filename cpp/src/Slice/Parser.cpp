@@ -63,6 +63,56 @@ filterOrderedOptionalDataMembers(const DataMemberList& members)
     return result;
 }
 
+void
+sortOptionalParameters(ParamDeclList& params)
+{
+    //
+    // Sort optional parameters by tag.
+    //
+    class SortFn
+    {
+    public:
+        static bool compare(const ParamDeclPtr& lhs, const ParamDeclPtr& rhs)
+        {
+            return lhs->tag() < rhs->tag();
+        }
+    };
+    params.sort(SortFn::compare);
+}
+
+bool
+isMutableAfterReturnType(const TypePtr& type)
+{
+    //
+    // Returns true if the type contains data types which can be referenced by user code
+    // and mutated after a dispatch returns.
+    //
+
+    if(ClassDeclPtr::dynamicCast(type))
+    {
+        return true;
+    }
+
+    BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
+    if(builtin && (builtin->kind() == Builtin::KindObject || builtin->kind() == Builtin::KindValue))
+    {
+        return true;
+    }
+
+    if(SequencePtr::dynamicCast(type) || DictionaryPtr::dynamicCast(type))
+    {
+        return true;
+    }
+
+    StructPtr s = StructPtr::dynamicCast(type);
+    if(s)
+    {
+        return true;
+    }
+
+    return false;
+}
+
 }
 
 namespace Slice
@@ -141,6 +191,13 @@ StringList
 Slice::DefinitionContext::getMetaData() const
 {
     return _metaData;
+}
+
+bool
+Slice::DefinitionContext::suppressWarning(const string& name) const
+{
+    string q = findMetaData("suppress-warning");
+    return q == "suppress-warning" || q == "supress-warning:all" || q == ("suppress-warning:" + name);
 }
 
 // ----------------------------------------------------------------------
@@ -258,6 +315,11 @@ Slice::Builtin::typeId() const
             return "::Ice::LocalObject";
             break;
         }
+        case KindValue:
+        {
+            return "::Ice::Value";
+            break;
+        }
     }
     assert(false);
     return ""; // Keep the compiler happy.
@@ -266,7 +328,7 @@ Slice::Builtin::typeId() const
 bool
 Slice::Builtin::usesClasses() const
 {
-    return _kind == KindObject;
+    return _kind == KindObject || _kind == KindValue;
 }
 
 size_t
@@ -283,7 +345,8 @@ Slice::Builtin::minWireSize() const
         8, // KindDouble
         1, // KindString: at least one byte for an empty string.
         1, // KindObject: at least one byte (to marshal an index instead of an instance).
-        2  // KindObjectProxy: at least an empty identity for a nil proxy, that is, 2 bytes.
+        2, // KindObjectProxy: at least an empty identity for a nil proxy, that is, 2 bytes.
+        1  // KindValue: at least one byte (to marshal an index instead of an instance).
     };
 
     assert(_kind != KindLocalObject);
@@ -293,7 +356,7 @@ Slice::Builtin::minWireSize() const
 bool
 Slice::Builtin::isVariableLength() const
 {
-    return _kind == KindString || _kind == KindObject || _kind == KindObjectProxy;
+    return _kind == KindString || _kind == KindObject || _kind == KindObjectProxy || _kind == KindValue;
 }
 
 Builtin::Kind
@@ -320,7 +383,8 @@ const char* Slice::Builtin::builtinTable[] =
         "string",
         "Object",
         "Object*",
-        "LocalObject"
+        "LocalObject",
+        "Value"
     };
 
 Slice::Builtin::Builtin(const UnitPtr& unit, Kind kind) :
@@ -368,12 +432,13 @@ string
 Slice::Contained::flattenedScope() const
 {
     string s = scope();
-    string flattenedScope;
-    for(string::const_iterator r = s.begin(); r != s.end(); ++r)
+    string::size_type pos = 0;
+    while((pos = s.find("::", pos)) != string::npos)
     {
-        flattenedScope += ((*r) == ':') ? '_' : *r;
+        s.replace(pos, 2, "_");
+
     }
-    return flattenedScope;
+    return s;
 }
 
 string
@@ -494,12 +559,6 @@ bool
 Slice::Contained::operator==(const Contained& rhs) const
 {
     return _scoped == rhs._scoped;
-}
-
-bool
-Slice::Contained::operator!=(const Contained& rhs) const
-{
-    return _scoped != rhs._scoped;
 }
 
 Slice::Contained::Contained(const ContainerPtr& container, const string& name) :
@@ -876,17 +935,6 @@ Slice::Container::createSequence(const string& name, const TypePtr& type, const 
 {
     checkIdentifier(name);
 
-    if(_unit->profile() == IceE && !local)
-    {
-        BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
-        if((builtin && builtin->kind() == Builtin::KindObject) || ClassDeclPtr::dynamicCast(type))
-        {
-            string msg = "Sequence `" + name + "' cannot contain object values.";
-            _unit->error(msg);
-            return 0;
-        }
-    }
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -941,17 +989,6 @@ Slice::Container::createDictionary(const string& name, const TypePtr& keyType, c
                                    NodeType nt)
 {
     checkIdentifier(name);
-
-    if(_unit->profile() == IceE && !local)
-    {
-        BuiltinPtr builtin = BuiltinPtr::dynamicCast(valueType);
-        if((builtin && builtin->kind() == Builtin::KindObject) || ClassDeclPtr::dynamicCast(valueType))
-        {
-            string msg = "Dictionary `" + name + "' cannot contain object values.";
-            _unit->error(msg);
-            return 0;
-        }
-    }
 
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
@@ -1178,16 +1215,8 @@ Slice::Container::lookupType(const string& scoped, bool printError)
     return lookupTypeNoBuiltin(scoped, printError);
 }
 
-//
-// TODO: Hack to keep binary compatibility with Ice 3.6.0, fix properly in Ice 3.7
-//
-namespace
-{
-bool ignoreUndefined = false;
-}
-
 TypeList
-Slice::Container::lookupTypeNoBuiltin(const string& scoped, bool printError)
+Slice::Container::lookupTypeNoBuiltin(const string& scoped, bool printError, bool ignoreUndefined)
 {
     //
     // Remove whitespace.
@@ -1304,12 +1333,7 @@ Slice::Container::lookupTypeNoBuiltin(const string& scoped, bool printError)
         ContainedPtr contained = ContainedPtr::dynamicCast(this);
         if(contained)
         {
-            if(typeError)
-            {
-                ignoreUndefined = true;
-            }
-            results = contained->container()->lookupTypeNoBuiltin(sc, printError);
-            ignoreUndefined = false;
+            results = contained->container()->lookupTypeNoBuiltin(sc, printError, typeError || ignoreUndefined);
         }
         else if(!typeError)
         {
@@ -1610,7 +1634,7 @@ Slice::Container::hasLocalClassDefsWithAsync() const
         ClassDefPtr cl = ClassDefPtr::dynamicCast(*p);
         if(cl && cl->isLocal())
         {
-            if(cl->hasMetaData("async"))
+            if(cl->hasMetaData("async-oneway"))
             {
                 return true;
             }
@@ -1618,7 +1642,7 @@ Slice::Container::hasLocalClassDefsWithAsync() const
             OperationList ol = cl->operations();
             for(OperationList::const_iterator q = ol.begin(); q != ol.end(); ++q)
             {
-                if((*q)->hasMetaData("async"))
+                if((*q)->hasMetaData("async-oneway"))
                 {
                     return true;
                 }
@@ -1677,7 +1701,47 @@ Slice::Container::hasNonLocalExceptions() const
     return false;
 }
 
+bool
+Slice::Container::hasStructs() const
+{
+    for(ContainedList::const_iterator p = _contents.begin(); p != _contents.end(); ++p)
+    {
+        StructPtr q = StructPtr::dynamicCast(*p);
+        if(q)
+        {
+            return true;
+        }
 
+        ContainerPtr container = ContainerPtr::dynamicCast(*p);
+        if(container && container->hasStructs())
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool
+Slice::Container::hasExceptions() const
+{
+    for(ContainedList::const_iterator p = _contents.begin(); p != _contents.end(); ++p)
+    {
+        ExceptionPtr q = ExceptionPtr::dynamicCast(*p);
+        if(q)
+        {
+            return true;
+        }
+
+        ContainerPtr container = ContainerPtr::dynamicCast(*p);
+        if(container && container->hasExceptions())
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 bool
 Slice::Container::hasClassDecls() const
@@ -1771,6 +1835,66 @@ Slice::Container::hasClassDefs() const
         }
     }
 
+    return false;
+}
+
+bool
+Slice::Container::hasLocalClassDefs() const
+{
+    for(ContainedList::const_iterator p = _contents.begin(); p != _contents.end(); ++p)
+    {
+        ClassDefPtr cl = ClassDefPtr::dynamicCast(*p);
+        if(cl && cl->isLocal())
+        {
+            return true;
+        }
+
+        ContainerPtr container = ContainerPtr::dynamicCast(*p);
+        if(container && container->hasLocalClassDefs())
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
+Slice::Container::hasNonLocalInterfaceDefs() const
+{
+    for(ContainedList::const_iterator p = _contents.begin(); p != _contents.end(); ++p)
+    {
+        ClassDefPtr cl = ClassDefPtr::dynamicCast(*p);
+        if(cl && !cl->isLocal() && (cl->isInterface() || !cl->allOperations().empty()))
+        {
+            return true;
+        }
+
+        ContainerPtr container = ContainerPtr::dynamicCast(*p);
+        if(container && container->hasNonLocalInterfaceDefs())
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
+Slice::Container::hasValueDefs() const
+{
+    for(ContainedList::const_iterator p = _contents.begin(); p != _contents.end(); ++p)
+    {
+        ClassDefPtr cl = ClassDefPtr::dynamicCast(*p);
+        if(cl && !cl->isLocal() && !cl->isInterface())
+        {
+            return true;
+        }
+
+        ContainerPtr container = ContainerPtr::dynamicCast(*p);
+        if(container && container->hasValueDefs())
+        {
+            return true;
+        }
+    }
     return false;
 }
 
@@ -2310,23 +2434,34 @@ Slice::Container::checkIdentifier(const string& name) const
         //
         // For rules controlled by a translator option, we don't complain about included files.
         //
-        _unit->error("illegal underscore in identifier `" + name + "'");
+
+        DefinitionContextPtr dc = _unit->currentDefinitionContext();
+        assert(dc);
+        if(dc->findMetaData("underscore") != "underscore") // no "underscore" global metadata
+        {
+            _unit->error("illegal underscore in identifier `" + name + "'");
+        }
     }
 
+    //
+    // For rules controlled by a translator option, we don't complain about included files.
+    //
     if(_unit->currentIncludeLevel() == 0 && !_unit->allowIcePrefix())
     {
-        //
-        // For rules controlled by a translator option, we don't complain about included files.
-        //
-        if(name.size() >= 3)
+        DefinitionContextPtr dc = _unit->currentDefinitionContext();
+        assert(dc);
+        if(dc->findMetaData("ice-prefix") != "ice-prefix") // no "ice-prefix" global metadata
         {
-            string prefix3;
-            prefix3 += ::tolower(static_cast<unsigned char>(name[0]));
-            prefix3 += ::tolower(static_cast<unsigned char>(name[1]));
-            prefix3 += ::tolower(static_cast<unsigned char>(name[2]));
-            if(prefix3 == "ice")
+            if(name.size() >= 3)
             {
-                _unit->error("illegal identifier `" + name + "': `" + name.substr(0, 3) + "' prefix is reserved");
+                string prefix3;
+                prefix3 += ::tolower(static_cast<unsigned char>(name[0]));
+                prefix3 += ::tolower(static_cast<unsigned char>(name[1]));
+                prefix3 += ::tolower(static_cast<unsigned char>(name[2]));
+                if(prefix3 == "ice")
+                {
+                    _unit->error("illegal identifier `" + name + "': `" + name.substr(0, 3) + "' prefix is reserved");
+                }
             }
         }
     }
@@ -2575,6 +2710,7 @@ Slice::Container::validateConstant(const string& name, const TypePtr& type, cons
                 case Builtin::KindObject:
                 case Builtin::KindObjectProxy:
                 case Builtin::KindLocalObject:
+                case Builtin::KindValue:
                 {
                     assert(false);
                     break;
@@ -3199,28 +3335,6 @@ Slice::ClassDef::createDataMember(const string& name, const TypePtr& type, bool 
 {
     checkIdentifier(name);
 
-    if(_unit->profile() == IceE)
-    {
-        if(!isLocal())
-        {
-            BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
-            if((builtin && builtin->kind() == Builtin::KindObject))
-            {
-                string msg = "Class data member `" + name + "' cannot be a value object.";
-                _unit->error(msg);
-                return 0;
-            }
-
-            ClassDeclPtr classDecl = ClassDeclPtr::dynamicCast(type);
-            if(classDecl != 0 && !classDecl->isLocal())
-            {
-                string msg = "Class data member `" + name + "' cannot be a value object.";
-                _unit->error(msg);
-                return 0;
-            }
-        }
-    }
-
     assert(!isInterface());
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
@@ -3456,7 +3570,9 @@ Slice::ClassDef::classDataMembers() const
         if(q)
         {
             BuiltinPtr builtin = BuiltinPtr::dynamicCast(q->type());
-            if((builtin && builtin->kind() == Builtin::KindObject) || ClassDeclPtr::dynamicCast(q->type()))
+            if((builtin && builtin->kind() == Builtin::KindObject) ||
+               (builtin && builtin->kind() == Builtin::KindValue) ||
+               ClassDeclPtr::dynamicCast(q->type()))
             {
                 result.push_back(q);
             }
@@ -3603,6 +3719,17 @@ Slice::ClassDef::inheritsMetaData(const string& meta) const
     return false;
 }
 
+bool
+Slice::ClassDef::hasBaseDataMembers() const
+{
+    if(!_bases.empty() && !_bases.front()->isInterface())
+    {
+        return !_bases.front()->allDataMembers().empty();
+    }
+
+    return false;
+}
+
 Contained::ContainedType
 Slice::ClassDef::containedType() const
 {
@@ -3645,6 +3772,11 @@ Slice::ClassDef::compactId() const
     return _compactId;
 }
 
+bool
+Slice::ClassDef::isDelegate() const
+{
+    return isLocal() && isInterface() && hasMetaData("delegate") && allOperations().size() == 1;
+}
 Slice::ClassDef::ClassDef(const ContainerPtr& container, const string& name, int id, bool intf, const ClassList& bases,
                           bool local) :
     SyntaxTreeBase(container->unit()),
@@ -3681,13 +3813,13 @@ Slice::ClassDef::ClassDef(const ContainerPtr& container, const string& name, int
 bool
 Slice::Proxy::isLocal() const
 {
-    return __class->isLocal();
+    return _classDecl->isLocal();
 }
 
 string
 Slice::Proxy::typeId() const
 {
-    return __class->scoped();
+    return _classDecl->scoped();
 }
 
 bool
@@ -3711,13 +3843,13 @@ Slice::Proxy::isVariableLength() const
 ClassDeclPtr
 Slice::Proxy::_class() const
 {
-    return __class;
+    return _classDecl;
 }
 
 Slice::Proxy::Proxy(const ClassDeclPtr& cl) :
      SyntaxTreeBase(cl->unit()),
      Type(cl->unit()),
-    __class(cl)
+    _classDecl(cl)
 {
 }
 
@@ -3738,28 +3870,6 @@ Slice::Exception::createDataMember(const string& name, const TypePtr& type, bool
                                    const string& defaultLiteral)
 {
     checkIdentifier(name);
-
-    if(_unit->profile() == IceE)
-    {
-        if(!isLocal())
-        {
-            BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
-            if((builtin && builtin->kind() == Builtin::KindObject))
-            {
-                string msg = "Exception data member `" + name + "' cannot be a value object.";
-                _unit->error(msg);
-                return 0;
-            }
-
-            ClassDeclPtr classDecl = ClassDeclPtr::dynamicCast(type);
-            if(classDecl != 0 && !classDecl->isLocal())
-            {
-                string msg = "Exception data member `" + name + "' cannot be a value object.";
-                _unit->error(msg);
-                return 0;
-            }
-        }
-    }
 
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
@@ -3925,7 +4035,9 @@ Slice::Exception::classDataMembers() const
         if(q)
         {
             BuiltinPtr builtin = BuiltinPtr::dynamicCast(q->type());
-            if((builtin && builtin->kind() == Builtin::KindObject) || ClassDeclPtr::dynamicCast(q->type()))
+            if((builtin && builtin->kind() == Builtin::KindObject) ||
+               (builtin && builtin->kind() == Builtin::KindValue) ||
+               ClassDeclPtr::dynamicCast(q->type()))
             {
                 result.push_back(q);
             }
@@ -4059,6 +4171,12 @@ Slice::Exception::inheritsMetaData(const string& meta) const
     return false;
 }
 
+bool
+Slice::Exception::hasBaseDataMembers() const
+{
+    return _base && !_base->allDataMembers().empty();
+}
+
 string
 Slice::Exception::kindOf() const
 {
@@ -4093,29 +4211,6 @@ Slice::Struct::createDataMember(const string& name, const TypePtr& type, bool op
                                 const SyntaxTreeBasePtr& defaultValueType, const string& defaultValue,
                                 const string& defaultLiteral)
 {
-    checkIdentifier(name);
-
-    if(_unit->profile() == IceE)
-    {
-        if(!isLocal())
-        {
-            BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
-            if((builtin && builtin->kind() == Builtin::KindObject))
-            {
-                string msg = "Struct data member `" + name + "' cannot be a value object.";
-                _unit->error(msg);
-                return 0;
-            }
-            ClassDeclPtr classDecl = ClassDeclPtr::dynamicCast(type);
-            if(classDecl != 0 && !classDecl->isLocal())
-            {
-                string msg = "Struct data member `" + name + "' cannot be a value object.";
-                _unit->error(msg);
-                return 0;
-            }
-        }
-    }
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -4230,7 +4325,9 @@ Slice::Struct::classDataMembers() const
         if(q)
         {
             BuiltinPtr builtin = BuiltinPtr::dynamicCast(q->type());
-            if((builtin && builtin->kind() == Builtin::KindObject) || ClassDeclPtr::dynamicCast(q->type()))
+            if((builtin && builtin->kind() == Builtin::KindObject) ||
+               (builtin && builtin->kind() == Builtin::KindValue) ||
+               ClassDeclPtr::dynamicCast(q->type()))
             {
                 result.push_back(q);
             }
@@ -4569,6 +4666,7 @@ Slice::Dictionary::legalKeyType(const TypePtr& type, bool& containsSequence)
             case Builtin::KindObject:
             case Builtin::KindObjectProxy:
             case Builtin::KindLocalObject:
+            case Builtin::KindValue:
             {
                 return false;
                 break;
@@ -4941,33 +5039,33 @@ Slice::Operation::sendMode() const
     }
 }
 
+bool
+Slice::Operation::hasMarshaledResult() const
+{
+    ClassDefPtr cl = ClassDefPtr::dynamicCast(container());
+    assert(cl);
+    if(cl->hasMetaData("marshaled-result") || hasMetaData("marshaled-result"))
+    {
+        if(returnType() && isMutableAfterReturnType(returnType()))
+        {
+            return true;
+        }
+        for(ContainedList::const_iterator p = _contents.begin(); p != _contents.end(); ++p)
+        {
+            ParamDeclPtr q = ParamDeclPtr::dynamicCast(*p);
+            if(q->isOutParam() && isMutableAfterReturnType(q->type()))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 ParamDeclPtr
 Slice::Operation::createParamDecl(const string& name, const TypePtr& type, bool isOutParam, bool optional, int tag)
 {
     checkIdentifier(name);
-
-    if(_unit->profile() == IceE)
-    {
-        ClassDefPtr cl = ClassDefPtr::dynamicCast(this->container());
-        assert(cl);
-        if(!cl->isLocal())
-        {
-            BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
-            if((builtin && builtin->kind() == Builtin::KindObject))
-            {
-                string msg = "Object `" + name + "' cannot be passed by value.";
-                _unit->error(msg);
-                return 0;
-            }
-            ClassDeclPtr classDecl =  ClassDeclPtr::dynamicCast(type);
-            if(classDecl != 0 && !classDecl->isLocal())
-            {
-                string msg = "Object `" + name + "' cannot be passed by value.";
-                _unit->error(msg);
-                return 0;
-            }
-        }
-    }
 
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
@@ -5065,6 +5163,74 @@ Slice::Operation::parameters() const
         }
     }
     return result;
+}
+
+ParamDeclList
+Slice::Operation::inParameters() const
+{
+    ParamDeclList result;
+    for(ContainedList::const_iterator p = _contents.begin(); p != _contents.end(); ++p)
+    {
+        ParamDeclPtr q = ParamDeclPtr::dynamicCast(*p);
+        if(q && !q->isOutParam())
+        {
+            result.push_back(q);
+        }
+    }
+    return result;
+}
+
+void
+Slice::Operation::inParameters(ParamDeclList& required, ParamDeclList& optional) const
+{
+    const ParamDeclList params = inParameters();
+    for(ParamDeclList::const_iterator pli = params.begin(); pli != params.end(); ++pli)
+    {
+        if((*pli)->optional())
+        {
+            optional.push_back(*pli);
+        }
+        else
+        {
+            required.push_back(*pli);
+        }
+    }
+
+    sortOptionalParameters(optional);
+}
+
+ParamDeclList
+Slice::Operation::outParameters() const
+{
+    ParamDeclList result;
+    for(ContainedList::const_iterator p = _contents.begin(); p != _contents.end(); ++p)
+    {
+        ParamDeclPtr q = ParamDeclPtr::dynamicCast(*p);
+        if(q && q->isOutParam())
+        {
+            result.push_back(q);
+        }
+    }
+    return result;
+}
+
+void
+Slice::Operation::outParameters(ParamDeclList& required, ParamDeclList& optional) const
+{
+    const ParamDeclList params = outParameters();
+    for(ParamDeclList::const_iterator pli = params.begin(); pli != params.end(); ++pli)
+    {
+        if((*pli)->optional())
+        {
+            optional.push_back(*pli);
+        }
+        else
+        {
+            required.push_back(*pli);
+        }
+    }
+
+    sortOptionalParameters(optional);
 }
 
 ExceptionList
@@ -5219,12 +5385,25 @@ Slice::Operation::returnsData() const
 }
 
 bool
+Slice::Operation::returnsMultipleValues() const
+{
+    size_t count = outParameters().size();
+
+    if(returnType())
+    {
+        ++count;
+    }
+
+    return count > 1;
+}
+
+bool
 Slice::Operation::sendsOptionals() const
 {
-    ParamDeclList pdl = parameters();
+    ParamDeclList pdl = inParameters();
     for(ParamDeclList::const_iterator i = pdl.begin(); i != pdl.end(); ++i)
     {
-        if(!(*i)->isOutParam() && (*i)->optional())
+        if((*i)->optional())
         {
             return true;
         }
@@ -5356,26 +5535,6 @@ Slice::Operation::Operation(const ContainerPtr& container,
     _returnTag(returnTag),
     _mode(mode)
 {
-    if(_unit->profile() == IceE)
-    {
-        ClassDefPtr cl = ClassDefPtr::dynamicCast(this->container());
-        assert(cl);
-        if(!cl->isLocal())
-        {
-            BuiltinPtr builtin = BuiltinPtr::dynamicCast(returnType);
-            if((builtin && builtin->kind() == Builtin::KindObject))
-            {
-                string msg = "Method `" + name + "' cannot return an object by value.";
-                _unit->error(msg);
-            }
-            ClassDeclPtr classDecl = ClassDeclPtr::dynamicCast(returnType);
-            if(classDecl != 0 && !classDecl->isLocal())
-            {
-                string msg = "Method `" + name + "' cannot return an object by value.";
-                _unit->error(msg);
-            }
-        }
-    }
 }
 
 // ----------------------------------------------------------------------
@@ -6038,6 +6197,11 @@ Slice::Unit::usesNonLocals() const
         return true;
     }
 
+    if(_builtins.find(Builtin::KindValue) != _builtins.end())
+    {
+        return true;
+    }
+
     return false;
 }
 
@@ -6059,12 +6223,6 @@ Slice::Unit::usesConsts() const
     return false;
 }
 
-FeatureProfile
-Slice::Unit::profile() const
-{
-    return _featureProfile;
-}
-
 StringList
 Slice::Unit::includeFiles() const
 {
@@ -6084,7 +6242,7 @@ Slice::Unit::allFiles() const
 }
 
 int
-Slice::Unit::parse(const string& filename, FILE* file, bool debug, Slice::FeatureProfile profile)
+Slice::Unit::parse(const string& filename, FILE* file, bool debug)
 {
     slice_debug = debug ? 1 : 0;
 
@@ -6094,7 +6252,6 @@ Slice::Unit::parse(const string& filename, FILE* file, bool debug, Slice::Featur
     _currentComment = "";
     _currentLine = 1;
     _currentIncludeLevel = 0;
-    _featureProfile = profile;
     _topLevelFile = fullPath(filename);
     pushContainer(this);
     pushDefinitionContext();
@@ -6130,6 +6287,11 @@ Slice::Unit::parse(const string& filename, FILE* file, bool debug, Slice::Featur
         popContainer();
         assert(_definitionContextStack.size() == 1);
         popDefinitionContext();
+
+        if(!checkUndefinedTypes())
+        {
+            status = EXIT_FAILURE;
+        }
     }
 
     Slice::unit = 0;
@@ -6226,6 +6388,113 @@ Slice::Unit::eraseWhiteSpace(string& s)
     {
         s.erase(++idx);
     }
+}
+
+bool
+Slice::Unit::checkUndefinedTypes()
+{
+    class Visitor : public ParserVisitor
+    {
+    public:
+
+        Visitor(int& errors) :
+            _errors(errors),
+            _local(false)
+        {
+        }
+
+        virtual bool visitClassDefStart(const ClassDefPtr& p)
+        {
+            _local = p->isLocal();
+            return true;
+        }
+
+        virtual bool visitExceptionStart(const ExceptionPtr& p)
+        {
+            _local = p->isLocal();
+            return true;
+        }
+
+        virtual bool visitStructStart(const StructPtr& p)
+        {
+            _local = p->isLocal();
+            return true;
+        }
+
+        virtual void visitOperation(const OperationPtr& p)
+        {
+            if(p->returnType())
+            {
+                checkUndefined(p->returnType(), "return type", p->file(), p->line());
+            }
+            ParamDeclList params = p->parameters();
+            for(ParamDeclList::const_iterator q = params.begin(); q != params.end(); ++q)
+            {
+                checkUndefined((*q)->type(), "parameter " + (*q)->name(), (*q)->file(), (*q)->line());
+            }
+        }
+
+        virtual void visitParamDecl(const ParamDeclPtr& p)
+        {
+            checkUndefined(p->type(), "parameter " + p->name(), p->file(), p->line());
+        }
+
+        virtual void visitDataMember(const DataMemberPtr& p)
+        {
+            checkUndefined(p->type(), "member " + p->name(), p->file(), p->line());
+        }
+
+        virtual void visitSequence(const SequencePtr& p)
+        {
+            _local = p->isLocal();
+            checkUndefined(p->type(), "element type", p->file(), p->line());
+        }
+
+        virtual void visitDictionary(const DictionaryPtr& p)
+        {
+            _local = p->isLocal();
+            checkUndefined(p->keyType(), "key type", p->file(), p->line());
+            checkUndefined(p->valueType(), "value type", p->file(), p->line());
+        }
+
+    private:
+
+        void checkUndefined(const TypePtr& type, const string& desc, const string& file, const string& line)
+        {
+            //
+            // See ICE-6867. Any use of a proxy requires the full type definition, as does any
+            // use of a class in a non-local context.
+            //
+            ProxyPtr p = ProxyPtr::dynamicCast(type);
+            if(p)
+            {
+                const ClassDeclPtr cl = p->_class();
+                if(!cl->definition())
+                {
+                    ostringstream ostr;
+                    ostr << desc << " uses a proxy for undefined type `" << cl->scoped() << "'";
+                    emitError(file, line, ostr.str());
+                    _errors++;
+                }
+            }
+
+            ClassDeclPtr cl = ClassDeclPtr::dynamicCast(type);
+            if(cl && !cl->definition() && !_local)
+            {
+                ostringstream ostr;
+                ostr << desc << " refers to undefined type `" << cl->scoped() << "'";
+                emitError(file, line, ostr.str());
+                _errors++;
+            }
+        }
+
+        int& _errors;
+        bool _local;
+    };
+
+    Visitor v(_errors);
+    visit(&v, true);
+    return _errors == 0;
 }
 
 // ----------------------------------------------------------------------

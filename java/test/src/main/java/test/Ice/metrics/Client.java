@@ -16,13 +16,12 @@ public class Client extends test.Util.Application
     @Override
     public int run(String[] args)
     {
-        Ice.Communicator communicator = communicator();
         try
         {
-            MetricsPrx metrics = AllTests.allTests(communicator, getWriter(), _observer);
+            MetricsPrx metrics = AllTests.allTests(this, _observer);
             metrics.shutdown();
         }
-        catch(Ice.UserException ex)
+        catch(com.zeroc.Ice.UserException ex)
         {
             ex.printStackTrace();
             assert(false);
@@ -32,10 +31,9 @@ public class Client extends test.Util.Application
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.metrics");
         initData.properties.setProperty("Ice.Admin.Endpoints", "tcp");
         initData.properties.setProperty("Ice.Admin.InstanceName", "client");

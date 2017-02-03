@@ -52,13 +52,13 @@ public:
     //
     // Create a reference by unmarshaling it from a stream.
     //
-    ReferencePtr create(const ::Ice::Identity&, BasicStream*);
+    ReferencePtr create(const ::Ice::Identity&, Ice::InputStream*);
 
-    ReferenceFactoryPtr setDefaultRouter(const ::Ice::RouterPrx&);
-    ::Ice::RouterPrx getDefaultRouter() const;
+    ReferenceFactoryPtr setDefaultRouter(const ::Ice::RouterPrxPtr&);
+    ::Ice::RouterPrxPtr getDefaultRouter() const;
 
-    ReferenceFactoryPtr setDefaultLocator(const ::Ice::LocatorPrx&);
-    ::Ice::LocatorPrx getDefaultLocator() const;
+    ReferenceFactoryPtr setDefaultLocator(const ::Ice::LocatorPrxPtr&);
+    ::Ice::LocatorPrxPtr getDefaultLocator() const;
 
 private:
 
@@ -72,8 +72,8 @@ private:
 
     const InstancePtr _instance;
     const ::Ice::CommunicatorPtr _communicator;
-    ::Ice::RouterPrx _defaultRouter;
-    ::Ice::LocatorPrx _defaultLocator;
+    ::Ice::RouterPrxPtr _defaultRouter;
+    ::Ice::LocatorPrxPtr _defaultLocator;
 };
 
 }

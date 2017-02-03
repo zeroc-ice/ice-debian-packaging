@@ -7,30 +7,29 @@
 //
 // **********************************************************************
 
-var Ice = require("../Ice/ModuleRegistry").Ice;
-Ice.__M.require(module,
+const Ice = require("../Ice/ModuleRegistry").Ice;
+Ice._ModuleRegistry.require(module,
     [
-        "../Ice/Class",
-        "../Ice/BasicStream",
+        "../Ice/Stream",
         "../Ice/Debug",
         "../Ice/ExUtil",
         "../Ice/Protocol",
     ]);
 
-var BasicStream = Ice.BasicStream;
-var Debug = Ice.Debug;
-var ExUtil = Ice.ExUtil;
-var Class = Ice.Class;
-var Protocol = Ice.Protocol;
+const OutputStream = Ice.OutputStream;
+const Debug = Ice.Debug;
+const ExUtil = Ice.ExUtil;
+const Protocol = Ice.Protocol;
 
-var udpOverhead = 20 + 8;
+const udpOverhead = 20 + 8;
 
-var BatchRequestQueue = Class({
-    __init__: function(instance, datagram)
+class BatchRequestQueue
+{
+    constructor(instance, datagram)
     {
         this._batchStreamInUse = false;
         this._batchRequestNum = 0;
-        this._batchStream = new BasicStream(instance, Protocol.currentProtocolEncoding);
+        this._batchStream = new OutputStream(instance, Protocol.currentProtocolEncoding);
         this._batchStream.writeBlob(Protocol.requestBatchHdr);
         this._batchMarker = this._batchStream.size;
         this._exception = null;
@@ -38,23 +37,25 @@ var BatchRequestQueue = Class({
         this._maxSize = instance.batchAutoFlushSize();
         if(this._maxSize > 0 && datagram)
         {
-            var props = instance.initializationData().properties;
-            var udpSndSize = props.getPropertyAsIntWithDefault("Ice.UDP.SndSize", 65535 - udpOverhead);
+            const udpSndSize = instance.initializationData().properties.getPropertyAsIntWithDefault(
+                "Ice.UDP.SndSize", 65535 - udpOverhead);
             if(udpSndSize < this._maxSize)
             {
                 this._maxSize = udpSndSize;
             }
         }
-    },
-    prepareBatchRequest: function(os)
+    }
+
+    prepareBatchRequest(os)
     {
         if(this._exception)
         {
             throw this._exception;
         }
         this._batchStream.swap(os);
-    },
-    finishBatchRequest: function(os, proxy, operation)
+    }
+
+    finishBatchRequest(os, proxy, operation)
     {
         //
         // No need for synchronization, no other threads are supposed
@@ -77,29 +78,31 @@ var BatchRequestQueue = Class({
         {
             this._batchStream.resize(this._batchMarker);
         }
-    },
-    abortBatchRequest: function(os)
+    }
+
+    abortBatchRequest(os)
     {
         this._batchStream.swap(os);
         this._batchStream.resize(this._batchMarker);
-    },
-    swap: function(os)
+    }
+
+    swap(os)
     {
         if(this._batchRequestNum === 0)
         {
             return 0;
         }
 
-        var lastRequest = null;
+        let lastRequest = null;
         if(this._batchMarker < this._batchStream.size)
         {
-            var length = this._batchStream.size - this._batchMarker;
+            const length = this._batchStream.size - this._batchMarker;
             this._batchStream.pos = this._batchMarker;
             lastRequest = this._batchStream.buffer.getArray(length);
             this._batchStream.resize(this._batchMarker);
         }
 
-        var requestNum = this._batchRequestNum;
+        const requestNum = this._batchRequestNum;
         this._batchStream.swap(os);
 
         //
@@ -113,16 +116,18 @@ var BatchRequestQueue = Class({
             this._batchStream.writeBlob(lastRequest);
         }
         return requestNum;
-    },
-    destroy: function(ex)
+    }
+
+    destroy(ex)
     {
         this._exception = ex;
-    },
-    isEmpty: function()
+    }
+
+    isEmpty()
     {
         return this._batchStream.size === Protocol.requestBatchHdr.length;
     }
-});
+}
 
 Ice.BatchRequestQueue = BatchRequestQueue;
 module.exports.Ice = Ice;

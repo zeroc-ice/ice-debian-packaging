@@ -19,8 +19,8 @@ using namespace Test;
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    TimeoutPrx allTests(const Ice::CommunicatorPtr&);
-    TimeoutPrx timeout = allTests(communicator);
+    TimeoutPrxPtr allTests(const Ice::CommunicatorPtr&);
+    TimeoutPrxPtr timeout = allTests(communicator);
     timeout->shutdown();
     return EXIT_SUCCESS;
 }
@@ -32,13 +32,9 @@ main(int argc, char* argv[])
     Ice::registerIceSSL();
 #endif
 
-    int status;
-    Ice::CommunicatorPtr communicator;
-
     try
     {
-        Ice::InitializationData initData;
-        initData.properties = Ice::createProperties(argc, argv);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
 
         //
         // For this test, we want to disable retries.
@@ -70,27 +66,12 @@ main(int argc, char* argv[])
         //
         initData.properties->setProperty("Ice.TCP.SndSize", "50000");
 
-        communicator = Ice::initialize(argc, argv, initData);
-        status = run(argc, argv, communicator);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        return run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
-        status = EXIT_FAILURE;
+        return  EXIT_FAILURE;
     }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
-    }
-
-    return status;
 }

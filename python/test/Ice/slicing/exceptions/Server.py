@@ -13,7 +13,7 @@ import Ice
 Ice.loadSlice('-I. --all ServerPrivate.ice')
 import Test
 
-class TestI(Test.TestIntf):
+class TestI(Test._TestIntfDisp):
     def shutdown(self, current=None):
         current.adapter.getCommunicator().shutdown()
 
@@ -157,23 +157,16 @@ def run(args, communicator):
     properties.setProperty("TestAdapter.Endpoints", "default -p 12010 -t 10000")
     adapter = communicator.createObjectAdapter("TestAdapter")
     object = TestI()
-    adapter.add(object, communicator.stringToIdentity("Test"))
+    adapter.add(object, Ice.stringToIdentity("Test"))
     adapter.activate()
     communicator.waitForShutdown()
     return True
 
 try:
-    communicator = Ice.initialize(sys.argv)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv) as communicator:
+         status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

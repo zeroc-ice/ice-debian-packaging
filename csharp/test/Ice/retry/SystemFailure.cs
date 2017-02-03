@@ -7,13 +7,12 @@
 //
 // **********************************************************************
 
-using System;
-
+[System.Serializable]
 public class SystemFailure : Ice.SystemException
-{
+{    
     public override string
-    ice_name()
+    ice_id()
     {
-        return "SystemFailure";
+        return "::SystemFailure";
     }
 };

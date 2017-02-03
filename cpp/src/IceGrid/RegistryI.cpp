@@ -7,7 +7,7 @@
 //
 // **********************************************************************
 
-#include <IceUtil/UUID.h>
+#include <Ice/UUID.h>
 #include <IceUtil/FileUtil.h>
 #include <Ice/Ice.h>
 #include <Ice/Network.h>
@@ -118,6 +118,19 @@ private:
     ProcessPtr _origProcess;
 };
 
+Ice::IPConnectionInfoPtr
+getIPConnectionInfo(const Ice::ConnectionInfoPtr& info)
+{
+    for(Ice::ConnectionInfoPtr p = info; p; p = p->underlying)
+    {
+        Ice::IPConnectionInfoPtr ipInfo = Ice::IPConnectionInfoPtr::dynamicCast(p);
+        if(ipInfo)
+        {
+            return ipInfo;
+        }
+    }
+    return ICE_NULLPTR;
+}
 
 ProcessI::ProcessI(const RegistryIPtr& registry, const ProcessPtr& origProcess) :
     _registry(registry),
@@ -322,11 +335,11 @@ RegistryI::startImpl()
     //
     // Create the registry database.
     //
-    string dbPath = _communicator->getProperties()->getProperty("IceGrid.Registry.Data");
+    string dbPath = _communicator->getProperties()->getProperty("IceGrid.Registry.LMDB.Path");
     if(dbPath.empty())
     {
         Ice::Error out(_communicator->getLogger());
-        out << "property `IceGrid.Registry.Data' is not set";
+        out << "property `IceGrid.Registry.LMDB.Path' is not set";
         return false;
     }
     else
@@ -337,13 +350,10 @@ RegistryI::startImpl()
             ex.error = IceInternal::getSystemErrno();
 
             Ice::Error out(_communicator->getLogger());
-            out << "property `IceGrid.Registry.Data' is set to an invalid path:\n" << ex;
+            out << "property `IceGrid.Registry.LMDB.Path' is set to an invalid path:\n" << ex;
             return false;
         }
     }
-    _communicator->getProperties()->setProperty("Freeze.DbEnv.Registry.DbHome", dbPath);
-    const string envName = "Registry";
-    Freeze::ConnectionPtr connection = Freeze::createConnection(_communicator, envName);
 
     //
     // Ensure that nothing is running on this port. This is also
@@ -388,11 +398,20 @@ RegistryI::startImpl()
                                                   _registryAdapter,
                                                   "IceGrid.Registry",
                                                   registryTopicManagerId,
-                                                  envName);
+                                                  "");
     const IceStorm::TopicManagerPrx topicManager = _iceStorm->getTopicManager();
 
-    _database = new Database(_registryAdapter, topicManager, _instanceName, _traceLevels, getInfo(), connection,
-                             "Registry", _readonly);
+    try
+    {
+        _database = new Database(_registryAdapter, topicManager, _instanceName, _traceLevels, getInfo(), _readonly);
+    }
+    catch(const IceDB::LMDBException& ex)
+    {
+        Error out(_communicator->getLogger());
+        out << "couldn't open database:\n";
+        out << ex;
+        return false;
+    }
     _wellKnownObjects = new WellKnownObjectsManager(_database);
 
     if(!_initFromReplica.empty())
@@ -452,11 +471,11 @@ RegistryI::startImpl()
         {
             Ice::Long serial;
             IceGrid::InternalRegistryPrx registry = IceGrid::InternalRegistryPrx::checkedCast(proxy);
-	    ApplicationInfoSeq applications = registry->getApplications(serial);
+            ApplicationInfoSeq applications = registry->getApplications(serial);
             _database->syncApplications(applications, serial);
-	    AdapterInfoSeq adapters = registry->getAdapters(serial);
+            AdapterInfoSeq adapters = registry->getAdapters(serial);
             _database->syncAdapters(adapters, serial);
-	    ObjectInfoSeq objects = registry->getObjects(serial);
+            ObjectInfoSeq objects = registry->getObjects(serial);
             _database->syncObjects(objects, serial);
         }
         catch(const Ice::OperationNotExistException&)
@@ -570,7 +589,7 @@ RegistryI::startImpl()
     //
     // Add the locator finder object to the client adapter.
     //
-    _clientAdapter->add(new FinderI(_wellKnownObjects), _communicator->stringToIdentity("Ice/LocatorFinder"));
+    _clientAdapter->add(new FinderI(_wellKnownObjects), stringToIdentity("Ice/LocatorFinder"));
 
     //
     // Setup the discovery object adapter and also add it the lookup
@@ -605,7 +624,7 @@ RegistryI::startImpl()
 
         try
         {
-            Ice::Identity lookupId = _communicator->stringToIdentity("IceLocatorDiscovery/Lookup");
+            Ice::Identity lookupId = stringToIdentity("IceLocatorDiscovery/Lookup");
             discoveryAdapter = _communicator->createObjectAdapter("IceGrid.Registry.Discovery");
             discoveryAdapter->add(new LookupI(_instanceName, _wellKnownObjects), lookupId);
         }
@@ -1332,10 +1351,11 @@ RegistryI::getSSLInfo(const ConnectionPtr& connection, string& userDN)
             throw exc;
         }
 
-        sslinfo.remotePort = info->remotePort;
-        sslinfo.remoteHost = info->remoteAddress;
-        sslinfo.localPort = info->localPort;
-        sslinfo.localHost = info->localAddress;
+        Ice::IPConnectionInfoPtr ipInfo = getIPConnectionInfo(info);
+        sslinfo.remotePort = ipInfo->remotePort;
+        sslinfo.remoteHost = ipInfo->remoteAddress;
+        sslinfo.localPort = ipInfo->localPort;
+        sslinfo.localHost = ipInfo->localAddress;
         sslinfo.cipher = info->cipher;
         sslinfo.certs = info->certs;
         if(info->certs.size() > 0)

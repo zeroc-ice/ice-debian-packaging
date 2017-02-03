@@ -22,7 +22,13 @@ using namespace IceInternal;
 using namespace Ice::Instrumentation;
 using namespace IceMX;
 
-namespace 
+#ifdef ICE_CPP11_MAPPING
+#  define ICE_OBJECT_PRX Ice::ObjectPrx
+#else
+#  define ICE_OBJECT_PRX IceProxy::Ice::Object
+#endif
+
+namespace
 {
 
 int ThreadMetrics::*
@@ -42,14 +48,14 @@ getThreadStateMetric(ThreadState s)
         assert(false);
         return 0;
     }
-}    
+}
 
-struct ThreadStateChanged 
+struct ThreadStateChanged
 {
     ThreadStateChanged(ThreadState oldState, ThreadState newState) : oldState(oldState), newState(newState)
     {
     }
-    
+
     void operator()(const ThreadMetricsPtr& v)
     {
         if(oldState != ThreadStateIdle)
@@ -66,6 +72,20 @@ struct ThreadStateChanged
     ThreadState newState;
 };
 
+IPConnectionInfo*
+getIPConnectionInfo(const ConnectionInfoPtr& info)
+{
+    for(ConnectionInfoPtr p = info; p; p = p->underlying)
+    {
+        IPConnectionInfo* ipInfo = dynamic_cast<IPConnectionInfo*>(p.get());
+        if(ipInfo)
+        {
+            return ipInfo;
+        }
+    }
+    return ICE_NULLPTR;
+}
+
 class ConnectionHelper : public MetricsHelperT<ConnectionMetrics>
 {
 public:
@@ -73,7 +93,7 @@ public:
     class Attributes : public AttributeResolverT<ConnectionHelper>
     {
     public:
-        
+
         Attributes()
         {
             add("parent", &ConnectionHelper::getParent);
@@ -83,8 +103,8 @@ public:
         }
     };
     static Attributes attributes;
-    
-    ConnectionHelper(const ConnectionInfoPtr& con, const EndpointPtr& endpt, ConnectionState state) : 
+
+    ConnectionHelper(const ConnectionInfoPtr& con, const EndpointPtr& endpt, ConnectionState state) :
         _connectionInfo(con), _endpoint(endpt), _state(state)
     {
     }
@@ -100,7 +120,7 @@ public:
         if(_id.empty())
         {
             ostringstream os;
-            IPConnectionInfoPtr info = IPConnectionInfoPtr::dynamicCast(_connectionInfo);
+            IPConnectionInfo* info = getIPConnectionInfo(_connectionInfo);
             if(info)
             {
                 os << info->localAddress << ':' << info->localPort;
@@ -140,8 +160,8 @@ public:
             return "";
         }
     }
-    
-    string 
+
+    string
     getParent() const
     {
         if(!_connectionInfo->adapterName.empty())
@@ -153,7 +173,7 @@ public:
             return "Communicator";
         }
     }
-    
+
     const ConnectionInfoPtr&
     getConnectionInfo() const
     {
@@ -175,7 +195,7 @@ public:
         }
         return _endpointInfo;
     }
-    
+
 private:
 
     const ConnectionInfoPtr& _connectionInfo;
@@ -194,7 +214,7 @@ public:
     class Attributes : public AttributeResolverT<DispatchHelper>
     {
     public:
-        
+
         Attributes()
         {
             add("parent", &DispatchHelper::getParent);
@@ -213,7 +233,7 @@ public:
         }
     };
     static Attributes attributes;
-    
+
     DispatchHelper(const Current& current, int size) : _current(current), _size(size)
     {
     }
@@ -263,7 +283,7 @@ public:
         return _id;
     }
 
-    string 
+    string
     getParent() const
     {
         return _current.adapter->getName();
@@ -334,7 +354,7 @@ public:
     class Attributes : public AttributeResolverT<InvocationHelper>
     {
     public:
-        
+
         Attributes()
         {
             add("parent", &InvocationHelper::getParent);
@@ -342,8 +362,8 @@ public:
 
             add("operation", &InvocationHelper::getOperation);
             add("identity", &InvocationHelper::getIdentity);
-            add("facet", &InvocationHelper::getProxy, &IceProxy::Ice::Object::ice_getFacet);
-            add("encoding", &InvocationHelper::getProxy, &IceProxy::Ice::Object::ice_getEncodingVersion);
+            add("facet", &InvocationHelper::getProxy, &ICE_OBJECT_PRX::ice_getFacet);
+            add("encoding", &InvocationHelper::getProxy, &ICE_OBJECT_PRX::ice_getEncodingVersion);
             add("mode", &InvocationHelper::getMode);
             add("proxy", &InvocationHelper::getProxy);
 
@@ -351,8 +371,7 @@ public:
         }
     };
     static Attributes attributes;
-    
-    InvocationHelper(const ObjectPrx& proxy, const string& op, const Context& ctx) :
+    InvocationHelper(const ObjectPrxPtr& proxy, const string& op, const Context& ctx) :
         _proxy(proxy), _operation(op), _context(ctx)
     {
     }
@@ -386,23 +405,23 @@ public:
         if(_proxy->ice_isTwoway())
         {
             return "twoway";
-        } 
+        }
         else if(_proxy->ice_isOneway())
         {
             return "oneway";
-        } 
+        }
         else if(_proxy->ice_isBatchOneway())
         {
             return "batch-oneway";
-        } 
+        }
         else if(_proxy->ice_isDatagram())
         {
             return "datagram";
-        } 
+        }
         else if(_proxy->ice_isBatchDatagram())
         {
             return "batch-datagram";
-        } 
+        }
         else
         {
             throw invalid_argument("mode");
@@ -419,7 +438,7 @@ public:
             {
                 try
                 {
-                    os << _proxy->ice_endpoints(Ice::EndpointSeq()) << " [" << _operation << ']';
+                    os << _proxy->ice_endpoints(Ice::EndpointSeq())->ice_toString() << " [" << _operation << ']';
                 }
                 catch(const Exception&)
                 {
@@ -437,13 +456,13 @@ public:
         return _id;
     }
 
-    string 
+    string
     getParent() const
     {
         return "Communicator";
     }
 
-    const ObjectPrx&
+    const ObjectPrxPtr&
     getProxy() const
     {
         return _proxy;
@@ -471,7 +490,7 @@ public:
 
 private:
 
-    const ObjectPrx& _proxy;
+    const ObjectPrxPtr& _proxy;
     const string& _operation;
     const Context& _context;
     mutable string _id;
@@ -486,7 +505,7 @@ public:
     class Attributes : public AttributeResolverT<RemoteInvocationHelper>
     {
     public:
-        
+
         Attributes()
         {
             add("parent", &RemoteInvocationHelper::getParent);
@@ -496,8 +515,8 @@ public:
         }
     };
     static Attributes attributes;
-    
-    RemoteInvocationHelper(const ConnectionInfoPtr& con, const EndpointPtr& endpt, int requestId, int size) : 
+
+    RemoteInvocationHelper(const ConnectionInfoPtr& con, const EndpointPtr& endpt, int requestId, int size) :
         _connectionInfo(con), _endpoint(endpt), _requestId(requestId), _size(size)
     {
     }
@@ -525,8 +544,8 @@ public:
         }
         return _id;
     }
-    
-    string 
+
+    string
     getParent() const
     {
         if(!_connectionInfo->adapterName.empty())
@@ -538,7 +557,7 @@ public:
             return "Communicator";
         }
     }
-    
+
     const ConnectionInfoPtr&
     getConnectionInfo() const
     {
@@ -560,7 +579,7 @@ public:
         }
         return _endpointInfo;
     }
-    
+
 private:
 
     const ConnectionInfoPtr& _connectionInfo;
@@ -588,7 +607,7 @@ public:
     class Attributes : public AttributeResolverT<CollocatedInvocationHelper>
     {
     public:
-        
+
         Attributes()
         {
             add("parent", &CollocatedInvocationHelper::getParent);
@@ -597,8 +616,8 @@ public:
         }
     };
     static Attributes attributes;
-    
-    CollocatedInvocationHelper(const Ice::ObjectAdapterPtr& adapter, int requestId, int size) : 
+
+    CollocatedInvocationHelper(const Ice::ObjectAdapterPtr& adapter, int requestId, int size) :
         _requestId(requestId), _size(size), _id(adapter->getName())
     {
     }
@@ -618,8 +637,8 @@ public:
     {
         return _id;
     }
-    
-    string 
+
+    string
     getParent() const
     {
         return "Communicator";
@@ -647,7 +666,7 @@ public:
     class Attributes : public AttributeResolverT<ThreadHelper>
     {
     public:
-        
+
         Attributes()
         {
             add("parent", &ThreadHelper::_parent);
@@ -655,7 +674,7 @@ public:
         }
     };
     static Attributes attributes;
-    
+
     ThreadHelper(const string& parent, const string& id, ThreadState state) : _parent(parent), _id(id), _state(state)
     {
     }
@@ -674,7 +693,7 @@ public:
     }
 
 private:
-    
+
     const string _parent;
     const string _id;
     const ThreadState _state;
@@ -689,7 +708,7 @@ public:
     class Attributes : public AttributeResolverT<EndpointHelper>
     {
     public:
-        
+
         Attributes()
         {
             add("parent", &EndpointHelper::getParent);
@@ -698,7 +717,7 @@ public:
         }
     };
     static Attributes attributes;
-    
+
     EndpointHelper(const EndpointPtr& endpt, const string& id) : _endpoint(endpt), _id(id)
     {
     }
@@ -745,7 +764,7 @@ public:
     }
 
 private:
-    
+
     const EndpointPtr _endpoint;
     mutable string _id;
     mutable EndpointInfoPtr _endpointInfo;
@@ -755,7 +774,7 @@ EndpointHelper::Attributes EndpointHelper::attributes;
 
 }
 
-void 
+void
 ConnectionObserverI::sentBytes(Int num)
 {
     forEach(add(&ConnectionMetrics::sentBytes, num));
@@ -765,7 +784,7 @@ ConnectionObserverI::sentBytes(Int num)
     }
 }
 
-void 
+void
 ConnectionObserverI::receivedBytes(Int num)
 {
     forEach(add(&ConnectionMetrics::receivedBytes, num));
@@ -847,8 +866,8 @@ InvocationObserverI::userException()
 }
 
 RemoteObserverPtr
-InvocationObserverI::getRemoteObserver(const ConnectionInfoPtr& connection, 
-                                       const EndpointPtr& endpoint, 
+InvocationObserverI::getRemoteObserver(const ConnectionInfoPtr& connection,
+                                       const EndpointPtr& endpoint,
                                        int requestId,
                                        int size)
 {
@@ -859,14 +878,14 @@ InvocationObserverI::getRemoteObserver(const ConnectionInfoPtr& connection,
         {
             delegate = _delegate->getRemoteObserver(connection, endpoint, requestId, size);
         }
-        return getObserverWithDelegate<RemoteObserverI>("Remote", 
+        return getObserverWithDelegate<RemoteObserverI>("Remote",
                                                         RemoteInvocationHelper(connection, endpoint, requestId, size),
                                                         delegate);
     }
     catch(const exception&)
     {
     }
-    return 0;
+    return ICE_NULLPTR;
 }
 
 CollocatedObserverPtr
@@ -886,10 +905,10 @@ InvocationObserverI::getCollocatedObserver(const Ice::ObjectAdapterPtr& adapter,
     catch(const exception&)
     {
     }
-    return 0;
+    return ICE_NULLPTR;
 }
 
-CommunicatorObserverI::CommunicatorObserverI(const InitializationData& initData) : 
+CommunicatorObserverI::CommunicatorObserverI(const InitializationData& initData) :
     _metrics(new MetricsAdminI(initData.properties, initData.logger)),
     _delegate(initData.observer),
     _connections(_metrics, "Connection"),
@@ -934,7 +953,7 @@ CommunicatorObserverI::getConnectionEstablishmentObserver(const EndpointPtr& end
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
-    return 0;
+    return ICE_NULLPTR;
 }
 
 ObserverPtr
@@ -957,13 +976,13 @@ CommunicatorObserverI::getEndpointLookupObserver(const EndpointPtr& endpt)
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
-    return 0;
+    return ICE_NULLPTR;
 }
 
-ConnectionObserverPtr 
-CommunicatorObserverI::getConnectionObserver(const ConnectionInfoPtr& con, 
+ConnectionObserverPtr
+CommunicatorObserverI::getConnectionObserver(const ConnectionInfoPtr& con,
                                              const EndpointPtr& endpt,
-                                             ConnectionState state, 
+                                             ConnectionState state,
                                              const ConnectionObserverPtr& observer)
 {
     if(_connections.isEnabled())
@@ -984,11 +1003,11 @@ CommunicatorObserverI::getConnectionObserver(const ConnectionInfoPtr& con,
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
-    return 0;
+    return ICE_NULLPTR;
 }
 
-ThreadObserverPtr 
-CommunicatorObserverI::getThreadObserver(const string& parent, 
+ThreadObserverPtr
+CommunicatorObserverI::getThreadObserver(const string& parent,
                                          const string& id,
                                          ThreadState state,
                                          const ThreadObserverPtr& observer)
@@ -1011,11 +1030,11 @@ CommunicatorObserverI::getThreadObserver(const string& parent,
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
-    return 0;
+    return ICE_NULLPTR;
 }
 
-InvocationObserverPtr 
-CommunicatorObserverI::getInvocationObserver(const ObjectPrx& proxy, const string& op, const Context& ctx)
+InvocationObserverPtr
+CommunicatorObserverI::getInvocationObserver(const ObjectPrxPtr& proxy, const string& op, const Context& ctx)
 {
     if(_invocations.isEnabled())
     {
@@ -1034,10 +1053,10 @@ CommunicatorObserverI::getInvocationObserver(const ObjectPrx& proxy, const strin
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
-    return 0;
+    return ICE_NULLPTR;
 }
 
-DispatchObserverPtr 
+DispatchObserverPtr
 CommunicatorObserverI::getDispatchObserver(const Current& current, int size)
 {
     if(_dispatch.isEnabled())
@@ -1057,10 +1076,10 @@ CommunicatorObserverI::getDispatchObserver(const Current& current, int size)
             error << "unexpected exception trying to obtain observer:\n" << ex;
         }
     }
-    return 0;
+    return ICE_NULLPTR;
 }
 
-const IceInternal::MetricsAdminIPtr& 
+const IceInternal::MetricsAdminIPtr&
 CommunicatorObserverI::getFacet() const
 {
     assert(_metrics);

@@ -17,7 +17,7 @@ run(id<ICECommunicator> communicator)
     [[communicator getProperties] setProperty:@"TestAdapter.Endpoints" value:@"default -p 12010"];
     id<ICEObjectAdapter> adapter = [communicator createObjectAdapter:@"TestAdapter"];
     ICEObject* object = [ThrowerI thrower];
-    [adapter add:object identity:[communicator stringToIdentity:@"thrower"]];
+    [adapter add:object identity:[ICEUtil stringToIdentity:@"thrower"]];
 
     TestExceptionsThrowerPrx* exceptionsAllTests(id<ICECommunicator>);
     exceptionsAllTests(communicator);
@@ -26,12 +26,19 @@ run(id<ICECommunicator> communicator)
 }
 
 #if TARGET_OS_IPHONE
-#  define main exceptionsServer
+#  define main exceptionsCollocated
 #endif
 
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    ICEregisterIceSSL(YES);
+#if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+    ICEregisterIceIAP(YES);
+#endif
+#endif
+
     int status;
     @autoreleasepool
     {
@@ -46,7 +53,7 @@ main(int argc, char* argv[])
             [initData.properties setProperty:@"Ice.Warn.Connections" value:@"0"];
 
 #if TARGET_OS_IPHONE
-            initData.prefixTable__ = [NSDictionary dictionaryWithObjectsAndKeys:
+            initData.prefixTable_ = [NSDictionary dictionaryWithObjectsAndKeys:
                                       @"TestExceptions", @"::Test",
                                       @"TestExceptionsMod", @"::Test::Mod",
                                     nil];
@@ -63,15 +70,7 @@ main(int argc, char* argv[])
 
         if(communicator)
         {
-            @try
-            {
-                [communicator destroy];
-            }
-            @catch(ICEException* ex)
-            {
-            tprintf("%@\n", ex);
-                status = EXIT_FAILURE;
-            }
+            [communicator destroy];
         }
     }
     return status;

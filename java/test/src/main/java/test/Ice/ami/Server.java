@@ -12,29 +12,33 @@ package test.Ice.ami;
 public class Server extends test.Util.Application
 {
     @Override
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
-        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
-        Ice.ObjectAdapter adapter2 = communicator().createObjectAdapter("ControllerAdapter");
+        com.zeroc.Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
+        com.zeroc.Ice.ObjectAdapter adapter2 = communicator().createObjectAdapter("ControllerAdapter");
 
-        adapter.add(new TestI(), communicator().stringToIdentity("test"));
+        adapter.add(new TestI(), com.zeroc.Ice.Util.stringToIdentity("test"));
         adapter.activate();
-        adapter2.add(new TestControllerI(adapter), communicator().stringToIdentity("testController"));
+        adapter2.add(new TestControllerI(adapter), com.zeroc.Ice.Util.stringToIdentity("testController"));
         adapter2.activate();
 
         return WAIT;
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.ami");
-        initData.properties.setProperty("TestAdapter.Endpoints", "default -p 12010");
-        initData.properties.setProperty("ControllerAdapter.Endpoints", "default -p 12011");
+        initData.properties.setProperty("TestAdapter.Endpoints", getTestEndpoint(initData.properties, 0));
+        initData.properties.setProperty("ControllerAdapter.Endpoints", getTestEndpoint(initData.properties, 1));
         initData.properties.setProperty("ControllerAdapter.ThreadPool.Size", "1");
+
+        //
+        // This test kills connections, so we don't want warnings.
+        //
+        initData.properties.setProperty("Ice.Warn.Connections", "0");
+
         //
         // Limit the recv buffer size, this test relies on the socket
         // send() blocking after sending a given amount of data.
@@ -43,8 +47,7 @@ public class Server extends test.Util.Application
         return initData;
     }
 
-    public static void
-    main(String[] args)
+    public static void main(String[] args)
     {
         Server app = new Server();
         int result = app.main("Server", args);

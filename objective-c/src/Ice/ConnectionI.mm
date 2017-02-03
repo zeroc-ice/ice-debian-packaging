@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
+// This copy of Ice is licensed to you  the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
@@ -19,18 +19,96 @@
 
 #import <objc/runtime.h>
 
+#define CONNECTION dynamic_cast<Ice::Connection*>(static_cast<IceUtil::Shared*>(cxxObject_))
+
+namespace
+{
+
+std::vector<Class>* connectionInfoClasses = 0;
+
+}
+
+namespace IceObjC
+{
+
+void
+registerConnectionInfoClass(Class cl)
+{
+    if(!connectionInfoClasses)
+    {
+        connectionInfoClasses = new std::vector<Class>();
+    }
+    connectionInfoClasses->push_back(cl);
+}
+
+}
+
 @implementation ICEConnectionInfo (ICEInternal)
+
++(id) checkedConnectionInfoWithConnectionInfo:(Ice::ConnectionInfo*)connectionInfo
+{
+    assert(false);
+    return nil;
+}
+
++(id) connectionInfoWithConnectionInfo:(NSValue*)v
+{
+    Ice::ConnectionInfo* info = dynamic_cast<Ice::ConnectionInfo*>(reinterpret_cast<IceUtil::Shared*>(v.pointerValue));
+    if(!info)
+    {
+        return nil;
+    }
+
+    Ice::UDPConnectionInfoPtr udpInfo = Ice::UDPConnectionInfoPtr::dynamicCast(info);
+    if(udpInfo)
+    {
+        return [[ICEUDPConnectionInfo alloc] initWithUDPConnectionInfo:udpInfo.get()];
+    }
+
+    Ice::WSConnectionInfoPtr wsInfo = Ice::WSConnectionInfoPtr::dynamicCast(info);
+    if(wsInfo)
+    {
+        return [[ICEWSConnectionInfo alloc] initWithWSConnectionInfo:wsInfo.get()];
+    }
+
+    Ice::TCPConnectionInfoPtr tcpInfo = Ice::TCPConnectionInfoPtr::dynamicCast(info);
+    if(tcpInfo)
+    {
+        return [[ICETCPConnectionInfo alloc] initWithTCPConnectionInfo:tcpInfo.get()];
+    }
+
+    if(connectionInfoClasses)
+    {
+        for(std::vector<Class>::const_iterator p = connectionInfoClasses->begin(); p != connectionInfoClasses->end();
+            ++p)
+        {
+            ICEConnectionInfo* r = [*p checkedConnectionInfoWithConnectionInfo:info];
+            if(r)
+            {
+                return r;
+            }
+        }
+    }
+
+    Ice::IPConnectionInfoPtr ipInfo = Ice::IPConnectionInfoPtr::dynamicCast(info);
+    if(ipInfo)
+    {
+        return [[ICEIPConnectionInfo alloc] initWithIPConnectionInfo:ipInfo.get()];
+    }
+
+    return [[ICEConnectionInfo alloc] initWithConnectionInfo:info];
+}
 
 -(id) initWithConnectionInfo:(Ice::ConnectionInfo*)connectionInfo;
 {
     self = [super initWithCxxObject:connectionInfo];
     if(self != nil)
     {
+        self->underlying = [ICEConnectionInfo localObjectWithCxxObjectNoAutoRelease:connectionInfo->underlying.get()
+                                                            allocator:@selector(connectionInfoWithConnectionInfo:)];
         self->incoming = connectionInfo->incoming;
         self->adapterName = [[NSString alloc] initWithUTF8String:connectionInfo->adapterName.c_str()];
         self->connectionId = [[NSString alloc] initWithUTF8String:connectionInfo->connectionId.c_str()];
-        self->rcvSize = connectionInfo->rcvSize;
-        self->sndSize = connectionInfo->sndSize;
     }
     return self;
 }
@@ -58,6 +136,11 @@
 -(id) initWithTCPConnectionInfo:(Ice::TCPConnectionInfo*)tcpConnectionInfo
 {
     self = [super initWithIPConnectionInfo:tcpConnectionInfo];
+    if(self)
+    {
+        self->rcvSize = tcpConnectionInfo->rcvSize;
+        self->sndSize = tcpConnectionInfo->sndSize;
+    }
     return self;
 }
 @end
@@ -71,6 +154,8 @@
     {
         self->mcastAddress = [[NSString alloc] initWithUTF8String:udpConnectionInfo->mcastAddress.c_str()];
         self->mcastPort = udpConnectionInfo->mcastPort;
+        self->rcvSize = udpConnectionInfo->rcvSize;
+        self->sndSize = udpConnectionInfo->sndSize;
     }
     return self;
 }
@@ -80,7 +165,7 @@
 @implementation ICEWSConnectionInfo (ICEInternal)
 -(id) initWithWSConnectionInfo:(Ice::WSConnectionInfo*)wsConnectionInfo
 {
-    self = [super initWithIPConnectionInfo:wsConnectionInfo];
+    self = [super initWithConnectionInfo:wsConnectionInfo];
     if(self)
     {
         self->headers = toNSDictionary(wsConnectionInfo->headers);
@@ -92,42 +177,20 @@
 namespace
 {
 
-class ConnectionCallbackI : public Ice::ConnectionCallback
+class CloseCallbackI : public Ice::CloseCallback
 {
 public:
 
-    ConnectionCallbackI(id<ICEConnection> connection, id<ICEConnectionCallback> callback) :
-        _connection(connection), _callback(callback)
+    CloseCallbackI(id<ICEConnection> connection, ICECloseCallback callback) :
+        _connection(connection), _callback(Block_copy(callback))
     {
         [_connection retain];
-        [_callback retain];
     }
 
-    ~ConnectionCallbackI()
+    ~CloseCallbackI()
     {
         [_connection release];
         [_callback release];
-    }
-
-    void
-    heartbeat(const Ice::ConnectionPtr& connection)
-    {
-        NSException* ex = nil;
-        @autoreleasepool
-        {
-            @try
-            {
-                [_callback heartbeat:_connection];
-            }
-            @catch(id e)
-            {
-                ex = [e retain];
-            }
-        }
-        if(ex != nil)
-        {
-            rethrowCxxException(ex, true); // True = release the exception.
-        }
     }
 
     void
@@ -138,7 +201,7 @@ public:
         {
             @try
             {
-                [_callback closed:_connection];
+                _callback(_connection);
             }
             @catch(id e)
             {
@@ -154,20 +217,61 @@ public:
 private:
 
     id<ICEConnection> _connection;
-    id<ICEConnectionCallback> _callback;
+    ICECloseCallback _callback;
+};
+
+class HeartbeatCallbackI : public Ice::HeartbeatCallback
+{
+public:
+
+    HeartbeatCallbackI(id<ICEConnection> connection, ICEHeartbeatCallback callback) :
+        _connection(connection), _callback(Block_copy(callback))
+    {
+        [_connection retain];
+    }
+
+    ~HeartbeatCallbackI()
+    {
+        [_connection release];
+        [_callback release];
+    }
+
+    void
+    heartbeat(const Ice::ConnectionPtr& connection)
+    {
+        NSException* ex = nil;
+        @autoreleasepool
+        {
+            @try
+            {
+                _callback(_connection);
+            }
+            @catch(id e)
+            {
+                ex = [e retain];
+            }
+        }
+        if(ex != nil)
+        {
+            rethrowCxxException(ex, true); // True = release the exception.
+        }
+    }
+
+private:
+
+    id<ICEConnection> _connection;
+    ICEHeartbeatCallback _callback;
 };
 
 }
 
-#define CONNECTION dynamic_cast<Ice::Connection*>(static_cast<IceUtil::Shared*>(cxxObject_))
-
 @implementation ICEConnection
--(void) close:(BOOL)force
+-(void) close:(ICEConnectionClose)mode
 {
     NSException* nsex = nil;
     try
     {
-        CONNECTION->close(force);
+        CONNECTION->close((Ice::ConnectionClose)mode);
     }
     catch(const std::exception& ex)
     {
@@ -183,7 +287,7 @@ private:
     NSException* nsex = nil;
     try
     {
-        return [ICEObjectPrx objectPrxWithObjectPrx__:CONNECTION->createProxy([identity identity])];
+        return [ICEObjectPrx iceObjectPrxWithObjectPrx:CONNECTION->createProxy([identity identity])];
     }
     catch(const std::exception& ex)
     {
@@ -267,9 +371,59 @@ private:
                    CONNECTION->end_flushBatchRequests(r);
                }, result);
 }
--(void) setCallback:(id<ICEConnectionCallback>)callback
+-(void) setCloseCallback:(ICECloseCallback)callback;
 {
-    CONNECTION->setCallback(new ConnectionCallbackI(self, callback));
+    CONNECTION->setCloseCallback(new CloseCallbackI(self, callback));
+}
+-(void) setHeartbeatCallback:(ICEHeartbeatCallback)callback
+{
+    CONNECTION->setHeartbeatCallback(new HeartbeatCallbackI(self, callback));
+}
+-(void) heartbeat
+{
+    NSException* nsex = nil;
+    try
+    {
+        CONNECTION->heartbeat();
+    }
+    catch(const std::exception& ex)
+    {
+        nsex = toObjCException(ex);
+    }
+    if(nsex != nil)
+    {
+        @throw nsex;
+    }
+}
+-(id<ICEAsyncResult>) begin_heartbeat
+{
+    return beginCppCall(^(Ice::AsyncResultPtr& result)
+                        {
+                            result = CONNECTION->begin_heartbeat();
+                        });
+}
+-(id<ICEAsyncResult>) begin_heartbeat:(void(^)(ICEException*))exception
+{
+    return [self begin_heartbeat:exception sent:nil];
+}
+-(id<ICEAsyncResult>) begin_heartbeat:(void(^)(ICEException*))exception sent:(void(^)(BOOL))sent
+{
+    return beginCppCall(^(Ice::AsyncResultPtr& result, const Ice::CallbackPtr& cb)
+                        {
+                            result = CONNECTION->begin_heartbeat(cb);
+                        },
+                        ^(const Ice::AsyncResultPtr& result)
+                        {
+                            CONNECTION->end_heartbeat(result);
+                        },
+                        exception, sent);
+}
+-(void) end_heartbeat:(id<ICEAsyncResult>)result
+{
+    endCppCall(^(const Ice::AsyncResultPtr& r)
+               {
+                   CONNECTION->end_heartbeat(r);
+               }, result);
 }
 -(void) setACM:(id)timeout close:(id)close heartbeat:(id)heartbeat
 {
@@ -319,46 +473,8 @@ private:
     NSException* nsex = nil;
     try
     {
-        Ice::ConnectionInfoPtr info = CONNECTION->getInfo();
-        if(!info)
-        {
-            return nil;
-        }
-
-        Ice::UDPConnectionInfoPtr udpInfo = Ice::UDPConnectionInfoPtr::dynamicCast(info);
-        if(udpInfo)
-        {
-            return [[[ICEUDPConnectionInfo alloc] initWithUDPConnectionInfo:udpInfo.get()] autorelease];
-        }
-
-        Ice::WSConnectionInfoPtr wsInfo = Ice::WSConnectionInfoPtr::dynamicCast(info);
-        if(wsInfo)
-        {
-            return [[[ICEWSConnectionInfo alloc] initWithWSConnectionInfo:wsInfo.get()] autorelease];
-        }
-
-        Ice::TCPConnectionInfoPtr tcpInfo = Ice::TCPConnectionInfoPtr::dynamicCast(info);
-        if(tcpInfo)
-        {
-            return [[[ICETCPConnectionInfo alloc] initWithTCPConnectionInfo:tcpInfo.get()] autorelease];
-        }
-
-        std::ostringstream os;
-        os << "connectionInfoWithType_" << CONNECTION->type() << ":";
-        SEL selector = sel_registerName(os.str().c_str());
-        if([ICEConnectionInfo respondsToSelector:selector])
-        {
-            IceUtil::Shared* shared = info.get();
-            return [ICEConnectionInfo performSelector:selector withObject:[NSValue valueWithPointer:shared]];
-        }
-
-        Ice::IPConnectionInfoPtr ipInfo = Ice::IPConnectionInfoPtr::dynamicCast(info);
-        if(ipInfo)
-        {
-            return [[[ICEIPConnectionInfo alloc] initWithIPConnectionInfo:ipInfo.get()] autorelease];
-        }
-
-        return [[[ICEConnectionInfo alloc] initWithConnectionInfo:info.get()] autorelease];
+        return [ICEConnectionInfo localObjectWithCxxObject:CONNECTION->getInfo().get()
+                                                 allocator:@selector(connectionInfoWithConnectionInfo:)];
     }
     catch(const std::exception& ex)
     {
@@ -377,6 +493,23 @@ private:
     try
     {
         CONNECTION->setBufferSize(rcvSize, sndSize);
+    }
+    catch(const std::exception& ex)
+    {
+        nsex = toObjCException(ex);
+    }
+    if(nsex != nil)
+    {
+        @throw nsex;
+    }
+}
+
+-(void) throwException
+{
+    NSException* nsex = nil;
+    try
+    {
+        CONNECTION->throwException();
     }
     catch(const std::exception& ex)
     {

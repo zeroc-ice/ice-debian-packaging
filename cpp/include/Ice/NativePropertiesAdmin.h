@@ -33,22 +33,35 @@ namespace Ice
 // Ice ignores any exceptions raised by the callback.
 //
 
-class ICE_API PropertiesAdminUpdateCallback : virtual public Ice::LocalObject
+#ifndef ICE_CPP11_MAPPING
+class ICE_API PropertiesAdminUpdateCallback : public virtual Ice::LocalObject
 {
 public:
+
+    virtual ~PropertiesAdminUpdateCallback();
 
     virtual void updated(const PropertyDict&) = 0;
 };
 typedef IceUtil::Handle<PropertiesAdminUpdateCallback> PropertiesAdminUpdateCallbackPtr;
+#endif
 
-class ICE_API NativePropertiesAdmin : virtual public IceUtil::Shared
+class ICE_API NativePropertiesAdmin
+#ifndef ICE_CPP11_MAPPING
+    : public virtual IceUtil::Shared
+#endif
 {
 public:
 
+    virtual ~NativePropertiesAdmin();
+
+#ifdef ICE_CPP11_MAPPING
+    virtual std::function<void()> addUpdateCallback(std::function<void(const PropertyDict&)>) = 0;
+#else
     virtual void addUpdateCallback(const PropertiesAdminUpdateCallbackPtr&) = 0;
     virtual void removeUpdateCallback(const PropertiesAdminUpdateCallbackPtr&) = 0;
+#endif
 };
-typedef IceUtil::Handle<NativePropertiesAdmin> NativePropertiesAdminPtr;
+ICE_DEFINE_PTR(NativePropertiesAdminPtr, NativePropertiesAdmin);
 
 }
 

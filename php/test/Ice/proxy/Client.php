@@ -1,4 +1,4 @@
-<?
+<?php
 // **********************************************************************
 //
 // Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
@@ -17,8 +17,8 @@ if(!extension_loaded("ice"))
 }
 
 $NS = function_exists("Ice\\initialize");
-require_once ($NS ? 'Ice_ns.php' : 'Ice.php');
-require_once 'Test.php';
+require_once('Ice.php');
+require_once('Test.php');
 
 function test($b)
 {
@@ -30,18 +30,38 @@ function test($b)
     }
 }
 
+function currentEncodingToString()
+{
+    global $NS;
+    return $NS ? eval("return Ice\\encodingVersionToString(Ice\\currentEncoding());") :
+                 eval("return Ice_encodingVersionToString(Ice_currentEncoding());");
+}
+
 function allTests($communicator)
 {
     global $NS;
     global $Ice_Encoding_1_0;
     global $Ice_Encoding_1_1;
 
+    $identity = $NS ? "Ice\\Identity" : "Ice_Identity";
     $random = $NS ? constant("Ice\\EndpointSelectionType::Random") : constant("Ice_EndpointSelectionType::Random");
     $ordered = $NS ? constant("Ice\\EndpointSelectionType::Ordered") : constant("Ice_EndpointSelectionType::Ordered");
     $encodingVersion = $NS ? "Ice\\EncodingVersion" : "Ice_EncodingVersion";
 
     $identityToString = $NS ? "Ice\\identityToString" : "Ice_identityToString";
     $stringToIdentity = $NS ? "Ice\\stringToIdentity" : "Ice_stringToIdentity";
+    $modeUnicode = $NS ? constant("Ice\\ToStringMode::Unicode") : constant("Ice_ToStringMode::Unicode");
+    $modeASCII = $NS ? constant("Ice\\ToStringMode::ASCII") : constant("Ice_ToStringMode::ASCII");
+    $modeCompat = $NS ? constant("Ice\\ToStringMode::Compat") : constant("Ice_ToStringMode::Compat");
+
+    if($NS)
+    {
+        echo "namespace ON\n";
+    }
+    else
+    {
+        echo "namespace OFF\n";
+    }
 
     echo "testing stringToProxy... ";
     flush();
@@ -415,14 +435,14 @@ function allTests($communicator)
     test($proxyProps["Test.EndpointSelection"] == "Ordered");
     test($proxyProps["Test.LocatorCacheTimeout"] == "100");
 
-    test($proxyProps["Test.Locator"] == "locator -t -e " . Ice_encodingVersionToString(Ice_currentEncoding()));
+    test($proxyProps["Test.Locator"] == "locator -t -e " . currentEncodingToString());
     //test($proxyProps["Test.Locator.CollocationOptimized"] == "1");
     test($proxyProps["Test.Locator.ConnectionCached"] == "0");
     test($proxyProps["Test.Locator.PreferSecure"] == "1");
     test($proxyProps["Test.Locator.EndpointSelection"] == "Random");
     test($proxyProps["Test.Locator.LocatorCacheTimeout"] == "300");
 
-    test($proxyProps["Test.Locator.Router"] == "router -t -e " . Ice_encodingVersionToString(Ice_currentEncoding()));
+    test($proxyProps["Test.Locator.Router"] == "router -t -e " . currentEncodingToString());
     //test($proxyProps["Test.Locator.Router.CollocationOptimized"] == "0");
     test($proxyProps["Test.Locator.Router.ConnectionCached"] == "1");
     test($proxyProps["Test.Locator.Router.PreferSecure"] == "1");
@@ -439,7 +459,31 @@ function allTests($communicator)
     echo "testing proxy methods... ";
     flush();
     test($communicator->identityToString($base->ice_identity($communicator->stringToIdentity("other"))->ice_getIdentity()) == "other");
-    test($identityToString($base->ice_identity($stringToIdentity("other"))->ice_getIdentity()) == "other");
+
+    //
+    // Verify that ToStringMode is passed correctly
+    //
+    $ident = eval("return new " . $identity . "('test', '\x7F\xE2\x82\xAC');");
+
+    $idStr = $identityToString($ident, $modeUnicode);
+    test($idStr == "\\u007f\xE2\x82\xAC/test");
+    $ident2 = $stringToIdentity($idStr);
+    test($ident == $ident2);
+    test($identityToString($ident) == $idStr);
+
+    $idStr = $identityToString($ident, $modeASCII);
+    test($idStr == "\\u007f\\u20ac/test");
+    $ident2 = $stringToIdentity($idStr);
+    test($ident == $ident2);
+
+    $idStr = $identityToString($ident, $modeCompat);
+    test($idStr == "\\177\\342\\202\\254/test");
+    $ident2 = $stringToIdentity($idStr);
+    test($ident == $ident2);
+
+    $ident2 = $stringToIdentity($communicator->identityToString($ident));
+    test($ident == $ident2);
+
     test($base->ice_facet("facet")->ice_getFacet() == "facet");
     test($base->ice_adapterId("id")->ice_getAdapterId() == "id");
     test($base->ice_twoway()->ice_isTwoway());
@@ -771,7 +815,8 @@ function allTests($communicator)
     return $cl;
 }
 
-$communicator = Ice_initialize($argv);
+$communicator = $NS ? eval("return Ice\\initialize(\$argv);") : 
+                      eval("return Ice_initialize(\$argv);");
 $myClass = allTests($communicator);
 $myClass->shutdown();
 $communicator->destroy();

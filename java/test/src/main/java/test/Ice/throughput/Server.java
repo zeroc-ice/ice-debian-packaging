@@ -12,20 +12,18 @@ package test.Ice.throughput;
 public class Server extends test.Util.Application
 {
     @Override
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
-        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("Throughput");
-        adapter.add(new ThroughputI(), communicator().stringToIdentity("throughput"));
+        com.zeroc.Ice.ObjectAdapter adapter = communicator().createObjectAdapter("Throughput");
+        adapter.add(new ThroughputI(), com.zeroc.Ice.Util.stringToIdentity("throughput"));
         adapter.activate();
         return WAIT;
     }
-    
+
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Demo", "test.Ice.throughput");
         initData.properties.setProperty("Throughput.Endpoints", "default -p 10000 -h 127.0.0.1");
         return initData;

@@ -19,19 +19,15 @@ class CallbackBase:
         self._cond = threading.Condition()
 
     def check(self):
-        self._cond.acquire()
-        try:
+        with self._cond:
             while not self._called:
                 self._cond.wait()
             self._called = False
-        finally:
-            self._cond.release()
 
     def called(self):
-        self._cond.acquire()
-        self._called = True
-        self._cond.notify()
-        self._cond.release()
+        with self._cond:
+            self._called = True
+            self._cond.notify()
 
 class Callback(CallbackBase):
     def __init__(self, communicator=None):
@@ -90,9 +86,9 @@ class Callback(CallbackBase):
         self.called()
 
     def opMyClass(self, r, c1, c2):
-        test(c1.ice_getIdentity() == self._communicator.stringToIdentity("test"))
-        test(c2.ice_getIdentity() == self._communicator.stringToIdentity("noSuchIdentity"))
-        test(r.ice_getIdentity() == self._communicator.stringToIdentity("test"))
+        test(c1.ice_getIdentity() == Ice.stringToIdentity("test"))
+        test(c2.ice_getIdentity() == Ice.stringToIdentity("noSuchIdentity"))
+        test(r.ice_getIdentity() == Ice.stringToIdentity("test"))
         # We can't do the callbacks below in serialize mode
         if self._communicator.getProperties().getPropertyAsInt("Ice.Client.ThreadPool.Serialize") == 0:
             r.opVoid()
@@ -1105,7 +1101,7 @@ def twowaysAMI(communicator, p):
     test(c != ctx)
 
     test(len(p.ice_getContext()) == 0)
-    r = p.begin_opContext(_ctx=ctx)
+    r = p.begin_opContext(context=ctx)
     c = p.end_opContext(r)
     test(c == ctx)
 
@@ -1115,7 +1111,7 @@ def twowaysAMI(communicator, p):
     c = p2.end_opContext(r)
     test(c == ctx)
 
-    r = p2.begin_opContext(_ctx=ctx)
+    r = p2.begin_opContext(context=ctx)
     c = p2.end_opContext(r)
     test(c == ctx)
 

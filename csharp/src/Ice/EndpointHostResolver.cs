@@ -7,10 +7,8 @@
 //
 // **********************************************************************
 
-#if !SILVERLIGHT
 namespace IceInternal
 {
-    using System;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Net;
@@ -25,16 +23,8 @@ namespace IceInternal
             _preferIPv6 = instance.preferIPv6();
             _thread = new HelperThread(this);
             updateObserver();
-            if(instance.initializationData().properties.getProperty("Ice.ThreadPriority").Length > 0)
-            {
-                ThreadPriority priority = IceInternal.Util.stringToThreadPriority(
-                    instance.initializationData().properties.getProperty("Ice.ThreadPriority"));
-                _thread.Start(priority);
-            }
-            else
-            {
-                _thread.Start(ThreadPriority.Normal);
-            }
+            _thread.Start(Util.stringToThreadPriority(
+                    instance.initializationData().properties.getProperty("Ice.ThreadPriority")));
         }
 
         public void resolve(string host, int port, Ice.EndpointSelectionType selType, IPEndpointI endpoint,
@@ -85,7 +75,7 @@ namespace IceInternal
                 }
 
                 _queue.AddLast(entry);
-                System.Threading.Monitor.Pulse(this);
+                Monitor.Pulse(this);
             }
         }
 
@@ -95,7 +85,7 @@ namespace IceInternal
             {
                 Debug.Assert(!_destroyed);
                 _destroyed = true;
-                System.Threading.Monitor.Pulse(this);
+                Monitor.Pulse(this);
             }
         }
 
@@ -118,7 +108,7 @@ namespace IceInternal
                 {
                     while(!_destroyed && _queue.Count == 0)
                     {
-                        System.Threading.Monitor.Wait(this);
+                        Monitor.Wait(this);
                     }
 
                     if(_destroyed)
@@ -133,7 +123,7 @@ namespace IceInternal
 
                 if(threadObserver != null)
                 {
-                    threadObserver.stateChanged(Ice.Instrumentation.ThreadState.ThreadStateIdle, 
+                    threadObserver.stateChanged(Ice.Instrumentation.ThreadState.ThreadStateIdle,
                                                 Ice.Instrumentation.ThreadState.ThreadStateInUseForOther);
                 }
 
@@ -151,19 +141,21 @@ namespace IceInternal
                         }
                     }
 
-                    r.callback.connectors(r.endpoint.connectors(Network.getAddresses(r.host, 
-                                                                                     r.port, 
-                                                                                     protocol, 
-                                                                                     r.selType, 
-                                                                                     _preferIPv6, 
-                                                                                     true),
-                                                                networkProxy));
+                    List<EndPoint> addrs = Network.getAddresses(r.host, r.port, protocol, r.selType, _preferIPv6, true);
+                    if(r.observer != null)
+                    {
+                        r.observer.detach();
+                        r.observer = null;
+                    }
+
+                    r.callback.connectors(r.endpoint.connectors(addrs, networkProxy));
                 }
                 catch(Ice.LocalException ex)
                 {
                     if(r.observer != null)
                     {
-                        r.observer.failed(ex.ice_name());
+                        r.observer.failed(ex.ice_id());
+                        r.observer.detach();
                     }
                     r.callback.exception(ex);
                 }
@@ -171,12 +163,8 @@ namespace IceInternal
                 {
                     if(threadObserver != null)
                     {
-                        threadObserver.stateChanged(Ice.Instrumentation.ThreadState.ThreadStateInUseForOther, 
+                        threadObserver.stateChanged(Ice.Instrumentation.ThreadState.ThreadStateInUseForOther,
                                                     Ice.Instrumentation.ThreadState.ThreadStateIdle);
-                    }
-                    if(r.observer != null)
-                    {
-                        r.observer.detach();
                     }
                 }
             }
@@ -186,7 +174,7 @@ namespace IceInternal
                 Ice.CommunicatorDestroyedException ex = new Ice.CommunicatorDestroyedException();
                 if(entry.observer != null)
                 {
-                    entry.observer.failed(ex.ice_name());
+                    entry.observer.failed(ex.ice_id());
                     entry.observer.detach();
                 }
                 entry.callback.exception(ex);
@@ -207,16 +195,16 @@ namespace IceInternal
                 Ice.Instrumentation.CommunicatorObserver obsv = _instance.initializationData().observer;
                 if(obsv != null)
                 {
-                    _observer = obsv.getThreadObserver("Communicator", 
-                                                       _thread.getName(), 
-                                                       Ice.Instrumentation.ThreadState.ThreadStateIdle, 
+                    _observer = obsv.getThreadObserver("Communicator",
+                                                       _thread.getName(),
+                                                       Ice.Instrumentation.ThreadState.ThreadStateIdle,
                                                        _observer);
                     if(_observer != null)
                     {
                         _observer.attach();
                     }
                 }
-            } 
+            }
         }
 
         private class ResolveEntry
@@ -289,4 +277,3 @@ namespace IceInternal
         private HelperThread _thread;
     }
 }
-#endif

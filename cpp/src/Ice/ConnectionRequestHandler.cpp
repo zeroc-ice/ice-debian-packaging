@@ -12,7 +12,6 @@
 #include <Ice/Reference.h>
 #include <Ice/ConnectionI.h>
 #include <Ice/RouterInfo.h>
-#include <Ice/Outgoing.h>
 #include <Ice/OutgoingAsync.h>
 
 using namespace std;
@@ -51,25 +50,13 @@ ConnectionRequestHandler::update(const RequestHandlerPtr& previousHandler, const
     {
         // Ignore.
     }
-    return this;
-}
-
-bool
-ConnectionRequestHandler::sendRequest(ProxyOutgoingBase* out)
-{
-    return out->invokeRemote(_connection, _compress, _response) && !_response; // Finished if sent and no response
+    return ICE_SHARED_FROM_THIS;
 }
 
 AsyncStatus
 ConnectionRequestHandler::sendAsyncRequest(const ProxyOutgoingAsyncBasePtr& out)
 {
     return out->invokeRemote(_connection, _compress, _response);
-}
-
-void
-ConnectionRequestHandler::requestCanceled(OutgoingBase* out, const Ice::LocalException& ex)
-{
-    _connection->requestCanceled(out, ex);
 }
 
 void

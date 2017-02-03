@@ -18,7 +18,7 @@ MetricsI::op(const Ice::Current&)
 void
 MetricsI::fail(const Ice::Current& current)
 {
-    current.con->close(true);
+    current.con->close(Ice::CloseForcefully);
 }
 
 void
@@ -46,11 +46,11 @@ MetricsI::opWithUnknownException(const Ice::Current&)
 }
 
 void
-MetricsI::opByteS(const Test::ByteSeq&, const Ice::Current&)
+MetricsI::opByteS(ICE_IN(Test::ByteSeq), const Ice::Current&)
 {
 }
 
-Ice::ObjectPrx
+Ice::ObjectPrxPtr
 MetricsI::getAdmin(const Ice::Current& current)
 {
     return current.adapter->getCommunicator()->getAdmin();

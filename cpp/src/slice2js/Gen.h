@@ -24,22 +24,13 @@ public:
 
 protected:
 
-    void writeMarshalUnmarshalParams(const ParamDeclList&, const OperationPtr&, bool);
-    void writePostUnmarshalParams(const ParamDeclList&, const OperationPtr&);
     void writeMarshalDataMembers(const DataMemberList&, const DataMemberList&);
     void writeUnmarshalDataMembers(const DataMemberList&, const DataMemberList&);
     void writeInitDataMembers(const DataMemberList&, const std::string&);
 
-    virtual std::vector<std::string> getParams(const OperationPtr&);
-    virtual std::vector<std::string> getParamsAsync(const OperationPtr&, bool, bool = false);
-    virtual std::vector<std::string> getParamsAsyncCB(const OperationPtr&, bool = false, bool = true);
-    virtual std::vector<std::string> getArgs(const OperationPtr&);
-    virtual std::vector<std::string> getArgsAsync(const OperationPtr&, bool = false);
-    virtual std::vector<std::string> getArgsAsyncCB(const OperationPtr&, bool = false, bool = false);
-
     std::string getValue(const std::string&, const TypePtr&);
 
-    void writeConstantValue(const std::string&, const TypePtr&, const SyntaxTreeBasePtr&, const std::string&);
+    std::string writeConstantValue(const std::string&, const TypePtr&, const SyntaxTreeBasePtr&, const std::string&);
 
     static StringList splitComment(const ContainedPtr&);
     void writeDocComment(const ContainedPtr&, const std::string&, const std::string& = "");
@@ -59,6 +50,7 @@ public:
         const std::vector<std::string>&,
         const std::string&,
         std::ostream&);
+
     ~Gen();
 
     void generate(const UnitPtr&);
@@ -79,7 +71,7 @@ private:
     {
     public:
 
-        RequireVisitor(::IceUtilInternal::Output&, std::vector<std::string>, bool);
+        RequireVisitor(::IceUtilInternal::Output&, std::vector<std::string>, bool, bool);
 
         virtual bool visitClassDefStart(const ClassDefPtr&);
         virtual bool visitStructStart(const StructPtr&);
@@ -94,6 +86,7 @@ private:
     private:
 
         bool _icejs;
+        bool _es6modules;
         bool _seenClass;
         bool _seenCompactId;
         bool _seenOperation;
@@ -134,12 +127,14 @@ private:
     {
     public:
 
-        ExportVisitor(::IceUtilInternal::Output&, bool);
+        ExportVisitor(::IceUtilInternal::Output&, bool, bool);
 
         virtual bool visitModuleStart(const ModulePtr&);
     private:
 
         bool _icejs;
+        bool _es6modules;
+        std::vector<std::string> _exported;
     };
 };
 

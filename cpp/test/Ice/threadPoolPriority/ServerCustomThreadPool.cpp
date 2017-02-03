@@ -18,7 +18,8 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
     Ice::PropertiesPtr properties = communicator->getProperties();
     properties->setProperty("Ice.Warn.Dispatch", "0");
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", "default -p 12010 -t 10000:udp");
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints",
+                                               getTestEndpoint(communicator, 0) + " -t 10000:udp");
     communicator->getProperties()->setProperty("TestAdapter.ThreadPool.Size", "1");
 
     //
@@ -51,8 +52,8 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     communicator->getProperties()->setProperty("TestAdapter.ThreadPool.ThreadPriority", "50");
 #endif
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
-    Ice::ObjectPtr object = new PriorityI(adapter);
-    adapter->add(object, communicator->stringToIdentity("test"));
+    Ice::ObjectPtr object = ICE_MAKE_SHARED(PriorityI, adapter);
+    adapter->add(object, Ice::stringToIdentity("test"));
     adapter->activate();
     communicator->waitForShutdown();
     return EXIT_SUCCESS;
@@ -70,7 +71,8 @@ main(int argc, char* argv[])
 
     try
     {
-        communicator = Ice::initialize(argc, argv);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator);
     }
     catch(const Ice::Exception& ex)
@@ -81,15 +83,7 @@ main(int argc, char* argv[])
 
     if(communicator)
     {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
+        communicator->destroy();
     }
 
     return status;

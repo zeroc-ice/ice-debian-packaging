@@ -15,7 +15,8 @@
 #include <Ice/ReferenceFactory.h>
 #include <Ice/LocatorInfo.h>
 #include <Ice/RouterInfo.h>
-#include <Ice/BasicStream.h>
+#include <Ice/OutputStream.h>
+#include <Ice/InputStream.h>
 #include <Ice/Properties.h>
 #include <Ice/LoggerUtil.h>
 #include <Ice/TraceLevels.h>
@@ -28,7 +29,7 @@ using namespace IceInternal;
 
 IceUtil::Shared* IceInternal::upCast(ProxyFactory* p) { return p; }
 
-ObjectPrx
+ObjectPrxPtr
 IceInternal::ProxyFactory::stringToProxy(const string& str) const
 {
     ReferencePtr ref = _instance->referenceFactory()->create(str, "");
@@ -36,11 +37,11 @@ IceInternal::ProxyFactory::stringToProxy(const string& str) const
 }
 
 string
-IceInternal::ProxyFactory::proxyToString(const ObjectPrx& proxy) const
+IceInternal::ProxyFactory::proxyToString(const ObjectPrxPtr& proxy) const
 {
     if(proxy)
     {
-        return proxy->__reference()->toString();
+        return proxy->_getReference()->toString();
     }
     else
     {
@@ -48,7 +49,7 @@ IceInternal::ProxyFactory::proxyToString(const ObjectPrx& proxy) const
     }
 }
 
-ObjectPrx
+ObjectPrxPtr
 IceInternal::ProxyFactory::propertyToProxy(const string& prefix) const
 {
     string proxy = _instance->initializationData().properties->getProperty(prefix);
@@ -57,11 +58,11 @@ IceInternal::ProxyFactory::propertyToProxy(const string& prefix) const
 }
 
 PropertyDict
-IceInternal::ProxyFactory::proxyToProperty(const ObjectPrx& proxy, const string& prefix) const
+IceInternal::ProxyFactory::proxyToProperty(const ObjectPrxPtr& proxy, const string& prefix) const
 {
     if(proxy)
     {
-        return proxy->__reference()->toProperty(prefix);
+        return proxy->_getReference()->toProperty(prefix);
     }
     else
     {
@@ -69,8 +70,8 @@ IceInternal::ProxyFactory::proxyToProperty(const ObjectPrx& proxy, const string&
     }
 }
 
-ObjectPrx
-IceInternal::ProxyFactory::streamToProxy(BasicStream* s) const
+ObjectPrxPtr
+IceInternal::ProxyFactory::streamToProxy(InputStream* s) const
 {
     Identity ident;
     s->read(ident);
@@ -79,33 +80,22 @@ IceInternal::ProxyFactory::streamToProxy(BasicStream* s) const
     return referenceToProxy(ref);
 }
 
-void
-IceInternal::ProxyFactory::proxyToStream(const ObjectPrx& proxy, BasicStream* s) const
-{
-    if(proxy)
-    {
-        s->write(proxy->__reference()->getIdentity());
-        proxy->__reference()->streamWrite(s);
-    }
-    else
-    {
-        Identity ident;
-        s->write(ident);
-    }
-}
-
-ObjectPrx
+ObjectPrxPtr
 IceInternal::ProxyFactory::referenceToProxy(const ReferencePtr& ref) const
 {
     if(ref)
     {
-        ObjectPrx proxy = new ::IceProxy::Ice::Object;
+#ifdef ICE_CPP11_MAPPING
+        auto proxy = createProxy<ObjectPrx>();
+#else
+        ObjectPrx proxy = new ::IceProxy::Ice::Object();
+#endif
         proxy->setup(ref);
         return proxy;
     }
     else
     {
-        return 0;
+        return ICE_NULLPTR;
     }
 }
 
@@ -211,11 +201,12 @@ IceInternal::ProxyFactory::checkRetryAfterException(const LocalException& ex, co
     }
 
     //
-    // Don't retry if the communicator is destroyed or object adapter
-    // deactivated.
+    // Don't retry if the communicator is destroyed, object adapter is deactivated,
+    // or connection is manually closed.
     //
     if(dynamic_cast<const CommunicatorDestroyedException*>(&ex) ||
-       dynamic_cast<const ObjectAdapterDeactivatedException*>(&ex))
+       dynamic_cast<const ObjectAdapterDeactivatedException*>(&ex) ||
+       dynamic_cast<const ConnectionManuallyClosedException*>(&ex))
     {
         ex.ice_throw();
     }

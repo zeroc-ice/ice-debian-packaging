@@ -12,6 +12,7 @@
 
 #include <Ice/SlicedDataF.h>
 #include <Ice/GCObject.h>
+#include <Ice/Value.h>
 
 namespace Ice
 {
@@ -19,7 +20,10 @@ namespace Ice
 //
 // SliceInfo encapsulates the details of a slice for an unknown class or exception type.
 //
-struct ICE_API SliceInfo : public ::IceUtil::Shared
+struct ICE_API SliceInfo
+#ifndef ICE_CPP11_MAPPING
+    : public ::IceUtil::Shared
+#endif
 {
     //
     // The Slice type ID for this slice.
@@ -37,9 +41,9 @@ struct ICE_API SliceInfo : public ::IceUtil::Shared
     ::std::vector<Byte> bytes;
 
     //
-    // The Ice objects referenced by this slice.
+    // The class instances referenced by this slice.
     //
-    ::std::vector<ObjectPtr> objects;
+    ::std::vector<ValuePtr> instances;
 
     //
     // Whether or not the slice contains optional members.
@@ -55,37 +59,59 @@ struct ICE_API SliceInfo : public ::IceUtil::Shared
 //
 // SlicedData holds the slices of unknown types.
 //
-class ICE_API SlicedData : public ::IceUtil::Shared
+class ICE_API SlicedData
+#ifndef ICE_CPP11_MAPPING
+    : public ::IceUtil::Shared
+#endif
 {
 public:
+
+#ifndef ICE_CPP11_MAPPING
+    virtual ~SlicedData();
+#endif
 
     SlicedData(const SliceInfoSeq&);
 
     const SliceInfoSeq slices;
-
-    void __gcVisitMembers(IceInternal::GCVisitor&);
+#ifndef ICE_CPP11_MAPPING
+    void _iceGcVisitMembers(IceInternal::GCVisitor&);
+#endif
 };
 
 //
 // Unknown sliced object holds instance of unknown type.
 //
-class ICE_API UnknownSlicedObject : virtual public Object, private IceInternal::GCObject
+class ICE_API UnknownSlicedValue :
+#ifdef ICE_CPP11_MAPPING
+    public Value
+#else
+    public IceInternal::GCObject
+#endif
 {
 public:
 
-    UnknownSlicedObject(const std::string&);
+    UnknownSlicedValue(const std::string&);
 
     const std::string& getUnknownTypeId() const;
 
     SlicedDataPtr getSlicedData() const;
 
-    virtual void __gcVisitMembers(IceInternal::GCVisitor&);
+#ifdef ICE_CPP11_MAPPING
+    virtual void _iceWrite(::Ice::OutputStream*) const override;
+    virtual void _iceRead(::Ice::InputStream*) override;
 
-    virtual void __write(::IceInternal::BasicStream*) const;
-    virtual void __read(::IceInternal::BasicStream*);
-    
-    using Object::__write;
-    using Object::__read;
+    virtual std::string ice_id() const override;
+    std::shared_ptr<UnknownSlicedValue> ice_clone() const;
+
+protected:
+
+    virtual std::shared_ptr<Value> cloneImpl() const override;
+#else
+    virtual void _iceGcVisitMembers(IceInternal::GCVisitor&);
+
+    virtual void _iceWrite(::Ice::OutputStream*) const;
+    virtual void _iceRead(::Ice::InputStream*);
+#endif
 
 private:
 

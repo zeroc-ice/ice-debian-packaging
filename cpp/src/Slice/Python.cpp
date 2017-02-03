@@ -14,6 +14,7 @@
 #include <IceUtil/CtrlCHandler.h>
 #include <IceUtil/Mutex.h>
 #include <IceUtil/MutexPtrLock.h>
+#include <IceUtil/ConsoleUtil.h>
 // BUGFIX: With MSVC2013 if this isn't included you get strange linker errors.
 #include <IceUtil/FileUtil.h>
 #include <Slice/Preprocessor.h>
@@ -38,6 +39,7 @@
 using namespace std;
 using namespace Slice;
 using namespace Slice::Python;
+using namespace IceUtilInternal;
 
 namespace
 {
@@ -187,10 +189,8 @@ PackageVisitor::visitModuleEnd(const ModulePtr& p)
 void
 PackageVisitor::createDirectory(const string& dir)
 {
-    struct stat st;
-    int result;
-    result = stat(dir.c_str(), &st);
-    if(result == 0)
+    IceUtilInternal::structstat st;
+    if(!IceUtilInternal::stat(dir, &st))
     {
         if(!(st.st_mode & S_IFDIR))
         {
@@ -201,13 +201,8 @@ PackageVisitor::createDirectory(const string& dir)
         }
         return;
     }
-#ifdef _WIN32
-    result = _mkdir(dir.c_str());
-#else
-    result = mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
-#endif
 
-    if(result != 0)
+    if(IceUtilInternal::mkdir(dir, 0777) != 0)
     {
         ostringstream os;
         os << "cannot create directory `" << dir << "': " << strerror(errno);
@@ -254,10 +249,10 @@ PackageVisitor::readInit(const string& dir, StringList& modules, StringList& sub
 {
     string initPath = dir + "/__init__.py";
 
-    struct stat st;
-    if(stat(initPath.c_str(), &st) == 0)
+    IceUtilInternal::structstat st;
+    if(!IceUtilInternal::stat(initPath, &st))
     {
-        ifstream in(initPath.c_str());
+        ifstream in(IceUtilInternal::streamFilename(initPath).c_str());
         if(!in)
         {
             ostringstream os;
@@ -358,7 +353,7 @@ PackageVisitor::writeInit(const string& dir, const string& name, const StringLis
 {
     string initPath = dir + "/__init__.py";
 
-    ofstream os(initPath.c_str());
+    ofstream os(IceUtilInternal::streamFilename(initPath).c_str());
     if(!os)
     {
         ostringstream os;
@@ -388,10 +383,10 @@ PackageVisitor::writeInit(const string& dir, const string& name, const StringLis
 }
 
 void
-usage(const char* n)
+usage(const string& n)
 {
-    getErrorStream() << "Usage: " << n << " [options] slice-files...\n";
-    getErrorStream() <<
+    consoleErr << "Usage: " << n << " [options] slice-files...\n";
+    consoleErr <<
         "Options:\n"
         "-h, --help           Show this message.\n"
         "-v, --version        Display the Ice version.\n"
@@ -405,8 +400,6 @@ usage(const char* n)
         "--depend-xml         Generate dependencies in XML format.\n"
         "--depend-file FILE   Write dependencies to FILE instead of standard output.\n"
         "-d, --debug          Print debug messages.\n"
-        "--ice                Permit `Ice' prefix (for building Ice source code only).\n"
-        "--underscore         Permit underscores in Slice identifiers.\n"
         "--all                Generate code for Slice definitions in included files.\n"
         "--checksum           Generate checksums for Slice definitions.\n"
         "--prefix PREFIX      Prepend filenames of Python modules with PREFIX.\n"
@@ -416,7 +409,7 @@ usage(const char* n)
 }
 
 int
-Slice::Python::compile(int argc, char* argv[])
+Slice::Python::compile(const vector<string>& argv)
 {
     IceUtilInternal::Options opts;
     opts.addOpt("h", "help");
@@ -441,11 +434,11 @@ Slice::Python::compile(int argc, char* argv[])
     vector<string> args;
     try
     {
-        args = opts.parse(argc, const_cast<const char**>(argv));
+        args = opts.parse(argv);
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
-        getErrorStream() << argv[0] << ": error: " << e.reason << endl;
+        consoleErr << argv[0] << ": error: " << e.reason << endl;
         usage(argv[0]);
         return EXIT_FAILURE;
     }
@@ -458,7 +451,7 @@ Slice::Python::compile(int argc, char* argv[])
 
     if(opts.isSet("version"))
     {
-        getErrorStream() << ICE_STRING_VERSION << endl;
+        consoleErr << ICE_STRING_VERSION << endl;
         return EXIT_SUCCESS;
     }
 
@@ -509,21 +502,21 @@ Slice::Python::compile(int argc, char* argv[])
 
     if(args.empty())
     {
-        getErrorStream() << argv[0] << ": error: no input file" << endl;
+        consoleErr << argv[0] << ": error: no input file" << endl;
         usage(argv[0]);
         return EXIT_FAILURE;
     }
 
     if(depend && dependxml)
     {
-        getErrorStream() << argv[0] << ": error: cannot specify both --depend and --dependxml" << endl;
+        consoleErr << argv[0] << ": error: cannot specify both --depend and --dependxml" << endl;
         usage(argv[0]);
         return EXIT_FAILURE;
     }
 
     if(noPackage && buildPackage)
     {
-        getErrorStream() << argv[0] << ": error: cannot specify both --no-package and --build-package" << endl;
+        consoleErr << argv[0] << ": error: cannot specify both --no-package and --build-package" << endl;
         usage(argv[0]);
         return EXIT_FAILURE;
     }
@@ -535,10 +528,10 @@ Slice::Python::compile(int argc, char* argv[])
 
     bool keepComments = true;
 
-    DependOutputUtil out(dependFile);
+    ostringstream os;
     if(dependxml)
     {
-        out.os() << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<dependencies>" << endl;
+        os << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<dependencies>" << endl;
     }
 
     for(vector<string>::const_iterator i = args.begin(); i != args.end(); ++i)
@@ -559,7 +552,6 @@ Slice::Python::compile(int argc, char* argv[])
 
             if(cppHandle == 0)
             {
-                out.cleanup();
                 return EXIT_FAILURE;
             }
 
@@ -569,20 +561,17 @@ Slice::Python::compile(int argc, char* argv[])
 
             if(parseStatus == EXIT_FAILURE)
             {
-                out.cleanup();
                 return EXIT_FAILURE;
             }
 
-            if(!icecpp->printMakefileDependencies(out.os(), depend ? Preprocessor::Python : Preprocessor::SliceXML,
+            if(!icecpp->printMakefileDependencies(os, depend ? Preprocessor::Python : Preprocessor::SliceXML,
                                                   includePaths, "-D__SLICE2PY__", "", prefix))
             {
-                out.cleanup();
                 return EXIT_FAILURE;
             }
 
             if(!icecpp->close())
             {
-                out.cleanup();
                 return EXIT_FAILURE;
             }
         }
@@ -599,7 +588,7 @@ Slice::Python::compile(int argc, char* argv[])
             if(preprocess)
             {
                 char buf[4096];
-                while(fgets(buf, static_cast<int>(sizeof(buf)), cppHandle) != NULL)
+                while(fgets(buf, static_cast<int>(sizeof(buf)), cppHandle) != ICE_NULLPTR)
                 {
                     if(fputs(buf, stdout) == EOF)
                     {
@@ -665,10 +654,16 @@ Slice::Python::compile(int argc, char* argv[])
                             }
                             FileTracker::instance()->addFile(file);
 
+                            //
+                            // Emit a Python magic comment to set the file encoding.
+                            // It must be the first or second line.
+                            //
+                            out << "# -*- coding: utf-8 -*-\n";
                             printHeader(out);
                             printGeneratedHeader(out, base + ".ice", "#");
+
                             //
-                            // Generate the Python mapping.
+                            // Generate Python code.
                             //
                             generate(u, all, checksum, includePaths, out);
 
@@ -690,13 +685,13 @@ Slice::Python::compile(int argc, char* argv[])
                         //
                         FileTracker::instance()->cleanup();
                         u->destroy();
-                        getErrorStream() << argv[0] << ": error: " << ex.reason() << endl;
+                        consoleErr << argv[0] << ": error: " << ex.reason() << endl;
                         return EXIT_FAILURE;
                     }
                     catch(const string& err)
                     {
                         FileTracker::instance()->cleanup();
-                        getErrorStream() << argv[0] << ": error: " << err << endl;
+                        consoleErr << argv[0] << ": error: " << err << endl;
                         status = EXIT_FAILURE;
                     }
                 }
@@ -710,7 +705,6 @@ Slice::Python::compile(int argc, char* argv[])
 
             if(interrupted)
             {
-                out.cleanup();
                 FileTracker::instance()->cleanup();
                 return EXIT_FAILURE;
             }
@@ -719,7 +713,12 @@ Slice::Python::compile(int argc, char* argv[])
 
     if(dependxml)
     {
-        out.os() << "</dependencies>\n";
+        os << "</dependencies>\n";
+    }
+
+    if(depend || dependxml)
+    {
+        writeDependencies(os.str(), dependFile);
     }
 
     return status;

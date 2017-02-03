@@ -18,7 +18,10 @@ using namespace std;
 namespace
 {
 
-class Callback : public IceUtil::Shared
+class Callback
+#ifndef ICE_CPP11_MAPPING
+    : public IceUtil::Shared
+#endif
 {
 public:
 
@@ -80,6 +83,13 @@ public:
     sent(bool sentSynchronously)
     {
         test(sentSynchronously || Dispatcher::isDispatcherThread());
+        _sentSynchronously = sentSynchronously;
+    }
+
+    bool
+    sentSynchronously()
+    {
+        return _sentSynchronously;
     }
 
 protected:
@@ -96,35 +106,135 @@ private:
 
     IceUtil::Monitor<IceUtil::Mutex> _m;
     bool _called;
+    bool _sentSynchronously;
 };
-typedef IceUtil::Handle<Callback> CallbackPtr;
+ICE_DEFINE_PTR(CallbackPtr, Callback);
 
 }
 
 void
 allTests(const Ice::CommunicatorPtr& communicator)
 {
-    string sref = "test:default -p 12010";
-    Ice::ObjectPrx obj = communicator->stringToProxy(sref);
+    string sref = "test:" + getTestEndpoint(communicator, 0);
+    Ice::ObjectPrxPtr obj = communicator->stringToProxy(sref);
     test(obj);
 
-    Test::TestIntfPrx p = Test::TestIntfPrx::uncheckedCast(obj);
+    Test::TestIntfPrxPtr p = ICE_UNCHECKED_CAST(Test::TestIntfPrx, obj);
 
-    sref = "testController:tcp -p 12011";
+    sref = "testController:" + getTestEndpoint(communicator, 1, "tcp");
     obj = communicator->stringToProxy(sref);
     test(obj);
 
-    Test::TestIntfControllerPrx testController = Test::TestIntfControllerPrx::uncheckedCast(obj);
+    Test::TestIntfControllerPrxPtr testController = ICE_UNCHECKED_CAST(Test::TestIntfControllerPrx, obj);
 
-#ifdef ICE_CPP11
-    cout << "testing C++11 dispatcher... " << flush;
-#else
     cout << "testing dispatcher... " << flush;
-#endif
     {
         p->op();
 
-        CallbackPtr cb = new Callback;
+        CallbackPtr cb = ICE_MAKE_SHARED(Callback);
+#ifdef ICE_CPP11_MAPPING
+        p->opAsync(
+            [cb]()
+            {
+                cb->response();
+            },
+            [cb](exception_ptr err)
+            {
+                try
+                {
+                    rethrow_exception(err);
+                }
+                catch(const Ice::Exception& ex)
+                {
+                    cb->exception(ex);
+                }
+            });
+        cb->check();
+
+        auto i = p->ice_adapterId("dummy");
+        i->opAsync(
+            [cb]()
+            {
+                cb->response();
+            },
+            [cb](exception_ptr err)
+            {
+                try
+                {
+                    rethrow_exception(err);
+                }
+                catch(const Ice::Exception& ex)
+                {
+                    cb->exception(ex);
+                }
+            });
+        cb->check();
+
+        {
+            //
+            // Expect InvocationTimeoutException.
+            //
+            auto to = p->ice_invocationTimeout(250);
+            to->sleepAsync(500,
+                [cb]()
+                {
+                    cb->responseEx();
+                },
+                [cb](exception_ptr err)
+                {
+                    try
+                    {
+                        rethrow_exception(err);
+                    }
+                    catch(const Ice::Exception& ex)
+                    {
+                        cb->exceptionEx(ex);
+                    }
+                });
+            cb->check();
+        }
+        testController->holdAdapter();
+
+        Ice::ByteSeq seq;
+        seq.resize(1024); // Make sure the request doesn't compress too well.
+        for(Ice::ByteSeq::iterator q = seq.begin(); q != seq.end(); ++q)
+        {
+            *q = static_cast<Ice::Byte>(IceUtilInternal::random(255));
+        }
+
+        vector<shared_ptr<promise<void>>> completed;
+        while(true)
+        {
+            auto s = make_shared<promise<bool>>();
+            auto fs = s->get_future();
+            auto c = make_shared<promise<void>>();
+
+            p->opWithPayloadAsync(seq,
+                [=]()
+                {
+                    c->set_value();
+                },
+                [=](exception_ptr)
+                {
+                    c->set_value();
+                },
+                [=](bool sent)
+                {
+                    s->set_value(sent);
+                });
+            completed.push_back(c);
+
+            if(fs.wait_for(chrono::milliseconds(0)) != future_status::ready || !fs.get())
+            {
+                break;
+            }
+        }
+        testController->resumeAdapter();
+        for(auto& c : completed)
+        {
+            c->get_future().get();
+        }
+#else
         Test::Callback_TestIntf_opPtr callback = Test::newCallback_TestIntf_op(cb,
                                                                                &Callback::response,
                                                                                &Callback::exception);
@@ -159,6 +269,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         while((result = p->begin_opWithPayload(seq, callback2))->sentSynchronously());
         testController->resumeAdapter();
         result->waitForCompleted();
+#endif
     }
     cout << "ok" << endl;
 

@@ -8,25 +8,13 @@
 // **********************************************************************
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using Test;
 
-#if SILVERLIGHT
-using System.Net;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Windows.Ink;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
-using System.Windows.Shapes;
-#endif
-
-public class AllTests : TestCommon.TestApp
+public class AllTests : TestCommon.AllTests
 {
     private class Cookie
     {
@@ -36,6 +24,69 @@ public class AllTests : TestCommon.TestApp
         }
 
         public int val;
+    }
+
+    public class Progress : IProgress<bool>
+    {
+        public Progress(Action<bool> report)
+        {
+            _report = report;
+        }
+
+        public void Report(bool sentSynchronously)
+        {
+            _report(sentSynchronously);
+        }
+
+        Action<bool> _report;
+    }
+
+    public class ProgresCallback : IProgress<bool>
+    {
+        public bool Sent
+        {
+            get
+            {
+                lock(this)
+                {
+                    return _sent;
+                }
+            }
+            set
+            {
+                lock(this)
+                {
+                    _sent = value;
+                }
+            }
+        }
+
+        public bool SentSynchronously
+        {
+            get
+            {
+                lock(this)
+                {
+                    return _sentSynchronously;
+                }
+            }
+            set
+            {
+                lock(this)
+                {
+                    _sentSynchronously = value;
+                }
+            }
+        }
+
+        public void Report(bool sentSynchronously)
+        {
+            SentSynchronously = sentSynchronously;
+            Sent = true;
+        }
+
+        private bool _sent = false;
+        private bool _sentSynchronously = false;
     }
 
     private class CallbackBase
@@ -649,36 +700,75 @@ public class AllTests : TestCommon.TestApp
         ThrowType _t;
     }
 
-#if SILVERLIGHT
-    public override Ice.InitializationData initData()
+    public static void allTests(TestCommon.Application app, bool collocated)
     {
-        Ice.InitializationData id = new Ice.InitializationData();
-        id.properties = Ice.Util.createProperties();
-        id.properties.setProperty("Ice.Warn.AMICallback", "0");
-        id.properties.setProperty("Ice.FactoryAssemblies", "ami,version=1.0.0.0");
-        return id;
-    }
-
-    override
-    public void run(Ice.Communicator communicator)
-#else
-    public static void allTests(Ice.Communicator communicator, bool collocated)
-#endif
-    {
-#if SILVERLIGHT
-        bool collocated = false;
-#endif
-        string sref = "test:default -p 12010";
+        Ice.Communicator communicator = app.communicator();
+        string sref = "test:" + app.getTestEndpoint(0);
         Ice.ObjectPrx obj = communicator.stringToProxy(sref);
         test(obj != null);
 
         Test.TestIntfPrx p = Test.TestIntfPrxHelper.uncheckedCast(obj);
-
-        sref = "testController:default -p 12011";
+        sref = "testController:" + app.getTestEndpoint(1);
         obj = communicator.stringToProxy(sref);
         test(obj != null);
 
         Test.TestIntfControllerPrx testController = Test.TestIntfControllerPrxHelper.uncheckedCast(obj);
+
+        Write("testing async invocation...");
+        Flush();
+        {
+            Dictionary<string, string> ctx = new Dictionary<string, string>();
+
+            test(p.ice_isAAsync("::Test::TestIntf").Result);
+            test(p.ice_isAAsync("::Test::TestIntf", ctx).Result);
+
+            p.ice_pingAsync().Wait();
+            p.ice_pingAsync(ctx).Wait();
+
+            test(p.ice_idAsync().Result.Equals("::Test::TestIntf"));
+            test(p.ice_idAsync(ctx).Result.Equals("::Test::TestIntf"));
+
+            test(p.ice_idsAsync().Result.Length == 2);
+            test(p.ice_idsAsync(ctx).Result.Length == 2);
+
+            if(!collocated)
+            {
+                test(p.ice_getConnectionAsync().Result != null);
+            }
+
+            p.opAsync().Wait();
+            p.opAsync(ctx).Wait();
+
+            test(p.opWithResultAsync().Result == 15);
+            test(p.opWithResultAsync(ctx).Result == 15);
+
+            try
+            {
+                p.opWithUEAsync().Wait();
+                test(false);
+            }
+            catch(AggregateException ae)
+            {
+                    ae.Handle((ex) =>
+                {
+                    return ex is Test.TestIntfException;
+                });
+            }
+
+            try
+            {
+                p.opWithUEAsync(ctx).Wait();
+                test(false);
+            }
+            catch(AggregateException ae)
+            {
+                ae.Handle((ex) =>
+                {
+                    return ex is Test.TestIntfException;
+                });
+            }
+        }
+        WriteLine("ok");
 
         Write("testing begin/end invocation... ");
         Flush();
@@ -1041,6 +1131,58 @@ public class AllTests : TestCommon.TestApp
         }
         WriteLine("ok");
 
+        Write("testing local exceptions with async tasks... ");
+        Flush();
+        {
+            Test.TestIntfPrx indirect = Test.TestIntfPrxHelper.uncheckedCast(p.ice_adapterId("dummy"));
+
+            try
+            {
+                indirect.opAsync().Wait();
+                test(false);
+            }
+            catch(System.AggregateException ae)
+            {
+                ae.Handle((ex) =>
+                {
+                    return ex is Ice.NoEndpointException;
+                });
+            }
+
+            try
+            {
+                ((Test.TestIntfPrx)p.ice_oneway()).opWithResultAsync();
+                test(false);
+            }
+            catch(System.ArgumentException)
+            {
+            }
+
+            //
+            // Check that CommunicatorDestroyedException is raised directly.
+            //
+            if(p.ice_getConnection() != null)
+            {
+                Ice.InitializationData initData = new Ice.InitializationData();
+                initData.properties = communicator.getProperties().ice_clone_();
+                Ice.Communicator ic = Ice.Util.initialize(initData);
+                Ice.ObjectPrx o = ic.stringToProxy(p.ToString());
+                Test.TestIntfPrx p2 = Test.TestIntfPrxHelper.checkedCast(o);
+                ic.destroy();
+
+                try
+                {
+                    p2.opAsync();
+                    test(false);
+                }
+                catch(Ice.CommunicatorDestroyedException)
+                {
+                    // Expected.
+                }
+            }
+        }
+        WriteLine("ok");
+
         Write("testing local exceptions with async callback... ");
         Flush();
         {
@@ -1219,6 +1361,69 @@ public class AllTests : TestCommon.TestApp
         }
         WriteLine("ok");
 
+        Write("testing exception with async task... ");
+        Flush();
+        {
+            Test.TestIntfPrx i = Test.TestIntfPrxHelper.uncheckedCast(p.ice_adapterId("dummy"));
+            ExceptionCallback cb = new ExceptionCallback();
+
+            try
+            {
+                i.ice_isAAsync("::Test::TestIntf").Wait();
+                test(false);
+            }
+            catch(AggregateException)
+            {
+            }
+
+            try
+            {
+                i.opAsync().Wait();
+                test(false);
+            }
+            catch(AggregateException)
+            {
+            }
+
+            try
+            {
+                i.opWithResultAsync().Wait();
+                test(false);
+            }
+            catch(AggregateException)
+            {
+            }
+
+            try
+            {
+                i.opWithUEAsync().Wait();
+                test(false);
+            }
+            catch(AggregateException)
+            {
+            }
+
+            // Ensures no exception is called when response is received
+            test(p.ice_isAAsync("::Test::TestIntf").Result);
+            p.opAsync().Wait();
+            p.opWithResultAsync().Wait();
+
+            // If response is a user exception, it should be received.
+            try
+            {
+                p.opWithUEAsync().Wait();
+                test(false);
+            }
+            catch(AggregateException ae)
+            {
+                ae.Handle((ex) =>
+                {
+                    return ex is Test.TestIntfException;
+                });
+            }
+        }
+        WriteLine("ok");
+
         Write("testing lambda exception callback... ");
         Flush();
         {
@@ -1329,6 +1534,80 @@ public class AllTests : TestCommon.TestApp
             foreach(SentCallback cb3 in cbs)
             {
                 cb3.check();
+            }
+        }
+        WriteLine("ok");
+
+        Write("testing progress callback... ");
+        Flush();
+        {
+            {
+                SentCallback cb = new SentCallback();
+
+                System.Threading.Tasks.Task t = p.ice_isAAsync("",
+                    progress: new Progress(sentSynchronously =>
+                    {
+                        cb.sent(sentSynchronously);
+                    }));
+                cb.check();
+                t.Wait();
+
+                t = p.ice_pingAsync(
+                    progress: new Progress(sentSynchronously =>
+                    {
+                        cb.sent(sentSynchronously);
+                    }));
+                cb.check();
+                t.Wait();
+
+                t = p.ice_idAsync(
+                    progress: new Progress(sentSynchronously =>
+                    {
+                        cb.sent(sentSynchronously);
+                    }));
+                cb.check();
+                t.Wait();
+
+                t = p.ice_idsAsync(
+                    progress: new Progress(sentSynchronously =>
+                    {
+                        cb.sent(sentSynchronously);
+                    }));
+                cb.check();
+                t.Wait();
+
+                t = p.opAsync(
+                    progress: new Progress(sentSynchronously =>
+                    {
+                        cb.sent(sentSynchronously);
+                    }));
+                cb.check();
+                t.Wait();
+            }
+
+            List<Task> tasks = new List<Task>();
+            byte[] seq = new byte[10024];
+            (new System.Random()).NextBytes(seq);
+            testController.holdAdapter();
+            try
+            {
+                Task t = null;
+                ProgresCallback cb;
+                do
+                {
+                    cb = new ProgresCallback();
+                    t = p.opWithPayloadAsync(seq, progress: cb);
+                    tasks.Add(t);
+                }
+                while(cb.SentSynchronously);
+            }
+            finally
+            {
+                testController.resumeAdapter();
+            }
+            foreach(Task t in tasks)
+            {
+                t.Wait();
             }
         }
         WriteLine("ok");
@@ -1625,7 +1904,7 @@ public class AllTests : TestCommon.TestApp
                 test(p.opBatchCount() == 0);
                 TestIntfPrx b1 = (TestIntfPrx)p.ice_batchOneway();
                 b1.opBatch();
-                b1.ice_getConnection().close(false);
+                b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                 FlushCallback cb = new FlushCallback(cookie);
                 Ice.AsyncResult r = b1.begin_ice_flushBatchRequests(cb.completedAsync, cookie);
                 r.whenSent(cb.sentAsync);
@@ -1661,7 +1940,7 @@ public class AllTests : TestCommon.TestApp
                 test(p.opBatchCount() == 0);
                 TestIntfPrx b1 = (TestIntfPrx)p.ice_batchOneway();
                 b1.opBatch();
-                b1.ice_getConnection().close(false);
+                b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                 FlushCallback cb = new FlushCallback();
                 Ice.AsyncResult r = b1.begin_ice_flushBatchRequests();
                 r.whenCompleted(cb.exception);
@@ -1669,6 +1948,56 @@ public class AllTests : TestCommon.TestApp
                 cb.check();
                 test(r.isSent());
                 test(r.IsCompleted);
+                test(p.waitForBatch(1));
+            }
+        }
+        WriteLine("ok");
+
+        Write("testing batch requests with proxy and async tasks... ");
+        Flush();
+        {
+            {
+                FlushCallback cb = new FlushCallback();
+                System.Threading.Tasks.Task t = p.ice_batchOneway().ice_flushBatchRequestsAsync(
+                    progress: new Progress(sentSynchronously =>
+                    {
+                        cb.sent(sentSynchronously);
+                    }));
+                cb.check();
+                t.Wait();
+            }
+
+            {
+                test(p.opBatchCount() == 0);
+                TestIntfPrx b1 = (TestIntfPrx)p.ice_batchOneway();
+                b1.opBatch();
+                b1.opBatch();
+                FlushCallback cb = new FlushCallback();
+                System.Threading.Tasks.Task t = b1.ice_flushBatchRequestsAsync(
+                    progress: new Progress(sentSynchronously =>
+                    {
+                        cb.sent(sentSynchronously);
+                    }));
+
+                cb.check();
+                t.Wait();
+                test(p.waitForBatch(2));
+            }
+
+            if(p.ice_getConnection() != null)
+            {
+                test(p.opBatchCount() == 0);
+                TestIntfPrx b1 = (TestIntfPrx)p.ice_batchOneway();
+                b1.opBatch();
+                b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                FlushCallback cb = new FlushCallback();
+                System.Threading.Tasks.Task t = b1.ice_flushBatchRequestsAsync(
+                    progress:new Progress(sentSynchronously =>
+                    {
+                        cb.sent(sentSynchronously);
+                    }));
+                cb.check();
+                t.Wait();
                 test(p.waitForBatch(1));
             }
         }
@@ -1729,7 +2058,7 @@ public class AllTests : TestCommon.TestApp
                 test(p.opBatchCount() == 0);
                 TestIntfPrx b1 = (TestIntfPrx)p.ice_batchOneway();
                 b1.opBatch();
-                b1.ice_getConnection().close(false);
+                b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                 FlushCallback cb = new FlushCallback(cookie);
                 Ice.AsyncResult r = b1.begin_ice_flushBatchRequests(
                     (Ice.AsyncResult result) =>
@@ -1781,7 +2110,7 @@ public class AllTests : TestCommon.TestApp
                 test(p.opBatchCount() == 0);
                 TestIntfPrx b1 = (TestIntfPrx)p.ice_batchOneway();
                 b1.opBatch();
-                b1.ice_getConnection().close(false);
+                b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                 FlushCallback cb = new FlushCallback();
                 Ice.AsyncResult r = b1.begin_ice_flushBatchRequests();
                 r.whenCompleted(
@@ -1807,6 +2136,47 @@ public class AllTests : TestCommon.TestApp
             Write("testing batch requests with connection... ");
             Flush();
             {
+                {
+                    //
+                    // Async task.
+                    //
+                    test(p.opBatchCount() == 0);
+                    TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
+                                                                     p.ice_getIdentity()).ice_batchOneway());
+                    b1.opBatch();
+                    b1.opBatch();
+                    SentCallback cb = new SentCallback();
+                    Task t = b1.ice_getConnection().flushBatchRequestsAsync(
+                        progress:new Progress(
+                            sentSyncrhonously =>
+                            {
+                                cb.sent(sentSyncrhonously);
+                            }));
+
+                    cb.check();
+                    test(t.IsCompleted);
+                    test(p.waitForBatch(2));
+                }
+
+                {
+                    //
+                    // Async task exception.
+                    //
+                    test(p.opBatchCount() == 0);
+                    TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
+                                                                         p.ice_getIdentity()).ice_batchOneway());
+                    b1.opBatch();
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                    Task t = b1.ice_getConnection().flushBatchRequestsAsync(
+                        progress: new Progress(
+                            sentSynchronously =>
+                            {
+                                test(false);
+                            }));
+                    test(t.IsFaulted);
+                    test(p.opBatchCount() == 0);
+                }
+
                 Cookie cookie = new Cookie(5);
 
                 {
@@ -1815,7 +2185,7 @@ public class AllTests : TestCommon.TestApp
                     //
                     test(p.opBatchCount() == 0);
                     TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
-                                                                         p.ice_getIdentity()).ice_batchOneway());
+                                                                     p.ice_getIdentity()).ice_batchOneway());
                     b1.opBatch();
                     b1.opBatch();
                     FlushCallback cb = new FlushCallback(cookie);
@@ -1835,7 +2205,7 @@ public class AllTests : TestCommon.TestApp
                     TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
                                                                          p.ice_getIdentity()).ice_batchOneway());
                     b1.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushExCallback cb = new FlushExCallback(cookie);
                     Ice.AsyncResult r = b1.ice_getConnection().begin_flushBatchRequests(cb.completedAsync, cookie);
                     r.whenSent(cb.sentAsync);
@@ -1872,7 +2242,7 @@ public class AllTests : TestCommon.TestApp
                     TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
                                                                          p.ice_getIdentity()).ice_batchOneway());
                     b1.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushExCallback cb = new FlushExCallback();
                     Ice.AsyncResult r = b1.ice_getConnection().begin_flushBatchRequests();
                     r.whenCompleted(cb.exception);
@@ -1927,7 +2297,7 @@ public class AllTests : TestCommon.TestApp
                     TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
                                                                          p.ice_getIdentity()).ice_batchOneway());
                     b1.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushExCallback cb = new FlushExCallback(cookie);
                     Ice.AsyncResult r = b1.ice_getConnection().begin_flushBatchRequests(
                         (Ice.AsyncResult result) =>
@@ -1980,7 +2350,7 @@ public class AllTests : TestCommon.TestApp
                     TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
                                                                          p.ice_getIdentity()).ice_batchOneway());
                     b1.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushExCallback cb = new FlushExCallback();
                     Ice.AsyncResult r = b1.ice_getConnection().begin_flushBatchRequests();
                     r.whenCompleted(
@@ -2004,6 +2374,132 @@ public class AllTests : TestCommon.TestApp
             Write("testing batch requests with communicator... ");
             Flush();
             {
+                {
+                    //
+                    // Async task - 1 connection.
+                    //
+                    test(p.opBatchCount() == 0);
+                    TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
+                                                                         p.ice_getIdentity()).ice_batchOneway());
+                    b1.opBatch();
+                    b1.opBatch();
+
+                    SentCallback cb = new SentCallback();
+                    Task t = communicator.flushBatchRequestsAsync(
+                        progress: new Progress(
+                            sentSynchronously =>
+                            {
+                                cb.sent(sentSynchronously);
+                            }));
+                    cb.check();
+                    test(t.IsCompleted);
+                    test(p.waitForBatch(2));
+                }
+
+                {
+                    //
+                    // Async task exception - 1 connection.
+                    //
+                    test(p.opBatchCount() == 0);
+                    TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
+                                                                         p.ice_getIdentity()).ice_batchOneway());
+                    b1.opBatch();
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                    SentCallback cb = new SentCallback();
+                    Task t = communicator.flushBatchRequestsAsync(
+                        progress:new Progress(
+                            sentSynchronously =>
+                            {
+                                cb.sent(sentSynchronously);
+                            }));
+                    cb.check(); // Exceptions are ignored!
+                    test(t.IsCompleted);
+                    test(p.opBatchCount() == 0);
+                }
+
+                {
+                    //
+                    // Async task - 2 connections.
+                    //
+                    test(p.opBatchCount() == 0);
+                    TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
+                                                                         p.ice_getIdentity()).ice_batchOneway());
+                    TestIntfPrx b2 = TestIntfPrxHelper.uncheckedCast(
+                        p.ice_connectionId("2").ice_getConnection().createProxy(p.ice_getIdentity()).ice_batchOneway());
+
+                    b2.ice_getConnection(); // Ensure connection is established.
+                    b1.opBatch();
+                    b1.opBatch();
+                    b2.opBatch();
+                    b2.opBatch();
+
+                    SentCallback cb = new SentCallback();
+                    Task t = communicator.flushBatchRequestsAsync(
+                        new Progress(sentSynchronously =>
+                            {
+                                cb.sent(sentSynchronously);
+                            }));
+                    cb.check();
+                    test(t.IsCompleted);
+                    test(p.waitForBatch(4));
+                }
+
+                {
+                    //
+                    // AsyncResult exception - 2 connections - 1 failure.
+                    //
+                    // All connections should be flushed even if there are failures on some connections.
+                    // Exceptions should not be reported.
+                    //
+                    test(p.opBatchCount() == 0);
+                    TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
+                                                                         p.ice_getIdentity()).ice_batchOneway());
+                    TestIntfPrx b2 = TestIntfPrxHelper.uncheckedCast(
+                        p.ice_connectionId("2").ice_getConnection().createProxy(p.ice_getIdentity()).ice_batchOneway());
+                    b2.ice_getConnection(); // Ensure connection is established.
+                    b1.opBatch();
+                    b2.opBatch();
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                    SentCallback cb = new SentCallback();
+                    Task t = communicator.flushBatchRequestsAsync(
+                        new Progress(
+                            sentSynchronously =>
+                            {
+                                cb.sent(sentSynchronously);
+                            }));
+                    cb.check(); // Exceptions are ignored!
+                    test(t.IsCompleted);
+                    test(p.waitForBatch(1));
+                }
+
+                {
+                    //
+                    // Async task exception - 2 connections - 2 failures.
+                    //
+                    // The sent callback should be invoked even if all connections fail.
+                    //
+                    test(p.opBatchCount() == 0);
+                    TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
+                                                                         p.ice_getIdentity()).ice_batchOneway());
+                    TestIntfPrx b2 = TestIntfPrxHelper.uncheckedCast(
+                        p.ice_connectionId("2").ice_getConnection().createProxy(p.ice_getIdentity()).ice_batchOneway());
+                    b2.ice_getConnection(); // Ensure connection is established.
+                    b1.opBatch();
+                    b2.opBatch();
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                    b2.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                    SentCallback cb = new SentCallback();
+                    Task t = communicator.flushBatchRequestsAsync(
+                        new Progress(
+                            sentSynchronously =>
+                            {
+                                cb.sent(sentSynchronously);
+                            }));
+                    cb.check(); // Exceptions are ignored!
+                    test(t.IsCompleted);
+                    test(p.opBatchCount() == 0);
+                }
+
                 Cookie cookie = new Cookie(5);
 
                 {
@@ -2032,7 +2528,7 @@ public class AllTests : TestCommon.TestApp
                     TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
                                                                          p.ice_getIdentity()).ice_batchOneway());
                     b1.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback(cookie);
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests(cb.completedAsync, cookie);
                     r.whenSent(cb.sentAsync);
@@ -2081,7 +2577,7 @@ public class AllTests : TestCommon.TestApp
                     b2.ice_getConnection(); // Ensure connection is established.
                     b1.opBatch();
                     b2.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback(cookie);
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests(cb.completedAsync, cookie);
                     r.whenSent(cb.sentAsync);
@@ -2105,8 +2601,8 @@ public class AllTests : TestCommon.TestApp
                     b2.ice_getConnection(); // Ensure connection is established.
                     b1.opBatch();
                     b2.opBatch();
-                    b1.ice_getConnection().close(false);
-                    b2.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                    b2.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback(cookie);
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests(cb.completedAsync, cookie);
                     r.whenSent(cb.sentAsync);
@@ -2143,7 +2639,7 @@ public class AllTests : TestCommon.TestApp
                     TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
                                                                          p.ice_getIdentity()).ice_batchOneway());
                     b1.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback();
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests();
                     r.whenCompleted(cb.exception);
@@ -2193,7 +2689,7 @@ public class AllTests : TestCommon.TestApp
                     b2.ice_getConnection(); // Ensure connection is established.
                     b1.opBatch();
                     b2.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback();
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests();
                     r.whenCompleted(cb.exception);
@@ -2218,8 +2714,8 @@ public class AllTests : TestCommon.TestApp
                     b2.ice_getConnection(); // Ensure connection is established.
                     b1.opBatch();
                     b2.opBatch();
-                    b1.ice_getConnection().close(false);
-                    b2.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                    b2.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback();
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests();
                     r.whenCompleted(cb.exception);
@@ -2271,7 +2767,7 @@ public class AllTests : TestCommon.TestApp
                     TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
                                                                          p.ice_getIdentity()).ice_batchOneway());
                     b1.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback(cookie);
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests(
                         (Ice.AsyncResult result) =>
@@ -2335,7 +2831,7 @@ public class AllTests : TestCommon.TestApp
                     b2.ice_getConnection(); // Ensure connection is established.
                     b1.opBatch();
                     b2.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback(cookie);
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests(
                         (Ice.AsyncResult result) =>
@@ -2367,8 +2863,8 @@ public class AllTests : TestCommon.TestApp
                     b2.ice_getConnection(); // Ensure connection is established.
                     b1.opBatch();
                     b2.opBatch();
-                    b1.ice_getConnection().close(false);
-                    b2.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                    b2.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback(cookie);
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests(
                         (Ice.AsyncResult result) =>
@@ -2421,7 +2917,7 @@ public class AllTests : TestCommon.TestApp
                     TestIntfPrx b1 = TestIntfPrxHelper.uncheckedCast(p.ice_getConnection().createProxy(
                                                                          p.ice_getIdentity()).ice_batchOneway());
                     b1.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback();
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests();
                     r.whenCompleted(
@@ -2487,7 +2983,7 @@ public class AllTests : TestCommon.TestApp
                     b2.ice_getConnection(); // Ensure connection is established.
                     b1.opBatch();
                     b2.opBatch();
-                    b1.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback();
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests();
                     r.whenCompleted(
@@ -2520,8 +3016,8 @@ public class AllTests : TestCommon.TestApp
                     b2.ice_getConnection(); // Ensure connection is established.
                     b1.opBatch();
                     b2.opBatch();
-                    b1.ice_getConnection().close(false);
-                    b2.ice_getConnection().close(false);
+                    b1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                    b2.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                     FlushCallback cb = new FlushCallback();
                     Ice.AsyncResult r = communicator.begin_flushBatchRequests();
                     r.whenCompleted(
@@ -2538,6 +3034,126 @@ public class AllTests : TestCommon.TestApp
                     test(r.isSent()); // Exceptions are ignored!
                     test(r.IsCompleted);
                     test(p.opBatchCount() == 0);
+                }
+            }
+            WriteLine("ok");
+        }
+
+        Write("testing async/await... ");
+        Flush();
+        Func<Task> task = async () =>
+        {
+            try
+            {
+                await p.opAsync();
+
+                var r = await p.opWithResultAsync();
+                test(r == 15);
+
+                try
+                {
+                    await p.opWithUEAsync();
+                }
+                catch(TestIntfException)
+                {
+                }
+
+                // Operations implemented with amd and async.
+                await p.opAsyncDispatchAsync();
+
+                r = await p.opWithResultAsyncDispatchAsync();
+                test(r == 15);
+
+                try
+                {
+                    await p.opWithUEAsyncDispatchAsync();
+                    test(false);
+                }
+                catch(TestIntfException)
+                {
+                }
+            }
+            catch(Ice.OperationNotExistException)
+            {
+                // Expected with cross testing, this opXxxAsyncDispatch methods are C# only.
+            }
+        };
+        task().Wait();
+        WriteLine("ok");
+
+        if(p.ice_getConnection() != null)
+        {
+            Write("testing async Task cancellation... ");
+            Flush();
+            {
+                var cs1 = new CancellationTokenSource();
+                var cs2 = new CancellationTokenSource();
+                var cs3 = new CancellationTokenSource();
+                Task t1;
+                Task t2;
+                Task t3;
+                try
+                {
+                    testController.holdAdapter();
+                    ProgresCallback cb = null;
+                    byte[] seq = new byte[10024];
+                    for(int i = 0; i < 200; ++i) // 2MB
+                    {
+                        cb = new ProgresCallback();
+                        p.opWithPayloadAsync(seq, progress: cb);
+                    }
+
+                    test(!cb.Sent);
+
+                    t1 = p.ice_pingAsync(cancel: cs1.Token);
+                    t2 = p.ice_pingAsync(cancel: cs2.Token);
+                    cs3.Cancel();
+                    t3 = p.ice_pingAsync(cancel: cs3.Token);
+                    cs1.Cancel();
+                    cs2.Cancel();
+                    try
+                    {
+                        t1.Wait();
+                        test(false);
+                    }
+                    catch(AggregateException ae)
+                    {
+                        ae.Handle(ex =>
+                        {
+                            return ex is Ice.InvocationCanceledException;
+                        });
+                    }
+                    try
+                    {
+                        t2.Wait();
+                        test(false);
+                    }
+                    catch(AggregateException ae)
+                    {
+                        ae.Handle(ex =>
+                        {
+                            return ex is Ice.InvocationCanceledException;
+                        });
+                    }
+
+                    try
+                    {
+                        t3.Wait();
+                        test(false);
+                    }
+                    catch(AggregateException ae)
+                    {
+                        ae.Handle(ex =>
+                        {
+                            return ex is Ice.InvocationCanceledException;
+                        });
+                    }
+
+                }
+                finally
+                {
+                    testController.resumeAdapter();
+                    p.ice_ping();
                 }
             }
             WriteLine("ok");
@@ -2740,9 +3356,28 @@ public class AllTests : TestCommon.TestApp
 
         if(p.ice_getConnection() != null)
         {
-            Write("testing close connection with sending queue... ");
+            Write("testing graceful close connection with wait... ");
             Flush();
             {
+                //
+                // Local case: begin several requests, close the connection gracefully, and make sure it waits
+                // for the requests to complete.
+                //
+                List<Task> results = new List<Task>();
+                for(int i = 0; i < 3; ++i)
+                {
+                    results.Add(p.sleepAsync(50));
+                }
+                p.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                foreach(Task t in results)
+                {
+                    t.Wait();
+                }
+            }
+            {
+                //
+                // Remote case.
+                //
                 byte[] seq = new byte[1024 * 10];
 
                 //
@@ -2756,18 +3391,23 @@ public class AllTests : TestCommon.TestApp
                 {
                     done = true;
                     p.ice_ping();
-                    List<Ice.AsyncResult> results = new List<Ice.AsyncResult>();
+                    List<Task> results = new List<Task>();
                     for(int i = 0; i < maxQueue; ++i)
                     {
-                        results.Add(p.begin_opWithPayload(seq));
+                        results.Add(p.opWithPayloadAsync(seq));
                     }
-                    if(!p.begin_close(false).isSent())
+
+                    ProgresCallback cb = new ProgresCallback();
+                    p.closeAsync(CloseMode.CloseGracefullyAndWait, progress:cb);
+
+                    if(!cb.SentSynchronously)
                     {
                         for(int i = 0; i < maxQueue; i++)
                         {
-                            Ice.AsyncResult r = p.begin_opWithPayload(seq);
-                            results.Add(r);
-                            if(r.isSent())
+                            cb = new ProgresCallback();
+                            Task t = p.opWithPayloadAsync(seq, progress:cb);
+                            results.Add(t);
+                            if(cb.SentSynchronously)
                             {
                                 done = false;
                                 maxQueue *= 2;
@@ -2780,18 +3420,97 @@ public class AllTests : TestCommon.TestApp
                         maxQueue *= 2;
                         done = false;
                     }
-                    foreach(Ice.AsyncResult q in results)
+                    foreach(Task q in results)
                     {
-                        q.waitForCompleted();
-                        try
-                        {
-                            q.throwLocalException();
-                        }
-                        catch(Ice.LocalException)
-                        {
-                            test(false);
-                        }
+                        q.Wait();
                     }
+                }
+            }
+            WriteLine("ok");
+
+            Write("testing graceful close connection without wait... ");
+            Flush();
+            {
+                //
+                // Local case: start a lengthy operation and then close the connection gracefully on the client side
+                // without waiting for the pending invocation to complete. There will be no retry and we expect the
+                // invocation to fail with ConnectionManuallyClosedException.
+                //
+                // This test requires two threads in the server's thread pool: one will block in sleep() and the other
+                // will process the CloseConnection message.
+                //
+                p.ice_ping();
+                Ice.Connection con = p.ice_getConnection();
+                Task t = p.sleepAsync(100);
+                con.close(Ice.ConnectionClose.CloseGracefully);
+                try
+                {
+                    t.Wait();
+                    test(false);
+                }
+                catch(System.AggregateException ex)
+                {
+                    test(ex.InnerException is Ice.ConnectionManuallyClosedException);
+                    test((ex.InnerException as Ice.ConnectionManuallyClosedException).graceful);
+                }
+
+                //
+                // Remote case: the server closes the connection gracefully. Our call to TestIntf::close()
+                // completes successfully and then the connection should be closed immediately afterward,
+                // despite the fact that there's a pending call to sleep(). The call to sleep() should be
+                // automatically retried and complete successfully.
+                //
+                p.ice_ping();
+                con = p.ice_getConnection();
+                CallbackBase cb = new CallbackBase();
+                con.setCloseCallback(_ =>
+                    {
+                        cb.called();
+                    });
+                t = p.sleepAsync(100);
+                p.close(CloseMode.CloseGracefully);
+                cb.check();
+                t.Wait();
+                p.ice_ping();
+                test(p.ice_getConnection() != con);
+            }
+            WriteLine("ok");
+
+            Write("testing forceful close connection... ");
+            Flush();
+            {
+                //
+                // Local case: start a lengthy operation and then close the connection forcefully on the client side.
+                // There will be no retry and we expect the invocation to fail with ConnectionManuallyClosedException.
+                //
+                p.ice_ping();
+                Ice.Connection con = p.ice_getConnection();
+                Task t = p.sleepAsync(5000);
+                con.close(Ice.ConnectionClose.CloseForcefully);
+                try
+                {
+                    t.Wait();
+                    test(false);
+                }
+                catch(System.AggregateException ex)
+                {
+                    test(ex.InnerException is Ice.ConnectionManuallyClosedException);
+                    test(!(ex.InnerException as Ice.ConnectionManuallyClosedException).graceful);
+                }
+
+                //
+                // Remote case: the server closes the connection forcefully. This causes the request to fail
+                // with a ConnectionLostException. Since the close() operation is not idempotent, the client
+                // will not retry.
+                //
+                try
+                {
+                    p.close(CloseMode.CloseForcefully);
+                    test(false);
+                }
+                catch(Ice.ConnectionLostException)
+                {
+                    // Expected.
                 }
             }
             WriteLine("ok");

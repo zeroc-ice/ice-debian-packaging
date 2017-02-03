@@ -8,33 +8,35 @@
 // **********************************************************************
 
 /* globals self */
-var __root = typeof(window) !== "undefined" ? window : self;
+const root = typeof(window) !== "undefined" ? window : typeof(global) !== "undefined" ? global : typeof(self) !== "undefined" ? self : {};
 /* globals -self */
 
-var __M =
+class _ModuleRegistry
 {
-    module: function(name)
+    static module(name)
     {
-        var m =  __root[name];
+        var m = root[name];
         if(m === undefined)
         {
             m = {};
-            __root[name] =  m;
+            root[name] =  m;
         }
         return m;
-    },
-    require: function(name)
+    }
+    
+    static require(name)
     {
-        return __root;
-    },
-    type: function(scoped)
+        return root;
+    }
+    
+    static type(scoped)
     {
         if(scoped === undefined)
         {
             return undefined;
         }
         var components = scoped.split(".");
-        var T = __root;
+        var T = root;
 
         for(var i = 0, length = components.length; i < length; ++i)
         {
@@ -46,14 +48,14 @@ var __M =
         }
         return T;
     }
-};
+}
 
-var Ice = __M.module("Ice");
+const Ice = _ModuleRegistry.module("Ice");
 
-Ice.__require = function()
+Ice._require = function()
 {
-    return __root;
+    return root;
 };
 
 Ice.Slice = Ice.Slice || {};
-Ice.__M = __M;
+Ice._ModuleRegistry = _ModuleRegistry;

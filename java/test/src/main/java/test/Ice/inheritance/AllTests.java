@@ -12,7 +12,6 @@ package test.Ice.inheritance;
 import java.io.PrintWriter;
 
 import test.Ice.inheritance.Test.InitialPrx;
-import test.Ice.inheritance.Test.InitialPrxHelper;
 import test.Ice.inheritance.Test.MA.CAPrx;
 import test.Ice.inheritance.Test.MA.CCPrx;
 import test.Ice.inheritance.Test.MA.CDPrx;
@@ -24,8 +23,7 @@ import test.Ice.inheritance.Test.MB.IB2Prx;
 
 public class AllTests
 {
-    private static void
-    test(boolean b)
+    private static void test(boolean b)
     {
         if(!b)
         {
@@ -33,19 +31,20 @@ public class AllTests
         }
     }
 
-    public static InitialPrx
-    allTests(Ice.Communicator communicator, PrintWriter out)
+    public static InitialPrx allTests(test.Util.Application app)
     {
+        com.zeroc.Ice.Communicator communicator=app.communicator();
+        PrintWriter out = app.getWriter();
         out.print("testing stringToProxy... ");
         out.flush();
-        String ref = "initial:default -p 12010";
-        Ice.ObjectPrx base = communicator.stringToProxy(ref);
+        String ref = "initial:" + app.getTestEndpoint(0);
+        com.zeroc.Ice.ObjectPrx base = communicator.stringToProxy(ref);
         test(base != null);
         out.println("ok");
 
         out.print("testing checked cast... ");
         out.flush();
-        InitialPrx initial = InitialPrxHelper.checkedCast(base);
+        InitialPrx initial = InitialPrx.checkedCast(base);
         test(initial != null);
         test(initial.equals(base));
         out.println("ok");
@@ -82,7 +81,7 @@ public class AllTests
         CAPrx cao;
         CBPrx cbo;
         CCPrx cco;
-        
+
         cao = ca.caop(ca);
         test(cao.equals(ca));
         cao = ca.caop(cb);
@@ -101,7 +100,7 @@ public class AllTests
         test(cao.equals(cb));
         cao = cc.caop(cc);
         test(cao.equals(cc));
-        
+
         cao = cb.cbop(cb);
         test(cao.equals(cb));
         cbo = cb.cbop(cb);

@@ -8,7 +8,8 @@
 // **********************************************************************
 
 #include <Ice/OpaqueEndpointI.h>
-#include <Ice/BasicStream.h>
+#include <Ice/OutputStream.h>
+#include <Ice/InputStream.h>
 #include <Ice/Exception.h>
 #include <Ice/DefaultsAndOverrides.h>
 #include <Ice/Base64.h>
@@ -46,10 +47,10 @@ IceInternal::OpaqueEndpointI::OpaqueEndpointI(vector<string>& args) :
     }
 }
 
-IceInternal::OpaqueEndpointI::OpaqueEndpointI(Short type, BasicStream* s) : _type(type)
+IceInternal::OpaqueEndpointI::OpaqueEndpointI(Short type, InputStream* s) : _type(type)
 {
-    _rawEncoding = s->getReadEncoding();
-    Int sz = s->getReadEncapsSize();
+    _rawEncoding = s->getEncoding();
+    Int sz = s->getEncapsulationSize();
     s->readBlob(const_cast<vector<Byte>&>(_rawBytes), sz);
 }
 
@@ -91,23 +92,23 @@ private:
 //
 OpaqueEndpointInfoI::OpaqueEndpointInfoI(Ice::Short type, const Ice::EncodingVersion& rawEncoding,
                                          const Ice::ByteSeq& rawBytes) :
-    Ice::OpaqueEndpointInfo(-1, false, rawEncoding, rawBytes),
+    Ice::OpaqueEndpointInfo(ICE_NULLPTR, -1, false, rawEncoding, rawBytes),
     _type(type)
 {
 }
 
 void
-IceInternal::OpaqueEndpointI::streamWrite(BasicStream* s) const
+IceInternal::OpaqueEndpointI::streamWrite(OutputStream* s) const
 {
-    s->startWriteEncaps(_rawEncoding, DefaultFormat);
+    s->startEncapsulation(_rawEncoding, DefaultFormat);
     s->writeBlob(_rawBytes);
-    s->endWriteEncaps();
+    s->endEncapsulation();
 }
 
 Ice::EndpointInfoPtr
 IceInternal::OpaqueEndpointI::getInfo() const
 {
-    return new OpaqueEndpointInfoI(_type, _rawEncoding, _rawBytes);
+    return ICE_MAKE_SHARED(OpaqueEndpointInfoI, _type, _rawEncoding, _rawBytes);
 }
 
 Short
@@ -131,7 +132,7 @@ IceInternal::OpaqueEndpointI::timeout() const
 EndpointIPtr
 IceInternal::OpaqueEndpointI::timeout(Int) const
 {
-    return const_cast<OpaqueEndpointI*>(this);
+    return ICE_SHARED_FROM_CONST_THIS(OpaqueEndpointI);
 }
 
 const string&
@@ -143,7 +144,7 @@ IceInternal::OpaqueEndpointI::connectionId() const
 EndpointIPtr
 IceInternal::OpaqueEndpointI::connectionId(const string&) const
 {
-    return const_cast<OpaqueEndpointI*>(this);
+    return ICE_SHARED_FROM_CONST_THIS(OpaqueEndpointI);
 }
 
 bool
@@ -155,7 +156,7 @@ IceInternal::OpaqueEndpointI::compress() const
 EndpointIPtr
 IceInternal::OpaqueEndpointI::compress(bool) const
 {
-    return const_cast<OpaqueEndpointI*>(this);
+    return ICE_SHARED_FROM_CONST_THIS(OpaqueEndpointI);
 }
 
 bool
@@ -173,7 +174,7 @@ IceInternal::OpaqueEndpointI::secure() const
 TransceiverPtr
 IceInternal::OpaqueEndpointI::transceiver() const
 {
-    return 0;
+    return ICE_NULLPTR;
 }
 
 void
@@ -185,14 +186,14 @@ IceInternal::OpaqueEndpointI::connectors_async(Ice::EndpointSelectionType, const
 AcceptorPtr
 IceInternal::OpaqueEndpointI::acceptor(const string&) const
 {
-    return 0;
+    return ICE_NULLPTR;
 }
 
 vector<EndpointIPtr>
 IceInternal::OpaqueEndpointI::expand() const
 {
     vector<EndpointIPtr> endps;
-    endps.push_back(const_cast<OpaqueEndpointI*>(this));
+    endps.push_back(ICE_SHARED_FROM_CONST_THIS(OpaqueEndpointI));
     return endps;
 }
 
@@ -231,7 +232,11 @@ IceInternal::OpaqueEndpointI::options() const
 }
 
 bool
+#ifdef ICE_CPP11_MAPPING
+IceInternal::OpaqueEndpointI::operator==(const Endpoint& r) const
+#else
 IceInternal::OpaqueEndpointI::operator==(const LocalObject& r) const
+#endif
 {
     const OpaqueEndpointI* p = dynamic_cast<const OpaqueEndpointI*>(&r);
     if(!p)
@@ -263,7 +268,11 @@ IceInternal::OpaqueEndpointI::operator==(const LocalObject& r) const
 }
 
 bool
+#ifdef ICE_CPP11_MAPPING
+IceInternal::OpaqueEndpointI::operator<(const Endpoint& r) const
+#else
 IceInternal::OpaqueEndpointI::operator<(const LocalObject& r) const
+#endif
 {
     const OpaqueEndpointI* p = dynamic_cast<const OpaqueEndpointI*>(&r);
     if(!p)
@@ -309,6 +318,12 @@ IceInternal::OpaqueEndpointI::operator<(const LocalObject& r) const
     }
 
     return false;
+}
+
+void
+IceInternal::OpaqueEndpointI::streamWriteImpl(Ice::OutputStream*) const
+{
+    assert(false);
 }
 
 bool

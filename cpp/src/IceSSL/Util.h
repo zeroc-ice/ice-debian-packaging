@@ -14,6 +14,8 @@
 #include <IceUtil/Shared.h>
 #include <IceUtil/Handle.h>
 
+#include <Ice/UniqueRef.h>
+
 #include <IceSSL/Plugin.h>
 
 #if defined(ICE_USE_OPENSSL)
@@ -28,6 +30,37 @@
 
 namespace IceSSL
 {
+
+#ifdef ICE_CPP11_MAPPING
+//
+// Adapts the C++11 functions to C++98-like callbacks
+//
+class CertificateVerifier
+{
+public:
+
+    CertificateVerifier(std::function<bool(const std::shared_ptr<NativeConnectionInfo>&)>);
+    bool verify(const NativeConnectionInfoPtr&);
+
+private:
+
+    std::function<bool(const std::shared_ptr<NativeConnectionInfo>&)> _verify;
+};
+using CertificateVerifierPtr = std::shared_ptr<CertificateVerifier>;
+
+class PasswordPrompt
+{
+public:
+
+    PasswordPrompt(std::function<std::string()>);
+    std::string getPassword();
+
+private:
+
+    std::function<std::string()> _prompt;
+};
+using PasswordPromptPtr = std::shared_ptr<PasswordPrompt>;
+#endif
 
 //
 // Constants for X509 certificate alt names (AltNameOther, AltNameORAddress, AltNameEDIPartyName and
@@ -77,64 +110,6 @@ typedef IceUtil::Handle<DHParams> DHParamsPtr;
 std::string getSslErrors(bool);
 
 #elif defined(ICE_USE_SECURE_TRANSPORT)
-
-template<typename T>
-class UniqueRef
-{
-public:
-
-    explicit UniqueRef(CFTypeRef ptr = 0) : _ptr((T)ptr)
-    {
-    }
-
-    ~UniqueRef()
-    {
-        if(_ptr != 0)
-        {
-            CFRelease(_ptr);
-        }
-    }
-
-    T release()
-    {
-        T r = _ptr;
-        _ptr = 0;
-        return r;
-    }
-
-    void reset(CFTypeRef ptr = 0)
-    {
-        if(_ptr == ptr)
-        {
-            return;
-        }
-        if(_ptr != 0)
-        {
-            CFRelease(_ptr);
-        }
-        _ptr = (T)ptr;
-    }
-
-    void retain(CFTypeRef ptr)
-    {
-        reset(ptr ? CFRetain(ptr) : ptr);
-    }
-
-    T get() const
-    {
-        return _ptr;
-    }
-
-    operator bool() const
-    {
-        return _ptr != 0;
-    }
-
-private:
-
-    T _ptr;
-};
-
 //
 // Helper functions to use by Secure Transport.
 //
@@ -144,37 +119,38 @@ std::string fromCFString(CFStringRef);
 inline CFStringRef
 toCFString(const std::string& s)
 {
-    return CFStringCreateWithCString(NULL, s.c_str(), kCFStringEncodingUTF8);
+    return CFStringCreateWithCString(ICE_NULLPTR, s.c_str(), kCFStringEncodingUTF8);
 }
 
 std::string errorToString(CFErrorRef);
 std::string errorToString(OSStatus);
 
+#  if defined(ICE_USE_SECURE_TRANSPORT_MACOS)
 //
 // Retrieve a certificate property
 //
 CFDictionaryRef getCertificateProperty(SecCertificateRef, CFTypeRef);
-
-//
-// Read a private key from an file and associate it to the given certificate.
-//
-SecIdentityRef loadPrivateKey(const std::string&, SecCertificateRef, SecKeychainRef, const std::string&,
-                              const PasswordPromptPtr&, int);
+#  endif
 
 //
 // Read certificate from a file.
 //
-CFArrayRef loadCertificateChain(const std::string&, const std::string&, SecKeychainRef, const std::string&,
-                                const PasswordPromptPtr&, int);
+CFArrayRef loadCertificateChain(const std::string&, const std::string&, const std::string&, const std::string&,
+                                const std::string&, const PasswordPromptPtr&, int);
 
 SecCertificateRef loadCertificate(const std::string&);
 CFArrayRef loadCACertificates(const std::string&);
-
-SecCertificateRef findCertificate(SecKeychainRef, const std::string&);
+CFArrayRef findCertificateChain(const std::string&, const std::string&, const std::string&);
 
 #elif defined(ICE_USE_SCHANNEL)
 std::vector<PCCERT_CONTEXT>
 findCertificates(const std::string&, const std::string&, const std::string&, std::vector<HCERTSTORE>&);
+#elif defined(ICE_OS_UWP)
+Windows::Security::Cryptography::Certificates::Certificate^
+importPersonalCertificate(const std::string&, std::function<std::string()>, bool, int);
+
+Windows::Foundation::Collections::IVectorView<Windows::Security::Cryptography::Certificates::Certificate^>^
+findCertificates(const std::string&, const std::string&);
 #endif
 
 //

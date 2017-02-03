@@ -21,7 +21,7 @@ import Test, TestI
 def run(args, communicator):
     communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010:udp")
     adapter = communicator.createObjectAdapter("TestAdapter")
-    adapter.add(TestI.MyDerivedClassI(), communicator.stringToIdentity("test"))
+    adapter.add(TestI.MyDerivedClassI(), Ice.stringToIdentity("test"))
     adapter.activate()
     communicator.waitForShutdown()
     return True
@@ -35,17 +35,10 @@ try:
     # this warning.
     #
     initData.properties.setProperty("Ice.Warn.Dispatch", "0");
-    communicator = Ice.initialize(sys.argv, initData)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv, initData) as communicator:
+        status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

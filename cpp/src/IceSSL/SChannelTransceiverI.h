@@ -43,37 +43,34 @@ namespace IceSSL
 class ConnectorI;
 class AcceptorI;
 
-class TransceiverI : public IceInternal::Transceiver, public IceInternal::WSTransceiverDelegate
+class TransceiverI : public IceInternal::Transceiver
 {
 public:
 
     virtual IceInternal::NativeInfoPtr getNativeInfo();
 
-    virtual IceInternal::SocketOperation initialize(IceInternal::Buffer&, IceInternal::Buffer&, bool&);
+    virtual IceInternal::SocketOperation initialize(IceInternal::Buffer&, IceInternal::Buffer&);
     virtual IceInternal::SocketOperation closing(bool, const Ice::LocalException&);
     virtual void close();
     virtual IceInternal::SocketOperation write(IceInternal::Buffer&);
-    virtual IceInternal::SocketOperation read(IceInternal::Buffer&, bool&);
+    virtual IceInternal::SocketOperation read(IceInternal::Buffer&);
 #ifdef ICE_USE_IOCP
     virtual bool startWrite(IceInternal::Buffer&);
     virtual void finishWrite(IceInternal::Buffer&);
     virtual void startRead(IceInternal::Buffer&);
-    virtual void finishRead(IceInternal::Buffer&, bool&);
+    virtual void finishRead(IceInternal::Buffer&);
 #endif
     virtual std::string protocol() const;
     virtual std::string toString() const;
     virtual std::string toDetailedString() const;
     virtual Ice::ConnectionInfoPtr getInfo() const;
-    virtual Ice::ConnectionInfoPtr getWSInfo(const Ice::HeaderDict&) const;
     virtual void checkSendSize(const IceInternal::Buffer&);
     virtual void setBufferSize(int rcvSize, int sndSize);
 
 private:
 
-    TransceiverI(const InstancePtr&, const IceInternal::StreamSocketPtr&, const std::string&, bool);
+    TransceiverI(const InstancePtr&, const IceInternal::TransceiverPtr&, const std::string&, bool);
     virtual ~TransceiverI();
-
-    void fillConnectionInfo(const ConnectionInfoPtr&, std::vector<CertificatePtr>&) const;
 
     IceInternal::SocketOperation sslHandshake();
 
@@ -88,6 +85,7 @@ private:
 
     enum State
     {
+        StateNotInitialized,
         StateHandshakeNotStarted,
         StateHandshakeReadContinue,
         StateHandshakeWriteContinue,
@@ -99,7 +97,7 @@ private:
     const std::string _host;
     const std::string _adapterName;
     const bool _incoming;
-    const IceInternal::StreamSocketPtr _stream;
+    const IceInternal::TransceiverPtr _delegate;
     State _state;
 
     //

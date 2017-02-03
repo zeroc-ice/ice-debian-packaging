@@ -7,14 +7,15 @@
 //
 // **********************************************************************
 
-#include <Ice/Application.h>
+#include <Ice/Ice.h>
+#include <TestCommon.h>
 #include <BackendI.h>
 
 using namespace std;
 using namespace Ice;
 using namespace Test;
 
-class ServantLocatorI : virtual public ServantLocator
+class ServantLocatorI : public virtual ServantLocator
 {
 public:
 
@@ -56,13 +57,14 @@ main(int argc, char* argv[])
 #endif
 
     BackendServer app;
-    return app.main(argc, argv);
+    Ice::InitializationData initData = getTestInitData(argc, argv);
+    return app.main(argc, argv, initData);
 }
 
 int
 BackendServer::run(int, char**)
 {
-    communicator()->getProperties()->setProperty("BackendAdapter.Endpoints", "tcp -p 12010");
+    communicator()->getProperties()->setProperty("BackendAdapter.Endpoints", getTestEndpoint(communicator(), 0));
     ObjectAdapterPtr adapter = communicator()->createObjectAdapter("BackendAdapter");
     adapter->addServantLocator(new ServantLocatorI, "");
     adapter->activate();

@@ -7,8 +7,7 @@
 //
 // **********************************************************************
 
-#include <Ice/Application.h>
-#include <Ice/Locator.h>
+#include <Ice/Ice.h>
 #include <BackendI.h>
 
 using namespace std;
@@ -20,7 +19,7 @@ using namespace Test;
 // simplicity, we essentially 'alias' all possible requests to a single
 // object adapter and a single servant.
 //
-class ServerLocatorRegistry : virtual public LocatorRegistry
+class ServerLocatorRegistry : public virtual LocatorRegistry
 {
 public:
 
@@ -46,7 +45,7 @@ public:
     }
 };
 
-class ServerLocatorI : virtual public Locator
+class ServerLocatorI : public virtual Locator
 {
 public:
     ServerLocatorI(const BackendPtr& backend, const ObjectAdapterPtr& adapter) :
@@ -54,7 +53,7 @@ public:
         _adapter(adapter),
         _registryPrx(
             LocatorRegistryPrx::uncheckedCast(
-                adapter->add(new ServerLocatorRegistry, _adapter->getCommunicator()->stringToIdentity("registry"))))
+                adapter->add(new ServerLocatorRegistry, Ice::stringToIdentity("registry"))))
     {
     }
 
@@ -67,7 +66,7 @@ public:
     virtual void
     findAdapterById_async(const AMD_Locator_findAdapterByIdPtr& cb, const string&, const Current&) const
     {
-       cb->ice_response(_adapter->createDirectProxy(_adapter->getCommunicator()->stringToIdentity("dummy")));
+       cb->ice_response(_adapter->createDirectProxy(stringToIdentity("dummy")));
     }
 
     virtual LocatorRegistryPrx
@@ -82,7 +81,7 @@ private:
     const LocatorRegistryPrx _registryPrx;
 };
 
-class ServantLocatorI : virtual public ServantLocator
+class ServantLocatorI : public virtual ServantLocator
 {
 public:
 
@@ -137,7 +136,7 @@ BackendServer::run(int, char**)
     ObjectAdapterPtr adapter = communicator()->createObjectAdapter("BackendAdapter");
     BackendPtr backend = new BackendI;
     Ice::LocatorPtr locator = new ServerLocatorI(backend, adapter);
-    adapter->add(locator, communicator()->stringToIdentity("locator"));
+    adapter->add(locator, Ice::stringToIdentity("locator"));
     adapter->addServantLocator(new ServantLocatorI(backend), "");
     adapter->activate();
     communicator()->waitForShutdown();

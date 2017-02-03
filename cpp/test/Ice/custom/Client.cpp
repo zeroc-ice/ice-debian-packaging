@@ -19,8 +19,8 @@ DEFINE_TEST("client")
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    Test::TestIntfPrx allTests(const Ice::CommunicatorPtr&);
-    Test::TestIntfPrx test = allTests(communicator);
+    Test::TestIntfPrxPtr allTests(const Ice::CommunicatorPtr&);
+    Test::TestIntfPrxPtr test = allTests(communicator);
     test->shutdown();
 
     return EXIT_SUCCESS;
@@ -37,10 +37,11 @@ main(int argc, char** argv)
 
     try
     {
-        IceUtil::setProcessStringConverter(new Test::StringConverterI);
-        IceUtil::setProcessWstringConverter(new Test::WstringConverterI);
+        setProcessStringConverter(ICE_MAKE_SHARED(Test::StringConverterI));
+        setProcessWstringConverter(ICE_MAKE_SHARED(Test::WstringConverterI));
 
-        communicator = Ice::initialize(argc, argv);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator);
     }
     catch(const Ice::Exception& ex)
@@ -51,15 +52,7 @@ main(int argc, char** argv)
 
     if(communicator)
     {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
+        communicator->destroy();
     }
 
     return status;

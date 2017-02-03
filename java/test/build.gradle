@@ -10,24 +10,16 @@
 ext.testDir = "${projectDir}/src/main/java/test"
 apply from: "slice.gradle"
 
-def hasLambda = org.gradle.internal.jvm.Jvm.current().getJavaVersion().toString().toFloat() >= 1.8f
-
 sourceSets {
     main {
         java {
-            if (!hasLambda) {
-                exclude '**/lambda'
-            }
             exclude 'plugins'
-            exclude 'controller'
-            exclude 'ejb'
         }
     }
 }
 
 dependencies {
     compile localDependency('ice')
-    compile localDependency('freeze')
     compile localDependency('icediscovery')
     compile localDependency('icelocatordiscovery')
     compile localDependency('icebox')
@@ -35,9 +27,10 @@ dependencies {
     compile localDependency('icestorm')
     compile localDependency('icegrid')
     compile project(':testPlugins')
-    compile project(':testController')
-    compile files(dbJar)
-    if(!gradle.startParameter.isOffline()) {
+}
+
+if(!gradle.startParameter.isOffline()) {
+    dependencies {
         runtime "org.apache.tools:bzip2:1.0"
     }
 }
@@ -52,13 +45,8 @@ jar {
 
 clean {
     delete("$rootProject.projectDir/lib/test.jar")
-    ['src/main/java/test/Freeze/complex/db',
-     'src/main/java/test/Freeze/dbmap/db',
-     'src/main/java/test/Freeze/evictor/db',
-     'src/main/java/test/Freeze/fileLock/db',
-     'src/main/java/test/IceGrid/simple/db'].each {
-        delete fileTree(dir: it, excludes:['.gitignore', 'DB_CONFIG'])
-        delete "${it}/__Freeze"
+    ['src/main/java/test/IceGrid/simple/db'].each {
+        delete fileTree(dir: it)
     }
     delete("src/main/java/test/Slice/generation/classes")
 }

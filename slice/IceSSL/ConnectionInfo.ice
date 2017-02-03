@@ -9,9 +9,13 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICESSL_API", "objc:header-dir:objc", "objc:dll-export:ICESSL_API", "js:ice-build"]]
 
 #include <Ice/Connection.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:ICESSL"]
 module IceSSL
@@ -22,7 +26,7 @@ module IceSSL
  * Provides access to the connection details of an SSL connection
  *
  **/
-local class ConnectionInfo extends Ice::IPConnectionInfo
+local class ConnectionInfo extends Ice::ConnectionInfo
 {
     /** The negotiated cipher suite. */
     string cipher;
@@ -34,16 +38,4 @@ local class ConnectionInfo extends Ice::IPConnectionInfo
     bool verified;
 };
 
-/**
- *
- * Provides access to the connection details of a secure WebSocket connection
- *
- **/
-local class WSSConnectionInfo extends ConnectionInfo
-{
-    /** The headers from the HTTP upgrade request. */
-    Ice::HeaderDict headers;
 };
-
-};
-

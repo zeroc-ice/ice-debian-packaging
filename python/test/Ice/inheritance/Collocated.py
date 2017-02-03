@@ -18,7 +18,7 @@ def run(args, communicator):
     communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010")
     adapter = communicator.createObjectAdapter("TestAdapter")
     object = TestI.InitialI(adapter)
-    adapter.add(object, communicator.stringToIdentity("initial"))
+    adapter.add(object, Ice.stringToIdentity("initial"))
     #adapter.activate() // Don't activate OA to ensure collocation is used.
 
     AllTests.allTests(communicator)
@@ -26,17 +26,10 @@ def run(args, communicator):
     return True
 
 try:
-    communicator = Ice.initialize(sys.argv)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv) as communicator:
+         status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

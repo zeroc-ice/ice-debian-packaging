@@ -13,17 +13,20 @@
 using namespace std;
 using namespace IceInternal;
 
+#ifndef ICE_CPP11_MAPPING
 IceUtil::Shared* IceInternal::upCast(RequestHandler* p) { return p; }
 IceUtil::Shared* IceInternal::upCast(CancellationHandler* p) { return p; }
+#endif
+
 
 RetryException::RetryException(const Ice::LocalException& ex)
 {
-    _ex.reset(ex.ice_clone());
+    ICE_SET_EXCEPTION_FROM_CLONE(_ex, ex.ice_clone());
 }
 
 RetryException::RetryException(const RetryException& ex)
 {
-    _ex.reset(ex.get()->ice_clone());
+    ICE_SET_EXCEPTION_FROM_CLONE(_ex, ex.get()->ice_clone());
 }
 
 const Ice::LocalException*

@@ -7,16 +7,14 @@
 //
 // **********************************************************************
 
-var Ice = require("../Ice/ModuleRegistry").Ice;
-Ice.__M.require(module,
+const Ice = require("../Ice/ModuleRegistry").Ice;
+Ice._ModuleRegistry.require(module,
     [
-        "../Ice/Class",
-        "../Ice/BasicStream",
+        "../Ice/Stream",
         "../Ice/BuiltinSequences",
         "../Ice/Connection",
         "../Ice/Current",
         "../Ice/Debug",
-        "../Ice/DispatchStatus",
         "../Ice/Exception",
         "../Ice/Identity",
         "../Ice/LocalException",
@@ -24,26 +22,24 @@ Ice.__M.require(module,
         "../Ice/StringUtil"
     ]);
 
-var BasicStream = Ice.BasicStream;
-var Current = Ice.Current;
-var Debug = Ice.Debug;
-var FormatType = Ice.FormatType;
-var Context = Ice.Context;
-var Identity = Ice.Identity;
-var Protocol = Ice.Protocol;
-var StringUtil = Ice.StringUtil;
+const OutputStream = Ice.OutputStream;
+const Current = Ice.Current;
+const Debug = Ice.Debug;
+const FormatType = Ice.FormatType;
+const Context = Ice.Context;
+const Identity = Ice.Identity;
+const Protocol = Ice.Protocol;
+const StringUtil = Ice.StringUtil;
 
-var IncomingAsync = Ice.Class({
-    __init__: function(instance, connection, adapter, response, compress, requestId)
+class IncomingAsync
+{
+    constructor(instance, connection, adapter, response, compress, requestId)
     {
         this._instance = instance;
         this._response = response;
         this._compress = compress;
-        if(this._response)
-        {
-            this._os = new BasicStream(instance, Protocol.currentProtocolEncoding);
-        }
         this._connection = connection;
+        this._format = Ice.FormatType.DefaultFormat;
 
         this._current = new Current();
         this._current.id = new Identity();
@@ -55,97 +51,96 @@ var IncomingAsync = Ice.Class({
         this._locator = null;
         this._cookie = { value: null };
 
-        //
-        // Prepare the response if necessary.
-        //
-        if(response)
-        {
-            this._os.writeBlob(Protocol.replyHdr);
-
-            //
-            // Add the request ID.
-            //
-            this._os.writeInt(requestId);
-        }
-
+        this._os = null;
         this._is = null;
+    }
 
-        this._cb = null;
-        this._active = true;
-    },
-    __startWriteParams: function(format)
+    startWriteParams()
     {
         if(!this._response)
         {
             throw new Ice.MarshalException("can't marshal out parameters for oneway dispatch");
         }
 
-        Debug.assert(this._os.size == Protocol.headerSize + 4); // Reply status position.
         Debug.assert(this._current.encoding !== null); // Encoding for reply is known.
+        this._os = new OutputStream(this._instance, Protocol.currentProtocolEncoding);
+        this._os.writeBlob(Protocol.replyHdr);
+        this._os.writeInt(this._current.requestId);
         this._os.writeByte(0);
-        this._os.startWriteEncaps(this._current.encoding, format);
+        this._os.startEncapsulation(this._current.encoding, this._format);
         return this._os;
-    },
-    __endWriteParams: function(ok)
+    }
+
+    endWriteParams()
     {
         if(this._response)
         {
-            var save = this._os.pos;
-            this._os.pos = Protocol.headerSize + 4; // Reply status position.
-            this._os.writeByte(ok ? Protocol.replyOK : Protocol.replyUserException);
-            this._os.pos = save;
-            this._os.endWriteEncaps();
+            this._os.endEncapsulation();
         }
-    },
-    __writeEmptyParams: function()
+    }
+
+    writeEmptyParams()
     {
         if(this._response)
         {
-            Debug.assert(this._os.size === Protocol.headerSize + 4); // Reply status position.
             Debug.assert(this._current.encoding !== null); // Encoding for reply is known.
+            this._os = new OutputStream(this._instance, Protocol.currentProtocolEncoding);
+            this._os.writeBlob(Protocol.replyHdr);
+            this._os.writeInt(this._current.requestId);
             this._os.writeByte(Protocol.replyOK);
-            this._os.writeEmptyEncaps(this._current.encoding);
+            this._os.writeEmptyEncapsulation(this._current.encoding);
         }
-    },
-    __writeParamEncaps: function(v, ok)
+    }
+
+    writeParamEncaps(v, ok)
     {
         if(this._response)
         {
-            Debug.assert(this._os.size === Protocol.headerSize + 4); // Reply status position.
             Debug.assert(this._current.encoding !== null); // Encoding for reply is known.
+            this._os = new OutputStream(this._instance, Protocol.currentProtocolEncoding);
+            this._os.writeBlob(Protocol.replyHdr);
+            this._os.writeInt(this._current.requestId);
             this._os.writeByte(ok ? Protocol.replyOK : Protocol.replyUserException);
             if(v === null || v.length === 0)
             {
-                this._os.writeEmptyEncaps(this._current.encoding);
+                this._os.writeEmptyEncapsulation(this._current.encoding);
             }
             else
             {
-                this._os.writeEncaps(v);
+                this._os.writeEncapsulation(v);
             }
         }
-    },
-    __writeUserException: function(ex, format)
+    }
+
+    setFormat(format)
     {
-        var os = this.__startWriteParams(format);
-        os.writeUserException(ex);
-        this.__endWriteParams(false);
-    },
-    __warning: function(ex)
+        this._format = format;
+    }
+
+    warning(ex)
     {
         Debug.assert(this._instance !== null);
 
-        var s = [];
+        const s = [];
         s.push("dispatch exception:");
-        s.push("\nidentity: " + this._instance.identityToString(this._current.id));
-        s.push("\nfacet: " + StringUtil.escapeString(this._current.facet, ""));
+        s.push("\nidentity: " + Ice.identityToString(this._current.id, this._instance.toStringMode()));
+        s.push("\nfacet: " + StringUtil.escapeString(this._current.facet, "", this._instance.toStringMode()));
         s.push("\noperation: " + this._current.operation);
         if(this._connection !== null)
         {
-            var connInfo = this._connection.getInfo();
-            if(connInfo instanceof Ice.IPConnectionInfo)
+            try
             {
-                var ipConnInfo = connInfo;
-                s.push("\nremote host: " + ipConnInfo.remoteAddress + " remote port: " + ipConnInfo.remotePort);
+                for(let p = this._connection.getInfo(); p; p = p.underlying)
+                {
+                    if(p instanceof Ice.IPConnectionInfo)
+                    {
+                        s.push("\nremote host: " + p.remoteAddress + " remote port: " + p.remotePort);
+                    }
+                }
+            }
+            catch(exc)
+            {
+                // Ignore.
             }
         }
         if(ex.stack)
@@ -154,8 +149,9 @@ var IncomingAsync = Ice.Class({
             s.push(ex.stack);
         }
         this._instance.initializationData().logger.warning(s.join(""));
-    },
-    __servantLocatorFinished: function()
+    }
+
+    servantLocatorFinished()
     {
         Debug.assert(this._locator !== null && this._servant !== null);
         try
@@ -165,42 +161,16 @@ var IncomingAsync = Ice.Class({
         }
         catch(ex)
         {
-            if(ex instanceof Ice.UserException)
-            {
-                Debug.assert(this._connection !== null);
-
-                //
-                // The operation may have already marshaled a reply; we must overwrite that reply.
-                //
-                if(this._response)
-                {
-                    this._os.resize(Protocol.headerSize + 4); // Reply status position.
-                    this._os.writeByte(Protocol.replyUserException);
-                    this._os.startWriteEncaps();
-                    this._os.writeUserException(ex);
-                    this._os.endWriteEncaps();
-                    this._connection.sendResponse(this._os, this._compress);
-                }
-                else
-                {
-                    this._connection.sendNoResponse();
-                }
-
-                this._connection = null;
-            }
-            else
-            {
-                this.__handleException(ex);
-            }
-            return false;
+            this.handleException(ex);
         }
-    },
-    __handleException: function(ex)
+        return false;
+    }
+
+    handleException(ex)
     {
         Debug.assert(this._connection !== null);
 
-        var props = this._instance.initializationData().properties;
-        var s;
+        const props = this._instance.initializationData().properties;
         if(ex instanceof Ice.RequestFailedException)
         {
             if(ex.id === null)
@@ -220,12 +190,14 @@ var IncomingAsync = Ice.Class({
 
             if(props.getPropertyAsIntWithDefault("Ice.Warn.Dispatch", 1) > 1)
             {
-                this.__warning(ex);
+                this.warning(ex);
             }
 
             if(this._response)
             {
-                this._os.resize(Protocol.headerSize + 4); // Reply status position.
+                this._os = new OutputStream(this._instance, Protocol.currentProtocolEncoding);
+                this._os.writeBlob(Protocol.replyHdr);
+                this._os.writeInt(this._current.requestId);
                 if(ex instanceof Ice.ObjectNotExistException)
                 {
                     this._os.writeByte(Protocol.replyObjectNotExist);
@@ -242,7 +214,7 @@ var IncomingAsync = Ice.Class({
                 {
                     Debug.assert(false);
                 }
-                ex.id.__write(this._os);
+                ex.id._write(this._os);
 
                 //
                 // For compatibility with the old FacetPath.
@@ -269,12 +241,14 @@ var IncomingAsync = Ice.Class({
         {
             if(props.getPropertyAsIntWithDefault("Ice.Warn.Dispatch", 1) > 0)
             {
-                this.__warning(ex);
+                this.warning(ex);
             }
 
             if(this._response)
             {
-                this._os.resize(Protocol.headerSize + 4); // Reply status position.
+                this._os = new OutputStream(this._instance, Protocol.currentProtocolEncoding);
+                this._os.writeBlob(Protocol.replyHdr);
+                this._os.writeInt(this._current.requestId);
                 this._os.writeByte(Protocol.replyUnknownLocalException);
                 this._os.writeString(ex.unknown);
                 this._connection.sendResponse(this._os, this._compress);
@@ -288,12 +262,14 @@ var IncomingAsync = Ice.Class({
         {
             if(props.getPropertyAsIntWithDefault("Ice.Warn.Dispatch", 1) > 0)
             {
-                this.__warning(ex);
+                this.warning(ex);
             }
 
             if(this._response)
             {
-                this._os.resize(Protocol.headerSize + 4); // Reply status position.
+                this._os = new OutputStream(this._instance, Protocol.currentProtocolEncoding);
+                this._os.writeBlob(Protocol.replyHdr);
+                this._os.writeInt(this._current.requestId);
                 this._os.writeByte(Protocol.replyUnknownUserException);
                 this._os.writeString(ex.unknown);
                 this._connection.sendResponse(this._os, this._compress);
@@ -307,12 +283,14 @@ var IncomingAsync = Ice.Class({
         {
             if(props.getPropertyAsIntWithDefault("Ice.Warn.Dispatch", 1) > 0)
             {
-                this.__warning(ex);
+                this.warning(ex);
             }
 
             if(this._response)
             {
-                this._os.resize(Protocol.headerSize + 4); // Reply status position.
+                this._os = new OutputStream(this._instance, Protocol.currentProtocolEncoding);
+                this._os.writeBlob(Protocol.replyHdr);
+                this._os.writeInt(this._current.requestId);
                 this._os.writeByte(Protocol.replyUnknownException);
                 this._os.writeString(ex.unknown);
                 this._connection.sendResponse(this._os, this._compress);
@@ -326,15 +304,17 @@ var IncomingAsync = Ice.Class({
         {
             if(props.getPropertyAsIntWithDefault("Ice.Warn.Dispatch", 1) > 0)
             {
-                this.__warning(ex);
+                this.warning(ex);
             }
 
             if(this._response)
             {
-                this._os.resize(Protocol.headerSize + 4); // Reply status position.
+                this._os = new OutputStream(this._instance, Protocol.currentProtocolEncoding);
+                this._os.writeBlob(Protocol.replyHdr);
+                this._os.writeInt(this._current.requestId);
                 this._os.writeByte(Protocol.replyUnknownLocalException);
                 //this._os.writeString(ex.toString());
-                s = [ ex.ice_name() ];
+                let s = [ ex.ice_name() ];
                 if(ex.stack)
                 {
                     s.push("\n");
@@ -350,23 +330,15 @@ var IncomingAsync = Ice.Class({
         }
         else if(ex instanceof Ice.UserException)
         {
-            if(props.getPropertyAsIntWithDefault("Ice.Warn.Dispatch", 1) > 0)
-            {
-                this.__warning(ex);
-            }
-
             if(this._response)
             {
-                this._os.resize(Protocol.headerSize + 4); // Reply status position.
-                this._os.writeByte(Protocol.replyUnknownUserException);
-                //this._os.writeString(ex.toString());
-                s = [ ex.ice_name() ];
-                if(ex.stack)
-                {
-                    s.push("\n");
-                    s.push(ex.stack);
-                }
-                this._os.writeString(s.join(""));
+                this._os = new OutputStream(this._instance, Protocol.currentProtocolEncoding);
+                this._os.writeBlob(Protocol.replyHdr);
+                this._os.writeInt(this._current.requestId);
+                this._os.writeByte(Protocol.replyUserException);
+                this._os.startEncapsulation(this._current.encoding, this._format);
+                this._os.writeUserException(ex);
+                this._os.endEncapsulation();
                 this._connection.sendResponse(this._os, this._compress);
             }
             else
@@ -378,15 +350,17 @@ var IncomingAsync = Ice.Class({
         {
             if(props.getPropertyAsIntWithDefault("Ice.Warn.Dispatch", 1) > 0)
             {
-                this.__warning(ex);
+                this.warning(ex);
             }
 
             if(this._response)
             {
-                this._os.resize(Protocol.headerSize + 4); // Reply status position.
+                this._os = new OutputStream(this._instance, Protocol.currentProtocolEncoding);
+                this._os.writeBlob(Protocol.replyHdr);
+                this._os.writeInt(this._current.requestId);
                 this._os.writeByte(Protocol.replyUnknownException);
                 //this._os.writeString(ex.toString());
-                this._os.writeString(ex.stack ? ex.stack : "");
+                this._os.writeString(ex.toString() + (ex.stack ? "\n" + ex.stack : ""));
                 this._connection.sendResponse(this._os, this._compress);
             }
             else
@@ -396,22 +370,21 @@ var IncomingAsync = Ice.Class({
         }
 
         this._connection = null;
-    },
-    invoke: function(servantManager, stream)
+    }
+
+    invoke(servantManager, stream)
     {
         this._is = stream;
-
-        var start = this._is.pos;
 
         //
         // Read the current.
         //
-        this._current.id.__read(this._is);
+        this._current.id._read(this._is);
 
         //
         // For compatibility with the old FacetPath.
         //
-        var facetPath = Ice.StringSeqHelper.read(this._is);
+        const facetPath = Ice.StringSeqHelper.read(this._is);
         if(facetPath.length > 0)
         {
             if(facetPath.length > 1)
@@ -428,12 +401,10 @@ var IncomingAsync = Ice.Class({
         this._current.operation = this._is.readString();
         this._current.mode = Ice.OperationMode.valueOf(this._is.readByte());
         this._current.ctx = new Context();
-        var sz = this._is.readSize();
+        let sz = this._is.readSize();
         while(sz-- > 0)
         {
-            var first = this._is.readString();
-            var second = this._is.readString();
-            this._current.ctx.set(first, second);
+            this._current.ctx.set(this._is.readString(), this._is.readString());
         }
 
         //
@@ -441,7 +412,6 @@ var IncomingAsync = Ice.Class({
         // in the code above are considered fatal, and must propagate to
         // the caller of this operation.
         //
-
         if(servantManager !== null)
         {
             this._servant = servantManager.findServant(this._current.id, this._current.facet);
@@ -461,135 +431,93 @@ var IncomingAsync = Ice.Class({
                     }
                     catch(ex)
                     {
-                        if(ex instanceof Ice.UserException)
-                        {
-                            var encoding = this._is.skipEncaps(); // Required for batch requests.
-
-                            if(this._response)
-                            {
-                                this._os.writeByte(Protocol.replyUserException);
-                                this._os.startWriteEncaps(encoding, FormatType.DefaultFormat);
-                                this._os.writeUserException(ex);
-                                this._os.endWriteEncaps();
-                                this._connection.sendResponse(this._os, this._compress);
-                            }
-                            else
-                            {
-                                this._connection.sendNoResponse();
-                            }
-
-                            this._connection = null;
-                            return;
-                        }
-                        else
-                        {
-                            this._is.skipEncaps(); // Required for batch requests.
-                            this.__handleException(ex);
-                            return;
-                        }
+                        this.skipReadParams(); // Required for batch requests.
+                        this.handleException(ex);
+                        return;
                     }
                 }
             }
         }
 
-        try
+        if(this._servant === null)
         {
-            if(this._servant !== null)
+            try
             {
-                //
-                // DispatchAsync is a "pseudo dispatch status", used internally only
-                // to indicate async dispatch.
-                //
-                if(this._servant.__dispatch(this, this._current) === Ice.DispatchStatus.DispatchAsync)
-                {
-                    //
-                    // If this was an asynchronous dispatch, we're done here.
-                    //
-                    return;
-                }
-
-                if(this._locator !== null && !this.__servantLocatorFinished())
-                {
-                    return;
-                }
-            }
-            else
-            {
-                //
-                // Skip the input parameters, this is required for reading
-                // the next batch request if dispatching batch requests.
-                //
-                this._is.skipEncaps();
-
                 if(servantManager !== null && servantManager.hasServant(this._current.id))
                 {
                     throw new Ice.FacetNotExistException(this._current.id, this._current.facet,
-                                                            this._current.operation);
+                                                         this._current.operation);
                 }
                 else
                 {
                     throw new Ice.ObjectNotExistException(this._current.id, this._current.facet,
-                                                            this._current.operation);
+                                                          this._current.operation);
                 }
+
             }
+            catch(ex)
+            {
+                this.skipReadParams(); // Required for batch requests.
+                this.handleException(ex);
+                return;
+            }
+        }
+
+        try
+        {
+            Debug.assert(this._servant !== null);
+            let promise = this._servant._iceDispatch(this, this._current);
+            if(promise !== null)
+            {
+                promise.then(() => this.response(), (ex) => this.exception(ex));
+                return;
+            }
+
+            Debug.assert(!this._response || this._os !== null);
+            this.response();
         }
         catch(ex)
         {
-            if(this._servant !== null && this._locator !== null && !this.__servantLocatorFinished())
-            {
-                return;
-            }
-            this.__handleException(ex);
-            return;
+            this.exception(ex);
         }
+    }
 
-        //
-        // Don't put the code below into the try block above. Exceptions
-        // in the code below are considered fatal, and must propagate to
-        // the caller of this operation.
-        //
-
-        Debug.assert(this._connection !== null);
-
-        if(this._response)
-        {
-            this._connection.sendResponse(this._os, this._compress);
-        }
-        else
-        {
-            this._connection.sendNoResponse();
-        }
-
-        this._connection = null;
-    },
-    startReadParams: function()
+    startReadParams()
     {
         //
         // Remember the encoding used by the input parameters, we'll
         // encode the response parameters with the same encoding.
         //
-        this._current.encoding = this._is.startReadEncaps();
+        this._current.encoding = this._is.startEncapsulation();
         return this._is;
-    },
-    endReadParams: function()
+    }
+
+    endReadParams()
     {
-        this._is.endReadEncaps();
-    },
-    readEmptyParams: function()
+        this._is.endEncapsulation();
+    }
+
+    readEmptyParams()
+    {
+        this._current.encoding = this._is.skipEmptyEncapsulation();
+    }
+
+    readParamEncaps()
     {
         this._current.encoding = new Ice.EncodingVersion();
-        this._is.skipEmptyEncaps(this._current.encoding);
-    },
-    readParamEncaps: function()
+        return this._is.readEncapsulation(this._current.encoding);
+    }
+
+    skipReadParams()
     {
-        this._current.encoding = new Ice.EncodingVersion();
-        return this._is.readEncaps(this._current.encoding);
-    },
-    __response: function()
+        this._current.encoding = this._is.skipEncapsulation();
+    }
+
+    response()
     {
         try
         {
-            if(this._locator !== null && !this.__servantLocatorFinished())
+            if(this._locator !== null && !this.servantLocatorFinished())
             {
                 return;
             }
@@ -604,63 +532,30 @@ var IncomingAsync = Ice.Class({
             {
                 this._connection.sendNoResponse();
             }
-
-            this._connection = null;
         }
         catch(ex)
         {
             this._connection.invokeException(ex, 1);
         }
-    },
-    __exception: function(exc)
+        this._connection = null;
+    }
+
+    exception(exc)
     {
         try
         {
-            if(this._locator !== null && !this.__servantLocatorFinished())
+            if(this._locator !== null && !this.servantLocatorFinished())
             {
                 return;
             }
-
-            this.__handleException(exc);
+            this.handleException(exc);
         }
         catch(ex)
         {
             this._connection.invokeException(ex, 1);
         }
-    },
-    __validateResponse: function(ok)
-    {
-        if(!this._active)
-        {
-            return false;
-        }
-        this._active = false;
-        return true;
-    },
-    ice_exception: function(ex)
-    {
-        if(!this._active)
-        {
-            return;
-        }
-        this._active = false;
-
-        if(this._connection !== null)
-        {
-            this.__exception(ex);
-        }
-        else
-        {
-            //
-            // Response has already been sent.
-            //
-            if(this._instance.initializationData().properties.getPropertyAsIntWithDefault("Ice.Warn.Dispatch", 1) > 0)
-            {
-                this.__warning(ex);
-            }
-        }
     }
-});
+}
 
 Ice.IncomingAsync = IncomingAsync;
 module.exports.Ice = Ice;

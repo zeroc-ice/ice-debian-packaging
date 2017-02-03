@@ -19,6 +19,13 @@ exception TestIntfException
 {
 };
 
+enum CloseMode
+{
+    CloseForcefully,
+    CloseGracefully,
+    CloseGracefullyAndWait
+};
+
 interface TestIntf
 {
     void op();
@@ -26,13 +33,16 @@ interface TestIntf
     int opWithResult();
     void opWithUE()
         throws TestIntfException;
+    int opWithResultAndUE()
+        throws TestIntfException;
     void opBatch();
 
     void opWithArgs(out int one, out int two, out int three, out int four, out int five, out int six, out int seven,
                     out int eight, out int nine, out int ten, out int eleven);
     int opBatchCount();
     bool waitForBatch(int count);
-    void close(bool force);
+    void close(CloseMode mode);
+    void sleep(int ms);
     void shutdown();
 
     bool supportsFunctionalTests();

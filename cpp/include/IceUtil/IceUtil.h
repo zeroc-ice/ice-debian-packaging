@@ -18,10 +18,9 @@
 //
 
 #include <IceUtil/Config.h>
-#include <IceUtil/AbstractMutex.h>
-#include <IceUtil/Cache.h>
 #include <IceUtil/Cond.h>
-#if !defined(__APPLE__) && !defined(ICE_OS_WINRT)
+#include <IceUtil/ConsoleUtil.h>
+#if !defined(__APPLE__) && !defined(ICE_OS_UWP)
 #   include <IceUtil/CtrlCHandler.h>
 #endif
 #include <IceUtil/Exception.h>
@@ -41,11 +40,6 @@
 #include <IceUtil/Time.h>
 #include <IceUtil/Timer.h>
 #include <IceUtil/UUID.h>
-#include <IceUtil/UniquePtr.h>
-
-#ifndef _WIN32
-#   include <IceUtil/IconvStringConverter.h>
-#endif
 
 #include <IceUtil/PopDisableWarnings.h>
 #endif

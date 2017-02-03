@@ -13,7 +13,6 @@ using System.Text;
 
 namespace IceInternal
 {
-
     public sealed class DefaultsAndOverrides
     {
         internal DefaultsAndOverrides(Ice.Properties properties, Ice.Logger logger)
@@ -107,28 +106,22 @@ namespace IceInternal
                 overrideCloseTimeoutValue = -1;
             }
 
-#if COMPACT
-            overrideCompress = false;
-            overrideCompressValue = false;
-#else
             val = properties.getProperty("Ice.Override.Compress");
             if(val.Length > 0)
             {
                 overrideCompress = true;
                 overrideCompressValue = properties.getPropertyAsInt("Ice.Override.Compress") > 0;
-                if(!BasicStream.compressible() && overrideCompressValue)
+                if(!BZip2.supported() && overrideCompressValue)
                 {
-                    string lib = AssemblyUtil.runtime_ == AssemblyUtil.Runtime.Mono ? "bzip2 library" : "bzip2.dll";
-                    Console.Error.WriteLine("warning: " + lib + " not found, Ice.Override.Compress ignored.");
+                    Console.Error.WriteLine("warning: bzip2.dll not found, Ice.Override.Compress ignored.");
                     overrideCompressValue = false;
                 }
             }
             else
             {
-                overrideCompress = !BasicStream.compressible();
+                overrideCompress = !BZip2.supported();
                 overrideCompressValue = false;
             }
-#endif
 
             val = properties.getProperty("Ice.Override.Secure");
             if(val.Length > 0)

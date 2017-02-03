@@ -18,7 +18,7 @@
 #include <Ice/LocalException.h>
 #include <Ice/Base64.h>
 #include <IceUtil/Random.h>
-#include <IceUtil/SHA1.h>
+#include <Ice/SHA1.h>
 #include <IceUtil/StringUtil.h>
 
 // Python 2.7 under Windows.
@@ -133,7 +133,7 @@ Long ice_nlltoh(const Byte* src)
     return v;
 }
 
-#if defined(ICE_OS_WINRT)
+#if defined(ICE_OS_UWP)
 Short htons(Short v)
 {
     Short result;
@@ -184,29 +184,23 @@ IceInternal::WSTransceiver::getNativeInfo()
     return _delegate->getNativeInfo();
 }
 
-#if defined(ICE_USE_IOCP)
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
 AsyncInfo*
 IceInternal::WSTransceiver::getAsyncInfo(SocketOperation status)
 {
     return _delegate->getNativeInfo()->getAsyncInfo(status);
 }
-#elif defined(ICE_OS_WINRT)
-void
-IceInternal::WSTransceiver::setCompletedHandler(IceInternal::SocketOperationCompletedHandler^ handler)
-{
-    _delegate->getNativeInfo()->setCompletedHandler(handler);
-}
 #endif
 
 SocketOperation
-IceInternal::WSTransceiver::initialize(Buffer& readBuffer, Buffer& writeBuffer, bool& hasMoreData)
+IceInternal::WSTransceiver::initialize(Buffer& readBuffer, Buffer& writeBuffer)
 {
     //
     // Delegate logs exceptions that occur during initialize(), so there's no need to trap them here.
     //
     if(_state == StateInitializeDelegate)
     {
-        SocketOperation op = _delegate->initialize(readBuffer, writeBuffer, hasMoreData);
+        SocketOperation op = _delegate->initialize(readBuffer, writeBuffer);
         if(op != SocketOperationNone)
         {
             return op;
@@ -236,7 +230,7 @@ IceInternal::WSTransceiver::initialize(Buffer& readBuffer, Buffer& writeBuffer, 
                 //
                 ostringstream out;
                 out << "GET " << _resource << " HTTP/1.1\r\n"
-                    << "Host: " << _host << ":" << _port << "\r\n"
+                    << "Host: " << _host << "\r\n"
                     << "Upgrade: websocket\r\n"
                     << "Connection: Upgrade\r\n"
                     << "Sec-WebSocket-Protocol: " << _iceProtocol << "\r\n"
@@ -280,7 +274,7 @@ IceInternal::WSTransceiver::initialize(Buffer& readBuffer, Buffer& writeBuffer, 
         {
             if(_readBuffer.i < _readBuffer.b.end())
             {
-                SocketOperation s = _delegate->read(_readBuffer, hasMoreData);
+                SocketOperation s = _delegate->read(_readBuffer);
                 if(s == SocketOperationWrite || _readBuffer.i == _readBuffer.b.begin())
                 {
                     return s;
@@ -384,7 +378,10 @@ IceInternal::WSTransceiver::initialize(Buffer& readBuffer, Buffer& writeBuffer, 
         _state = StateOpened;
         _nextState = StateOpened;
 
-        hasMoreData |= _readI < _readBuffer.i;
+        if(_readI < _readBuffer.i)
+        {
+            _delegate->getNativeInfo()->ready(SocketOperationRead, true);
+        }
     }
     catch(const Ice::LocalException& ex)
     {
@@ -443,6 +440,7 @@ IceInternal::WSTransceiver::closing(bool initiator, const Ice::LocalException& r
     }
 
     _closingInitiator = initiator;
+
     if(dynamic_cast<const Ice::CloseConnectionException*>(&reason))
     {
         _closingReason = CLOSURE_NORMAL;
@@ -544,7 +542,7 @@ IceInternal::WSTransceiver::write(Buffer& buf)
 }
 
 SocketOperation
-IceInternal::WSTransceiver::read(Buffer& buf, bool& hasMoreData)
+IceInternal::WSTransceiver::read(Buffer& buf)
 {
     if(_readPending)
     {
@@ -555,11 +553,11 @@ IceInternal::WSTransceiver::read(Buffer& buf, bool& hasMoreData)
     {
         if(_state < StateConnected)
         {
-            return _delegate->read(buf, hasMoreData);
+            return _delegate->read(buf);
         }
         else
         {
-            if(_delegate->read(_readBuffer, hasMoreData) == SocketOperationWrite)
+            if(_delegate->read(_readBuffer) == SocketOperationWrite)
             {
                 return SocketOperationWrite;
             }
@@ -576,7 +574,10 @@ IceInternal::WSTransceiver::read(Buffer& buf, bool& hasMoreData)
     //
     if(buf.i == buf.b.end())
     {
-        hasMoreData |= _readI < _readBuffer.i;
+        if(_readI < _readBuffer.i)
+        {
+            _delegate->getNativeInfo()->ready(SocketOperationRead, true);
+        }
         return SocketOperationNone;
     }
 
@@ -597,17 +598,17 @@ IceInternal::WSTransceiver::read(Buffer& buf, bool& hasMoreData)
                 {
                     size_t size = buf.b.size();
                     buf.b.resize(buf.i - buf.b.begin() + readSz);
-                    s = _delegate->read(buf, hasMoreData);
+                    s = _delegate->read(buf);
                     buf.b.resize(size);
                 }
                 else
                 {
-                    s = _delegate->read(buf, hasMoreData);
+                    s = _delegate->read(buf);
                 }
             }
             else
             {
-                s = _delegate->read(_readBuffer, hasMoreData);
+                s = _delegate->read(_readBuffer);
             }
 
             if(s == SocketOperationWrite)
@@ -621,12 +622,15 @@ IceInternal::WSTransceiver::read(Buffer& buf, bool& hasMoreData)
 
     if(buf.i == buf.b.end())
     {
-        hasMoreData |= _readI < _readBuffer.i;
+        if(_readI < _readBuffer.i)
+        {
+            _delegate->getNativeInfo()->ready(SocketOperationRead, true);
+        }
         s = SocketOperationNone;
     }
     else
     {
-        hasMoreData = false;
+        _delegate->getNativeInfo()->ready(SocketOperationRead, false);
         s = SocketOperationRead;
     }
 
@@ -642,7 +646,7 @@ IceInternal::WSTransceiver::read(Buffer& buf, bool& hasMoreData)
     return s;
 }
 
-#if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
 bool
 IceInternal::WSTransceiver::startWrite(Buffer& buf)
 {
@@ -767,18 +771,18 @@ IceInternal::WSTransceiver::startRead(Buffer& buf)
 }
 
 void
-IceInternal::WSTransceiver::finishRead(Buffer& buf, bool& hasMoreData)
+IceInternal::WSTransceiver::finishRead(Buffer& buf)
 {
     _readPending = false;
     if(_state < StateOpened)
     {
         if(_state < StateConnected)
         {
-            _delegate->finishRead(buf, hasMoreData);
+            _delegate->finishRead(buf);
         }
         else
         {
-            _delegate->finishRead(_readBuffer, hasMoreData);
+            _delegate->finishRead(_readBuffer);
         }
         return;
     }
@@ -789,11 +793,11 @@ IceInternal::WSTransceiver::finishRead(Buffer& buf, bool& hasMoreData)
     }
     else if(_readState == ReadStatePayload)
     {
-        _delegate->finishRead(buf, hasMoreData);
+        _delegate->finishRead(buf);
     }
     else
     {
-        _delegate->finishRead(_readBuffer, hasMoreData);
+        _delegate->finishRead(_readBuffer);
     }
 
     if(_state == StateClosed)
@@ -827,8 +831,10 @@ IceInternal::WSTransceiver::toDetailedString() const
 Ice::ConnectionInfoPtr
 IceInternal::WSTransceiver::getInfo() const
 {
-    assert(dynamic_cast<WSTransceiverDelegate*>(_delegate.get()));
-    return dynamic_cast<WSTransceiverDelegate*>(_delegate.get())->getWSInfo(_parser->getHeaders());
+    WSConnectionInfoPtr info = ICE_MAKE_SHARED(WSConnectionInfo);
+    info->underlying = _delegate->getInfo();
+    info->headers = _parser->getHeaders();
+    return info;
 }
 
 void
@@ -844,11 +850,10 @@ IceInternal::WSTransceiver::setBufferSize(int rcvSize, int sndSize)
 }
 
 IceInternal::WSTransceiver::WSTransceiver(const ProtocolInstancePtr& instance, const TransceiverPtr& del,
-                                          const string& host, int port, const string& resource) :
+                                          const string& host, const string& resource) :
     _instance(instance),
     _delegate(del),
     _host(host),
-    _port(port),
     _resource(resource),
     _incoming(false),
     _state(StateInitializeDelegate),
@@ -878,7 +883,6 @@ IceInternal::WSTransceiver::WSTransceiver(const ProtocolInstancePtr& instance, c
 IceInternal::WSTransceiver::WSTransceiver(const ProtocolInstancePtr& instance, const TransceiverPtr& del) :
     _instance(instance),
     _delegate(del),
-    _port(-1),
     _incoming(true),
     _state(StateInitializeDelegate),
     _parser(new HttpParser),
@@ -1024,7 +1028,7 @@ IceInternal::WSTransceiver::handleRequest(Buffer& responseBuffer)
     out << "Sec-WebSocket-Accept: ";
     string input = key + _wsUUID;
     vector<unsigned char> hash;
-    IceUtilInternal::sha1(reinterpret_cast<const unsigned char*>(&input[0]), input.size(), hash);
+    sha1(reinterpret_cast<const unsigned char*>(&input[0]), input.size(), hash);
     out << IceInternal::Base64::encode(hash) << "\r\n" << "\r\n"; // EOM
 
     string str = out.str();
@@ -1122,7 +1126,7 @@ IceInternal::WSTransceiver::handleResponse()
     }
     string input = _key + _wsUUID;
     vector<unsigned char> hash;
-    IceUtilInternal::sha1(reinterpret_cast<const unsigned char*>(&input[0]), input.size(), hash);
+    sha1(reinterpret_cast<const unsigned char*>(&input[0]), input.size(), hash);
     if(val != IceInternal::Base64::encode(hash))
     {
         throw WebSocketException("invalid value `" + val + "' for Sec-WebSocket-Accept");

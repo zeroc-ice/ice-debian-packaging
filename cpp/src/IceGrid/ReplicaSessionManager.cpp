@@ -177,7 +177,7 @@ public:
         {
             ostringstream os;
             os << ex << ":\n";
-            os << "id: " << info.proxy->ice_getCommunicator()->identityToString(info.proxy->ice_getIdentity());
+            os << "id: " << _database->getCommunicator()->identityToString(info.proxy->ice_getIdentity());
             failure = os.str();
         }
         receivedUpdate(ObjectObserverTopicName, serial, failure);
@@ -196,7 +196,7 @@ public:
         {
             ostringstream os;
             os << ex << ":\n";
-            os << "id: " << info.proxy->ice_getCommunicator()->identityToString(info.proxy->ice_getIdentity());
+            os << "id: " << _database->getCommunicator()->identityToString(info.proxy->ice_getIdentity());
             failure = os.str();
         }
         catch(const DeploymentException& ex)
@@ -465,7 +465,7 @@ ReplicaSessionPrx
 ReplicaSessionManager::createSession(InternalRegistryPrx& registry, IceUtil::Time& timeout)
 {
     ReplicaSessionPrx session;
-    IceUtil::UniquePtr<Ice::Exception> exception;
+    IceInternal::UniquePtr<Ice::Exception> exception;
     try
     {
         if(_traceLevels && _traceLevels->replica > 1)

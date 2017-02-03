@@ -18,7 +18,8 @@
 
 #import <objc/Ice/LocalException.h>
 
-#include <Ice/Stream.h>
+#include <Ice/OutputStream.h>
+#include <Ice/InputStream.h>
 #include <Ice/SlicedData.h>
 
 #import <objc/runtime.h>
@@ -28,20 +29,41 @@ ICE_API id ICENone = nil;
 namespace IceObjC
 {
 
-class ObjectWriter : public Ice::ObjectWriter
+class ValueWrapper : public Ice::Object
 {
 public:
 
-    ObjectWriter(ICEObject* obj, ICEOutputStream* stream) : _obj(obj), _stream(stream)
+    // We must explicitely CFRetain/CFRelease so that the garbage
+    // collector does not trash the _obj.
+    ValueWrapper(ICEObject* obj) : _obj(obj)
     {
+        CFRetain(_obj);
+    }
+
+    virtual ~ValueWrapper()
+    {
+        CFRelease(_obj);
     }
 
     virtual void
-    write(const Ice::OutputStreamPtr& stream) const
+    _iceWrite(Ice::OutputStream* stream) const
     {
         @try
         {
-            [_obj write__:_stream];
+            [_obj iceWrite:static_cast<ICEOutputStream*>(stream->getClosure())];
+        }
+        @catch(id ex)
+        {
+            rethrowCxxException(ex);
+        }
+    }
+
+    virtual void
+    _iceRead(Ice::InputStream* stream)
+    {
+        @try
+        {
+            [_obj iceRead:static_cast<ICEInputStream*>(stream->getClosure())];
         }
         @catch(id ex)
         {
@@ -54,71 +76,37 @@ public:
         [_obj ice_preMarshal];
     }
 
-private:
-
-    ICEObject* _obj;
-    ICEOutputStream* _stream;
-};
-
-class ObjectReader : public Ice::ObjectReader
-{
-public:
-
-    // We must explicitely CFRetain/CFRelease so that the garbage
-    // collector does not trash the _obj.
-    ObjectReader(ICEObject* obj) : _obj(obj)
-    {
-        CFRetain(_obj);
-    }
-
-    virtual ~ObjectReader()
-    {
-        CFRelease(_obj);
-    }
-
-    virtual void
-    read(const Ice::InputStreamPtr& stream)
-    {
-        @try
-        {
-            //
-            // TODO: explain why calling getLocalObjectWithCxxObjectNoAutoRelease is safe here
-            //
-            ICEInputStream* is = [ICEInputStream getLocalObjectWithCxxObjectNoAutoRelease:stream.get()];
-            assert(is != 0);
-            [_obj read__:is];
-        }
-        @catch(id ex)
-        {
-            rethrowCxxException(ex);
-        }
-    }
-
-    ICEObject*
-    getObject()
-    {
-        return _obj;
-    }
-
     virtual void ice_postUnmarshal()
     {
         [_obj ice_postUnmarshal];
     }
 
+    ICEObject*
+    getValue()
+    {
+        return _obj;
+    }
+
 private:
 
     ICEObject* _obj;
 };
-typedef IceUtil::Handle<ObjectReader> ObjectReaderPtr;
+typedef IceUtil::Handle<ValueWrapper> ValueWrapperPtr;
 
-class ReadObjectBase : public Ice::ReadObjectCallback
+class ReadValueBase
 {
 public:
 
-    ReadObjectBase(Class expectedType) : _expectedType(expectedType)
+    ReadValueBase(Class expectedType) : _expectedType(expectedType)
     {
     }
 
+    virtual
+    ~ReadValueBase()
+    {
+    }
+
+    virtual void invoke(const Ice::ValuePtr&) = 0;
     void checkType(ICEObject*);
 
 private:
@@ -127,7 +115,15 @@ private:
 };
 
 void
-ReadObjectBase::checkType(ICEObject* o)
+patchFunc(void* obj, const Ice::ValuePtr& value)
+{
+    ReadValueBase* reader = static_cast<ReadValueBase*>(obj);
+    reader->invoke(value);
+    delete reader;
+}
+
+void
+ReadValueBase::checkType(ICEObject* o)
 {
     if(o != nil && ![o isKindOfClass:_expectedType])
     {
@@ -144,23 +140,23 @@ ReadObjectBase::checkType(ICEObject* o)
     }
 }
 
-class ReadObject : public ReadObjectBase
+class ReadValue : public ReadValueBase
 {
 public:
 
-    ReadObject(ICEObject** addr, Class expectedType, bool autorelease) :
-        ReadObjectBase(expectedType), _addr(addr), _autorelease(autorelease)
+    ReadValue(ICEObject** addr, Class expectedType, bool autorelease) :
+        ReadValueBase(expectedType), _addr(addr), _autorelease(autorelease)
     {
     }
 
     virtual void
-    invoke(const Ice::ObjectPtr& obj)
+    invoke(const Ice::ValuePtr& obj)
     {
         @try
         {
             if(obj)
             {
-                ICEObject* o = ObjectReaderPtr::dynamicCast(obj)->getObject();
+                ICEObject* o = ValueWrapperPtr::dynamicCast(obj)->getValue();
                 checkType(o);
                 *_addr = [o retain];
                 if(_autorelease)
@@ -185,23 +181,23 @@ private:
     bool _autorelease;
 };
 
-class ReadObjectAtIndex : public ReadObjectBase
+class ReadValueAtIndex : public ReadValueBase
 {
 public:
 
-    ReadObjectAtIndex(NSMutableArray* array, ICEInt index, Class expectedType) :
-        ReadObjectBase(expectedType), _array(array), _index(index)
+    ReadValueAtIndex(NSMutableArray* array, ICEInt index, Class expectedType) :
+        ReadValueBase(expectedType), _array(array), _index(index)
     {
     }
 
     virtual void
-    invoke(const Ice::ObjectPtr& obj)
+    invoke(const Ice::ValuePtr& obj)
     {
         @try
         {
             if(obj)
             {
-                ICEObject* o = ObjectReaderPtr::dynamicCast(obj)->getObject();
+                ICEObject* o = ValueWrapperPtr::dynamicCast(obj)->getValue();
                 checkType(o);
                 [_array replaceObjectAtIndex:_index withObject:o];
             }
@@ -218,31 +214,31 @@ private:
     ICEInt _index;
 };
 
-class ReadObjectForKey : public ReadObjectBase
+class ReadValueForKey : public ReadValueBase
 {
 public:
 
     // We must explicitely CFRetain/CFRelease so that the garbage
     // collector does not trash the _key.
-    ReadObjectForKey(NSMutableDictionary* dict, id key, Class expectedType) :
-        ReadObjectBase(expectedType), _dict(dict), _key(key)
+    ReadValueForKey(NSMutableDictionary* dict, id key, Class expectedType) :
+        ReadValueBase(expectedType), _dict(dict), _key(key)
     {
         CFRetain(_key);
     }
 
-    virtual ~ReadObjectForKey()
+    virtual ~ReadValueForKey()
     {
         CFRelease(_key);
     }
 
     virtual void
-    invoke(const Ice::ObjectPtr& obj)
+    invoke(const Ice::ValuePtr& obj)
     {
         @try
         {
             if(obj)
             {
-                ICEObject* o = ObjectReaderPtr::dynamicCast(obj)->getObject();
+                ICEObject* o = ValueWrapperPtr::dynamicCast(obj)->getValue();
                 checkType(o);
                 [_dict setObject:o forKey:_key];
             }
@@ -263,34 +259,30 @@ private:
     id _key;
 };
 
-class ExceptionWriter : public Ice::UserExceptionWriter
+class ExceptionWrapper : public Ice::UserException
 {
 public:
 
-    ExceptionWriter(const Ice::CommunicatorPtr& communicator, ICEOutputStream* stream, ICEUserException* ex) :
-        Ice::UserExceptionWriter(communicator),
-        _stream(stream),
-        _ex(ex)
+    ExceptionWrapper(ICEUserException* ex) : _ex(ex)
     {
-
     }
 
     virtual bool
-    usesClasses() const
+    _usesClasses() const
     {
-        return [_ex usesClasses__];
+        return [_ex iceUsesClasses];
     }
 
     virtual std::string
-    ice_name() const
+    ice_id() const
     {
-        return [[_ex ice_name] UTF8String];
+        return [[_ex ice_id] UTF8String];
     }
 
     virtual Ice::UserException*
     ice_clone() const
     {
-        return new ExceptionWriter(*this);
+        return new ExceptionWrapper(*this);
     }
 
     virtual void
@@ -300,97 +292,55 @@ public:
     }
 
     virtual void
-    write(const Ice::OutputStreamPtr& stream) const
+    _write(Ice::OutputStream* s) const
     {
-        [_ex write__:_stream];
-    }
-
-private:
-
-    ICEOutputStream* _stream;
-    ICEUserException* _ex;
-};
-
-class ExceptionReader : public Ice::UserExceptionReader
-{
-public:
-
-    ExceptionReader(const Ice::CommunicatorPtr& communicator, ICEInputStream* stream, ICEUserException* ex) :
-        Ice::UserExceptionReader(communicator),
-        _stream(stream),
-        _ex(ex)
-    {
-    }
-
-    void
-    read(const Ice::InputStreamPtr& stream) const
-    {
-        [_ex read__:_stream];
-    }
-
-    virtual std::string
-    ice_name() const
-    {
-        return [[_ex ice_name] UTF8String];
-    }
-
-    virtual bool
-    usesClasses() const
-    {
-        return [_ex usesClasses__];
-    }
-
-    virtual Ice::UserException*
-    ice_clone() const
-    {
-        assert(false);
-        return 0;
+        [_ex iceWrite:static_cast<ICEOutputStream*>(s->getClosure())];
     }
 
     virtual void
-    ice_throw() const
+    _read(Ice::InputStream* s)
     {
-        throw *this;
+        [_ex iceRead:static_cast<ICEInputStream*>(s->getClosure())];
     }
 
-    ICEUserException* getException() const
+    ICEUserException*
+    getException() const
     {
         return _ex;
     }
 
+protected:
+
+    virtual void _writeImpl(Ice::OutputStream*) const {}
+    virtual void _readImpl(Ice::InputStream*) {}
+
 private:
 
-    ICEInputStream* _stream;
     ICEUserException* _ex;
 };
 
-class UserExceptionReaderFactoryI : public Ice::UserExceptionReaderFactory
+class UserExceptionFactoryI : public Ice::UserExceptionFactory
 {
 public:
 
-    UserExceptionReaderFactoryI(const Ice::CommunicatorPtr& communicator, ICEInputStream* is) :
-        _communicator(communicator),
-        _is(is)
+    UserExceptionFactoryI(NSDictionary* prefixTable) : _prefixTable(prefixTable)
     {
     }
 
-    virtual void createAndThrow(const std::string& typeId) const
+    virtual void createAndThrow(const std::string& typeId)
     {
         ICEUserException* ex = nil;
-        std::string objcId = toObjCSliceId(typeId,
-                                   [[ICECommunicator localObjectWithCxxObject:_communicator.get()] getPrefixTable]);
-        Class c = objc_lookUpClass(objcId.c_str());
+        Class c = objc_lookUpClass(toObjCSliceId(typeId, _prefixTable).c_str());
         if(c != nil)
         {
             ex = [[c alloc] init];
-            throw ExceptionReader(_communicator, _is, ex);
+            throw ExceptionWrapper(ex);
         }
     }
 
 private:
 
-    Ice::CommunicatorPtr _communicator;
-    ICEInputStream* _is;
+    NSDictionary* _prefixTable;
 };
 
 }
@@ -428,20 +378,56 @@ private:
 @end
 
 @implementation ICEInputStream
--(id) initWithCxxObject:(IceUtil::Shared*)cxxObject
+-(id) initWithCxxCommunicator:(Ice::Communicator*)com data:(const std::pair<const Byte*, const Byte*>&)data
 {
-    self = [super initWithCxxObject:cxxObject];
+    self = [super init];
     if(!self)
     {
         return nil;
     }
-    is_ = dynamic_cast<Ice::InputStream*>(cxxObject);
+
+    Ice::InputStream(com, data).swap(stream_);
+    is_ = &stream_;
+    is_->setClosure(self);
+    data_ = nil;
+    prefixTable_ = [[[ICECommunicator localObjectWithCxxObject:com] getPrefixTable] retain];
     return self;
+}
+
+-(id) initWithCommunicator:(id<ICECommunicator>)communicator data:(NSData*)data encoding:(ICEEncodingVersion*)e
+{
+    self = [super init];
+    if(!self)
+    {
+        return nil;
+    }
+    ICECommunicator* com = (ICECommunicator*)communicator;
+    std::pair<const Ice::Byte*, const Ice::Byte*> p((Ice::Byte*)[data bytes], (Ice::Byte*)[data bytes] + [data length]);
+    if(e != nil)
+    {
+        Ice::InputStream([com communicator], [e encodingVersion], p).swap(stream_);
+    }
+    else
+    {
+        Ice::InputStream([com communicator], p).swap(stream_);
+    }
+    is_ = &stream_;
+    is_->setClosure(self);
+    data_ = [data retain];
+    prefixTable_ = [[com getPrefixTable] retain];
+    return self;
+}
+
+-(void) dealloc
+{
+    [data_ release];
+    [prefixTable_ release];
+    [super dealloc];
 }
 
 +(Ice::Object*)createObjectReader:(ICEObject*)obj
 {
-    return new IceObjC::ObjectReader(obj);
+    return new IceObjC::ValueWrapper(obj);
 }
 
 -(Ice::InputStream*) is
@@ -451,17 +437,12 @@ private:
 
 // @protocol ICEInputStream methods
 
--(id<ICECommunicator>) communicator
-{
-    return [ICECommunicator localObjectWithCxxObject:is_->communicator().get()];
-}
-
--(void) sliceObjects:(BOOL)b
+-(void) setSliceValues:(BOOL)b
 {
     NSException* nsex = nil;
     try
     {
-        is_->sliceObjects(b);
+        is_->setSliceValues(b);
     }
     catch(const std::exception& ex)
     {
@@ -934,15 +915,9 @@ private:
     NSException* nsex = nil;
     try
     {
-	Ice::ObjectPrx p = is_->readProxy();
-	if(!p)
-	{
-	     return nil;
-	}
-        else
-        {
-            return [[type alloc] initWithObjectPrx__:p];
-        }
+        Ice::ObjectPrx p;
+        is_->read(p);
+        return p ? [[type alloc] iceInitWithObjectPrx:p] : nil;
     }
     catch(const std::exception& ex)
     {
@@ -951,16 +926,16 @@ private:
     @throw nsex;
     return nil; // Keep the compiler happy.
 }
--(void) readObject:(ICEObject**)object
+-(void) readValue:(ICEObject**)object
 {
-    [self readObject:object expectedType:[ICEObject class]];
+    [self readValue:object expectedType:[ICEObject class]];
 }
--(void) readObject:(ICEObject**)object expectedType:(Class)type
+-(void) readValue:(ICEObject**)object expectedType:(Class)type
 {
     NSException* nsex = nil;
     try
     {
-        is_->readObject(new IceObjC::ReadObject(object, type, true));
+        is_->read(IceObjC::patchFunc, new IceObjC::ReadValue(object, type, true));
     }
     catch(const std::exception& ex)
     {
@@ -971,16 +946,16 @@ private:
         @throw nsex;
     }
 }
--(void) newObject:(ICEObject*ICE_STRONG_QUALIFIER*)object
+-(void) newValue:(ICEObject*ICE_STRONG_QUALIFIER*)object
 {
-    [self newObject:object expectedType:[ICEObject class]];
+    [self newValue:object expectedType:[ICEObject class]];
 }
--(void) newObject:(ICEObject*ICE_STRONG_QUALIFIER*)object expectedType:(Class)type
+-(void) newValue:(ICEObject*ICE_STRONG_QUALIFIER*)object expectedType:(Class)type
 {
     NSException* nsex = nil;
     try
     {
-        is_->readObject(new IceObjC::ReadObject(object, type, false));
+        is_->read(IceObjC::patchFunc, new IceObjC::ReadValue(object, type, false));
     }
     catch(const std::exception& ex)
     {
@@ -992,12 +967,12 @@ private:
     }
 }
 
--(NSMutableArray*) readObjectSeq:(Class)type
+-(NSMutableArray*) readValueSeq:(Class)type
 {
-    return [[self newObjectSeq:(Class)type] autorelease];
+    return [[self newValueSeq:(Class)type] autorelease];
 }
 
--(NSMutableArray*) newObjectSeq:(Class)type
+-(NSMutableArray*) newValueSeq:(Class)type
 {
     ICEInt sz = [self readAndCheckSeqSize:1];
     NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:sz];
@@ -1009,7 +984,7 @@ private:
         for(i = 0; i < sz; i++)
         {
             [arr addObject:null];
-            is_->readObject(new IceObjC::ReadObjectAtIndex(arr, i, type));
+            is_->read(IceObjC::patchFunc, new IceObjC::ReadValueAtIndex(arr, i, type));
         }
     }
     catch(const std::exception& ex)
@@ -1024,12 +999,12 @@ private:
     return arr;
 }
 
--(NSMutableDictionary*) readObjectDict:(Class)keyHelper expectedType:(Class)type
+-(NSMutableDictionary*) readValueDict:(Class)keyHelper expectedType:(Class)type
 {
-    return [[self newObjectDict:(Class)keyHelper expectedType:(Class)type] autorelease];
+    return [[self newValueDict:(Class)keyHelper expectedType:(Class)type] autorelease];
 }
 
--(NSMutableDictionary*) newObjectDict:(Class)keyHelper expectedType:(Class)type
+-(NSMutableDictionary*) newValueDict:(Class)keyHelper expectedType:(Class)type
 {
     ICEInt sz = [self readAndCheckSeqSize:[keyHelper minWireSize] + 1];
     NSMutableDictionary* dictionary = [[NSMutableDictionary alloc] initWithCapacity:sz];
@@ -1049,7 +1024,7 @@ private:
         NSException* nsex = nil;
         try
         {
-            is_->readObject(new IceObjC::ReadObjectForKey(dictionary, key, type));
+            is_->read(IceObjC::patchFunc, new IceObjC::ReadValueForKey(dictionary, key, type));
         }
         catch(const std::exception& ex)
         {
@@ -1078,9 +1053,9 @@ private:
     id obj = nil;
     @try
     {
-	while(sz-- > 0)
-	{
-	    obj = [helper readRetained:self];
+        while(sz-- > 0)
+        {
+            obj = [helper readRetained:self];
             if(obj == nil)
             {
                 [arr addObject:[NSNull null]];
@@ -1090,12 +1065,12 @@ private:
                 [arr addObject:obj];
                 [obj release];
             }
-	}
+        }
     }
     @catch(id ex)
     {
         [arr release];
-	[obj release];
+        [obj release];
         @throw ex;
     }
     return arr;
@@ -1114,10 +1089,10 @@ private:
     id value = nil;
     @try
     {
-	while(sz-- > 0)
-	{
-	    key = [helper.key readRetained:self];
-	    value = [helper.value readRetained:self];
+        while(sz-- > 0)
+        {
+            key = [helper.key readRetained:self];
+            value = [helper.value readRetained:self];
             if(value == nil)
             {
                 [dictionary setObject:[NSNull null] forKey:key];
@@ -1127,14 +1102,14 @@ private:
                 [dictionary setObject:value forKey:key];
                 [value release];
             }
-	    [key release];
-	}
+            [key release];
+        }
     }
     @catch(id ex)
     {
-	[dictionary release];
-	[key release];
-	[value release];
+        [dictionary release];
+        [key release];
+        [value release];
         @throw ex;
     }
     return dictionary;
@@ -1164,13 +1139,11 @@ private:
     NSException* nsex = nil;
     try
     {
-        Ice::UserExceptionReaderFactoryPtr factory =
-            new IceObjC::UserExceptionReaderFactoryI(is_->communicator().get(), self);
-        is_->throwException(factory);
+        is_->throwException(new IceObjC::UserExceptionFactoryI(prefixTable_));
     }
-    catch(const IceObjC::ExceptionReader& reader)
+    catch(const IceObjC::ExceptionWrapper& e)
     {
-        ex = reader.getException();
+        ex = e.getException();
         @throw [ex autorelease]; // NOTE: exceptions are always auto-released, no need for the caller to do it.
     }
     catch(const std::exception& ex)
@@ -1180,12 +1153,12 @@ private:
     }
 }
 
--(void) startObject
+-(void) startValue
 {
     NSException* nsex = nil;
     try
     {
-        is_->startObject();
+        is_->startValue();
     }
     catch(const std::exception& ex)
     {
@@ -1197,12 +1170,12 @@ private:
     }
 }
 
--(id<ICESlicedData>) endObject:(BOOL)preserve
+-(id<ICESlicedData>) endValue:(BOOL)preserve
 {
     NSException* nsex = nil;
     try
     {
-        Ice::SlicedDataPtr slicedData = is_->endObject(preserve);
+        Ice::SlicedDataPtr slicedData = is_->endValue(preserve);
         return slicedData ? [[ICESlicedData alloc] initWithSlicedData:slicedData.get()] : nil;
     }
     catch(const std::exception& ex)
@@ -1338,6 +1311,24 @@ private:
     }
 }
 
+-(ICEEncodingVersion*) skipEmptyEncapsulation
+{
+    NSException* nsex = nil;
+    try
+    {
+        return [ICEEncodingVersion encodingVersionWithEncodingVersion:is_->skipEmptyEncapsulation()];
+    }
+    catch(const std::exception& ex)
+    {
+        nsex = toObjCException(ex);
+    }
+    if(nsex != nil)
+    {
+        @throw nsex;
+    }
+    return nil; // Keep the compiler happy.
+}
+
 -(ICEEncodingVersion*) skipEncapsulation
 {
     NSException* nsex = nil;
@@ -1361,12 +1352,12 @@ private:
     return [ICEEncodingVersion encodingVersionWithEncodingVersion:is_->getEncoding()];
 }
 
--(void) readPendingObjects
+-(void) readPendingValues
 {
     NSException* nsex = nil;
     try
     {
-        is_->readPendingObjects();
+        is_->readPendingValues();
     }
     catch(const std::exception& ex)
     {
@@ -1383,7 +1374,8 @@ private:
     NSException* nsex = nil;
     try
     {
-        is_->rewind();
+        is_->pos(0);
+        is_->clear();
     }
     catch(const std::exception& ex)
     {
@@ -1394,6 +1386,7 @@ private:
         @throw nsex;
     }
 }
+
 
 -(void) skip:(ICEInt)sz
 {
@@ -1432,14 +1425,51 @@ private:
 @end
 
 @implementation ICEOutputStream
--(id) initWithCxxObject:(IceUtil::Shared*)cxxObject
+-(id) initWithCxxCommunicator:(Ice::Communicator*)com
 {
-    self = [super initWithCxxObject:cxxObject];
+    self = [super init];
     if(!self)
     {
         return nil;
     }
-    os_ = dynamic_cast<Ice::OutputStream*>(cxxObject);
+    Ice::OutputStream(com).swap(stream_);
+    os_ = &stream_;
+    os_->setClosure(self);
+    objectWriters_ = 0;
+    return self;
+}
+
+-(id) initWithCxxStream:(Ice::OutputStream*)stream
+{
+    self = [super init];
+    if(!self)
+    {
+        return nil;
+    }
+    os_ = stream;
+    os_->setClosure(self);
+    objectWriters_ = 0;
+    return self;
+}
+
+-(id) initWithCommunicator:(id<ICECommunicator>)communicator encoding:(ICEEncodingVersion*)e
+{
+    self = [super init];
+    if(!self)
+    {
+        return nil;
+    }
+    ICECommunicator* com = (ICECommunicator*)communicator;
+    if(e != nil)
+    {
+        Ice::OutputStream([com communicator], [e encodingVersion]).swap(stream_);
+    }
+    else
+    {
+        Ice::OutputStream([com communicator]).swap(stream_);
+    }
+    os_ = &stream_;
+    os_->setClosure(self);
     objectWriters_ = 0;
     return self;
 }
@@ -1459,11 +1489,6 @@ private:
 }
 
 // @protocol ICEOutputStream methods
-
--(id<ICECommunicator>) communicator
-{
-    return [ICECommunicator localObjectWithCxxObject:os_->communicator().get()];
-}
 
 -(void)writeBool:(BOOL)v
 {
@@ -1487,8 +1512,7 @@ private:
     NSException* nsex = nil;
     try
     {
-        v == nil ? os_->writeSize(0)
-	         : os_->write((bool*)[v bytes], (bool*)[v bytes] + [v length] / sizeof(BOOL));
+        v == nil ? os_->writeSize(0) : os_->write((bool*)[v bytes], (bool*)[v bytes] + [v length] / sizeof(BOOL));
     }
     catch(const std::exception& ex)
     {
@@ -1522,8 +1546,7 @@ private:
     NSException* nsex = nil;
     try
     {
-        v == nil ? os_->writeSize(0)
-                 : os_->write((ICEByte*)[v bytes], (ICEByte*)[v bytes] + [v length]);
+        v == nil ? os_->writeSize(0) : os_->write((ICEByte*)[v bytes], (ICEByte*)[v bytes] + [v length]);
     }
     catch(const std::exception& ex)
     {
@@ -1699,7 +1722,7 @@ private:
     {
         v == nil ? os_->writeSize(0)
                  : os_->write((ICEDouble*)[v bytes],
-		                      (ICEDouble*)[v bytes] + [v length] / sizeof(ICEDouble));
+                                      (ICEDouble*)[v bytes] + [v length] / sizeof(ICEDouble));
     }
     catch(const std::exception& ex)
     {
@@ -1716,7 +1739,7 @@ private:
     NSException* nsex = nil;
     try
     {
-	os_->write(fromNSString(v));
+        os_->write(fromNSString(v));
     }
     catch(const std::exception& ex)
     {
@@ -1733,8 +1756,8 @@ private:
     NSException* nsex = nil;
     try
     {
-	std::vector<std::string> s;
-	os_->write(fromNSArray(v, s));
+        std::vector<std::string> s;
+        os_->write(fromNSArray(v, s));
     }
     catch(const std::exception& ex)
     {
@@ -1757,7 +1780,7 @@ private:
     [self writeSize:[arr count]];
     for(id i in arr)
     {
-	[helper write:(i == [NSNull null] ? nil : i) stream:self];
+        [helper write:(i == [NSNull null] ? nil : i) stream:self];
     }
 }
 
@@ -1766,7 +1789,7 @@ private:
     if(dictionary == nil)
     {
         [self writeSize:0];
-	return;
+        return;
     }
 
     [self writeSize:[dictionary count]];
@@ -1774,13 +1797,13 @@ private:
     id key;
     while((key = [e nextObject]))
     {
-	if(key == [NSNull null])
-	{
-	    @throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
-	}
-	[helper.key write:key stream:self];
-	NSObject *obj = [dictionary objectForKey:key];
-	[helper.value write:(obj == [NSNull null] ? nil : obj) stream:self];
+        if(key == [NSNull null])
+        {
+            @throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
+        }
+        [helper.key write:key stream:self];
+        NSObject *obj = [dictionary objectForKey:key];
+        [helper.value write:(obj == [NSNull null] ? nil : obj) stream:self];
     }
 }
 
@@ -1899,7 +1922,7 @@ private:
     NSException* nsex = nil;
     try
     {
-        os_->writeProxy([(ICEObjectPrx*)v objectPrx__]);
+        os_->write(Ice::ObjectPrx([(ICEObjectPrx*)v iceObjectPrx]));
     }
     catch(const std::exception& ex)
     {
@@ -1911,18 +1934,18 @@ private:
     }
 }
 
--(void) writeObject:(ICEObject*)v
+-(void) writeValue:(ICEObject*)v
 {
     NSException* nsex = nil;
     try
     {
         if(v == nil)
         {
-            os_->writeObject(0);
+            os_->write(Ice::ValuePtr());
         }
         else
         {
-            os_->writeObject([self addObject:v]);
+            os_->write(Ice::ValuePtr([self addObject:v]));
         }
     }
     catch(const std::exception& ex)
@@ -1935,7 +1958,7 @@ private:
     }
 }
 
--(void) writeObjectSeq:(NSArray*)arr
+-(void) writeValueSeq:(NSArray*)arr
 {
     if(arr == nil)
     {
@@ -1946,16 +1969,16 @@ private:
     [self writeSize:[arr count]];
     for(id i in arr)
     {
-        [self writeObject:(i == [NSNull null] ? nil : i)];
+        [self writeValue:(i == [NSNull null] ? nil : i)];
     }
 }
 
--(void) writeObjectDict:(NSDictionary*)dictionary helper:(Class)helper
+-(void) writeValueDict:(NSDictionary*)dictionary helper:(Class)helper
 {
     if(dictionary == nil)
     {
         [self writeSize:0];
-	return;
+        return;
     }
 
     [self writeSize:[dictionary count]];
@@ -1963,34 +1986,34 @@ private:
     id key;
     while((key = [e nextObject]))
     {
-	if(key == [NSNull null])
-	{
-	    @throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
-	}
-	[helper write:key stream:self];
-	id obj = [dictionary objectForKey:key];
-        [self writeObject:(obj == [NSNull null] ? nil : obj)];
+        if(key == [NSNull null])
+        {
+            @throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
+        }
+        [helper write:key stream:self];
+        id obj = [dictionary objectForKey:key];
+        [self writeValue:(obj == [NSNull null] ? nil : obj)];
     }
 }
 
 -(void) writeException:(ICEUserException*)ex
 {
-    IceObjC::ExceptionWriter writer(os_->communicator().get(), self, ex);
+    IceObjC::ExceptionWrapper writer(ex);
     os_->writeException(writer);
 }
 
--(void) startObject:(id<ICESlicedData>)slicedData
+-(void) startValue:(id<ICESlicedData>)slicedData
 {
     NSException* nsex = nil;
     try
     {
         if(slicedData != nil)
         {
-            os_->startObject([self writeSlicedData:slicedData]);
+            os_->startValue([self writeSlicedData:slicedData]);
         }
         else
         {
-            os_->startObject(0);
+            os_->startValue(0);
         }
     }
     catch(const std::exception& ex)
@@ -2003,12 +2026,12 @@ private:
     }
 }
 
--(void) endObject
+-(void) endValue
 {
     NSException* nsex = nil;
     try
     {
-        os_->endObject();
+        os_->endValue();
     }
     catch(const std::exception& ex)
     {
@@ -2151,12 +2174,12 @@ private:
     return [ICEEncodingVersion encodingVersionWithEncodingVersion:os_->getEncoding()];
 }
 
--(void) writePendingObjects
+-(void) writePendingValues
 {
     NSException* nsex = nil;
     try
     {
-        os_->writePendingObjects();
+        os_->writePendingValues();
     }
     catch(const std::exception& ex)
     {
@@ -2206,7 +2229,8 @@ private:
     NSException* nsex = nil;
     try
     {
-        os_->reset(clearBuffer);
+        os_->clear();
+        os_->resize(0);
     }
     catch(const std::exception& ex)
     {
@@ -2221,23 +2245,23 @@ private:
 -(Ice::Object*) addObject:(ICEObject*)object
 {
     //
-    // Ice::ObjectWriter is a subclass of Ice::Object that wraps an Objective-C object for marshaling.
+    // Ice::ValueWrapper is a subclass of Ice::Object that wraps an Objective-C object for marshaling.
     // It is possible that this Objective-C object has already been marshaled, therefore we first must
-    // check the object map to see if this object is present. If so, we use the existing ObjectWriter,
+    // check the object map to see if this object is present. If so, we use the existing ValueWrapper,
     // otherwise we create a new one.
     //
     if(!objectWriters_)
     {
-        objectWriters_ = new std::map<ICEObject*, Ice::ObjectPtr>();
+        objectWriters_ = new std::map<ICEObject*, Ice::ValuePtr>();
     }
-    std::map<ICEObject*, Ice::ObjectPtr>::const_iterator p = objectWriters_->find(object);
+    std::map<ICEObject*, Ice::ValuePtr>::const_iterator p = objectWriters_->find(object);
     if(p != objectWriters_->end())
     {
         return p->second.get();
     }
     else
     {
-        Ice::ObjectWriterPtr writer = new IceObjC::ObjectWriter(object, self);
+        IceObjC::ValueWrapperPtr writer = new IceObjC::ValueWrapper(object);
         objectWriters_->insert(std::make_pair(object, writer));
         return writer.get();
     }
@@ -2257,16 +2281,16 @@ private:
         info->hasOptionalMembers = (*p)->hasOptionalMembers;
         info->isLastSlice = (*p)->isLastSlice;
 
-        for(std::vector<Ice::ObjectPtr>::const_iterator q = (*p)->objects.begin(); q != (*p)->objects.end(); ++q)
+        for(std::vector<Ice::ValuePtr>::const_iterator q = (*p)->instances.begin(); q != (*p)->instances.end(); ++q)
         {
             if(*q)
             {
-                assert(IceObjC::ObjectReaderPtr::dynamicCast(*q));
-                info->objects.push_back([self addObject:IceObjC::ObjectReaderPtr::dynamicCast(*q)->getObject()]);
+                assert(IceObjC::ValueWrapperPtr::dynamicCast(*q));
+                info->instances.push_back([self addObject:IceObjC::ValueWrapperPtr::dynamicCast(*q)->getValue()]);
             }
             else
             {
-                info->objects.push_back(0);
+                info->instances.push_back(0);
             }
         }
         slices.push_back(info);
@@ -2290,17 +2314,17 @@ private:
 {
     NSAssert(NO, @"requires override");
 }
-+(id) readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id) readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     NSAssert(NO, @"requires override");
     return nil;
 }
-+(id) readOpt:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id) readOptional:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
-    return [[self readOptRetained:stream tag:tag] autorelease];
+    return [[self readOptionalRetained:stream tag:tag] autorelease];
     return nil;
 }
-+(void) writeOpt:(id)obj stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)obj stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     NSAssert(NO, @"requires override");
 }
@@ -2320,11 +2344,11 @@ private:
 {
     if(obj == nil)
     {
-	@throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
+        @throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
     }
     [stream writeBool:[obj boolValue]];
 }
-+(id)readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id)readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatF1])
     {
@@ -2332,7 +2356,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     BOOL value;
     if([ICEOptionalGetter getBool:v value:&value] && [stream writeOptional:tag format:ICEOptionalFormatF1])
@@ -2355,11 +2379,11 @@ private:
 {
     if(obj == nil)
     {
-	@throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
+        @throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
     }
     [stream writeByte:[obj unsignedCharValue]];
 }
-+(id)readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id)readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatF1])
     {
@@ -2367,7 +2391,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     ICEByte value;
     if([ICEOptionalGetter getByte:v value:&value] && [stream writeOptional:tag format:ICEOptionalFormatF1])
@@ -2390,11 +2414,11 @@ private:
 {
     if(obj == nil)
     {
-	@throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
+        @throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
     }
     [stream writeShort:[obj shortValue]];
 }
-+(id)readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id)readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatF2])
     {
@@ -2402,7 +2426,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     ICEShort value;
     if([ICEOptionalGetter getShort:v value:&value] && [stream writeOptional:tag format:ICEOptionalFormatF2])
@@ -2425,11 +2449,11 @@ private:
 {
     if(obj == nil)
     {
-	@throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
+        @throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
     }
     [stream writeInt:[obj intValue]];
 }
-+(id)readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id)readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatF4])
     {
@@ -2437,7 +2461,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     ICEInt value;
     if([ICEOptionalGetter getInt:v value:&value] && [stream writeOptional:tag format:ICEOptionalFormatF4])
@@ -2460,11 +2484,11 @@ private:
 {
     if(obj == nil)
     {
-	@throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
+        @throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
     }
     [stream writeLong:[obj longValue]];
 }
-+(id)readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id)readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatF8])
     {
@@ -2472,7 +2496,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     ICELong value;
     if([ICEOptionalGetter getLong:v value:&value] && [stream writeOptional:tag format:ICEOptionalFormatF8])
@@ -2495,11 +2519,11 @@ private:
 {
     if(obj == nil)
     {
-	@throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
+        @throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
     }
     [stream writeFloat:[obj floatValue]];
 }
-+(id)readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id)readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatF4])
     {
@@ -2507,7 +2531,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     ICEFloat value;
     if([ICEOptionalGetter getFloat:v value:&value] && [stream writeOptional:tag format:ICEOptionalFormatF4])
@@ -2530,11 +2554,11 @@ private:
 {
     if(obj == nil)
     {
-	@throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
+        @throw [ICEMarshalException marshalException:__FILE__ line:__LINE__ reason:@"illegal NSNull value"];
     }
     [stream writeDouble:[obj doubleValue]];
 }
-+(id)readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id)readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatF8])
     {
@@ -2542,7 +2566,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     ICEDouble value;
     if([ICEOptionalGetter getDouble:v value:&value] && [stream writeOptional:tag format:ICEOptionalFormatF8])
@@ -2569,7 +2593,7 @@ private:
     }
     [stream writeString:obj];
 }
-+(id)readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id)readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatVSize])
     {
@@ -2577,7 +2601,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     NSString* value;
     if([ICEOptionalGetter get:v value:&value type:[NSString class]] &&
@@ -2605,7 +2629,7 @@ private:
     }
     [stream writeEnumerator:[obj intValue] min:[self getMinValue] max:[self getMaxValue]];
 }
-+(id)readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id)readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatSize])
     {
@@ -2613,7 +2637,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     ICEInt value;
     if([ICEOptionalGetter getInt:v value:&value] && [stream writeOptional:tag format:ICEOptionalFormatSize])
@@ -2645,22 +2669,22 @@ private:
     // objects are read when readPendingObjects is called.
     //
     ICEObject* obj;
-    [stream newObject:&obj];
+    [stream newValue:&obj];
     return (id)obj;
 }
 +(void)readRetained:(ICEObject**)v stream:(id<ICEInputStream>)stream
 {
-    [stream newObject:v];
+    [stream newValue:v];
 }
 +(void)read:(ICEObject**)v stream:(id<ICEInputStream>)stream
 {
-    [stream readObject:v];
+    [stream readValue:v];
 }
 +(void) write:(id)obj stream:(id<ICEOutputStream>)stream
 {
-    [stream writeObject:obj];
+    [stream writeValue:obj];
 }
-+(id)readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id)readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatClass])
     {
@@ -2668,7 +2692,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     ICEObject* value;
     if([ICEOptionalGetter get:v value:&value type:[ICEObject class]] &&
@@ -2677,7 +2701,7 @@ private:
         [self write:value stream:stream];
     }
 }
-+(void)readOptRetained:(id *)v stream:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(void)readOptionalRetained:(id *)v stream:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatClass])
     {
@@ -2688,7 +2712,7 @@ private:
         *v = ICENone;
     }
 }
-+(void)readOpt:(id *)v stream:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(void)readOptional:(id *)v stream:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatClass])
     {
@@ -2714,7 +2738,7 @@ private:
 {
     [stream writeProxy:obj];
 }
-+(id)readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id)readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatFSize])
     {
@@ -2722,7 +2746,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     ICEObjectPrx* value;
     if([ICEOptionalGetter get:v value:&value type:[ICEObjectPrx class]] &&
@@ -2755,7 +2779,7 @@ private:
 
     @try
     {
-        [p read__:stream];
+        [p iceRead:stream];
     }
     @catch(NSException *ex)
     {
@@ -2775,7 +2799,7 @@ private:
         obj = [[self getType] new];
         @try
         {
-            [obj write__:stream];
+            [obj iceWrite:stream];
         }
         @finally
         {
@@ -2784,10 +2808,10 @@ private:
     }
     else
     {
-        [obj write__:stream];
+        [obj iceWrite:stream];
     }
 }
-+(id) readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id) readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     Class helper = [self getOptionalHelper];
     if([stream readOptional:tag format:[helper optionalFormat]])
@@ -2796,7 +2820,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)s tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)s tag:(ICEInt)tag
 {
     Class helper = [self getOptionalHelper];
     NSObject* a;
@@ -2831,7 +2855,7 @@ private:
 {
     [stream writeSequence:obj helper:[self getElementHelper]];
 }
-+(id) readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id) readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     Class helper = [self getOptionalHelper];
     if([stream readOptional:tag format:[helper optionalFormat]])
@@ -2840,7 +2864,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)s tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)s tag:(ICEInt)tag
 {
     Class helper = [self getOptionalHelper];
     NSArray* a;
@@ -2879,7 +2903,7 @@ private:
 {
     NSAssert(NO, @"write requires override");
 }
-+(id) readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id) readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatVSize])
     {
@@ -2887,7 +2911,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     NSData* a;
     if([ICEOptionalGetter get:v value:&a type:[NSData class]] &&
@@ -2919,7 +2943,7 @@ private:
 {
     [stream writeBoolSeq:obj];
 }
-+(id) readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id) readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatVSize])
     {
@@ -2927,7 +2951,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     NSData* a;
     if([ICEOptionalGetter get:v value:&a type:[NSData class]] &&
@@ -2951,7 +2975,7 @@ private:
 {
     [stream writeByteSeq:obj];
 }
-+(id) readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id) readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     if([stream readOptional:tag format:ICEOptionalFormatVSize])
     {
@@ -2959,7 +2983,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)stream tag:(ICEInt)tag
 {
     NSData* a;
     if([ICEOptionalGetter get:v value:&a type:[NSData class]] &&
@@ -3082,11 +3106,11 @@ private:
 @implementation ICEObjectSequenceHelper
 +(id) readRetained:(id<ICEInputStream>)stream
 {
-    return [stream newObjectSeq:[ICEObject class]];
+    return [stream newValueSeq:[ICEObject class]];
 }
 +(void) write:(id)obj stream:(id<ICEOutputStream>)stream
 {
-    [stream writeObjectSeq:obj];
+    [stream writeValueSeq:obj];
 }
 +(Class) getElementHelper
 {
@@ -3118,7 +3142,7 @@ private:
 {
     [stream writeDictionary:obj helper:[self getKeyValueHelper]];
 }
-+(id) readOptRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
++(id) readOptionalRetained:(id<ICEInputStream>)stream tag:(ICEInt)tag
 {
     Class helper = [self getOptionalHelper];
     if([stream readOptional:tag format:[helper optionalFormat]])
@@ -3127,7 +3151,7 @@ private:
     }
     return ICENone;
 }
-+(void) writeOpt:(id)v stream:(id<ICEOutputStream>)s tag:(ICEInt)tag
++(void) writeOptional:(id)v stream:(id<ICEOutputStream>)s tag:(ICEInt)tag
 {
     Class helper = [self getOptionalHelper];
     NSDictionary* a;
@@ -3168,6 +3192,11 @@ private:
 +(void) write:(id)obj stream:(id<ICEOutputStream>)stream
 {
     NSAssert(NO, @"ICEObjectDictionaryHelper write requires override");
+}
+
++(Class) getOptionalHelper
+{
+    return [ICEVarLengthOptionalHelper class];
 }
 @end
 

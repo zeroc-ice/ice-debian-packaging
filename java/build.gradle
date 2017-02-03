@@ -15,7 +15,6 @@ subprojects {
     apply plugin: 'idea'
     apply from: "$rootProject.projectDir/gradle/ice.gradle"
 
-
     repositories {
         if (slice.jarDir) {
             flatDir {
@@ -23,15 +22,21 @@ subprojects {
                 dirs slice.jarDir
             }
         }
-        
+
+        if(this.devRepo) {
+            maven {
+                url this.devRepo
+            }
+        }
+
         if(new File("/usr/share/maven-repo").exists()) {
             maven {
                 url "/usr/share/maven-repo"
             }
         }
-        
+
         mavenCentral()
-        
+
         maven {
             url 'https://repo.zeroc.com/nexus/content/repositories/thirdparty'
         }
@@ -44,7 +49,8 @@ subprojects {
     }
 
     tasks.withType(JavaCompile) {
-        options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-Xlint:-options"
+        options.compilerArgs << "-Xlint:unchecked" << "-Xlint:-options"
+        options.encoding = "UTF-8"
     }
 
     idea.module {
@@ -55,11 +61,11 @@ subprojects {
 
 task dist()
 dist.dependsOn(project(":ice").assemble)
-dist.dependsOn(project(":freeze").assemble) 
 dist.dependsOn(project(":glacier2").assemble)
 dist.dependsOn(project(":icegrid").assemble)
-dist.dependsOn(project(":icebox").assemble) 
-dist.dependsOn(project(":icediscovery").assemble) 
+dist.dependsOn(project(":icebox").assemble)
+dist.dependsOn(project(":icediscovery").assemble)
+dist.dependsOn(project(":icelocatordiscovery").assemble)
 dist.dependsOn(project(":icepatch2").assemble)
 dist.dependsOn(project(":icestorm").assemble)
 dist.dependsOn(project(":IceGridGUI").assemble)
@@ -69,5 +75,5 @@ dist.dependsOn(project(":IceGridGUI").assemble)
 // the version of gradle needed to build Ice.
 //
 task wrapper(type: Wrapper) {
-    gradleVersion = "2.6"
+    gradleVersion = "2.14"
 }

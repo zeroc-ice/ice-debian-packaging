@@ -21,23 +21,23 @@
 namespace Ice
 {
 
-typedef Ice::Plugin* (*PLUGIN_FACTORY)(const ::Ice::CommunicatorPtr&, const std::string&, const ::Ice::StringSeq&);
+typedef Ice::Plugin* (*PluginFactory)(const ::Ice::CommunicatorPtr&, const std::string&, const ::Ice::StringSeq&);
 
 class PluginManagerI : public PluginManager, public IceUtil::Mutex
 {
 public:
 
-    static void registerPluginFactory(const std::string&, PLUGIN_FACTORY, bool);
+    static void registerPluginFactory(const std::string&, PluginFactory, bool);
 
     virtual void initializePlugins();
     virtual StringSeq getPlugins();
     virtual PluginPtr getPlugin(const std::string&);
     virtual void addPlugin(const std::string&, const PluginPtr&);
     virtual void destroy();
+    PluginManagerI(const CommunicatorPtr&, const IceInternal::DynamicLibraryListPtr&);
 
 private:
 
-    PluginManagerI(const CommunicatorPtr&, const IceInternal::DynamicLibraryListPtr&);
     friend class IceInternal::Instance;
 
     void loadPlugins(int&, char*[]);

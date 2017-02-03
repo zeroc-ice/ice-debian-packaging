@@ -13,13 +13,13 @@
 #include <IceUtil/Mutex.h>
 #include <IceStorm/IceStorm.h>
 #include <IceGrid/Internal.h>
-#include <IceGrid/Observer.h>
+#include <IceGrid/Registry.h>
 #include <set>
 
 namespace IceGrid
 {
 
-class ObserverTopic : public IceUtil::Monitor<IceUtil::Mutex>, virtual public Ice::Object
+class ObserverTopic : public IceUtil::Monitor<IceUtil::Mutex>, public virtual Ice::Object
 {
 public:
 

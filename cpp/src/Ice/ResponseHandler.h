@@ -16,19 +16,28 @@
 #include <Ice/Config.h>
 #include <Ice/LocalException.h>
 #include <Ice/ResponseHandlerF.h>
+#include <Ice/VirtualShared.h>
+
+namespace Ice
+{
+
+class OutputStream;
+
+}
 
 namespace IceInternal
 {
 
-class BasicStream;
-
-class ResponseHandler : virtual public ::IceUtil::Shared
+class ResponseHandler :
+#ifdef ICE_CPP11_MAPPING
+        public EnableSharedFromThis<ResponseHandler>
+#else
+        public virtual IceUtil::Shared
+#endif
 {
 public:
 
-    virtual ~ResponseHandler();
-
-    virtual void sendResponse(Ice::Int, BasicStream*, Ice::Byte, bool) = 0;
+    virtual void sendResponse(Ice::Int, Ice::OutputStream*, Ice::Byte, bool) = 0;
     virtual void sendNoResponse() = 0;
     virtual bool systemException(Ice::Int, const Ice::SystemException&, bool) = 0;
     virtual void invokeException(Ice::Int, const Ice::LocalException&, int, bool) = 0;

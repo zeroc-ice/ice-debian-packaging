@@ -20,12 +20,8 @@ namespace Ice
     /// <summary>
     /// Encapsulates an optional value. Instances of this type are immutable.
     /// </summary>
-#if SILVERLIGHT
-    public struct Optional<T>
-#else
     [Serializable]
     public struct Optional<T> : ISerializable
-#endif
     {
         /// <summary>
         /// Creates an optional value whose state is unset.
@@ -54,7 +50,6 @@ namespace Ice
             _isSet = v._isSet;
         }
 
-#if !SILVERLIGHT
         /// <summary>
         /// Initializes a new instance of the exception with serialized data.
         /// </summary>
@@ -72,7 +67,6 @@ namespace Ice
                 _value = default(T);
             }
         }
-#endif
 
         /// <summary>
         /// Conversion operator to the underlying type; a cast is required. An exception
@@ -112,7 +106,7 @@ namespace Ice
             {
                 if(!_isSet)
                 {
-                    throw new System.InvalidOperationException();
+                    throw new InvalidOperationException();
                 }
                 return _value;
             }
@@ -132,7 +126,7 @@ namespace Ice
 
         public override bool Equals(object other)
         {
-            if(object.ReferenceEquals(this, other))
+            if(ReferenceEquals(this, other))
             {
                 return true;
             }
@@ -175,7 +169,6 @@ namespace Ice
             }
         }
 
-#if !SILVERLIGHT
         /// <summary>
         /// Serializes an optional value.
         /// </summary>
@@ -189,7 +182,6 @@ namespace Ice
                 info.AddValue("value", _value, typeof(T));
             }
         }
-#endif
 
         private T _value;
         private bool _isSet;
@@ -198,23 +190,22 @@ namespace Ice
     /// <summary>
     /// Handles callbacks for an optional object parameter.
     /// </summary>
-    public class OptionalPatcher<T> : IceInternal.Patcher
-        where T : Ice.Object
+    public class OptionalPatcher<T> where T : Ice.Value
     {
         /// <summary>
         /// Instantiates the class with the given optional.
         /// </summary>
         /// <param name="type">The Slice type ID corresponding to the formal type.</param>
-        public OptionalPatcher(string type) :
-            base(type)
+        public OptionalPatcher(string type)
         {
+            _type = type;
         }
 
         /// <summary>
         /// Sets the Ice object of the optional to the passed instance.
         /// </summary>
         /// <param name="v">The new object for the optional.</param>
-        public override void patch(Ice.Object v)
+        public void patch(Ice.Value v)
         {
             if(v == null || typeof(T).IsAssignableFrom(v.GetType()))
             {
@@ -227,11 +218,11 @@ namespace Ice
                 // However, when v is null, the optional might be cleared, which
                 // is not the result we want.
                 //
-                this.value = new Optional<T>((T)v);
+                value = new Optional<T>((T)v);
             }
             else
             {
-                IceInternal.Ex.throwUOE(type(), v.ice_id());
+                IceInternal.Ex.throwUOE(_type, v.ice_id());
             }
         }
 
@@ -239,6 +230,7 @@ namespace Ice
         /// The target optional.
         /// </summary>
         public Optional<T> value = new Optional<T>();
+        private string _type;
     }
 
     /// <summary>

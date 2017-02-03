@@ -23,7 +23,7 @@ class RegistryPluginI : public Ice::Plugin
 public:
 
     RegistryPluginI(const Ice::CommunicatorPtr&);
-    
+
     virtual void initialize();
     virtual void destroy();
 
@@ -40,7 +40,7 @@ public:
     {
     }
 
-    virtual Ice::StringSeq 
+    virtual Ice::StringSeq
     filter(const string& id, const Ice::StringSeq& adpts, const Ice::ConnectionPtr&, const Ice::Context& ctx)
     {
         if(_testFacade)
@@ -53,7 +53,10 @@ public:
                     test(_facade->getApplicationInfo(_facade->getAdapterApplication(*p)).descriptor.name == "Test");
                     test(_facade->getServerInfo(_facade->getAdapterServer(*p)).application == "Test");
                     test(_facade->getNodeInfo(_facade->getAdapterNode(*p)).name == "localnode");
+#ifndef _AIX
+                    // On AIX, icegridnode needs read permissions on /dev/kmem
                     test(_facade->getNodeLoad(_facade->getAdapterNode(*p)).avg1 >= 0.0);
+#endif
                     test(_facade->getAdapterInfo(*p)[0].replicaGroupId == id);
                     test(_facade->getPropertyForAdapter(*p, "Identity") == id);
                 }
@@ -95,9 +98,9 @@ public:
 
     TypeFilterI(const RegistryPluginFacadePtr& facade) : _facade(facade)
     {
-    } 
+    }
 
-    virtual Ice::ObjectProxySeq 
+    virtual Ice::ObjectProxySeq
     filter(const string& type, const Ice::ObjectProxySeq& objects, const Ice::ConnectionPtr&, const Ice::Context& ctx)
     {
         Ice::Context::const_iterator p = ctx.find("server");
@@ -127,12 +130,12 @@ class ExcludeReplicaGroupFilterI : public IceGrid::ReplicaGroupFilter
 {
 public:
 
-    ExcludeReplicaGroupFilterI(const RegistryPluginFacadePtr& facade, const string& exclude) : 
+    ExcludeReplicaGroupFilterI(const RegistryPluginFacadePtr& facade, const string& exclude) :
         _facade(facade), _exclude(exclude)
     {
     }
 
-    virtual Ice::StringSeq 
+    virtual Ice::StringSeq
     filter(const string& id, const Ice::StringSeq& adapters, const Ice::ConnectionPtr& con, const Ice::Context& ctx)
     {
         Ice::Context::const_iterator p = ctx.find("server");

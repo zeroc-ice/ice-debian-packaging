@@ -12,6 +12,7 @@
 #include <Ice/Properties.h>
 
 using namespace std;
+using namespace Ice;
 using namespace IceInternal;
 
 IceUtil::Shared* IceInternal::upCast(BatchRequestQueue* p) { return p; }
@@ -25,7 +26,7 @@ class BatchRequestI : public Ice::BatchRequest
 {
 public:
 
-    BatchRequestI(BatchRequestQueue& queue, const Ice::ObjectPrx& proxy, const string& operation, int size) :
+    BatchRequestI(BatchRequestQueue& queue, const Ice::ObjectPrxPtr& proxy, const string& operation, int size) :
         _queue(queue), _proxy(proxy), _operation(operation), _size(size)
     {
     }
@@ -48,7 +49,7 @@ public:
         return _operation;
     }
 
-    virtual const Ice::ObjectPrx&
+    virtual const Ice::ObjectPrxPtr&
     getProxy() const
     {
         return _proxy;
@@ -57,7 +58,7 @@ public:
 private:
 
     BatchRequestQueue& _queue;
-    const Ice::ObjectPrx& _proxy;
+    const Ice::ObjectPrxPtr& _proxy;
     const std::string& _operation;
     const int _size;
 };
@@ -87,21 +88,20 @@ BatchRequestQueue::BatchRequestQueue(const InstancePtr& instance, bool datagram)
 }
 
 void
-BatchRequestQueue::prepareBatchRequest(BasicStream* os)
+BatchRequestQueue::prepareBatchRequest(OutputStream* os)
 {
     Lock sync(*this);
-    if(_exception.get())
+    if(_exception)
     {
         _exception->ice_throw();
     }
-
     waitStreamInUse(false);
     _batchStreamInUse = true;
     _batchStream.swap(*os);
 }
 
 void
-BatchRequestQueue::finishBatchRequest(BasicStream* os, const Ice::ObjectPrx& proxy, const std::string& operation)
+BatchRequestQueue::finishBatchRequest(OutputStream* os, const Ice::ObjectPrxPtr& proxy, const std::string& operation)
 {
     //
     // No need for synchronization, no other threads are supposed
@@ -116,14 +116,22 @@ BatchRequestQueue::finishBatchRequest(BasicStream* os, const Ice::ObjectPrx& pro
 
         if(_maxSize > 0 && _batchStream.b.size() >= _maxSize)
         {
+#ifdef ICE_CPP11_MAPPING
+            proxy->ice_flushBatchRequestsAsync();
+#else
             proxy->begin_ice_flushBatchRequests();
+#endif
         }
 
         assert(_batchMarker < _batchStream.b.size());
         if(_interceptor)
         {
             BatchRequestI request(*this, proxy, operation, static_cast<int>(_batchStream.b.size() - _batchMarker));
+#ifdef ICE_CPP11_MAPPING
+            _interceptor(request, _batchRequestNum, static_cast<int>(_batchMarker));
+#else
             _interceptor->enqueue(request, _batchRequestNum, static_cast<int>(_batchMarker));
+#endif
         }
         else
         {
@@ -149,7 +157,7 @@ BatchRequestQueue::finishBatchRequest(BasicStream* os, const Ice::ObjectPrx& pro
 }
 
 void
-BatchRequestQueue::abortBatchRequest(BasicStream* os)
+BatchRequestQueue::abortBatchRequest(OutputStream* os)
 {
     Lock sync(*this);
     if(_batchStreamInUse)
@@ -162,7 +170,7 @@ BatchRequestQueue::abortBatchRequest(BasicStream* os)
 }
 
 int
-BatchRequestQueue::swap(BasicStream* os)
+BatchRequestQueue::swap(OutputStream* os)
 {
     Lock sync(*this);
     if(_batchRequestNum == 0)
@@ -199,7 +207,11 @@ void
 BatchRequestQueue::destroy(const Ice::LocalException& ex)
 {
     Lock sync(*this);
+#ifdef ICE_CPP11_MAPPING
+    _exception = ex.ice_clone();
+#else
     _exception.reset(ex.ice_clone());
+#endif
 }
 
 bool

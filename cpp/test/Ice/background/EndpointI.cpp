@@ -11,7 +11,6 @@
 #include <Transceiver.h>
 #include <Connector.h>
 #include <Acceptor.h>
-#include <Ice/BasicStream.h>
 
 #ifdef _MSC_VER
 // For 'Ice::Object::ice_getHash': was declared deprecated
@@ -33,12 +32,10 @@ EndpointI::EndpointI(const IceInternal::EndpointIPtr& endpoint) :
 }
 
 void
-EndpointI::streamWrite(IceInternal::BasicStream* s) const
+EndpointI::streamWriteImpl(Ice::OutputStream* s) const
 {
-    s->startWriteEncaps();
     s->write(_endpoint->type());
     _endpoint->streamWrite(s);
-    s->endWriteEncaps();
 }
 
 Ice::Short
@@ -71,11 +68,11 @@ EndpointI::timeout(int timeout) const
     IceInternal::EndpointIPtr endpoint = _endpoint->timeout(timeout);
     if(endpoint == _endpoint)
     {
-        return const_cast<EndpointI*>(this);
+        return ICE_SHARED_FROM_CONST_THIS(EndpointI);
     }
     else
     {
-        return new EndpointI(endpoint);
+        return ICE_MAKE_SHARED(EndpointI, endpoint);
     }
 }
 
@@ -85,11 +82,11 @@ EndpointI::connectionId(const string& connectionId) const
     IceInternal::EndpointIPtr endpoint = _endpoint->connectionId(connectionId);
     if(endpoint == _endpoint)
     {
-        return const_cast<EndpointI*>(this);
+        return ICE_SHARED_FROM_CONST_THIS(EndpointI);
     }
     else
     {
-        return new EndpointI(endpoint);
+        return ICE_MAKE_SHARED(EndpointI, endpoint);
     }
 }
 
@@ -105,11 +102,11 @@ EndpointI::compress(bool compress) const
     IceInternal::EndpointIPtr endpoint = _endpoint->compress(compress);
     if(endpoint == _endpoint)
     {
-        return const_cast<EndpointI*>(this);
+        return ICE_SHARED_FROM_CONST_THIS(EndpointI);
     }
     else
     {
-        return new EndpointI(endpoint);
+        return ICE_MAKE_SHARED(EndpointI, endpoint);
     }
 }
 
@@ -175,7 +172,7 @@ EndpointI::connectors_async(Ice::EndpointSelectionType selType, const IceInterna
     try
     {
         _configuration->checkConnectorsException();
-        _endpoint->connectors_async(selType, new Callback(cb));
+        _endpoint->connectors_async(selType, ICE_MAKE_SHARED(Callback, cb));
     }
     catch(const Ice::LocalException& ex)
     {
@@ -186,7 +183,7 @@ EndpointI::connectors_async(Ice::EndpointSelectionType selType, const IceInterna
 IceInternal::AcceptorPtr
 EndpointI::acceptor(const string& adapterName) const
 {
-    return new Acceptor(const_cast<EndpointI*>(this), _endpoint->acceptor(adapterName));
+    return new Acceptor(ICE_SHARED_FROM_CONST_THIS(EndpointI), _endpoint->acceptor(adapterName));
 }
 
 /*IceInternal::EndpointIPtr
@@ -207,7 +204,7 @@ EndpointI::endpoint(const IceInternal::TransceiverPtr& transceiver) const
 EndpointIPtr
 EndpointI::endpoint(const IceInternal::EndpointIPtr& delEndp) const
 {
-    return new EndpointI(delEndp);
+    return ICE_MAKE_SHARED(EndpointI, delEndp);
 }
 
 vector<IceInternal::EndpointIPtr>
@@ -216,7 +213,7 @@ EndpointI::expand() const
     vector<IceInternal::EndpointIPtr> e = _endpoint->expand();
     for(vector<IceInternal::EndpointIPtr>::iterator p = e.begin(); p != e.end(); ++p)
     {
-        *p = (*p == _endpoint) ? const_cast<EndpointI*>(this) : new EndpointI(*p);
+        *p = (*p == _endpoint) ? ICE_SHARED_FROM_CONST_THIS(EndpointI) : ICE_MAKE_SHARED(EndpointI, *p);
     }
     return e;
 }
@@ -245,7 +242,11 @@ EndpointI::getInfo() const
 }
 
 bool
+#ifdef ICE_CPP11_MAPPING
+EndpointI::operator==(const Ice::Endpoint& r) const
+#else
 EndpointI::operator==(const Ice::LocalObject& r) const
+#endif
 {
     const EndpointI* p = dynamic_cast<const EndpointI*>(&r);
     if(!p)
@@ -263,7 +264,11 @@ EndpointI::operator==(const Ice::LocalObject& r) const
 }
 
 bool
+#ifdef ICE_CPP11_MAPPING
+EndpointI::operator<(const Ice::Endpoint& r) const
+#else
 EndpointI::operator<(const Ice::LocalObject& r) const
+#endif
 {
     const EndpointI* p = dynamic_cast<const EndpointI*>(&r);
     if(!p)

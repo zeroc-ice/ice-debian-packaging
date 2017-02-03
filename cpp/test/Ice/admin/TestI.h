@@ -11,23 +11,29 @@
 #define TEST_I_H
 
 #include <Test.h>
+#include <TestCommon.h>
 #include <Ice/NativePropertiesAdmin.h>
 
-class RemoteCommunicatorI : virtual public Test::RemoteCommunicator,
-                            virtual public Ice::PropertiesAdminUpdateCallback,
+class RemoteCommunicatorI : public virtual Test::RemoteCommunicator,
+#ifndef ICE_CPP11_MAPPING
+                            public virtual Ice::PropertiesAdminUpdateCallback,
+#endif
                             public IceUtil::Monitor<IceUtil::Mutex>
 {
 public:
 
     RemoteCommunicatorI(const Ice::CommunicatorPtr&);
 
-    virtual Ice::ObjectPrx getAdmin(const Ice::Current&);
+    virtual Ice::ObjectPrxPtr getAdmin(const Ice::Current&);
     virtual Ice::PropertyDict getChanges(const Ice::Current&);
 
-    virtual void print(const std::string&, const Ice::Current&);
-    virtual void trace(const std::string&, const std::string&, const Ice::Current&);
-    virtual void warning(const std::string&, const Ice::Current&);
-    virtual void error(const std::string&, const Ice::Current&);
+    virtual void addUpdateCallback(const Ice::Current&);
+    virtual void removeUpdateCallback(const Ice::Current&);
+
+    virtual void print(ICE_IN(std::string), const Ice::Current&);
+    virtual void trace(ICE_IN(std::string), ICE_IN(std::string), const Ice::Current&);
+    virtual void warning(ICE_IN(std::string), const Ice::Current&);
+    virtual void error(ICE_IN(std::string), const Ice::Current&);
 
     virtual void shutdown(const Ice::Current&);
     virtual void waitForShutdown(const Ice::Current&);
@@ -39,15 +45,20 @@ private:
 
     Ice::CommunicatorPtr _communicator;
     Ice::PropertyDict _changes;
-    bool _called;
+
+#ifdef ICE_CPP11_MAPPING
+    std::function<void()> _removeCallback;
+#else
+    bool _hasCallback;
+#endif
 };
-typedef IceUtil::Handle<RemoteCommunicatorI> RemoteCommunicatorIPtr;
+ICE_DEFINE_PTR(RemoteCommunicatorIPtr, RemoteCommunicatorI);
 
 class RemoteCommunicatorFactoryI : public Test::RemoteCommunicatorFactory
 {
 public:
 
-    virtual Test::RemoteCommunicatorPrx createCommunicator(const Ice::PropertyDict&, const Ice::Current&);
+    virtual Test::RemoteCommunicatorPrxPtr createCommunicator(ICE_IN(Ice::PropertyDict), const Ice::Current&);
     virtual void shutdown(const Ice::Current&);
 };
 

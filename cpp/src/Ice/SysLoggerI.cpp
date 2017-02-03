@@ -7,6 +7,8 @@
 //
 // **********************************************************************
 
+#ifndef _WIN32
+
 #include <Ice/SysLoggerI.h>
 #include <Ice/LocalException.h>
 #include <syslog.h>
@@ -163,5 +165,7 @@ Ice::SysLoggerI::getPrefix()
 Ice::LoggerPtr
 Ice::SysLoggerI::cloneWithPrefix(const string& prefix)
 {
-    return new SysLoggerI(prefix, _facility);
+    return ICE_MAKE_SHARED(SysLoggerI, prefix, _facility);
 }
+
+#endif

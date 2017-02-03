@@ -37,18 +37,75 @@ struct ConnectionObject
     Ice::CommunicatorPtr* communicator;
 };
 
-class ConnectionCallbackI : public Ice::ConnectionCallback
+class CloseCallbackWrapper : public Ice::CloseCallback
 {
 public:
 
-    ConnectionCallbackI(PyObject* cb, PyObject* con) :
+    CloseCallbackWrapper(PyObject* cb, PyObject* con) :
         _cb(cb), _con(con)
     {
         Py_INCREF(cb);
         Py_INCREF(con);
     }
 
-    virtual ~ConnectionCallbackI()
+    virtual ~CloseCallbackWrapper()
+    {
+        AdoptThread adoptThread; // Ensure the current thread is able to call into Python.
+
+        Py_DECREF(_cb);
+        Py_DECREF(_con);
+    }
+
+    virtual void closed(const Ice::ConnectionPtr& con)
+    {
+        invoke(con);
+    }
+
+private:
+
+    void invoke(const Ice::ConnectionPtr& con)
+    {
+        AdoptThread adoptThread; // Ensure the current thread is able to call into Python.
+#ifndef NDEBUG
+        ConnectionObject* c = reinterpret_cast<ConnectionObject*>(_con);
+        assert(con == *(c->connection));
+#endif
+
+        PyObjectHandle args = Py_BuildValue(STRCAST("(O)"), _con);
+        assert(_cb);
+        PyObjectHandle tmp = PyObject_Call(_cb, args.get(), 0);
+        if(PyErr_Occurred())
+        {
+            PyException ex; // Retrieve it before another Python API call clears it.
+
+            //
+            // A callback that calls sys.exit() will raise the SystemExit exception.
+            // This is normally caught by the interpreter, causing it to exit.
+            // However, we have no way to pass this exception to the interpreter,
+            // so we act on it directly.
+            //
+            ex.checkSystemExit();
+
+            ex.raise();
+        }
+    }
+
+    PyObject* _cb;
+    PyObject* _con;
+};
+
+class HeartbeatCallbackWrapper : public Ice::HeartbeatCallback
+{
+public:
+
+    HeartbeatCallbackWrapper(PyObject* cb, PyObject* con) :
+        _cb(cb), _con(con)
+    {
+        Py_INCREF(cb);
+        Py_INCREF(con);
+    }
+
+    virtual ~HeartbeatCallbackWrapper()
     {
         AdoptThread adoptThread; // Ensure the current thread is able to call into Python.
 
@@ -58,56 +115,97 @@ public:
 
     virtual void heartbeat(const Ice::ConnectionPtr& con)
     {
-        invoke("heartbeat", con);
-    }
-
-    virtual void closed(const Ice::ConnectionPtr& con)
-    {
-        invoke("closed", con);
+        invoke(con);
     }
 
 private:
 
-    void invoke(const string& methodName, const Ice::ConnectionPtr& con)
+    void invoke(const Ice::ConnectionPtr& con)
     {
         AdoptThread adoptThread; // Ensure the current thread is able to call into Python.
 #ifndef NDEBUG
         ConnectionObject* c = reinterpret_cast<ConnectionObject*>(_con);
         assert(con == *(c->connection));
 #endif
-        if(!PyObject_HasAttrString(_cb, STRCAST(methodName.c_str())))
-        {
-            ostringstream ostr;
-            ostr << "connection callback object does not define " << methodName << "()";
-            string str = ostr.str();
-            PyErr_Warn(PyExc_RuntimeWarning, const_cast<char*>(str.c_str()));
-        }
-        else
-        {
-            PyObjectHandle args = Py_BuildValue(STRCAST("(O)"), _con);
-            PyObjectHandle method = PyObject_GetAttrString(_cb, STRCAST(methodName.c_str()));
-            assert(method.get());
-            PyObjectHandle tmp = PyObject_Call(method.get(), args.get(), 0);
-            if(PyErr_Occurred())
-            {
-                PyException ex; // Retrieve it before another Python API call clears it.
 
-                //
-                // A callback that calls sys.exit() will raise the SystemExit exception.
-                // This is normally caught by the interpreter, causing it to exit.
-                // However, we have no way to pass this exception to the interpreter,
-                // so we act on it directly.
-                //
-                ex.checkSystemExit();
+        PyObjectHandle args = Py_BuildValue(STRCAST("(O)"), _con);
+        assert(_cb);
+        PyObjectHandle tmp = PyObject_Call(_cb, args.get(), 0);
+        if(PyErr_Occurred())
+        {
+            PyException ex; // Retrieve it before another Python API call clears it.
 
-                ex.raise();
-            }
+            //
+            // A callback that calls sys.exit() will raise the SystemExit exception.
+            // This is normally caught by the interpreter, causing it to exit.
+            // However, we have no way to pass this exception to the interpreter,
+            // so we act on it directly.
+            //
+            ex.checkSystemExit();
+
+            ex.raise();
         }
     }
 
     PyObject* _cb;
     PyObject* _con;
 };
+
+class HeartbeatAsyncCallback : public IceUtil::Shared
+{
+public:
+
+    HeartbeatAsyncCallback(PyObject* ex, PyObject* sent, const string& op) :
+        _ex(ex), _sent(sent), _op(op)
+    {
+        assert(_ex);
+        Py_INCREF(_ex);
+        Py_XINCREF(_sent);
+    }
+
+    ~HeartbeatAsyncCallback()
+    {
+        AdoptThread adoptThread; // Ensure the current thread is able to call into Python.
+
+        Py_DECREF(_ex);
+        Py_XDECREF(_sent);
+    }
+
+    void exception(const Ice::Exception& ex)
+    {
+        AdoptThread adoptThread; // Ensure the current thread is able to call into Python.
+
+        PyObjectHandle exh = convertException(ex);
+        assert(exh.get());
+        PyObjectHandle args = Py_BuildValue(STRCAST("(O)"), exh.get());
+        PyObjectHandle tmp = PyObject_Call(_ex, args.get(), 0);
+        if(PyErr_Occurred())
+        {
+            throwPythonException(); // Callback raised an exception.
+        }
+    }
+
+    void sent(bool sentSynchronously)
+    {
+        if(_sent)
+        {
+            AdoptThread adoptThread; // Ensure the current thread is able to call into Python.
+            PyObjectHandle args = Py_BuildValue(STRCAST("(O)"), sentSynchronously ? getTrue() : getFalse());
+            PyObjectHandle tmp = PyObject_Call(_sent, args.get(), 0);
+            if(PyErr_Occurred())
+            {
+                throwPythonException(); // Callback raised an exception.
+            }
+        }
+    }
+
+protected:
+
+    PyObject* _ex;
+    PyObject* _sent;
+    std::string _op;
+};
+typedef IceUtil::Handle<HeartbeatAsyncCallback> HeartbeatAsyncCallbackPtr;
 
 }
 
@@ -190,9 +288,7 @@ connectionCompare(ConnectionObject* c1, PyObject* other, int op)
         }
     }
 
-    PyObject* r = result ? getTrue() : getFalse();
-    Py_INCREF(r);
-    return r;
+    return result ? incTrue() : incFalse();
 }
 
 #ifdef WIN32
@@ -201,17 +297,22 @@ extern "C"
 static PyObject*
 connectionClose(ConnectionObject* self, PyObject* args)
 {
-    int force;
-    if(!PyArg_ParseTuple(args, STRCAST("i"), &force))
+    PyObject* closeType = lookupType("Ice.ConnectionClose");
+    PyObject* mode;
+    if(!PyArg_ParseTuple(args, STRCAST("O!"), closeType, &mode))
     {
         return 0;
     }
+
+    PyObjectHandle v = PyObject_GetAttrString(mode, STRCAST("_value"));
+    assert(v.get());
+    Ice::ConnectionClose cc = static_cast<Ice::ConnectionClose>(PyLong_AsLong(v.get()));
 
     assert(self->connection);
     try
     {
         AllowThreads allowThreads; // Release Python's global interpreter lock during blocking invocations.
-        (*self->connection)->close(force > 0);
+        (*self->connection)->close(cc);
     }
     catch(const Ice::Exception& ex)
     {
@@ -339,6 +440,50 @@ connectionFlushBatchRequests(ConnectionObject* self)
 extern "C"
 #endif
 static PyObject*
+connectionFlushBatchRequestsAsync(ConnectionObject* self, PyObject* /*args*/, PyObject* /*kwds*/)
+{
+    assert(self->connection);
+    const string op = "flushBatchRequests";
+
+    FlushAsyncCallbackPtr d = new FlushAsyncCallback(op);
+    Ice::Callback_Connection_flushBatchRequestsPtr cb =
+        Ice::newCallback_Connection_flushBatchRequests(d, &FlushAsyncCallback::exception, &FlushAsyncCallback::sent);
+
+    Ice::AsyncResultPtr result;
+
+    try
+    {
+        AllowThreads allowThreads; // Release Python's global interpreter lock during remote invocations.
+
+        result = (*self->connection)->begin_flushBatchRequests(cb);
+    }
+    catch(const Ice::Exception& ex)
+    {
+        setPythonException(ex);
+        return 0;
+    }
+
+    PyObjectHandle communicatorObj = getCommunicatorWrapper(*self->communicator);
+    PyObjectHandle asyncResultObj =
+        createAsyncResult(result, 0, reinterpret_cast<PyObject*>(self), communicatorObj.get());
+    if(!asyncResultObj.get())
+    {
+        return 0;
+    }
+
+    PyObjectHandle future = createFuture(op, asyncResultObj.get());
+    if(!future.get())
+    {
+        return 0;
+    }
+    d->setFuture(future.get());
+    return future.release();
+}
+
+#ifdef WIN32
+extern "C"
+#endif
+static PyObject*
 connectionBeginFlushBatchRequests(ConnectionObject* self, PyObject* args, PyObject* kwds)
 {
     assert(self->connection);
@@ -437,22 +582,174 @@ connectionEndFlushBatchRequests(ConnectionObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-connectionSetCallback(ConnectionObject* self, PyObject* args)
+connectionSetCloseCallback(ConnectionObject* self, PyObject* args)
 {
     assert(self->connection);
 
-    PyObject* callbackType = lookupType("Ice.ConnectionCallback");
+    PyObject* callbackType = lookupType("types.FunctionType");
     PyObject* cb;
     if(!PyArg_ParseTuple(args, STRCAST("O!"), callbackType, &cb))
     {
         return 0;
     }
 
-    Ice::ConnectionCallbackPtr wrapper = new ConnectionCallbackI(cb, reinterpret_cast<PyObject*>(self));
+    Ice::CloseCallbackPtr wrapper = new CloseCallbackWrapper(cb, reinterpret_cast<PyObject*>(self));
     try
     {
         AllowThreads allowThreads; // Release Python's global interpreter lock during blocking invocations.
-        (*self->connection)->setCallback(wrapper);
+        (*self->connection)->setCloseCallback(wrapper);
+    }
+    catch(const Ice::Exception& ex)
+    {
+        setPythonException(ex);
+        return 0;
+    }
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+#ifdef WIN32
+extern "C"
+#endif
+static PyObject*
+connectionSetHeartbeatCallback(ConnectionObject* self, PyObject* args)
+{
+    assert(self->connection);
+
+    PyObject* callbackType = lookupType("types.FunctionType");
+    PyObject* cb;
+    if(!PyArg_ParseTuple(args, STRCAST("O!"), callbackType, &cb))
+    {
+        return 0;
+    }
+
+    Ice::HeartbeatCallbackPtr wrapper = new HeartbeatCallbackWrapper(cb, reinterpret_cast<PyObject*>(self));
+    try
+    {
+        AllowThreads allowThreads; // Release Python's global interpreter lock during blocking invocations.
+        (*self->connection)->setHeartbeatCallback(wrapper);
+    }
+    catch(const Ice::Exception& ex)
+    {
+        setPythonException(ex);
+        return 0;
+    }
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+#ifdef WIN32
+extern "C"
+#endif
+static PyObject*
+connectionHeartbeat(ConnectionObject* self)
+{
+    assert(self->connection);
+    try
+    {
+        AllowThreads allowThreads; // Release Python's global interpreter lock during remote invocations.
+        (*self->connection)->heartbeat();
+    }
+    catch(const Ice::Exception& ex)
+    {
+        setPythonException(ex);
+        return 0;
+    }
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+#ifdef WIN32
+extern "C"
+#endif
+static PyObject*
+connectionBeginHeartbeat(ConnectionObject* self, PyObject* args, PyObject* kwds)
+{
+    assert(self->connection);
+
+    static char* argNames[] =
+    {
+        const_cast<char*>("_ex"),
+        const_cast<char*>("_sent"),
+        0
+    };
+    PyObject* ex = Py_None;
+    PyObject* sent = Py_None;
+    if(!PyArg_ParseTupleAndKeywords(args, kwds, STRCAST("|OO"), argNames, &ex, &sent))
+    {
+        return 0;
+    }
+
+    if(ex == Py_None)
+    {
+        ex = 0;
+    }
+    if(sent == Py_None)
+    {
+        sent = 0;
+    }
+
+    if(!ex && sent)
+    {
+        PyErr_Format(PyExc_RuntimeError,
+            STRCAST("exception callback must also be provided when sent callback is used"));
+        return 0;
+    }
+
+    Ice::Callback_Connection_heartbeatPtr cb;
+    if(ex || sent)
+    {
+        HeartbeatAsyncCallbackPtr d = new HeartbeatAsyncCallback(ex, sent, "heartbeat");
+        cb = Ice::newCallback_Connection_heartbeat(d, &HeartbeatAsyncCallback::exception,
+                                                   &HeartbeatAsyncCallback::sent);
+    }
+
+    Ice::AsyncResultPtr result;
+    try
+    {
+        AllowThreads allowThreads; // Release Python's global interpreter lock during remote invocations.
+
+        if(cb)
+        {
+            result = (*self->connection)->begin_heartbeat(cb);
+        }
+        else
+        {
+            result = (*self->connection)->begin_heartbeat();
+        }
+    }
+    catch(const Ice::Exception& ex)
+    {
+        setPythonException(ex);
+        return 0;
+    }
+
+    PyObjectHandle communicator = getCommunicatorWrapper(*self->communicator);
+    return createAsyncResult(result, 0, reinterpret_cast<PyObject*>(self), communicator.get());
+}
+
+#ifdef WIN32
+extern "C"
+#endif
+static PyObject*
+connectionEndHeartbeat(ConnectionObject* self, PyObject* args)
+{
+    assert(self->connection);
+
+    PyObject* result;
+    if(!PyArg_ParseTuple(args, STRCAST("O!"), &AsyncResultType, &result))
+    {
+        return 0;
+    }
+
+    Ice::AsyncResultPtr r = getAsyncResult(result);
+    try
+    {
+        AllowThreads allowThreads; // Release Python's global interpreter lock during blocking invocations.
+        (*self->connection)->end_flushBatchRequests(r);
     }
     catch(const Ice::Exception& ex)
     {
@@ -738,6 +1035,27 @@ connectionSetBufferSize(ConnectionObject* self, PyObject* args)
     return Py_None;
 }
 
+#ifdef WIN32
+extern "C"
+#endif
+static PyObject*
+connectionThrowException(ConnectionObject* self)
+{
+    assert(self->connection);
+    try
+    {
+        (*self->connection)->throwException();
+    }
+    catch(const Ice::Exception& ex)
+    {
+        setPythonException(ex);
+        return 0;
+    }
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyMethodDef ConnectionMethods[] =
 {
     { STRCAST("close"), reinterpret_cast<PyCFunction>(connectionClose), METH_VARARGS,
@@ -750,12 +1068,22 @@ static PyMethodDef ConnectionMethods[] =
         PyDoc_STR(STRCAST("getAdapter() -> Ice.ObjectAdapter")) },
     { STRCAST("flushBatchRequests"), reinterpret_cast<PyCFunction>(connectionFlushBatchRequests), METH_NOARGS,
         PyDoc_STR(STRCAST("flushBatchRequests() -> None")) },
+    { STRCAST("flushBatchRequestsAsync"), reinterpret_cast<PyCFunction>(connectionFlushBatchRequestsAsync),
+        METH_NOARGS, PyDoc_STR(STRCAST("flushBatchRequestsAsync() -> Ice.Future")) },
     { STRCAST("begin_flushBatchRequests"), reinterpret_cast<PyCFunction>(connectionBeginFlushBatchRequests),
         METH_VARARGS | METH_KEYWORDS, PyDoc_STR(STRCAST("begin_flushBatchRequests([_ex][, _sent]) -> Ice.AsyncResult")) },
     { STRCAST("end_flushBatchRequests"), reinterpret_cast<PyCFunction>(connectionEndFlushBatchRequests), METH_VARARGS,
         PyDoc_STR(STRCAST("end_flushBatchRequests(Ice.AsyncResult) -> None")) },
-    { STRCAST("setCallback"), reinterpret_cast<PyCFunction>(connectionSetCallback), METH_VARARGS,
-        PyDoc_STR(STRCAST("setCallback(Ice.ConnectionCallback) -> None")) },
+    { STRCAST("setCloseCallback"), reinterpret_cast<PyCFunction>(connectionSetCloseCallback), METH_VARARGS,
+        PyDoc_STR(STRCAST("setCloseCallback(Ice.CloseCallback) -> None")) },
+    { STRCAST("setHeartbeatCallback"), reinterpret_cast<PyCFunction>(connectionSetHeartbeatCallback), METH_VARARGS,
+        PyDoc_STR(STRCAST("setHeartbeatCallback(Ice.HeartbeatCallback) -> None")) },
+    { STRCAST("heartbeat"), reinterpret_cast<PyCFunction>(connectionHeartbeat), METH_NOARGS,
+        PyDoc_STR(STRCAST("heartbeat() -> None")) },
+    { STRCAST("begin_heartbeat"), reinterpret_cast<PyCFunction>(connectionBeginHeartbeat),
+        METH_VARARGS | METH_KEYWORDS, PyDoc_STR(STRCAST("begin_heartbeat([_ex][, _sent]) -> Ice.AsyncResult")) },
+    { STRCAST("end_heartbeat"), reinterpret_cast<PyCFunction>(connectionEndHeartbeat), METH_VARARGS,
+        PyDoc_STR(STRCAST("end_heartbeat(Ice.AsyncResult) -> None")) },
     { STRCAST("setACM"), reinterpret_cast<PyCFunction>(connectionSetACM), METH_VARARGS,
         PyDoc_STR(STRCAST("setACM(int, Ice.ACMClose, Ice.ACMHeartbeat) -> None")) },
     { STRCAST("getACM"), reinterpret_cast<PyCFunction>(connectionGetACM), METH_NOARGS,
@@ -772,6 +1100,8 @@ static PyMethodDef ConnectionMethods[] =
         PyDoc_STR(STRCAST("getEndpoint() -> Ice.Endpoint")) },
     { STRCAST("setBufferSize"), reinterpret_cast<PyCFunction>(connectionSetBufferSize), METH_VARARGS,
         PyDoc_STR(STRCAST("setBufferSize(int, int) -> None")) },
+    { STRCAST("throwException"), reinterpret_cast<PyCFunction>(connectionThrowException), METH_NOARGS,
+        PyDoc_STR(STRCAST("throwException() -> None")) },
     { 0, 0 } /* sentinel */
 };
 

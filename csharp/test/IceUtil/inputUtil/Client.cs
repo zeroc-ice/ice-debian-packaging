@@ -8,28 +8,19 @@
 // **********************************************************************
 
 using System;
-using System.Diagnostics;
 
-public class Client
+public class Client : TestCommon.Application
 {
-    private static void test(bool b)
+    public override int run(string[] argvs)
     {
-        if (!b)
-        {
-            throw new Exception();
-        }
-    }
-
-    public static void Main(string[] argvs)
-    {
-        System.Console.Out.Write("testing string to command line arguments... ");
-        System.Console.Out.Flush();
+        Console.Out.Write("testing string to command line arguments... ");
+        Console.Out.Flush();
         string[] args;
 
         try
         {
             test(IceUtilInternal.Options.split("").Length == 0);
-            
+
             args = IceUtilInternal.Options.split("\"\"");
             test(args.Length == 1 && args[0].Equals(""));
             args = IceUtilInternal.Options.split("''");
@@ -104,10 +95,10 @@ public class Client
             }
         }
 
-        System.Console.Out.WriteLine("ok");
+        Console.Out.WriteLine("ok");
 
-        System.Console.Out.Write("checking string splitting... ");
-        System.Console.Out.Flush();
+        Console.Out.Write("checking string splitting... ");
+        Console.Out.Flush();
         {
             string[] arr;
 
@@ -129,7 +120,7 @@ public class Client
             test(arr.Length == 2 && arr[0].Equals("a") && arr[1].Equals("b"));
             arr = IceUtilInternal.StringUtil.splitString(":a:b:", ":");
             test(arr.Length == 2 && arr[0].Equals("a") && arr[1].Equals("b"));
-                 
+
             arr = IceUtilInternal.StringUtil.splitString("\"a\"", ":");
             test(arr.Length == 1 && arr[0].Equals("a"));
             arr = IceUtilInternal.StringUtil.splitString("\"a\":b", ":");
@@ -147,7 +138,7 @@ public class Client
             test(arr.Length == 1 && arr[0].Equals("\"a"));
             arr = IceUtilInternal.StringUtil.splitString("\"'a\"", ":");
             test(arr.Length == 1 && arr[0].Equals("'a"));
-            
+
             arr = IceUtilInternal.StringUtil.splitString("a\\'b", ":");
             test(arr.Length == 1 && arr[0].Equals("a'b"));
             arr = IceUtilInternal.StringUtil.splitString("'a:b\\'c'", ":");
@@ -163,6 +154,13 @@ public class Client
 
             test(IceUtilInternal.StringUtil.splitString("a\"b", ":") == null);
         }
-        System.Console.Out.WriteLine("ok");
+        Console.Out.WriteLine("ok");
+        return 0;
+    }
+
+    public static int Main(string[] args)
+    {
+        Client app = new Client();
+        return app.runmain(args);
     }
 }

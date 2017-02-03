@@ -7,7 +7,9 @@
 //
 // **********************************************************************
 
+using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using Test;
 
 public class ThrowerI : ThrowerDisp_
@@ -16,152 +18,139 @@ public class ThrowerI : ThrowerDisp_
     {
     }
 
-    public override void shutdown_async(AMD_Thrower_shutdown cb, Ice.Current current)
+    public override Task
+    shutdownAsync(Ice.Current current)
     {
         current.adapter.getCommunicator().shutdown();
-        cb.ice_response();
+        return null;
     }
 
-    public override void supportsUndeclaredExceptions_async(AMD_Thrower_supportsUndeclaredExceptions cb, Ice.Current current)
+    public override Task<bool>
+    supportsUndeclaredExceptionsAsync(Ice.Current current)
     {
-        cb.ice_response(true);
+        return Task.FromResult<bool>(true);
     }
 
-    public override void supportsAssertException_async(AMD_Thrower_supportsAssertException cb, Ice.Current current)
+    public override Task<bool>
+    supportsAssertExceptionAsync(Ice.Current current)
     {
-        cb.ice_response(false);
+        return Task.FromResult<bool>(false);
     }
 
-    public override void throwAasA_async(AMD_Thrower_throwAasA cb, int a, Ice.Current current)
+    public override Task
+    throwAasAAsync(int a, Ice.Current current)
     {
-        A ex = new A();
-        ex.aMem = a;
-        cb.ice_exception(ex);
+        throw new A(a);
     }
 
-    public override void throwAorDasAorD_async(AMD_Thrower_throwAorDasAorD cb, int a, Ice.Current current)
+    public override Task
+    throwAorDasAorDAsync(int a, Ice.Current current)
     {
         if(a > 0)
         {
-            A ex = new A();
-            ex.aMem = a;
-            cb.ice_exception(ex);
+            throw new A(a);
         }
         else
         {
-            D ex = new D();
-            ex.dMem = a;
-            cb.ice_exception(ex);
+            throw new D(a);
         }
     }
 
-    public override void throwBasA_async(AMD_Thrower_throwBasA cb, int a, int b, Ice.Current current)
+    public override Task
+    throwBasAAsync(int a, int b, Ice.Current current)
     {
-        B ex = new B();
-        ex.aMem = a;
-        ex.bMem = b;
-        throw ex;
-        //cb.ice_exception(ex);
+        //throw new B(a, b);
+        var s = new TaskCompletionSource<object>();
+        s.SetException(new B(a,b));
+        return s.Task;
     }
 
-    public override void throwBasB_async(AMD_Thrower_throwBasB cb, int a, int b, Ice.Current current)
+    public override Task
+    throwBasBAsync(int a, int b, Ice.Current current)
     {
-        B ex = new B();
-        ex.aMem = a;
-        ex.bMem = b;
-        throw ex;
-        //cb.ice_exception(ex);
+        throw new B(a, b);
     }
 
-    public override void throwCasA_async(AMD_Thrower_throwCasA cb, int a, int b, int c, Ice.Current current)
+    public override Task
+    throwCasAAsync(int a, int b, int c, Ice.Current current)
     {
-        C ex = new C();
-        ex.aMem = a;
-        ex.bMem = b;
-        ex.cMem = c;
-        cb.ice_exception(ex);
+        throw new C(a, b, c);
     }
 
-    public override void throwCasB_async(AMD_Thrower_throwCasB cb, int a, int b, int c, Ice.Current current)
+    public override Task
+    throwCasBAsync(int a, int b, int c, Ice.Current current)
     {
-        C ex = new C();
-        ex.aMem = a;
-        ex.bMem = b;
-        ex.cMem = c;
-        cb.ice_exception(ex);
+        throw new C(a, b, c);
     }
 
-    public override void throwCasC_async(AMD_Thrower_throwCasC cb, int a, int b, int c, Ice.Current current)
+    public override Task
+    throwCasCAsync(int a, int b, int c, Ice.Current current)
     {
-        C ex = new C();
-        ex.aMem = a;
-        ex.bMem = b;
-        ex.cMem = c;
-        cb.ice_exception(ex);
+        throw new C(a, b, c);
     }
 
-    public override void throwUndeclaredA_async(AMD_Thrower_throwUndeclaredA cb, int a, Ice.Current current)
+    public override Task
+    throwUndeclaredAAsync(int a, Ice.Current current)
     {
-        A ex = new A();
-        ex.aMem = a;
-        cb.ice_exception(ex);
+        throw new A(a);
     }
 
-    public override void throwUndeclaredB_async(AMD_Thrower_throwUndeclaredB cb, int a, int b, Ice.Current current)
+    public override Task
+    throwUndeclaredBAsync(int a, int b, Ice.Current current)
     {
-        B ex = new B();
-        ex.aMem = a;
-        ex.bMem = b;
-        cb.ice_exception(ex);
+        throw new B(a, b);
     }
 
-    public override void throwUndeclaredC_async(AMD_Thrower_throwUndeclaredC cb, int a, int b, int c, Ice.Current current)
+    public override Task
+    throwUndeclaredCAsync(int a, int b, int c, Ice.Current current)
     {
-        C ex = new C();
-        ex.aMem = a;
-        ex.bMem = b;
-        ex.cMem = c;
-        cb.ice_exception(ex);
+        throw new C(a, b, c);
     }
 
-    public override void throwLocalException_async(AMD_Thrower_throwLocalException cb, Ice.Current current)
-    {
-        cb.ice_exception(new Ice.TimeoutException());
-    }
-
-    public override void throwNonIceException_async(AMD_Thrower_throwNonIceException cb, Ice.Current current)
-    {
-        throw new System.Exception();
-    }
-
-    public override void throwAssertException_async(AMD_Thrower_throwAssertException cb, Ice.Current current)
-    {
-        Debug.Assert(false);
-    }
-
-    public override void throwMemoryLimitException_async(AMD_Thrower_throwMemoryLimitException cb, byte[] seq, 
-                                                         Ice.Current current)
-    {
-        cb.ice_response(new byte[1024 * 20]); // 20KB is over the configured 10KB message size max.
-    }
-
-    public override void throwLocalExceptionIdempotent_async(AMD_Thrower_throwLocalExceptionIdempotent e, 
-                                                             Ice.Current current)
+    public override Task
+    throwLocalExceptionAsync(Ice.Current current)
     {
         throw new Ice.TimeoutException();
     }
-    
-    public override void throwAfterResponse_async(AMD_Thrower_throwAfterResponse cb, Ice.Current current)
-    {
-        cb.ice_response();
 
-        throw new System.Exception();
+    public override Task
+    throwNonIceExceptionAsync(Ice.Current current)
+    {
+        throw new Exception();
     }
 
-    public override void throwAfterException_async(AMD_Thrower_throwAfterException cb, Ice.Current current)
+    public override Task
+    throwAssertExceptionAsync(Ice.Current current)
     {
-        cb.ice_exception(new A());
+        Debug.Assert(false);
+        return null;
+    }
 
-        throw new System.Exception();
+    public override Task<byte[]>
+    throwMemoryLimitExceptionAsync(byte[] seq, Ice.Current current)
+    {
+        return Task.FromResult<byte[]>(new byte[1024 * 20]); // 20KB is over the configured 10KB message size max.
+    }
+
+    public override Task
+    throwLocalExceptionIdempotentAsync(Ice.Current current)
+    {
+        throw new Ice.TimeoutException();
+    }
+
+    public override Task
+    throwAfterResponseAsync(Ice.Current current)
+    {
+        // Only supported with callback based AMD API
+        return null;
+        //throw new Exception();
+    }
+
+    public override Task
+    throwAfterExceptionAsync(Ice.Current current)
+    {
+        // Only supported with callback based AMD API
+        throw new A();
+        //throw new Exception();
     }
 }

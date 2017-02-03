@@ -26,26 +26,38 @@ public:
         {
             if(async)
             {
-                _blobject = new BlobjectArrayAsyncI();
+                _blobject = ICE_MAKE_SHARED(BlobjectArrayAsyncI);
             }
             else
             {
-                _blobject = new BlobjectArrayI();
+                _blobject = ICE_MAKE_SHARED(BlobjectArrayI);
             }
         }
         else
         {
             if(async)
             {
-                _blobject = new BlobjectAsyncI();
+                _blobject = ICE_MAKE_SHARED(BlobjectAsyncI);
             }
             else
             {
-                _blobject = new BlobjectI();
+                _blobject = ICE_MAKE_SHARED(BlobjectI);
             }
         }
     }
 
+#ifdef ICE_CPP11_MAPPING
+    virtual Ice::ObjectPtr
+    locate(const Ice::Current&, shared_ptr<void>&)
+    {
+        return _blobject;
+    }
+
+    virtual void
+    finished(const Ice::Current&, const Ice::ObjectPtr&, const shared_ptr<void>&)
+    {
+    }
+#else
     virtual Ice::ObjectPtr
     locate(const Ice::Current&, Ice::LocalObjectPtr&)
     {
@@ -56,7 +68,7 @@ public:
     finished(const Ice::Current&, const Ice::ObjectPtr&, const Ice::LocalObjectPtr&)
     {
     }
-
+#endif
     virtual void
     deactivate(const string&)
     {
@@ -88,9 +100,9 @@ run(int argc, char* argv[], const Ice::CommunicatorPtr& communicator)
     bool array = opts.isSet("array");
     bool async = opts.isSet("async");
 
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", "default -p 12010:udp");
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0) + ":udp");
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
-    adapter->addServantLocator(new ServantLocatorI(array, async), "");
+    adapter->addServantLocator(ICE_MAKE_SHARED(ServantLocatorI, array, async), "");
     adapter->activate();
 
     TEST_READY
@@ -111,8 +123,7 @@ main(int argc, char* argv[])
 
     try
     {
-        Ice::InitializationData initData;
-        initData.properties = Ice::createProperties(argc, argv);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
         communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator);
     }
@@ -124,15 +135,7 @@ main(int argc, char* argv[])
 
     if(communicator)
     {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
+        communicator->destroy();
     }
 
     return status;

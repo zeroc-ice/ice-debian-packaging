@@ -7,8 +7,9 @@
 //
 // **********************************************************************
 
-using Test;
-
-public sealed class II : IDisp_
+public sealed class II : Ice.InterfaceByValue
 {
+    public II() : base(Test.IDisp_.ice_staticId())
+    {
+    }
 }

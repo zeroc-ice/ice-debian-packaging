@@ -1,4 +1,4 @@
-<?
+<?php
 error_reporting(E_ALL | E_STRICT);
 
 if(!extension_loaded("ice"))
@@ -8,9 +8,8 @@ if(!extension_loaded("ice"))
 }
 
 $NS = function_exists("Ice\\initialize");
-require_once ($NS ? 'Ice_ns.php' : 'Ice.php');
-require_once 'Forward.php';
-require_once 'ClientPrivate.php';
+require_once('Ice.php');
+require_once('ClientPrivate.php');
 
 function test($b)
 {
@@ -103,7 +102,7 @@ function allTests($communicator)
         }
         catch(Exception $ex)
         {
-            test(get_class($ex) == ($NS ? "Ice\\NoObjectFactoryException" : "Ice_NoObjectFactoryException"));
+            test(get_class($ex) == ($NS ? "Ice\\NoValueFactoryException" : "Ice_NoValueFactoryException"));
         }
     }
     echo "ok\n";
@@ -111,7 +110,7 @@ function allTests($communicator)
     echo "unknown with Object as Object... ";
     flush();
     {
-        $usocls = $NS ? "Ice\\UnknownSlicedObject" : "Ice_UnknownSlicedObject";
+        $usocls = $NS ? "Ice\\UnknownSlicedValue" : "Ice_UnknownSlicedValue";
         try
         {
             $o = $test->SUnknownAsObject();
@@ -123,7 +122,7 @@ function allTests($communicator)
         }
         catch(Exception $b)
         {
-            $excls = $NS ? "Ice\\NoObjectFactoryException" : "Ice_NoObjectFactoryException";
+            $excls = $NS ? "Ice\\NoValueFactoryException" : "Ice_NoValueFactoryException";
             if($b instanceof $excls)
             {
                 test($test->ice_getEncodingVersion() == $Ice_Encoding_1_0);
@@ -1060,7 +1059,8 @@ function allTests($communicator)
     return $test;
 }
 
-$communicator = Ice_initialize($argv);
+$communicator = $NS ? eval("return Ice\\initialize(\$argv);") : 
+                      eval("return Ice_initialize(\$argv);");
 $test = allTests($communicator);
 $test->shutdown();
 $communicator->destroy();

@@ -9,14 +9,15 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API"]]
 
 #include <Ice/LoggerF.ice>
 #include <Ice/InstrumentationF.ice>
 #include <Ice/ObjectAdapterF.ice>
-#include <Ice/ObjectFactoryF.ice>
-#include <Ice/RouterF.ice>
-#include <Ice/LocatorF.ice>
+#include <Ice/ObjectFactory.ice>
+#include <Ice/ValueFactory.ice>
+#include <Ice/Router.ice>
+#include <Ice/Locator.ice>
 #include <Ice/PluginF.ice>
 #include <Ice/ImplicitContextF.ice>
 #include <Ice/Current.ice>
@@ -32,6 +33,10 @@
  * additional functionality that supports high scalability.
  *
  **/
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
+
 ["objc:prefix:ICE"]
 module Ice
 {
@@ -46,9 +51,10 @@ module Ice
  * @see ObjectAdapter
  * @see Properties
  * @see ObjectFactory
+ * @see ValueFactory
  *
  **/
-["clr:implements:_System.IDisposable"]
+["clr:implements:_System.IDisposable", "java:implements:java.lang.AutoCloseable", "php:internal"]
 local interface Communicator
 {
     /**
@@ -62,7 +68,7 @@ local interface Communicator
      * @see ObjectAdapter#destroy
      *
      **/
-    void destroy();
+    ["cpp:noexcept"] void destroy();
 
     /**
      *
@@ -196,7 +202,8 @@ local interface Communicator
      * @see #identityToString
      *
      **/
-    ["cpp:const"] Identity stringToIdentity(string str);
+    ["cpp:const", "deprecate:stringToIdentity() is deprecated, use the static stringToIdentity() method instead."]
+    Identity stringToIdentity(string str);
 
     /**
      *
@@ -209,7 +216,8 @@ local interface Communicator
      * @see #stringToIdentity
      *
      **/
-    ["cpp:const"] string identityToString(Identity ident);
+    ["cpp:const"]
+    string identityToString(Identity ident);
 
     /**
      *
@@ -239,7 +247,7 @@ local interface Communicator
      *
      * Create a new object adapter with endpoints. This operation sets
      * the property <tt><em>name</em>.Endpoints</tt>,
-     * and then calls {@link createObjectAdapter}. It is provided as a
+     * and then calls {@link #createObjectAdapter}. It is provided as a
      * convenience function.</p>
      *
      * <p>Calling this operation with an empty name will result in a
@@ -296,10 +304,10 @@ local interface Communicator
      * hierarchy until it finds a type that is recognized by a factory,
      * or it reaches the least-derived type. If no factory is found that
      * can create an instance, the run time throws
-     * {@link NoObjectFactoryException}.</p>
+     * {@link NoValueFactoryException}.</p>
      *
      * <p>If the object uses the "compact" format, Ice immediately raises
-     * {@link NoObjectFactoryException}.</p>
+     * {@link NoValueFactoryException}.</p>
      *
      * <p>The following order is used to locate a factory for a type:</p>
      *
@@ -326,8 +334,10 @@ local interface Communicator
      *
      * @see #findObjectFactory
      * @see ObjectFactory
+     * @see ValueFactoryManager#add
      *
      **/
+    ["deprecate:addObjectFactory() is deprecated, use ValueFactoryManager::add() instead."]
     void addObjectFactory(ObjectFactory factory, ["objc:param:sliceId"] string id);
 
     /**
@@ -342,9 +352,11 @@ local interface Communicator
      *
      * @see #addObjectFactory
      * @see ObjectFactory
+     * @see ValueFactoryManager#find
      *
      **/
-    ["cpp:const"] ObjectFactory findObjectFactory(string id);
+    ["cpp:const", "deprecate:findObjectFactory() is deprecated, use ValueFactoryManager::find() instead."]
+    ObjectFactory findObjectFactory(string id);
 
     /**
      * Get the implicit context associated with this communicator.
@@ -440,8 +452,8 @@ local interface Communicator
      *
      * <p class="Note"> You can also set a locator for an individual proxy
      * by calling the operation <tt>ice_locator</tt> on the proxy, or for an
-     * object adapter by calling the operation {@link setLocator} on the
-     * object adapter.
+     * object adapter by calling the operation {@link ObjectAdapter#setLocator}
+     * on the object adapter.
      *
      * @param loc The default locator to use for this communicator.
      *
@@ -465,13 +477,24 @@ local interface Communicator
 
     /**
      *
+     * Get the value factory manager for this communicator.
+     *
+     * @return This communicator's value factory manager.
+     *
+     * @see ValueFactoryManager
+     *
+     **/
+    ["cpp:const"] ValueFactoryManager getValueFactoryManager();
+
+    /**
+     *
      * Flush any pending batch requests for this communicator.
      * This means all batch requests invoked on fixed proxies
      * for all connections associated with the communicator.
      * Any errors that occur while flushing a connection are ignored.
      *
      **/
-    ["async"] void flushBatchRequests();
+    ["async-oneway"] void flushBatchRequests();
 
     /**
      *
@@ -489,7 +512,6 @@ local interface Communicator
      * @return A proxy to the main ("") facet of the Admin object. Never returns a null proxy.
      *
      * @see #getAdmin
-     * @see LocatorRegistry#setServerProcessProxy
      *
      **/
     Object* createAdmin(ObjectAdapter adminAdapter, Identity adminId);
@@ -500,7 +522,7 @@ local interface Communicator
      *
      * getAdmin also creates the Admin object and creates and activates the Ice.Admin object
      * adapter to host this Admin object if Ice.Admin.Enpoints is set. The identity of the Admin
-     * object created by getAdmin is <value of Ice.Admin.InstanceName>/admin, or <UUID>/admin
+     * object created by getAdmin is {value of Ice.Admin.InstanceName}/admin, or {UUID}/admin
      * when Ice.Admin.InstanceName is not set.
      *
      * <p>If Ice.Admin.DelayCreation is 0 or not set, getAdmin is called by the communicator
@@ -559,6 +581,36 @@ local interface Communicator
      *
      **/
     FacetMap findAllAdminFacets();
+};
+
+
+/**
+ * The output mode for xxxToString method such as identityToString and proxyToString.
+ * The actual encoding format for the string is the same for all modes: you
+ * don't need to specify an encoding format or mode when reading such a string.
+ *
+ **/
+local enum ToStringMode
+{
+    /**
+     * Characters > 127 are kept as-is in the resulting string. Non-printable ASCII
+     * characters <= 127 are encoded as \\t, \\n (etc.) or \\unnnn.
+     **/
+    Unicode,
+
+    /**
+     * Characters > 127 are encoded as universal character names in the resulting string:
+     * \\unnnn for BMP characters and \\Unnnnnnnn for non-BMP characters. Non-printable ASCII
+     * characters <= 127 are encoded as \\t, \\n (etc.) or \\unnnn.
+     **/
+    ASCII,
+
+    /**
+     * Characters > 127 are encoded as a sequence of UTF-8 bytes using octal escapes.
+     * characters <= 127 are encoded as \\t, \\n (etc.) or an octal escape. Use this mode
+     * to generate strings compatible with Ice 3.6 and earlier.
+     **/
+    Compat
 };
 
 };

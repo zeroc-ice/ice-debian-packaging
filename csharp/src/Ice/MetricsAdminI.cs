@@ -21,29 +21,29 @@ namespace IceInternal
         IceMX.MetricsFailures[] getFailures();
         IceMX.MetricsFailures getFailures(string id);
         Dictionary<string, string> getProperties();
-    };
+    }
 
     interface ISubMap
     {
         void addSubMapToMetrics(IceMX.Metrics metrics);
-    };
+    }
 
     interface ISubMapCloneFactory
     {
         ISubMap create();
-    };
+    }
 
     interface ISubMapFactory
     {
         ISubMapCloneFactory createCloneFactory(string subMapPrefix, Ice.Properties properties);
-    };
+    }
 
     internal interface IMetricsMapFactory
     {
         void registerSubMap<S>(string subMap, System.Reflection.FieldInfo field) where S : IceMX.Metrics, new();
         void update();
         IMetricsMap create(string mapPrefix, Ice.Properties properties);
-    };
+    }
     
     internal class SubMap<S> : ISubMap where S : IceMX.Metrics, new()
     {
@@ -72,7 +72,7 @@ namespace IceInternal
             
         readonly private MetricsMap<S> _map;
         readonly private System.Reflection.FieldInfo _field;
-    };
+    }
 
     internal class SubMapCloneFactory<S> : ISubMapCloneFactory where S : IceMX.Metrics, new()
     {
@@ -89,7 +89,7 @@ namespace IceInternal
         
         readonly private MetricsMap<S> _map;
         readonly private System.Reflection.FieldInfo _field;
-    };
+    }
 
     class SubMapFactory<S> : ISubMapFactory where S : IceMX.Metrics, new()
     {
@@ -104,7 +104,7 @@ namespace IceInternal
         }
 
         readonly private System.Reflection.FieldInfo _field;
-    };
+    }
 
     public class MetricsMap<T> : IMetricsMap where T : IceMX.Metrics, new()
     {
@@ -231,7 +231,7 @@ namespace IceInternal
             private T _object;
             private Dictionary<string, int> _failures;
             private Dictionary<string, ISubMap> _subMaps;
-        };
+        }
 
         internal MetricsMap(string mapPrefix, Ice.Properties props, Dictionary<string, ISubMapFactory> subMaps)
         {
@@ -248,7 +248,7 @@ namespace IceInternal
             if(groupBy.Length > 0)
             {
                 string v = "";
-                bool attribute = Char.IsLetter(groupBy[0]) || Char.IsDigit(groupBy[0]);
+                bool attribute = char.IsLetter(groupBy[0]) || char.IsDigit(groupBy[0]);
                 if(!attribute)
                 {
                     _groupByAttributes.Add("");
@@ -256,7 +256,7 @@ namespace IceInternal
             
                 foreach(char p in groupBy)
                 {
-                    bool isAlphaNum = Char.IsLetter(p) || Char.IsDigit(p) || p == '.';
+                    bool isAlphaNum = char.IsLetter(p) || char.IsDigit(p) || p == '.';
                     if(attribute && !isAlphaNum)
                     {
                         _groupByAttributes.Add(v);
@@ -543,7 +543,7 @@ namespace IceInternal
         readonly private Dictionary<string, Entry> _objects = new Dictionary<string, Entry>();
         readonly private Dictionary<string, ISubMapCloneFactory> _subMaps;
         private LinkedList<Entry> _detachedQueue;
-    };
+    }
 
     internal class MetricsViewI
     {
@@ -661,7 +661,7 @@ namespace IceInternal
         
         readonly private string _name;
         readonly private Dictionary<string, IMetricsMap> _maps = new Dictionary<string, IMetricsMap>();
-    };
+    }
 
     public class MetricsAdminI : IceMX.MetricsAdminDisp_, Ice.PropertiesAdminUpdateCallback
     {
@@ -713,11 +713,7 @@ namespace IceInternal
 
         class MetricsMapFactory<T> : IMetricsMapFactory where T : IceMX.Metrics, new()
         {
-#if COMPACT
-            public MetricsMapFactory(Ice.VoidAction updater)
-#else
-            public MetricsMapFactory(System.Action updater)
-#endif
+            public MetricsMapFactory(Action updater)
             {
                 _updater = updater;
             }
@@ -739,13 +735,9 @@ namespace IceInternal
                 _subMaps.Add(subMap, new SubMapFactory<S>(field));
             }
 
-#if COMPACT
-            readonly private Ice.VoidAction _updater;
-#else
-            readonly private System.Action _updater;
-#endif
+            readonly private Action _updater;
             readonly private Dictionary<string, ISubMapFactory> _subMaps = new Dictionary<string, ISubMapFactory>();
-        };
+        }
 
         public MetricsAdminI(Ice.Properties properties, Ice.Logger logger)
         {
@@ -867,7 +859,7 @@ namespace IceInternal
             lock(this)
             {
                 MetricsViewI view = getMetricsView(viewName);
-                timestamp = IceInternal.Time.currentMonotonicTimeMillis();
+                timestamp = Time.currentMonotonicTimeMillis();
                 if(view != null)
                 {
                     return view.getMetrics();
@@ -903,11 +895,7 @@ namespace IceInternal
             }
         }
 
-#if COMPACT
-        public void registerMap<T>(string map, Ice.VoidAction updater)
-#else
-        public void registerMap<T>(string map, System.Action updater)
-#endif
+        public void registerMap<T>(string map, Action updater)
             where T : IceMX.Metrics, new()
         {
             bool updated;

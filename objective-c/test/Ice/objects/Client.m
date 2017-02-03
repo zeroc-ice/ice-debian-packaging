@@ -15,51 +15,61 @@
 #   import <Foundation/NSGarbageCollector.h>
 #endif
 
-@interface ClientMyObjectFactory : NSObject<ICEObjectFactory>
-@end
+#if defined(__clang__)
+// For 'Ice::Communicator::addObjectFactory()' deprecation
+#   pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
-@implementation ClientMyObjectFactory
-
-// Note that the object factory must not autorelease the
+// Note that the factory must not autorelease the
 // returned objects.
--(ICEObject*) create:(NSString*)type
+static ICEValueFactory factory = ^ICEObject* (NSString* type)
 {
     if([type isEqualToString:@"::Test::B"])
     {
-        return  [[TestObjectsBI alloc] init];
+        return  ICE_AUTORELEASE([[TestObjectsBI alloc] init]);
     }
     else if([type isEqualToString:@"::Test::C"])
     {
-        return [[TestObjectsCI alloc] init];
+        return ICE_AUTORELEASE([[TestObjectsCI alloc] init]);
     }
     else if([type isEqualToString:@"::Test::D"])
     {
-        return [[TestObjectsDI alloc] init];
+        return ICE_AUTORELEASE([[TestObjectsDI alloc] init]);
     }
     else if([type isEqualToString:@"::Test::E"])
     {
-        return [[TestObjectsEI alloc] init];
+        return ICE_AUTORELEASE([[TestObjectsEI alloc] init]);
     }
     else if([type isEqualToString:@"::Test::F"])
     {
-        return [[TestObjectsFI alloc] init];
+        return ICE_AUTORELEASE([[TestObjectsFI alloc] init]);
     }
     else if([type isEqualToString:@"::Test::I"])
     {
-        return [[TestObjectsI alloc] init];
+        return ICE_AUTORELEASE([[TestObjectsI alloc] init]);
     }
     else if([type isEqualToString:@"::Test::J"])
     {
-        return [[TestObjectsJI alloc] init];
+        return ICE_AUTORELEASE([[TestObjectsJI alloc] init]);
     }
     else if([type isEqualToString:@"::Test::H"])
     {
-        return [[TestObjectsHI alloc] init];
+        return ICE_AUTORELEASE([[TestObjectsHI alloc] init]);
     }
     else
     {
         test(NO);
     }
+    return nil;
+};
+
+@interface ClientMyObjectFactory : NSObject<ICEObjectFactory>
+@end
+
+@implementation ClientMyObjectFactory
+
+-(ICEObject*) create:(NSString*)type
+{
     return nil;
 }
 
@@ -72,16 +82,18 @@
 static int
 run(id<ICECommunicator> communicator)
 {
-    id<ICEObjectFactory> factory = ICE_AUTORELEASE([[ClientMyObjectFactory alloc] init]);
+    id<ICEValueFactoryManager> manager = [communicator getValueFactoryManager];
+    [manager add:factory sliceId:@"::Test::B"];
+    [manager add:factory sliceId:@"::Test::C"];
+    [manager add:factory sliceId:@"::Test::D"];
+    [manager add:factory sliceId:@"::Test::E"];
+    [manager add:factory sliceId:@"::Test::F"];
+    [manager add:factory sliceId:@"::Test::I"];
+    [manager add:factory sliceId:@"::Test::J"];
+    [manager add:factory sliceId:@"::Test::H"];
 
-    [communicator addObjectFactory:factory sliceId:@"::Test::B"];
-    [communicator addObjectFactory:factory sliceId:@"::Test::C"];
-    [communicator addObjectFactory:factory sliceId:@"::Test::D"];
-    [communicator addObjectFactory:factory sliceId:@"::Test::E"];
-    [communicator addObjectFactory:factory sliceId:@"::Test::F"];
-    [communicator addObjectFactory:factory sliceId:@"::Test::I"];
-    [communicator addObjectFactory:factory sliceId:@"::Test::J"];
-    [communicator addObjectFactory:factory sliceId:@"::Test::H"];
+    id<ICEObjectFactory> objectFactory = ICE_AUTORELEASE([[ClientMyObjectFactory alloc] init]);
+    [communicator addObjectFactory:objectFactory sliceId:@"TestOF" ];
 
     id<TestObjectsInitialPrx> objectsAllTests(id<ICECommunicator>, bool);
     id<TestObjectsInitialPrx> initial = objectsAllTests(communicator, NO);
@@ -96,6 +108,13 @@ run(id<ICECommunicator> communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    ICEregisterIceSSL(YES);
+#if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+    ICEregisterIceIAP(YES);
+#endif
+#endif
+
     int status;
     @autoreleasepool
     {
@@ -105,7 +124,7 @@ main(int argc, char* argv[])
             ICEInitializationData* initData = [ICEInitializationData initializationData];
             initData.properties = defaultClientProperties(&argc, argv);
 #if TARGET_OS_IPHONE
-            initData.prefixTable__ = [NSDictionary dictionaryWithObjectsAndKeys:
+            initData.prefixTable_ = [NSDictionary dictionaryWithObjectsAndKeys:
                                       @"TestObjects", @"::Test",
                                       nil];
 #endif
@@ -124,15 +143,7 @@ main(int argc, char* argv[])
 
         if(communicator)
         {
-            @try
-            {
-                [communicator destroy];
-            }
-            @catch(ICEException* ex)
-            {
-                tprintf("%@\n", ex);
-                status = EXIT_FAILURE;
-            }
+            [communicator destroy];
         }
     }
     return status;

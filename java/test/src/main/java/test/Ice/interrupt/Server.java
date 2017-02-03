@@ -12,26 +12,24 @@ package test.Ice.interrupt;
 public class Server extends test.Util.Application
 {
     @Override
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
-        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
-        Ice.ObjectAdapter adapter2 = communicator().createObjectAdapter("ControllerAdapter");
+        com.zeroc.Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
+        com.zeroc.Ice.ObjectAdapter adapter2 = communicator().createObjectAdapter("ControllerAdapter");
 
         TestControllerI controller = new TestControllerI(adapter);
-        adapter.add(new TestI(controller), communicator().stringToIdentity("test"));
+        adapter.add(new TestI(controller), com.zeroc.Ice.Util.stringToIdentity("test"));
         adapter.activate();
-        adapter2.add(controller, communicator().stringToIdentity("testController"));
+        adapter2.add(controller, com.zeroc.Ice.Util.stringToIdentity("testController"));
         adapter2.activate();
 
         return WAIT;
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.interrupt");
         //
         // We need to enable the ThreadInterruptSafe property so that Ice is
@@ -44,13 +42,13 @@ public class Server extends test.Util.Application
         //
         initData.properties.setProperty("Ice.MessageSizeMax", "20000");
         //
-        // opIndempotent raises UnknownException, we disable dispatch
+        // opIdempotent raises UnknownException, we disable dispatch
         // warnings to prevent warnings.
         //
         initData.properties.setProperty("Ice.Warn.Dispatch", "0");
 
-        initData.properties.setProperty("TestAdapter.Endpoints", "default -p 12010");
-        initData.properties.setProperty("ControllerAdapter.Endpoints", "tcp -p 12011");
+        initData.properties.setProperty("TestAdapter.Endpoints", getTestEndpoint(initData.properties, 0));
+        initData.properties.setProperty("ControllerAdapter.Endpoints", getTestEndpoint(initData.properties, 1));
         initData.properties.setProperty("ControllerAdapter.ThreadPool.Size", "1");
         //
         // Limit the recv buffer size, this test relies on the socket

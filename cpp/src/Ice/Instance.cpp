@@ -18,7 +18,7 @@
 #include <Ice/ProxyFactory.h>
 #include <Ice/ThreadPool.h>
 #include <Ice/ConnectionFactory.h>
-#include <Ice/ObjectFactoryManager.h>
+#include <Ice/ValueFactoryManagerI.h>
 #include <Ice/LocalException.h>
 #include <Ice/ObjectAdapterFactory.h>
 #include <Ice/Exception.h>
@@ -42,9 +42,13 @@
 #include <Ice/LoggerAdminI.h>
 #include <Ice/RegisterPluginsInit.h>
 #include <Ice/ObserverHelper.h>
+#include <Ice/Functional.h>
+#include <Ice/ConsoleUtil.h>
 
+#include <IceUtil/DisableWarnings.h>
+#include <IceUtil/FileUtil.h>
 #include <IceUtil/StringUtil.h>
-#include <IceUtil/UUID.h>
+#include <Ice/UUID.h>
 #include <IceUtil/Mutex.h>
 #include <IceUtil/MutexPtrLock.h>
 #include <IceUtil/Atomic.h>
@@ -61,7 +65,7 @@
 #   include <sys/types.h>
 #endif
 
-#if defined(__linux) || defined(__sun) || defined(__GLIBC__)
+#if defined(__linux) || defined(__sun) || defined(_AIX) || defined(__GLIBC__)
 #   include <grp.h> // for initgroups
 #endif
 
@@ -72,8 +76,8 @@ using namespace IceInternal;
 namespace IceUtilInternal
 {
 
-extern bool ICE_UTIL_API nullHandleAbort;
-extern bool ICE_UTIL_API printStackTraces;
+extern bool nullHandleAbort;
+extern bool printStackTraces;
 
 };
 
@@ -138,16 +142,16 @@ public:
 
             if(notDestroyedCount > 0)
             {
-                cerr << "!! " << IceUtil::Time::now().toDateTime() << " error: ";
+                consoleErr << "!! " << IceUtil::Time::now().toDateTime() << " error: ";
                 if(notDestroyedCount == 1)
                 {
-                    cerr << "communicator ";
+                    consoleErr << "communicator ";
                 }
                 else
                 {
-                    cerr << notDestroyedCount << " communicators ";
+                    consoleErr << notDestroyedCount << " communicators ";
                 }
-                cerr << "not destroyed during global destruction.";
+                consoleErr << "not destroyed during global destruction.";
             }
 
             delete instanceList;
@@ -396,20 +400,6 @@ IceInternal::Instance::outgoingConnectionFactory() const
     return _outgoingConnectionFactory;
 }
 
-ObjectFactoryManagerPtr
-IceInternal::Instance::servantFactoryManager() const
-{
-    Lock sync(*this);
-
-    if(_state == StateDestroyed)
-    {
-        throw CommunicatorDestroyedException(__FILE__, __LINE__);
-    }
-
-    assert(_servantFactoryManager);
-    return _servantFactoryManager;
-}
-
 ObjectAdapterFactoryPtr
 IceInternal::Instance::objectAdapterFactory() const
 {
@@ -576,122 +566,7 @@ IceInternal::Instance::serverACM() const
     return _serverACM;
 }
 
-Identity
-IceInternal::Instance::stringToIdentity(const string& s) const
-{
-    //
-    // This method only accepts printable ascii. Since printable ascii is a subset
-    // of all narrow string encodings, it is not necessary to convert the string
-    // from the native string encoding. Any characters other than printable-ASCII
-    // will cause an IllegalArgumentException. Note that it can contain Unicode
-    // encoded in the escaped form which is the reason why we call fromUTF8 after
-    // unespcaping the printable ASCII string.
-    //
-
-    Identity ident;
-
-    //
-    // Find unescaped separator; note that the string may contain an escaped
-    // backslash before the separator.
-    //
-    string::size_type slash = string::npos, pos = 0;
-    while((pos = s.find('/', pos)) != string::npos)
-    {
-        int escapes = 0;
-        while(static_cast<int>(pos)- escapes > 0 && s[pos - escapes - 1] == '\\')
-        {
-            escapes++;
-        }
-
-        //
-        // We ignore escaped escapes
-        //
-        if(escapes % 2 == 0)
-        {
-            if(slash == string::npos)
-            {
-                slash = pos;
-            }
-            else
-            {
-                //
-                // Extra unescaped slash found.
-                //
-                IdentityParseException ex(__FILE__, __LINE__);
-                ex.str = "unescaped backslash in identity `" + s + "'";
-                throw ex;
-            }
-        }
-        pos++;
-    }
-
-    if(slash == string::npos)
-    {
-        try
-        {
-            ident.name = IceUtilInternal::unescapeString(s, 0, s.size());
-        }
-        catch(const IceUtil::IllegalArgumentException& e)
-        {
-            IdentityParseException ex(__FILE__, __LINE__);
-            ex.str = "invalid identity name `" + s + "': " + e.reason();
-            throw ex;
-        }
-    }
-    else
-    {
-        try
-        {
-            ident.category = IceUtilInternal::unescapeString(s, 0, slash);
-        }
-        catch(const IceUtil::IllegalArgumentException& e)
-        {
-            IdentityParseException ex(__FILE__, __LINE__);
-            ex.str = "invalid category in identity `" + s + "': " + e.reason();
-            throw ex;
-        }
-        if(slash + 1 < s.size())
-        {
-            try
-            {
-                ident.name = IceUtilInternal::unescapeString(s, slash + 1, s.size());
-            }
-            catch(const IceUtil::IllegalArgumentException& e)
-            {
-                IdentityParseException ex(__FILE__, __LINE__);
-                ex.str = "invalid name in identity `" + s + "': " + e.reason();
-                throw ex;
-            }
-        }
-    }
-
-    ident.name = UTF8ToNative(ident.name, _stringConverter);
-    ident.category = UTF8ToNative(ident.category, _stringConverter);
-
-    return ident;
-}
-
-string
-IceInternal::Instance::identityToString(const Identity& ident) const
-{
-    //
-    // This method returns the stringified identity. The returned string only
-    // contains printable ascii. It can contain UTF8 in the escaped form.
-    //
-    string name = nativeToUTF8(ident.name, _stringConverter);
-    string category = nativeToUTF8(ident.category, _stringConverter);
-
-    if(category.empty())
-    {
-        return IceUtilInternal::escapeString(name, "/");
-    }
-    else
-    {
-        return IceUtilInternal::escapeString(category, "/") + '/' + IceUtilInternal::escapeString(name, "/");
-    }
-}
-
-Ice::ObjectPrx
+Ice::ObjectPrxPtr
 IceInternal::Instance::createAdmin(const ObjectAdapterPtr& adminAdapter, const Identity& adminIdentity)
 {
     ObjectAdapterPtr adapter = adminAdapter;
@@ -759,7 +634,7 @@ IceInternal::Instance::createAdmin(const ObjectAdapterPtr& adminAdapter, const I
     return adapter->createProxy(adminIdentity);
 }
 
-Ice::ObjectPrx
+Ice::ObjectPrxPtr
 IceInternal::Instance::getAdmin()
 {
     Lock sync(*this);
@@ -790,7 +665,7 @@ IceInternal::Instance::getAdmin()
         adminIdentity.category = _initData.properties->getProperty("Ice.Admin.InstanceName");
         if(adminIdentity.category.empty())
         {
-            adminIdentity.category = IceUtil::generateUUID();
+            adminIdentity.category = Ice::generateUUID();
         }
 
         _adminIdentity = adminIdentity;
@@ -850,12 +725,12 @@ IceInternal::Instance::addAllAdminFacets()
 void
 IceInternal::Instance::setServerProcessProxy(const ObjectAdapterPtr& adminAdapter, const Identity& adminIdentity)
 {
-    ObjectPrx admin = adminAdapter->createProxy(adminIdentity);
-    LocatorPrx locator = adminAdapter->getLocator();
+    ObjectPrxPtr admin = adminAdapter->createProxy(adminIdentity);
+    LocatorPrxPtr locator = adminAdapter->getLocator();
     const string serverId = _initData.properties->getProperty("Ice.Admin.ServerId");
     if(locator && serverId != "")
     {
-        ProcessPrx process = ProcessPrx::uncheckedCast(admin->ice_facet("Process"));
+        ProcessPrxPtr process = ICE_UNCHECKED_CAST(ProcessPrx, admin->ice_facet("Process"));
         try
         {
             //
@@ -1009,7 +884,7 @@ IceInternal::Instance::findAllAdminFacets()
 }
 
 void
-IceInternal::Instance::setDefaultLocator(const Ice::LocatorPrx& defaultLocator)
+IceInternal::Instance::setDefaultLocator(const Ice::LocatorPrxPtr& defaultLocator)
 {
     Lock sync(*this);
 
@@ -1022,7 +897,7 @@ IceInternal::Instance::setDefaultLocator(const Ice::LocatorPrx& defaultLocator)
 }
 
 void
-IceInternal::Instance::setDefaultRouter(const Ice::RouterPrx& defaultRouter)
+IceInternal::Instance::setDefaultRouter(const Ice::RouterPrxPtr& defaultRouter)
 {
     Lock sync(*this);
 
@@ -1043,6 +918,14 @@ IceInternal::Instance::setLogger(const Ice::LoggerPtr& logger)
     _initData.logger = logger;
 }
 
+#ifdef ICE_CPP11_MAPPING
+void
+IceInternal::Instance::setThreadHook(function<void()> threadStart, function<void()> threadStop)
+{
+    _initData.threadStart = move(threadStart);
+    _initData.threadStop = move(threadStop);
+}
+#else
 void
 IceInternal::Instance::setThreadHook(const Ice::ThreadNotificationPtr& threadHook)
 {
@@ -1051,6 +934,7 @@ IceInternal::Instance::setThreadHook(const Ice::ThreadNotificationPtr& threadHoo
     //
     _initData.threadHook = threadHook;
 }
+#endif
 
 namespace
 {
@@ -1065,9 +949,10 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
     _messageSizeMax(0),
     _batchAutoFlushSize(0),
     _collectObjects(false),
+    _toStringMode(ICE_ENUM(ToStringMode, Unicode)),
     _implicitContext(0),
-    _stringConverter(IceUtil::getProcessStringConverter()),
-    _wstringConverter(IceUtil::getProcessWstringConverter()),
+    _stringConverter(Ice::getProcessStringConverter()),
+    _wstringConverter(Ice::getProcessWstringConverter()),
     _adminEnabled(false)
 {
     try
@@ -1121,12 +1006,15 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
 
 #ifdef NDEBUG
                 if(_initData.properties->getPropertyAsIntWithDefault("Ice.PrintStackTraces", 0) > 0)
-#else
-                if(_initData.properties->getPropertyAsIntWithDefault("Ice.PrintStackTraces", 1) > 0)
-#endif
                 {
                     IceUtilInternal::printStackTraces = true;
                 }
+#else
+                if(_initData.properties->getPropertyAsIntWithDefault("Ice.PrintStackTraces", 1) == 0)
+                {
+                    IceUtilInternal::printStackTraces = false;
+                }
+#endif
 
 #ifndef _WIN32
                 string newUser = _initData.properties->getProperty("Ice.ChangeUser");
@@ -1176,7 +1064,7 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
 
             if(instanceCount() == 1)
             {
-#if defined(_WIN32) && !defined(ICE_OS_WINRT)
+#if defined(_WIN32) && !defined(ICE_OS_UWP)
                 WORD version = MAKEWORD(1, 1);
                 WSADATA data;
                 if(WSAStartup(version, &data) != 0)
@@ -1222,23 +1110,23 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
                     throw InitializationException(__FILE__, __LINE__, "Both syslog and file logger cannot be enabled.");
                 }
 
-                _initData.logger =
-                    new SysLoggerI(_initData.properties->getProperty("Ice.ProgramName"),
-                                   _initData.properties->getPropertyWithDefault("Ice.SyslogFacility", "LOG_USER"));
+                _initData.logger = ICE_MAKE_SHARED(SysLoggerI,
+                                                   _initData.properties->getProperty("Ice.ProgramName"),
+                                                   _initData.properties->getPropertyWithDefault("Ice.SyslogFacility", "LOG_USER"));
             }
             else
 #endif
             if(!logfile.empty())
             {
-                _initData.logger = new LoggerI(_initData.properties->getProperty("Ice.ProgramName"), logfile);
+                _initData.logger = ICE_MAKE_SHARED(LoggerI, _initData.properties->getProperty("Ice.ProgramName"), logfile, true,
+                                                            _initData.properties->getPropertyAsIntWithDefault("Ice.LogFile.SizeMax", 0));
             }
             else
             {
                 _initData.logger = getProcessLogger();
-                if(LoggerIPtr::dynamicCast(_initData.logger))
+                if(ICE_DYNAMIC_CAST(Logger, _initData.logger))
                 {
-                    _initData.logger = new LoggerI(_initData.properties->getProperty("Ice.ProgramName"), "",
-                                                   logStdErrConvert, _stringConverter);
+                    _initData.logger = ICE_MAKE_SHARED(LoggerI, _initData.properties->getProperty("Ice.ProgramName"), "", logStdErrConvert);
                 }
             }
         }
@@ -1303,10 +1191,25 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
 
         const_cast<bool&>(_collectObjects) = _initData.properties->getPropertyAsInt("Ice.CollectObjects") > 0;
 
+        string toStringModeStr = _initData.properties->getPropertyWithDefault("Ice.ToStringMode", "Unicode");
+        if(toStringModeStr == "ASCII")
+        {
+            const_cast<ToStringMode&>(_toStringMode) = ICE_ENUM(ToStringMode, ASCII);
+        }
+        else if(toStringModeStr == "Compat")
+        {
+            const_cast<ToStringMode&>(_toStringMode) = ICE_ENUM(ToStringMode, Compat);
+        }
+        else if(toStringModeStr != "Unicode")
+        {
+            throw InitializationException(__FILE__, __LINE__, "The value for Ice.ToStringMode must be Unicode, ASCII or Compat");
+        }
+
+
         //
         // Client ACM enabled by default. Server ACM disabled by default.
         //
-#ifndef ICE_OS_WINRT
+#ifndef ICE_OS_UWP
         const_cast<ImplicitContextIPtr&>(_implicitContext) =
             ImplicitContextI::create(_initData.properties->getProperty("Ice.ImplicitContext"));
 #endif
@@ -1347,23 +1250,20 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
 
         _dynamicLibraryList = new DynamicLibraryList;
 
-        _pluginManager = new PluginManagerI(communicator, _dynamicLibraryList);
+        _pluginManager = ICE_MAKE_SHARED(PluginManagerI, communicator, _dynamicLibraryList);
+
+        if(!_initData.valueFactoryManager)
+        {
+            _initData.valueFactoryManager = ICE_MAKE_SHARED(ValueFactoryManagerI);
+        }
+
+        _objectFactoryMapHint = _objectFactoryMap.end();
 
         _outgoingConnectionFactory = new OutgoingConnectionFactory(communicator, this);
 
-        _servantFactoryManager = new ObjectFactoryManager();
-
-        _objectAdapterFactory = new ObjectAdapterFactory(this, communicator);
+        _objectAdapterFactory = ICE_MAKE_SHARED(ObjectAdapterFactory, this, communicator);
 
         _retryQueue = new RetryQueue(this);
-
-        //
-        // When _wstringConverter isn't set, use the default Unicode wstring converter
-        //
-        if(!_wstringConverter)
-        {
-            _wstringConverter = new IceUtil::UnicodeWstringConverter;
-        }
 
         __setNoDelete(false);
     }
@@ -1386,7 +1286,6 @@ IceInternal::Instance::~Instance()
     assert(!_proxyFactory);
     assert(!_outgoingConnectionFactory);
 
-    assert(!_servantFactoryManager);
     assert(!_objectAdapterFactory);
     assert(!_clientThreadPool);
     assert(!_serverThreadPool);
@@ -1406,7 +1305,7 @@ IceInternal::Instance::~Instance()
     }
     if(instanceCount() == 0)
     {
-#if defined(_WIN32) && !defined(ICE_OS_WINRT)
+#if defined(_WIN32) && !defined(ICE_OS_UWP)
         WSACleanup();
 #endif
 
@@ -1440,29 +1339,20 @@ IceInternal::Instance::finishSetup(int& argc, char* argv[], const Ice::Communica
     if(tcpFactory)
     {
         ProtocolInstancePtr instance = new ProtocolInstance(communicator, WSEndpointType, "ws", false);
-        _endpointFactoryManager->add(new WSEndpointFactory(instance, tcpFactory->clone(instance)));
+        _endpointFactoryManager->add(new WSEndpointFactory(instance, tcpFactory->clone(instance, 0)));
     }
     EndpointFactoryPtr sslFactory = _endpointFactoryManager->get(SSLEndpointType);
     if(sslFactory)
     {
         ProtocolInstancePtr instance = new ProtocolInstance(communicator, WSSEndpointType, "wss", true);
-        _endpointFactoryManager->add(new WSEndpointFactory(instance, sslFactory->clone(instance)));
+        _endpointFactoryManager->add(new WSEndpointFactory(instance, sslFactory->clone(instance, 0)));
     }
 
     //
     // Reset _stringConverter and _wstringConverter, in case a plugin changed them
     //
-    _stringConverter = IceUtil::getProcessStringConverter();
-
-    IceUtil::WstringConverterPtr newWstringConverter = IceUtil::getProcessWstringConverter();
-    if(newWstringConverter)
-    {
-        _wstringConverter = newWstringConverter;
-    }
-    else if(!dynamic_cast<IceUtil::UnicodeWstringConverter*>(_wstringConverter.get()))
-    {
-        _wstringConverter = new IceUtil::UnicodeWstringConverter;
-    }
+    _stringConverter = Ice::getProcessStringConverter();
+    _wstringConverter = Ice::getProcessWstringConverter();
 
     //
     // Create Admin facets, if enabled.
@@ -1494,7 +1384,7 @@ IceInternal::Instance::finishSetup(int& argc, char* argv[], const Ice::Communica
         const string processFacetName = "Process";
         if(_adminFacetFilter.empty() || _adminFacetFilter.find(processFacetName) != _adminFacetFilter.end())
         {
-            _adminFacets.insert(make_pair(processFacetName, new ProcessI(communicator)));
+            _adminFacets.insert(make_pair(processFacetName, ICE_MAKE_SHARED(ProcessI, communicator)));
         }
 
         //
@@ -1515,7 +1405,7 @@ IceInternal::Instance::finishSetup(int& argc, char* argv[], const Ice::Communica
         PropertiesAdminIPtr propsAdmin;
         if(_adminFacetFilter.empty() || _adminFacetFilter.find(propertiesFacetName) != _adminFacetFilter.end())
         {
-            propsAdmin = new PropertiesAdminI(_initData.properties, _initData.logger);
+            propsAdmin = ICE_MAKE_SHARED(PropertiesAdminI, this);
             _adminFacets.insert(make_pair(propertiesFacetName, propsAdmin));
         }
 
@@ -1525,7 +1415,7 @@ IceInternal::Instance::finishSetup(int& argc, char* argv[], const Ice::Communica
         const string metricsFacetName = "Metrics";
         if(_adminFacetFilter.empty() || _adminFacetFilter.find(metricsFacetName) != _adminFacetFilter.end())
         {
-            CommunicatorObserverIPtr observer = new CommunicatorObserverI(_initData);
+            CommunicatorObserverIPtr observer = ICE_MAKE_SHARED(CommunicatorObserverI, _initData);
             _initData.observer = observer;
             _adminFacets.insert(make_pair(metricsFacetName, observer->getFacet()));
 
@@ -1534,7 +1424,13 @@ IceInternal::Instance::finishSetup(int& argc, char* argv[], const Ice::Communica
             //
             if(propsAdmin)
             {
+#ifdef ICE_CPP11_MAPPING
+                auto metricsAdmin = observer->getFacet();
+                propsAdmin->addUpdateCallback(
+                    [metricsAdmin](const PropertyDict& changes) { metricsAdmin->updated(changes); });
+#else
                 propsAdmin->addUpdateCallback(observer->getFacet());
+#endif
             }
         }
     }
@@ -1544,7 +1440,7 @@ IceInternal::Instance::finishSetup(int& argc, char* argv[], const Ice::Communica
     //
     if(_initData.observer)
     {
-        _initData.observer->setObserverUpdater(new ObserverUpdaterI(this));
+        _initData.observer->setObserverUpdater(ICE_MAKE_SHARED(ObserverUpdaterI, this));
     }
 
     //
@@ -1589,7 +1485,7 @@ IceInternal::Instance::finishSetup(int& argc, char* argv[], const Ice::Communica
     //
     if(!_referenceFactory->getDefaultRouter())
     {
-        RouterPrx router = RouterPrx::uncheckedCast(_proxyFactory->propertyToProxy("Ice.Default.Router"));
+        RouterPrxPtr router = ICE_UNCHECKED_CAST(RouterPrx, _proxyFactory->propertyToProxy("Ice.Default.Router"));
         if(router)
         {
             _referenceFactory = _referenceFactory->setDefaultRouter(router);
@@ -1598,7 +1494,7 @@ IceInternal::Instance::finishSetup(int& argc, char* argv[], const Ice::Communica
 
     if(!_referenceFactory->getDefaultLocator())
     {
-        LocatorPrx locator = LocatorPrx::uncheckedCast(_proxyFactory->propertyToProxy("Ice.Default.Locator"));
+        LocatorPrxPtr locator = ICE_UNCHECKED_CAST(LocatorPrx, _proxyFactory->propertyToProxy("Ice.Default.Locator"));
         if(locator)
         {
             _referenceFactory = _referenceFactory->setDefaultLocator(locator);
@@ -1626,9 +1522,9 @@ IceInternal::Instance::finishSetup(int& argc, char* argv[], const Ice::Communica
     if(printProcessId)
     {
 #ifdef _MSC_VER
-        cout << GetCurrentProcessId() << endl;
+        consoleOut << GetCurrentProcessId() << endl;
 #else
-        cout << getpid() << endl;
+        consoleOut << getpid() << endl;
 #endif
     }
 
@@ -1715,7 +1611,7 @@ IceInternal::Instance::destroy()
 
     if(_initData.observer)
     {
-        CommunicatorObserverIPtr observer = CommunicatorObserverIPtr::dynamicCast(_initData.observer);
+        CommunicatorObserverIPtr observer = ICE_DYNAMIC_CAST(CommunicatorObserverI, _initData.observer);
         if(observer)
         {
             observer->destroy(); // Break cyclic reference counts. Don't clear _observer, it's immutable.
@@ -1723,7 +1619,7 @@ IceInternal::Instance::destroy()
         _initData.observer->setObserverUpdater(0); // Break cyclic reference count.
     }
 
-    LoggerAdminLoggerPtr logger = LoggerAdminLoggerPtr::dynamicCast(_initData.logger);
+    LoggerAdminLoggerPtr logger = ICE_DYNAMIC_CAST(LoggerAdminLogger, _initData.logger);
     if(logger)
     {
         //
@@ -1765,17 +1661,16 @@ IceInternal::Instance::destroy()
     {
         _serverThreadPool->joinWithAllThreads();
     }
-#ifndef ICE_OS_WINRT
+#ifndef ICE_OS_UWP
     if(_endpointHostResolver)
     {
         _endpointHostResolver->getThreadControl().join();
     }
 #endif
 
-    if(_servantFactoryManager)
-    {
-        _servantFactoryManager->destroy();
-    }
+    for_each(_objectFactoryMap.begin(), _objectFactoryMap.end(),
+        Ice::secondVoidMemFun<const string, ObjectFactory>(&ObjectFactory::destroy));
+    _objectFactoryMap.clear();
 
     if(_routerManager)
     {
@@ -1826,7 +1721,6 @@ IceInternal::Instance::destroy()
         _endpointHostResolver = 0;
         _timer = 0;
 
-        _servantFactoryManager = 0;
         _referenceFactory = 0;
         _requestHandlerFactory = 0;
         _proxyFactory = 0;
@@ -1939,6 +1833,82 @@ IceInternal::Instance::setRcvBufSizeWarn(Short type, int size)
     _setBufSizeWarn[type] =  info;
 }
 
+void
+IceInternal::Instance::addObjectFactory(const Ice::ObjectFactoryPtr& factory, const string& id)
+{
+    Lock sync(*this);
+
+    //
+    // Create a ValueFactory wrapper around the given ObjectFactory and register the wrapper
+    // with the value factory manager. This may raise AlreadyRegisteredException.
+    //
+#ifdef ICE_CPP11_MAPPING
+    _initData.valueFactoryManager->add([factory](const string& id)
+                                       {
+                                           return factory->create(id);
+                                       },
+                                       id);
+#else
+    class ValueFactoryWrapper: public Ice::ValueFactory
+    {
+    public:
+
+        ValueFactoryWrapper(const Ice::ObjectFactoryPtr& factory) :  _objectFactory(factory)
+        {
+        }
+
+        Ice::ValuePtr create(const std::string& id)
+        {
+            return _objectFactory->create(id);
+        }
+
+    private:
+
+        Ice::ObjectFactoryPtr _objectFactory;
+    };
+
+    _initData.valueFactoryManager->add(new ValueFactoryWrapper(factory), id);
+#endif
+
+    //
+    // Also record the object factory in our own map.
+    //
+    _objectFactoryMapHint = _objectFactoryMap.insert(_objectFactoryMapHint,
+                                                     pair<const string, Ice::ObjectFactoryPtr>(id, factory));
+}
+
+Ice::ObjectFactoryPtr
+IceInternal::Instance::findObjectFactory(const string& id) const
+{
+    Lock sync(*this);
+
+    ObjectFactoryMap& objectfactoryMap = const_cast<ObjectFactoryMap&>(_objectFactoryMap);
+
+    ObjectFactoryMap::iterator p = objectfactoryMap.end();
+    if(_objectFactoryMapHint != objectfactoryMap.end())
+    {
+        if(_objectFactoryMapHint->first == id)
+        {
+            p = _objectFactoryMapHint;
+        }
+    }
+
+    if(p == objectfactoryMap.end())
+    {
+        p = objectfactoryMap.find(id);
+    }
+
+    if(p != objectfactoryMap.end())
+    {
+        _objectFactoryMapHint = p;
+        return p->second;
+    }
+    else
+    {
+        return ICE_NULLPTR;
+    }
+}
+
 IceInternal::ProcessI::ProcessI(const CommunicatorPtr& communicator) :
     _communicator(communicator)
 {
@@ -1951,18 +1921,22 @@ IceInternal::ProcessI::shutdown(const Current&)
 }
 
 void
+#ifdef ICE_CPP11_MAPPING
+IceInternal::ProcessI::writeMessage(string message, Int fd, const Current&)
+#else
 IceInternal::ProcessI::writeMessage(const string& message, Int fd, const Current&)
+#endif
 {
     switch(fd)
     {
         case 1:
         {
-            cout << message << endl;
+            consoleOut << message << endl;
             break;
         }
         case 2:
         {
-            cerr << message << endl;
+            consoleErr << message << endl;
             break;
         }
     }

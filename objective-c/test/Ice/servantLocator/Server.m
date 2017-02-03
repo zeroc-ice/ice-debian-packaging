@@ -66,8 +66,8 @@ run(id<ICECommunicator> communicator)
 
     [adapter addServantLocator:ICE_AUTORELEASE([[ServantLocatorI alloc] init:@""]) category:@""];
     [adapter addServantLocator:ICE_AUTORELEASE([[ServantLocatorI alloc] init:@"category"]) category:@"category"];
-    [adapter add:[TestServantLocatorTestIntfI testIntf] identity:[communicator stringToIdentity:@"asm"]];
-    [adapter add:[TestActivationI testActivation] identity:[communicator stringToIdentity:@"test/activation"]];
+    [adapter add:[TestServantLocatorTestIntfI testIntf] identity:[ICEUtil stringToIdentity:@"asm"]];
+    [adapter add:[TestActivationI testActivation] identity:[ICEUtil stringToIdentity:@"test/activation"]];
     [adapter activate];
 
     serverReady(communicator);
@@ -83,6 +83,13 @@ run(id<ICECommunicator> communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    ICEregisterIceSSL(YES);
+#if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+    ICEregisterIceIAP(YES);
+#endif
+#endif
+
     @autoreleasepool
     {
         int status;
@@ -93,7 +100,7 @@ main(int argc, char* argv[])
             ICEInitializationData* initData = [ICEInitializationData initializationData];
             initData.properties = defaultServerProperties(&argc, argv);
 #if TARGET_OS_IPHONE
-            initData.prefixTable__ = [NSDictionary dictionaryWithObjectsAndKeys:
+            initData.prefixTable_ = [NSDictionary dictionaryWithObjectsAndKeys:
                                       @"TestServantLocator", @"::Test",
                                       nil];
 #endif
@@ -108,15 +115,7 @@ main(int argc, char* argv[])
 
         if(communicator)
         {
-            @try
-            {
-                [communicator destroy];
-            }
-            @catch(ICEException* ex)
-            {
-            tprintf("%@\n", ex);
-                status = EXIT_FAILURE;
-            }
+            [communicator destroy];
         }
         return status;
     }

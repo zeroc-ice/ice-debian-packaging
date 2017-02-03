@@ -11,7 +11,7 @@
 #define ICE_FACTORYTABLEINIT_H
 
 #include <Ice/FactoryTable.h>
-#include <Ice/DefaultObjectFactory.h>
+#include <Ice/DefaultValueFactory.h>
 
 namespace IceInternal
 {
@@ -32,12 +32,12 @@ extern ICE_API FactoryTable* factoryTable;
 class ICE_API CompactIdInit
 {
 public:
-    
+
     CompactIdInit(const char*, int);
-        
     ~CompactIdInit();
-    
+
 private:
+
     const int _compactId;
 };
 
@@ -45,41 +45,44 @@ template<class E>
 class DefaultUserExceptionFactoryInit
 {
 public:
-    
-    DefaultUserExceptionFactoryInit(const char* typeId) :
-        _typeId(typeId)
+
+    DefaultUserExceptionFactoryInit(const char* tId) : typeId(tId)
     {
-        factoryTable->addExceptionFactory(_typeId, new DefaultUserExceptionFactory<E>(_typeId));
+#ifdef ICE_CPP11_MAPPING
+        factoryTable->addExceptionFactory(typeId, defaultUserExceptionFactory<E>);
+#else
+        factoryTable->addExceptionFactory(typeId, new DefaultUserExceptionFactory<E>(typeId));
+#endif
     }
 
     ~DefaultUserExceptionFactoryInit()
     {
-        factoryTable->removeExceptionFactory(_typeId);
+        factoryTable->removeExceptionFactory(typeId);
     }
-    
-private:
-    const ::std::string _typeId;
+
+    const ::std::string typeId;
 };
 
 template<class O>
-class DefaultObjectFactoryInit
+class DefaultValueFactoryInit
 {
 public:
-    
-    DefaultObjectFactoryInit(const char* typeId) :
-        _typeId(typeId)
+
+    DefaultValueFactoryInit(const char* tId) : typeId(tId)
     {
-        factoryTable->addObjectFactory(_typeId, new DefaultObjectFactory<O>(_typeId));
+#ifdef ICE_CPP11_MAPPING
+        factoryTable->addValueFactory(typeId, defaultValueFactory<O>);
+#else
+        factoryTable->addValueFactory(typeId, new DefaultValueFactory<O>(typeId));
+#endif
     }
 
-    ~DefaultObjectFactoryInit()
+    ~DefaultValueFactoryInit()
     {
-        factoryTable->removeObjectFactory(_typeId);
+        factoryTable->removeValueFactory(typeId);
     }
-    
-private:
-    const ::std::string _typeId;
- 
+
+    const ::std::string typeId;
 };
 
 }

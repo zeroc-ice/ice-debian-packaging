@@ -15,7 +15,7 @@
 #include <IceUtil/Time.h>
 #include <IceUtil/StopWatch.h>
 #include <IceUtil/Timer.h>
-#include <IceUtil/UniquePtr.h>
+#include <Ice/UniquePtr.h>
 
 #include <Ice/CommunicatorF.h>
 #include <Ice/Connection.h>
@@ -29,7 +29,7 @@
 #include <Ice/ConnectorF.h>
 #include <Ice/LoggerF.h>
 #include <Ice/TraceLevelsF.h>
-#include <Ice/OutgoingAsyncF.h>
+#include <Ice/OutgoingAsync.h>
 #include <Ice/EventHandler.h>
 #include <Ice/RequestHandler.h>
 #include <Ice/ResponseHandler.h>
@@ -38,29 +38,23 @@
 #include <Ice/ConnectionAsync.h>
 #include <Ice/BatchRequestQueueF.h>
 #include <Ice/ACM.h>
+#include <Ice/OutputStream.h>
+#include <Ice/InputStream.h>
 
 #include <deque>
 
-#if TARGET_OS_IPHONE == 0 && !defined(ICE_OS_WINRT)
+#if !defined(ICE_OS_UWP)
 #    ifndef ICE_HAS_BZIP2
 #        define ICE_HAS_BZIP2
 #    endif
 #endif
-
-namespace IceInternal
-{
-
-class Outgoing;
-class OutgoingBase;
-
-}
 
 namespace Ice
 {
 
 class LocalException;
 class ObjectAdapterI;
-typedef IceUtil::Handle<ObjectAdapterI> ObjectAdapterIPtr;
+ICE_DEFINE_PTR(ObjectAdapterIPtr, ObjectAdapterI);
 
 class ConnectionI : public Connection,
                     public IceInternal::EventHandler,
@@ -89,52 +83,61 @@ class ConnectionI : public Connection,
 
 public:
 
+#ifdef ICE_CPP11_MAPPING
+    std::shared_ptr<ConnectionI> shared_from_this()
+    {
+        return std::dynamic_pointer_cast<ConnectionI>(VirtualEnableSharedFromThisBase::shared_from_this());
+    }
+#endif
+
     struct OutgoingMessage
     {
-        OutgoingMessage(IceInternal::BasicStream* str, bool comp) :
-            stream(str), out(0), compress(comp), requestId(0), adopted(false)
-#if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
+        OutgoingMessage(Ice::OutputStream* str, bool comp) :
+            stream(str), compress(comp), requestId(0), adopted(false)
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
             , isSent(false), invokeSent(false), receivedReply(false)
 #endif
         {
         }
 
-        OutgoingMessage(IceInternal::OutgoingBase* o, IceInternal::BasicStream* str, bool comp, int rid) :
-            stream(str), out(o), compress(comp), requestId(rid), adopted(false)
-#if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
-            , isSent(false), invokeSent(false), receivedReply(false)
-#endif
-        {
-        }
-
-        OutgoingMessage(const IceInternal::OutgoingAsyncBasePtr& o, IceInternal::BasicStream* str,
+        OutgoingMessage(const IceInternal::OutgoingAsyncBasePtr& o, Ice::OutputStream* str,
                         bool comp, int rid) :
-            stream(str), out(0), outAsync(o), compress(comp), requestId(rid), adopted(false)
-#if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
+            stream(str), outAsync(o), compress(comp), requestId(rid), adopted(false)
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
             , isSent(false), invokeSent(false), receivedReply(false)
 #endif
         {
         }
 
-        void adopt(IceInternal::BasicStream*);
+        void adopt(Ice::OutputStream*);
         void canceled(bool);
         bool sent();
         void completed(const Ice::LocalException&);
 
-        IceInternal::BasicStream* stream;
-        IceInternal::OutgoingBase* out;
+        Ice::OutputStream* stream;
         IceInternal::OutgoingAsyncBasePtr outAsync;
         bool compress;
         int requestId;
         bool adopted;
-#if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
         bool isSent;
         bool invokeSent;
         bool receivedReply;
 #endif
     };
 
-    class StartCallback : virtual public IceUtil::Shared
+
+#ifdef ICE_CPP11_MAPPING
+    class StartCallback
+    {
+    public:
+
+        virtual void connectionStartCompleted(const ConnectionIPtr&) = 0;
+        virtual void connectionStartFailed(const ConnectionIPtr&, const Ice::LocalException&) = 0;
+    };
+    using StartCallbackPtr = ::std::shared_ptr<StartCallback>;
+#else
+    class StartCallback : public virtual IceUtil::Shared
     {
     public:
 
@@ -142,6 +145,7 @@ public:
         virtual void connectionStartFailed(const ConnectionIPtr&, const Ice::LocalException&) = 0;
     };
     typedef IceUtil::Handle<StartCallback> StartCallbackPtr;
+#endif
 
     enum DestructionReason
     {
@@ -153,12 +157,12 @@ public:
     void activate();
     void hold();
     void destroy(DestructionReason);
-    virtual void close(bool); // From Connection.
+    virtual void close(ConnectionClose); // From Connection.
 
     bool isActiveOrHolding() const;
     bool isFinished() const;
 
-    void throwException() const; // Throws the connection exception if destroyed.
+    virtual void throwException() const; // From Connection. Throws the connection exception if destroyed.
 
     void waitUntilHolding() const;
     void waitUntilFinished(); // Not const, as this might close the connection upon timeout.
@@ -167,34 +171,49 @@ public:
 
     void monitor(const IceUtil::Time&, const IceInternal::ACMConfig&);
 
-    bool sendRequest(IceInternal::OutgoingBase*, bool, bool, int);
     IceInternal::AsyncStatus sendAsyncRequest(const IceInternal::OutgoingAsyncBasePtr&, bool, bool, int);
 
     IceInternal::BatchRequestQueuePtr getBatchRequestQueue() const;
 
-    virtual void flushBatchRequests(); // From Connection.
+    virtual void flushBatchRequests();
 
+#ifdef ICE_CPP11_MAPPING
+    virtual std::function<void()>
+    flushBatchRequestsAsync(::std::function<void(::std::exception_ptr)>,
+                             ::std::function<void(bool)> = nullptr);
+#else
     virtual AsyncResultPtr begin_flushBatchRequests();
     virtual AsyncResultPtr begin_flushBatchRequests(const CallbackPtr&, const LocalObjectPtr& = 0);
     virtual AsyncResultPtr begin_flushBatchRequests(const Callback_Connection_flushBatchRequestsPtr&,
                                                     const LocalObjectPtr& = 0);
 
-    virtual AsyncResultPtr begin_flushBatchRequests(
-        const ::IceInternal::Function<void (const ::Ice::Exception&)>&,
-        const ::IceInternal::Function<void (bool)>& = ::IceInternal::Function<void (bool)>());
-
     virtual void end_flushBatchRequests(const AsyncResultPtr&);
+#endif
 
-    virtual void setCallback(const ConnectionCallbackPtr&);
+    virtual void setCloseCallback(ICE_IN(ICE_CLOSE_CALLBACK));
+    virtual void setHeartbeatCallback(ICE_IN(ICE_HEARTBEAT_CALLBACK));
+
+    virtual void heartbeat();
+
+#ifdef ICE_CPP11_MAPPING
+    virtual std::function<void()>
+    heartbeatAsync(::std::function<void(::std::exception_ptr)>, ::std::function<void(bool)> = nullptr);
+#else
+    virtual AsyncResultPtr begin_heartbeat();
+    virtual AsyncResultPtr begin_heartbeat(const CallbackPtr&, const LocalObjectPtr& = 0);
+    virtual AsyncResultPtr begin_heartbeat(const Callback_Connection_heartbeatPtr&, const LocalObjectPtr& = 0);
+
+    virtual void end_heartbeat(const AsyncResultPtr&);
+#endif
+
     virtual void setACM(const IceUtil::Optional<int>&,
                         const IceUtil::Optional<ACMClose>&,
                         const IceUtil::Optional<ACMHeartbeat>&);
     virtual ACM getACM();
 
-    virtual void requestCanceled(IceInternal::OutgoingBase*, const LocalException&);
     virtual void asyncRequestCanceled(const IceInternal::OutgoingAsyncBasePtr&, const LocalException&);
 
-    virtual void sendResponse(Int, IceInternal::BasicStream*, Byte, bool);
+    virtual void sendResponse(Int, Ice::OutputStream*, Byte, bool);
     virtual void sendNoResponse();
     virtual bool systemException(Int, const SystemException&, bool);
     virtual void invokeException(Ice::Int, const LocalException&, int, bool);
@@ -205,12 +224,12 @@ public:
     virtual void setAdapter(const ObjectAdapterPtr&); // From Connection.
     virtual ObjectAdapterPtr getAdapter() const; // From Connection.
     virtual EndpointPtr getEndpoint() const; // From Connection.
-    virtual ObjectPrx createProxy(const Identity& ident) const; // From Connection.
+    virtual ObjectPrxPtr createProxy(const Identity& ident) const; // From Connection.
 
     //
     // Operations from EventHandler
     //
-#if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
     bool startAsync(IceInternal::SocketOperation);
     bool finishAsync(IceInternal::SocketOperation);
 #endif
@@ -233,12 +252,23 @@ public:
     void dispatch(const StartCallbackPtr&, const std::vector<OutgoingMessage>&, Byte, Int, Int,
                   const IceInternal::ServantManagerPtr&, const ObjectAdapterPtr&,
                   const IceInternal::OutgoingAsyncBasePtr&,
-                  const ConnectionCallbackPtr&, IceInternal::BasicStream&);
+                  const ICE_HEARTBEAT_CALLBACK&, Ice::InputStream&);
     void finish(bool);
 
-    void closeCallback(const ConnectionCallbackPtr&);
+    void closeCallback(const ICE_CLOSE_CALLBACK&);
+
+    virtual ~ConnectionI();
 
 private:
+
+    ConnectionI(const Ice::CommunicatorPtr&, const IceInternal::InstancePtr&, const IceInternal::ACMMonitorPtr&,
+                const IceInternal::TransceiverPtr&, const IceInternal::ConnectorPtr&,
+                const IceInternal::EndpointIPtr&, const ObjectAdapterIPtr&);
+
+    static ConnectionIPtr
+    create(const Ice::CommunicatorPtr&, const IceInternal::InstancePtr&, const IceInternal::ACMMonitorPtr&,
+           const IceInternal::TransceiverPtr&, const IceInternal::ConnectorPtr&,
+           const IceInternal::EndpointIPtr&, const ObjectAdapterIPtr&);
 
     enum State
     {
@@ -252,11 +282,6 @@ private:
         StateFinished
     };
 
-    ConnectionI(const Ice::CommunicatorPtr&, const IceInternal::InstancePtr&, const IceInternal::ACMMonitorPtr&,
-                const IceInternal::TransceiverPtr&, const IceInternal::ConnectorPtr&,
-                const IceInternal::EndpointIPtr&, const ObjectAdapterIPtr&);
-    virtual ~ConnectionI();
-
     friend class IceInternal::IncomingConnectionFactory;
     friend class IceInternal::OutgoingConnectionFactory;
 
@@ -264,7 +289,7 @@ private:
     void setState(State);
 
     void initiateShutdown();
-    void heartbeat();
+    void sendHeartbeatNow();
 
     bool initialize(IceInternal::SocketOperation = IceInternal::SocketOperationNone);
     bool validate(IceInternal::SocketOperation = IceInternal::SocketOperationNone);
@@ -272,15 +297,15 @@ private:
     IceInternal::AsyncStatus sendMessage(OutgoingMessage&);
 
 #ifdef ICE_HAS_BZIP2
-    void doCompress(IceInternal::BasicStream&, IceInternal::BasicStream&);
-    void doUncompress(IceInternal::BasicStream&, IceInternal::BasicStream&);
+    void doCompress(Ice::OutputStream&, Ice::OutputStream&);
+    void doUncompress(Ice::InputStream&, Ice::InputStream&);
 #endif
 
-    IceInternal::SocketOperation parseMessage(IceInternal::BasicStream&, Int&, Int&, Byte&,
+    IceInternal::SocketOperation parseMessage(Ice::InputStream&, Int&, Int&, Byte&,
                                               IceInternal::ServantManagerPtr&, ObjectAdapterPtr&,
-                                              IceInternal::OutgoingAsyncBasePtr&, ConnectionCallbackPtr&, int&);
+                                              IceInternal::OutgoingAsyncBasePtr&, ICE_HEARTBEAT_CALLBACK&, int&);
 
-    void invokeAll(IceInternal::BasicStream&, Int, Int, Byte,
+    void invokeAll(Ice::InputStream&, Int, Int, Byte,
                    const IceInternal::ServantManagerPtr&, const ObjectAdapterPtr&);
 
     void scheduleTimeout(IceInternal::SocketOperation status);
@@ -294,7 +319,10 @@ private:
 
     void reap();
 
-    AsyncResultPtr __begin_flushBatchRequests(const IceInternal::CallbackBasePtr&, const LocalObjectPtr&);
+#ifndef ICE_CPP11_MAPPING
+    AsyncResultPtr _iceI_begin_flushBatchRequests(const IceInternal::CallbackBasePtr&, const LocalObjectPtr&);
+    AsyncResultPtr _iceI_begin_heartbeat(const IceInternal::CallbackBasePtr&, const LocalObjectPtr&);
+#endif
 
     Ice::CommunicatorPtr _communicator;
     const IceInternal::InstancePtr _instance;
@@ -332,22 +360,19 @@ private:
 
     Int _nextRequestId;
 
-    std::map<Int, IceInternal::OutgoingBase*> _requests;
-    std::map<Int, IceInternal::OutgoingBase*>::iterator _requestsHint;
-
     std::map<Int, IceInternal::OutgoingAsyncBasePtr> _asyncRequests;
     std::map<Int, IceInternal::OutgoingAsyncBasePtr>::iterator _asyncRequestsHint;
 
-    IceUtil::UniquePtr<LocalException> _exception;
+    IceInternal::UniquePtr<LocalException> _exception;
 
     const size_t _messageSizeMax;
     IceInternal::BatchRequestQueuePtr _batchRequestQueue;
 
     std::deque<OutgoingMessage> _sendStreams;
 
-    IceInternal::BasicStream _readStream;
+    Ice::InputStream _readStream;
     bool _readHeader;
-    IceInternal::BasicStream _writeStream;
+    Ice::OutputStream _writeStream;
 
     Observer _observer;
 
@@ -358,7 +383,8 @@ private:
     bool _initialized;
     bool _validated;
 
-    Ice::ConnectionCallbackPtr _callback;
+    ICE_CLOSE_CALLBACK _closeCallback;
+    ICE_HEARTBEAT_CALLBACK _heartbeatCallback;
 };
 
 }

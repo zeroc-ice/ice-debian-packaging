@@ -7,7 +7,9 @@
 //
 // **********************************************************************
 
+using System;
 using System.Collections;
+using System.Threading.Tasks;
 
 public class ServerLocatorRegistry : Test.TestLocatorRegistryDisp_
 {
@@ -17,8 +19,8 @@ public class ServerLocatorRegistry : Test.TestLocatorRegistryDisp_
         _objects = new Hashtable();
     }
 
-    public override void setAdapterDirectProxy_async(Ice.AMD_LocatorRegistry_setAdapterDirectProxy cb, string adapter,
-                Ice.ObjectPrx obj, Ice.Current current)
+    public override Task
+    setAdapterDirectProxyAsync(string adapter, Ice.ObjectPrx obj, Ice.Current current)
     {
         if(obj != null)
         {
@@ -28,12 +30,11 @@ public class ServerLocatorRegistry : Test.TestLocatorRegistryDisp_
         {
             _adapters.Remove(adapter);
         }
-        cb.ice_response();
+        return null;
     }
-  
-    public override void setReplicatedAdapterDirectProxy_async(
-        Ice.AMD_LocatorRegistry_setReplicatedAdapterDirectProxy cb, 
-        string adapter, string replica, Ice.ObjectPrx obj, Ice.Current current)
+
+    public override Task
+    setReplicatedAdapterDirectProxyAsync(string adapter, string replica, Ice.ObjectPrx obj,  Ice.Current current)
     {
         if(obj != null)
         {
@@ -45,16 +46,16 @@ public class ServerLocatorRegistry : Test.TestLocatorRegistryDisp_
             _adapters.Remove(adapter);
             _adapters.Remove(replica);
         }
-        cb.ice_response();
-    }
-  
-    public override void setServerProcessProxy_async(Ice.AMD_LocatorRegistry_setServerProcessProxy cb,
-                                                     string id, Ice.ProcessPrx proxy, Ice.Current current)
-    {
-        cb.ice_response();
+        return null;
     }
 
-    public override void addObject(Ice.ObjectPrx obj, Ice.Current current)
+    public override Task
+    setServerProcessProxyAsync(string id, Ice.ProcessPrx proxy,  Ice.Current current)
+    {
+        return null;
+    }
+
+    public override void addObject(Ice.ObjectPrx obj, Ice.Current current = null)
     {
         _objects[obj.ice_getIdentity()] = obj;
     }
@@ -68,7 +69,7 @@ public class ServerLocatorRegistry : Test.TestLocatorRegistryDisp_
         }
         return (Ice.ObjectPrx)obj;
     }
-    
+
     public virtual Ice.ObjectPrx getObject(Ice.Identity id)
     {
         object obj = _objects[id];
@@ -78,7 +79,7 @@ public class ServerLocatorRegistry : Test.TestLocatorRegistryDisp_
         }
         return (Ice.ObjectPrx)obj;
     }
-    
+
     private Hashtable _adapters;
     private Hashtable _objects;
 }

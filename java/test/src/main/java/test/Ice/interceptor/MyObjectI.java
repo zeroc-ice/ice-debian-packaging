@@ -9,193 +9,156 @@
 
 package test.Ice.interceptor;
 
-import test.Ice.interceptor.Test.AMD_MyObject_amdAdd;
-import test.Ice.interceptor.Test.AMD_MyObject_amdAddWithRetry;
-import test.Ice.interceptor.Test.AMD_MyObject_amdBadAdd;
-import test.Ice.interceptor.Test.AMD_MyObject_amdBadSystemAdd;
-import test.Ice.interceptor.Test.AMD_MyObject_amdNotExistAdd;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
+
 import test.Ice.interceptor.Test.InvalidInputException;
 import test.Ice.interceptor.Test.RetryException;
-import test.Ice.interceptor.Test._MyObjectDisp;
+import test.Ice.interceptor.Test.MyObject;
 
-class MyObjectI extends _MyObjectDisp
+class MyObjectI implements MyObject
 {
-
     @Override
-    public int 
-    add(int x, int y, Ice.Current current)
+    public int add(int x, int y, com.zeroc.Ice.Current current)
     {
         return x + y;
-    } 
-    
+    }
+
     @Override
-    public int 
-    addWithRetry(int x, int y, Ice.Current current)
+    public int addWithRetry(int x, int y, com.zeroc.Ice.Current current)
     {
         String val = current.ctx.get("retry");
-        
+
         if(val == null || !val.equals("no"))
         {
             throw new RetryException();
         }
         return x + y;
-    } 
+    }
 
     @Override
-    public int 
-    badAdd(int x, int y, Ice.Current current) throws InvalidInputException
+    public int badAdd(int x, int y, com.zeroc.Ice.Current current)
+        throws InvalidInputException
     {
         throw new InvalidInputException();
-    } 
+    }
 
     @Override
-    public int 
-    notExistAdd(int x, int y, Ice.Current current)
+    public int notExistAdd(int x, int y, com.zeroc.Ice.Current current)
     {
-        throw new Ice.ObjectNotExistException();
-    } 
-    
+        throw new com.zeroc.Ice.ObjectNotExistException();
+    }
+
     @Override
-    public int 
-    badSystemAdd(int x, int y, Ice.Current current)
+    public int badSystemAdd(int x, int y, com.zeroc.Ice.Current current)
     {
         throw new MySystemException();
-    } 
-
+    }
 
     //
     // AMD
     //
 
     @Override
-    public void 
-    amdAdd_async(final AMD_MyObject_amdAdd cb, final int x, final int y, Ice.Current current)
+    public CompletionStage<Integer> amdAddAsync(final int x, final int y, com.zeroc.Ice.Current current)
     {
-        Thread thread = new Thread()
+        CompletableFuture<Integer> r = new CompletableFuture<>();
+        Thread thread = new Thread(() ->
             {
-                @Override
-                public void
-                run()
+                try
                 {
-                    try
-                    {
-                        Thread.sleep(10);
-                    }
-                    catch(InterruptedException e)
-                    {
-                    }
-                    cb.ice_response(x + y);
+                    Thread.sleep(10);
                 }
-            };
-        
+                catch(InterruptedException e)
+                {
+                }
+                r.complete(x + y);
+            });
+
         thread.setDaemon(true);
         thread.start();
+        return r;
     }
 
     @Override
-    public void 
-    amdAddWithRetry_async(final AMD_MyObject_amdAddWithRetry cb, final int x, final int y, Ice.Current current)
+    public CompletionStage<Integer> amdAddWithRetryAsync(final int x, final int y, com.zeroc.Ice.Current current)
     {
-        Thread thread = new Thread()
-            {
-                @Override
-                public void
-                run()
-                {
-                    try
-                    {
-                        Thread.sleep(10);
-                    }
-                    catch(InterruptedException e)
-                    {
-                    }
-                    cb.ice_response(x + y);
-                }
-            };
-        
-        thread.setDaemon(true);
-        thread.start();
-        
         String val = current.ctx.get("retry");
-        
-        if(val == null || !val.equals("no"))
+
+        if(val != null && val.equals("no"))
+        {
+            try
+            {
+                Thread.sleep(10);
+            }
+            catch(InterruptedException e)
+            {
+            }
+            return CompletableFuture.completedFuture(x + y);
+        }
+        else
         {
             throw new RetryException();
         }
-    } 
-    
-    @Override
-    public void 
-    amdBadAdd_async(final AMD_MyObject_amdBadAdd cb, int x, int y, Ice.Current current)
-    {
-        Thread thread = new Thread()
-            {
-                @Override
-                public void
-                run()
-                {
-                    try
-                    {
-                        Thread.sleep(10);
-                    }
-                    catch(InterruptedException e)
-                    {
-                    }
-                    cb.ice_exception(new InvalidInputException());
-                }
-            };
-        
-        thread.setDaemon(true);
-        thread.start();
-    } 
+    }
 
     @Override
-    public void 
-    amdNotExistAdd_async(final AMD_MyObject_amdNotExistAdd cb, int x, int y, Ice.Current current)
+    public CompletionStage<Integer> amdBadAddAsync(int x, int y, com.zeroc.Ice.Current current)
     {
-        Thread thread = new Thread()
+        CompletableFuture<Integer> r = new CompletableFuture<>();
+        Thread thread = new Thread(() ->
             {
-                @Override
-                public void
-                run()
+                try
                 {
-                    try
-                    {
-                        Thread.sleep(10);
-                    }
-                    catch(InterruptedException e)
-                    {
-                    }
-                    cb.ice_exception(new Ice.ObjectNotExistException());
+                    Thread.sleep(10);
                 }
-            };
-        
+                catch(InterruptedException e)
+                {
+                }
+                r.completeExceptionally(new InvalidInputException());
+            });
         thread.setDaemon(true);
         thread.start();
-    } 
-    
+        return r;
+    }
+
     @Override
-    public void 
-    amdBadSystemAdd_async(final AMD_MyObject_amdBadSystemAdd cb, int x, int y, Ice.Current current)
+    public CompletionStage<Integer> amdNotExistAddAsync(int x, int y, com.zeroc.Ice.Current current)
     {
-        Thread thread = new Thread()
+        CompletableFuture<Integer> r = new CompletableFuture<>();
+        Thread thread = new Thread(() ->
             {
-                @Override
-                public void
-                run()
+                try
                 {
-                    try
-                    {
-                        Thread.sleep(10);
-                    }
-                    catch(InterruptedException e)
-                    {
-                    }
-                    cb.ice_exception(new MySystemException());
+                    Thread.sleep(10);
                 }
-            };
-        
+                catch(InterruptedException e)
+                {
+                }
+                r.completeExceptionally(new com.zeroc.Ice.ObjectNotExistException());
+            });
         thread.setDaemon(true);
         thread.start();
-    } 
+        return r;
+    }
+
+    @Override
+    public CompletionStage<Integer> amdBadSystemAddAsync(int x, int y, com.zeroc.Ice.Current current)
+    {
+        CompletableFuture<Integer> r = new CompletableFuture<>();
+        Thread thread = new Thread(() ->
+            {
+                try
+                {
+                    Thread.sleep(10);
+                }
+                catch(InterruptedException e)
+                {
+                }
+                r.completeExceptionally(new MySystemException());
+            });
+        thread.setDaemon(true);
+        thread.start();
+        return r;
+    }
 }

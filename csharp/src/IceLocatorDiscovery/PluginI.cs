@@ -12,7 +12,7 @@ namespace IceLocatorDiscovery
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.Text;
+    using System.Threading.Tasks;
 
     public sealed class PluginFactory : Ice.PluginFactory
     {
@@ -23,47 +23,49 @@ namespace IceLocatorDiscovery
         }
     }
 
-    internal class Request
+    internal class Request : TaskCompletionSource<Ice.Object_Ice_invokeResult>
     {
         public Request(LocatorI locator,
                        string operation,
                        Ice.OperationMode mode,
                        byte[] inParams,
-                       Dictionary<string, string> context,
-                       Ice.AMD_Object_ice_invoke amdCB)
+                       Dictionary<string, string> context)
         {
             _locator = locator;
             _operation = operation;
             _mode = mode;
             _inParams = inParams;
             _context = context;
-            _amdCB = amdCB;
         }
 
         public void
         invoke(Ice.LocatorPrx l)
         {
-            _locatorPrx = l;
-            try
+            if(_locatorPrx == null || !_locatorPrx.Equals(l))
             {
-                l.begin_ice_invoke(_operation, _mode, _inParams, _context).whenCompleted(
-                    (bool ok, byte[] outParams) =>
+                _locatorPrx = l;
+                l.ice_invokeAsync(_operation, _mode, _inParams, _context).ContinueWith(
+                    (task) =>
                     {
-                        _amdCB.ice_response(ok, outParams);
-                    },
-                    (Ice.Exception ex) =>
-                    {
-                        exception(ex);
+                        try
+                        {
+                            SetResult(task.Result);
+                        }
+                        catch(AggregateException ae)
+                        {
+                            exception(ae.InnerException);
+                        }
                     });
             }
-            catch(Ice.LocalException ex)
+            else
             {
-                exception(ex);
+                Debug.Assert(_exception != null);
+                throw _exception;
             }
         }
 
         private void
-        exception(Ice.Exception ex)
+        exception(Exception ex)
         {
             try
             {
@@ -71,26 +73,27 @@ namespace IceLocatorDiscovery
             }
             catch(Ice.RequestFailedException exc)
             {
-                _amdCB.ice_exception(exc);
+                SetException(exc);
             }
             catch(Ice.UnknownException exc)
             {
-                _amdCB.ice_exception(exc);
+                SetException(exc);
             }
             catch(Ice.NoEndpointException)
             {
-                _amdCB.ice_exception(new Ice.ObjectNotExistException());
+                SetException(new Ice.ObjectNotExistException());
             }
             catch(Ice.ObjectAdapterDeactivatedException)
             {
-                _amdCB.ice_exception(new Ice.ObjectNotExistException());
+                SetException(new Ice.ObjectNotExistException());
             }
             catch(Ice.CommunicatorDestroyedException)
             {
-                _amdCB.ice_exception(new Ice.ObjectNotExistException());
+                SetException(new Ice.ObjectNotExistException());
             }
-            catch(Ice.Exception)
+            catch(Exception exc)
             {
+                _exception = exc;
                 _locator.invoke(_locatorPrx, this); // Retry with new locator proxy
             }
         }
@@ -100,23 +103,23 @@ namespace IceLocatorDiscovery
         private readonly Ice.OperationMode _mode;
         private readonly Dictionary<string, string> _context;
         private readonly byte[] _inParams;
-        private readonly Ice.AMD_Object_ice_invoke _amdCB;
 
         private Ice.LocatorPrx _locatorPrx;
+        private Exception _exception;
     }
 
     internal class VoidLocatorI : Ice.LocatorDisp_
     {
-        public override void
-        findObjectById_async(Ice.AMD_Locator_findObjectById amdCB, Ice.Identity id, Ice.Current current)
+        public override Task<Ice.ObjectPrx>
+        findObjectByIdAsync(Ice.Identity id, Ice.Current current)
         {
-            amdCB.ice_response(null);
+            return null;
         }
 
-        public override void
-        findAdapterById_async(Ice.AMD_Locator_findAdapterById amdCB, String id, Ice.Current current)
+        public override Task<Ice.ObjectPrx>
+        findAdapterByIdAsync(string id, Ice.Current current)
         {
-            amdCB.ice_response(null);
+            return null;
         }
 
         public override Ice.LocatorRegistryPrx
@@ -149,12 +152,14 @@ namespace IceLocatorDiscovery
             _lookupReply = lookupReply;
         }
 
-        public override void
-        ice_invoke_async(Ice.AMD_Object_ice_invoke amdCB, byte[] inParams, Ice.Current current)
+        public override Task<Ice.Object_Ice_invokeResult>
+        ice_invokeAsync(byte[] inParams, Ice.Current current)
         {
             lock(this)
             {
-                invoke(null, new Request(this, current.operation, current.mode, inParams, current.ctx, amdCB));
+                var request = new Request(this, current.operation, current.mode, inParams, current.ctx);
+                invoke(null, request);
+                return request.Task;
             }
         }
 
@@ -269,7 +274,7 @@ namespace IceLocatorDiscovery
                         _pendingRetryCount = _retryCount;
                         try
                         {
-                            _lookup.begin_findLocator(_instanceName, _lookupReply); // Send multicast request.
+                            _lookup.findLocatorAsync(_instanceName, _lookupReply); // Send multicast request.
                             _timer.schedule(this, _timeout);
                         }
                         catch(Ice.LocalException)
@@ -295,7 +300,7 @@ namespace IceLocatorDiscovery
                 {
                     try
                     {
-                        _lookup.begin_findLocator(_instanceName, _lookupReply); // Send multicast request
+                        _lookup.findLocatorAsync(_instanceName, _lookupReply); // Send multicast request
                         _timer.schedule(this, _timeout);
                         return;
                     }

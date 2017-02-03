@@ -1,8 +1,11 @@
-  0 IceUtil::Exception::Exception(char const*, int)
-  1 IceUtil::NullHandleException::NullHandleException(char const*, int)
+  0 IceUtil::Exception::Exception(char const*, int) in
+  1 
+  2 IceUtil::NullHandleException::NullHandleException(char const*, int) in
 client
 client
 client
 client
 client
+client
+  9 __libc_start_main in
 client

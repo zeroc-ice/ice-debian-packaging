@@ -209,8 +209,8 @@ Parser.transverse = function(object, depend, srcDir)
                 }
                 else if(value.callee.type == "MemberExpression" &&
                         value.callee.property.name == "require" &&
-                        (value.callee.object.name == "__M" ||
-                        (value.callee.object.property && value.callee.object.property.name == "__M")))
+                        (value.callee.object.name == "_ModuleRegistry" ||
+                        (value.callee.object.property && value.callee.object.property.name == "_ModuleRegistry")))
                 {
                     value.arguments[1].elements.forEach(appendfile);
                 }
@@ -298,7 +298,7 @@ function bundle(args)
                 var lineOffset = 0;
 
                 //
-                // Wrap the library in a closure to hold the private __Slice module.
+                // Wrap the library in a closure to hold the private Slice module.
                 //
                 var preamble =
                     "(function()\n" +
@@ -322,11 +322,11 @@ function bundle(args)
                 var sb = new StringBuffer();
 
                 sb.write(preamble);
-                sb.write("    var __root = typeof(window) !== \"undefined\" ? window : self;\n");
+                sb.write("    var root = typeof(window) !== \"undefined\" ? window : typeof(global) !== \"undefined\" ? global : typeof(self) !== \"undefined\" ? self : {};\n");
                 lineOffset += 3;
                 args.modules.forEach(
                     function(m){
-                        sb.write("    __root." + m + " = __root." + m + " || {};\n");
+                        sb.write("    root." + m + " = root." + m + " || {};\n");
                         lineOffset++;
 
                         if(m == "Ice")
@@ -378,11 +378,11 @@ function bundle(args)
                         // Get rid of require statements, the bundle include all required files,
                         // so require statements are not required.
                         //
-                        if(line.match(/var .* require\(".*"\).*;/))
+                        if(line.match(/const .* require\(".*"\).*;/))
                         {
                             continue;
                         }
-                        if(line.match(/__M\.require\(/))
+                        if(line.match(/_ModuleRegistry\.require\(/))
                         {
                             if(line.lastIndexOf(";") === -1)
                             {
@@ -394,10 +394,10 @@ function bundle(args)
                         }
 
                         //
-                        // Get rid of __M.module statements, in browser top level modules are
+                        // Get rid of _ModuleRegistry.module statements, in browser top level modules are
                         // global.
                         //
-                        if(line.match(/var .* = __M.module\(/))
+                        if(line.match(/const .* = _ModuleRegistry.module\(/))
                         {
                             if(line.lastIndexOf(";") === -1)
                             {
@@ -459,7 +459,7 @@ function bundle(args)
                 //
                 args.modules.forEach(
                     function(m){
-                        sb.write("    __root." + m + " = " + m + ";\n");
+                        sb.write("    root." + m + " = " + m + ";\n");
                         lineOffset++;
                     });
 

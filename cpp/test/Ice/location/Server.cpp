@@ -17,8 +17,7 @@ DEFINE_TEST("server")
 using namespace std;
 
 int
-run(int, char**, const Ice::CommunicatorPtr& communicator,
-    const Ice::InitializationData& initData)
+run(int, char**, const Ice::CommunicatorPtr& communicator, const Ice::InitializationData& initData)
 {
     //
     // Register the server manager. The server manager creates a new
@@ -27,7 +26,7 @@ run(int, char**, const Ice::CommunicatorPtr& communicator,
     //
     Ice::PropertiesPtr properties = communicator->getProperties();
     properties->setProperty("Ice.ThreadPool.Server.Size", "2");
-    properties->setProperty("ServerManager.Endpoints", "default -p 12010:udp");
+    properties->setProperty("ServerManager.Endpoints", getTestEndpoint(communicator, 0) + ":udp");
 
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("ServerManager");
 
@@ -36,16 +35,17 @@ run(int, char**, const Ice::CommunicatorPtr& communicator,
     // locator interface, this locator is used by the clients and the
     // 'servers' created with the server manager interface.
     //
-    ServerLocatorRegistryPtr registry = new ServerLocatorRegistry();
-    registry->addObject(adapter->createProxy(communicator->stringToIdentity("ServerManager")));
-    Ice::ObjectPtr object = new ServerManagerI(registry, initData);
-    adapter->add(object, communicator->stringToIdentity("ServerManager"));
+    ServerLocatorRegistryPtr registry = ICE_MAKE_SHARED(ServerLocatorRegistry);
+    registry->addObject(adapter->createProxy(Ice::stringToIdentity("ServerManager")));
+    Ice::ObjectPtr object = ICE_MAKE_SHARED(ServerManagerI, registry, initData);
+    adapter->add(object, Ice::stringToIdentity("ServerManager"));
 
-    Ice::LocatorRegistryPrx registryPrx =
-        Ice::LocatorRegistryPrx::uncheckedCast(adapter->add(registry, communicator->stringToIdentity("registry")));
+    Ice::LocatorRegistryPrxPtr registryPrx =
+        ICE_UNCHECKED_CAST(Ice::LocatorRegistryPrx,
+                           adapter->add(registry, Ice::stringToIdentity("registry")));
 
-    Ice::LocatorPtr locator = new ServerLocator(registry, registryPrx);
-    adapter->add(locator, communicator->stringToIdentity("locator"));
+    Ice::LocatorPtr locator = ICE_MAKE_SHARED(ServerLocator, registry, registryPrx);
+    adapter->add(locator, Ice::stringToIdentity("locator"));
 
     adapter->activate();
     TEST_READY
@@ -60,37 +60,16 @@ main(int argc, char* argv[])
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL();
 #endif
-
-    int status;
-    Ice::CommunicatorPtr communicator;
-
     try
     {
-        Ice::InitializationData initData;
-        initData.properties = Ice::createProperties(argc, argv);
-        communicator = Ice::initialize(argc, argv, initData);
-        assert(initData.properties != communicator->getProperties());
-
-        status = run(argc, argv, communicator, initData);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        assert(initData.properties != ich->getProperties());
+        return run(argc, argv, ich.communicator(), initData);
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
-        status = EXIT_FAILURE;
+        return EXIT_FAILURE;
     }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
-    }
-
-    return status;
 }

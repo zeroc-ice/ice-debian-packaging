@@ -27,7 +27,7 @@ def run(args, communicator):
             usage(args[0])
             return False
 
-        ports.append(int(arg))
+        ports.append(12010 + int(arg))
 
     if len(ports) == 0:
         sys.stderr.write(args[0] + ": no ports specified\n")
@@ -45,23 +45,16 @@ def run(args, communicator):
 try:
     initData = Ice.InitializationData()
     initData.properties = Ice.createProperties(sys.argv)
-    
+
     #
     # This test aborts servers, so we don't want warnings.
     #
     initData.properties.setProperty('Ice.Warn.Connections', '0')
 
-    communicator = Ice.initialize(sys.argv, initData)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv, initData) as communicator:
+        status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

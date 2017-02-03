@@ -12,7 +12,6 @@ namespace IceInternal
 
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.Net;
     using System;
 
     public interface EndpointI_connectors
@@ -21,7 +20,7 @@ namespace IceInternal
         void exception(Ice.LocalException ex);
     }
 
-    public abstract class EndpointI : Ice.Endpoint, System.IComparable<EndpointI>
+    public abstract class EndpointI : Ice.Endpoint, IComparable<EndpointI>
     {
         public override string ToString()
         {
@@ -60,7 +59,13 @@ namespace IceInternal
         //
         // Marshal the endpoint.
         //
-        public abstract void streamWrite(BasicStream s);
+        virtual public void streamWrite(Ice.OutputStream s)
+        {
+            s.startEncapsulation();
+            streamWriteImpl(s);
+            s.endEncapsulation();
+        }
+        public abstract void streamWriteImpl(Ice.OutputStream s);
 
         //
         // Return the endpoint type.

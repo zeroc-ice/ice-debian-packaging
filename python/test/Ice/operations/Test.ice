@@ -249,6 +249,15 @@ class MyClass
 
     StringS opStringLiterals();
     StringS opWStringLiterals();
+
+    ["marshaled-result"] Structure opMStruct1();
+    ["marshaled-result"] Structure opMStruct2(Structure p1, out Structure p2);
+
+    ["marshaled-result"] StringS opMSeq1();
+    ["marshaled-result"] StringS opMSeq2(StringS p1, out StringS p2);
+
+    ["marshaled-result"] StringStringD opMDict1();
+    ["marshaled-result"] StringStringD opMDict2(StringStringD p1, out StringStringD p2);
 };
 
 struct MyStruct1
@@ -314,9 +323,9 @@ const string sw10 = "\U00000DA7";                     // Sinhala Letter Alpapraa
 \v	vertical tab	byte 0x0b in ASCII encoding
 **/
 
-const string ss0 = "\'\"\?\\\a\b\f\n\r\t\v";
-const string ss1 = "\u0027\u0022\u003f\u005c\u0007\u0008\u000c\u000a\u000d\u0009\u000b";
-const string ss2 = "\U00000027\U00000022\U0000003f\U0000005c\U00000007\U00000008\U0000000c\U0000000a\U0000000d\U00000009\U0000000b";
+const string ss0 = "\'\"\?\\\a\b\f\n\r\t\v\6";
+const string ss1 = "\u0027\u0022\u003f\u005c\u0007\u0008\u000c\u000a\u000d\u0009\u000b\u0006";
+const string ss2 = "\U00000027\U00000022\U0000003f\U0000005c\U00000007\U00000008\U0000000c\U0000000a\U0000000d\U00000009\U0000000b\U00000006";
 
 const string ss3 = "\\\\U\\u\\"; /* \\U\u\  */
 const string ss4 = "\\\u0041\\"; /* \A\     */

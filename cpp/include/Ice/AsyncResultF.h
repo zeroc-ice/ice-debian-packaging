@@ -10,8 +10,9 @@
 #ifndef ICE_ASYNC_RESULT_F_H
 #define ICE_ASYNC_RESULT_F_H
 
-#include <IceUtil/Shared.h>
+#ifndef ICE_CPP11_MAPPING
 
+#include <IceUtil/Shared.h>
 #include <Ice/Handle.h>
 
 namespace Ice
@@ -23,4 +24,5 @@ typedef IceInternal::Handle<AsyncResult> AsyncResultPtr;
 
 }
 
+#endif
 #endif

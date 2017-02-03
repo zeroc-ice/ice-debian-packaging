@@ -18,10 +18,8 @@
 #include <IceUtil/IceUtil.h>
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/FileUtil.h>
-#include <IceUtil/SHA1.h>
+#include <Ice/SHA1.h>
 #include <IceUtil/Exception.h>
-
-#define ICE_PATCH2_API_EXPORTS
 #include <IcePatch2Lib/Util.h>
 #include <IcePatch2/FileServer.h>
 #include <bzlib.h>
@@ -83,7 +81,7 @@ bool
 IcePatch2Internal::writeFileInfo(FILE* fp, const LargeFileInfo& info)
 {
     int rc = fprintf(fp, "%s\t%s\t" ICE_INT64_FORMAT "\t%d\n",
-                     IceUtilInternal::escapeString(info.path, "").c_str(),
+                     escapeString(info.path, "", IceUtilInternal::Compat).c_str(),
                      bytesToString(info.checksum).c_str(),
                      info.size,
                      static_cast<int>(info.executable));
@@ -116,7 +114,7 @@ IcePatch2Internal::readFileInfo(FILE* fp, LargeFileInfo& info)
     getline(is, s, '\t');
     try
     {
-        info.path = IceUtilInternal::unescapeString(s, 0, s.size());
+        info.path = IceUtilInternal::unescapeString(s, 0, s.size(), "");
     }
     catch(const IceUtil::IllegalArgumentException& ex)
     {
@@ -471,7 +469,7 @@ IcePatch2Internal::readDirectory(const string& pa)
 
     while(true)
     {
-        string name = IceUtil::wstringToString(data.name);
+        string name = wstringToString(data.name);
         assert(!name.empty());
 
         if(name != ".." && name != ".")
@@ -825,7 +823,7 @@ getFileInfoSeqInternal(const string& basePath, const string& relPath, int compre
             ByteSeq bytesSHA(20);
             if(!bytes.empty())
             {
-                IceUtilInternal::sha1(reinterpret_cast<unsigned char*>(&bytes[0]), bytes.size(), bytesSHA);
+                IceInternal::sha1(reinterpret_cast<unsigned char*>(&bytes[0]), bytes.size(), bytesSHA);
             }
             else
             {
@@ -894,7 +892,7 @@ getFileInfoSeqInternal(const string& basePath, const string& relPath, int compre
             }
             else
             {
-                IceUtilInternal::SHA1 hasher;
+                IceInternal::SHA1 hasher;
                 if(relPath.size() != 0)
                 {
                     hasher.update(reinterpret_cast<const IceUtil::Byte*>(relPath.c_str()), relPath.size());
@@ -1016,6 +1014,11 @@ getFileInfoSeqInternal(const string& basePath, const string& relPath, int compre
     return true;
 }
 
+}
+
+IcePatch2Internal::GetFileInfoSeqCB::~GetFileInfoSeqCB()
+{
+    // Out of line to avoid weak vtable
 }
 
 bool
@@ -1220,7 +1223,7 @@ IcePatch2Internal::getFileTree0(const LargeFileInfoSeq& infoSeq, FileTree0& tree
 
         if(!allChecksums1.empty())
         {
-            IceUtilInternal::sha1(reinterpret_cast<unsigned char*>(&allChecksums1[0]), allChecksums1.size(), tree1.checksum);
+            IceInternal::sha1(reinterpret_cast<unsigned char*>(&allChecksums1[0]), allChecksums1.size(), tree1.checksum);
         }
         else
         {
@@ -1232,11 +1235,10 @@ IcePatch2Internal::getFileTree0(const LargeFileInfoSeq& infoSeq, FileTree0& tree
 
     if(!allChecksums0.empty())
     {
-        IceUtilInternal::sha1(reinterpret_cast<unsigned char*>(&allChecksums0[0]), allChecksums0.size(), tree0.checksum);
+        IceInternal::sha1(reinterpret_cast<unsigned char*>(&allChecksums0[0]), allChecksums0.size(), tree0.checksum);
     }
     else
     {
         fill(tree0.checksum.begin(), tree0.checksum.end(), 0);
     }
 }
-

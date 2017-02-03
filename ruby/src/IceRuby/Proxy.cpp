@@ -49,9 +49,9 @@ IceRuby_ObjectPrx_free(Ice::ObjectPrx* p)
 }
 
 //
-// Returns true if a context was provided.
+// If a context was provided set it to ::Ice::noExplicitContext.
 //
-static bool
+static void
 checkArgs(const char* name, int numArgs, int argc, VALUE* argv, Ice::Context& ctx)
 {
     if(argc < numArgs || argc > numArgs + 1)
@@ -65,9 +65,11 @@ checkArgs(const char* name, int numArgs, int argc, VALUE* argv, Ice::Context& ct
         {
             throw RubyException(rb_eArgError, "%s: invalid context hash", name);
         }
-        return true;
     }
-    return false;
+    else
+    {
+        ctx = ::Ice::noExplicitContext;
+    }
 }
 
 extern "C"
@@ -77,7 +79,7 @@ IceRuby_ObjectPrx_hash(VALUE self)
     ICE_RUBY_TRY
     {
         Ice::ObjectPrx p = getProxy(self);
-        return INT2FIX(p->__hash());
+        return INT2FIX(p->_hash());
     }
     ICE_RUBY_CATCH
     return Qnil;
@@ -120,20 +122,10 @@ IceRuby_ObjectPrx_ice_isA(int argc, VALUE* argv, VALUE self)
         Ice::ObjectPrx p = getProxy(self);
 
         Ice::Context ctx;
-        bool haveContext = checkArgs("ice_isA", 1, argc, argv, ctx);
-
+        checkArgs("ice_isA", 1, argc, argv, ctx);
         string id = getString(argv[0]);
 
-        bool result;
-        if(haveContext)
-        {
-            result = p->ice_isA(id, ctx);
-        }
-        else
-        {
-            result = p->ice_isA(id);
-        }
-        return result ? Qtrue : Qfalse;
+        return p->ice_isA(id, ctx) ? Qtrue : Qfalse;
     }
     ICE_RUBY_CATCH
     return Qnil;
@@ -148,16 +140,8 @@ IceRuby_ObjectPrx_ice_ping(int argc, VALUE* argv, VALUE self)
         Ice::ObjectPrx p = getProxy(self);
 
         Ice::Context ctx;
-        bool haveContext = checkArgs("ice_ping", 0, argc, argv, ctx);
-
-        if(haveContext)
-        {
-            p->ice_ping(ctx);
-        }
-        else
-        {
-            p->ice_ping();
-        }
+        checkArgs("ice_ping", 0, argc, argv, ctx);
+        p->ice_ping(ctx);
     }
     ICE_RUBY_CATCH
     return Qnil;
@@ -172,18 +156,9 @@ IceRuby_ObjectPrx_ice_ids(int argc, VALUE* argv, VALUE self)
         Ice::ObjectPrx p = getProxy(self);
 
         Ice::Context ctx;
-        bool haveContext = checkArgs("ice_ids", 0, argc, argv, ctx);
+        checkArgs("ice_ids", 0, argc, argv, ctx);
 
-        vector<string> ids;
-        if(haveContext)
-        {
-            ids = p->ice_ids(ctx);
-        }
-        else
-        {
-            ids = p->ice_ids();
-        }
-
+        vector<string> ids = p->ice_ids(ctx);
         volatile VALUE result = createArray(ids.size());
         long i = 0;
         for(vector<string>::iterator q = ids.begin(); q != ids.end(); ++q, ++i)
@@ -206,18 +181,8 @@ IceRuby_ObjectPrx_ice_id(int argc, VALUE* argv, VALUE self)
         Ice::ObjectPrx p = getProxy(self);
 
         Ice::Context ctx;
-        bool haveContext = checkArgs("ice_id", 0, argc, argv, ctx);
-
-        string id;
-        if(haveContext)
-        {
-            id = p->ice_id(ctx);
-        }
-        else
-        {
-            id = p->ice_id();
-        }
-
+        checkArgs("ice_id", 0, argc, argv, ctx);
+        string id = p->ice_id(ctx);
         return createString(id);
     }
     ICE_RUBY_CATCH
@@ -1134,7 +1099,7 @@ IceRuby_ObjectPrx_uncheckedCast(int argc, VALUE* args, VALUE self)
 
 extern "C"
 VALUE
-IceRuby_ObjectPrx_ice_checkedCast(VALUE self, VALUE obj, VALUE id, VALUE facetOrCtx, VALUE ctx)
+IceRuby_ObjectPrx_ice_checkedCast(VALUE self, VALUE obj, VALUE id, VALUE facetOrContext, VALUE ctx)
 {
     //
     // ice_checkedCast is called from generated code, therefore we always expect
@@ -1157,19 +1122,19 @@ IceRuby_ObjectPrx_ice_checkedCast(VALUE self, VALUE obj, VALUE id, VALUE facetOr
         string idstr = getString(id);
 
         volatile VALUE facet = Qnil;
-        if(isString(facetOrCtx))
+        if(isString(facetOrContext))
         {
-            facet = facetOrCtx;
+            facet = facetOrContext;
         }
-        else if(isHash(facetOrCtx))
+        else if(isHash(facetOrContext))
         {
             if(!NIL_P(ctx))
             {
                 throw RubyException(rb_eArgError, "facet argument to checkedCast must be a string");
             }
-            ctx = facetOrCtx;
+            ctx = facetOrContext;
         }
-        else if(!NIL_P(facetOrCtx))
+        else if(!NIL_P(facetOrContext))
         {
             throw RubyException(rb_eArgError, "second argument to checkedCast must be a facet or context");
         }

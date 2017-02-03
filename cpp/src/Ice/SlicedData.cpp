@@ -8,31 +8,41 @@
 // **********************************************************************
 
 #include <Ice/SlicedData.h>
-#include <Ice/BasicStream.h>
+#include <Ice/OutputStream.h>
+#include <Ice/InputStream.h>
 
 using namespace std;
 using namespace Ice;
 
+#ifndef ICE_CPP11_MAPPING
 IceUtil::Shared* Ice::upCast(SliceInfo* p) { return p; }
 IceUtil::Shared* Ice::upCast(SlicedData* p) { return p; }
-IceUtil::Shared* Ice::upCast(UnknownSlicedObject* p) { return p; }
+IceUtil::Shared* Ice::upCast(UnknownSlicedValue* p) { return p; }
+
+Ice::SlicedData::~SlicedData()
+{
+    // Out of line to avoid weak vtable
+}
+#endif
 
 Ice::SlicedData::SlicedData(const SliceInfoSeq& seq) :
     slices(seq)
 {
 }
 
+
+#ifndef ICE_CPP11_MAPPING
 void
-Ice::SlicedData::__gcVisitMembers(IceInternal::GCVisitor& visitor)
+Ice::SlicedData::_iceGcVisitMembers(IceInternal::GCVisitor& visitor)
 {
     //
     // Iterate over the object references in each preserved slice.
     //
     for(SliceInfoSeq::const_iterator p = slices.begin(); p != slices.end(); ++p)
     {
-        for(vector<ObjectPtr>::iterator q = (*p)->objects.begin(); q != (*p)->objects.end(); ++q)
+        for(vector<ObjectPtr>::iterator q = (*p)->instances.begin(); q != (*p)->instances.end(); ++q)
         {
-            if(q->get()->__gcVisit(visitor))
+            if(q->get()->_iceGcVisit(visitor))
             {
                 *q = 0;
             }
@@ -40,41 +50,65 @@ Ice::SlicedData::__gcVisitMembers(IceInternal::GCVisitor& visitor)
     }
 }
 
-Ice::UnknownSlicedObject::UnknownSlicedObject(const string& unknownTypeId) : _unknownTypeId(unknownTypeId)
+void
+Ice::UnknownSlicedValue::_iceGcVisitMembers(IceInternal::GCVisitor& _v)
+{
+    if(_slicedData)
+    {
+        _slicedData->_iceGcVisitMembers(_v);
+    }
+}
+
+#endif
+
+Ice::UnknownSlicedValue::UnknownSlicedValue(const string& unknownTypeId) : _unknownTypeId(unknownTypeId)
 {
 }
 
 const string&
-Ice::UnknownSlicedObject::getUnknownTypeId() const
+Ice::UnknownSlicedValue::getUnknownTypeId() const
 {
     return _unknownTypeId;
 }
 
 SlicedDataPtr
-Ice::UnknownSlicedObject::getSlicedData() const
+Ice::UnknownSlicedValue::getSlicedData() const
 {
     return _slicedData;
 }
 
 void
-Ice::UnknownSlicedObject::__gcVisitMembers(IceInternal::GCVisitor& _v)
+Ice::UnknownSlicedValue::_iceWrite(Ice::OutputStream* ostr) const
 {
-    if(_slicedData)
-    {
-        _slicedData->__gcVisitMembers(_v);
-    }
+    ostr->startValue(_slicedData);
+    ostr->endValue();
 }
 
 void
-Ice::UnknownSlicedObject::__write(IceInternal::BasicStream* __os) const
+Ice::UnknownSlicedValue::_iceRead(Ice::InputStream* istr)
 {
-    __os->startWriteObject(_slicedData);
-    __os->endWriteObject();
+    istr->startValue();
+    _slicedData = istr->endValue(true);
 }
 
-void
-Ice::UnknownSlicedObject::__read(IceInternal::BasicStream* __is)
+#ifdef ICE_CPP11_MAPPING
+
+string
+Ice::UnknownSlicedValue::ice_id() const
 {
-    __is->startReadObject();
-    _slicedData = __is->endReadObject(true);
+    return _unknownTypeId;
 }
+
+shared_ptr<Ice::UnknownSlicedValue>
+Ice::UnknownSlicedValue::ice_clone() const
+{
+    return static_pointer_cast<UnknownSlicedValue>(cloneImpl());
+}
+
+shared_ptr<Ice::Value>
+Ice::UnknownSlicedValue::cloneImpl() const
+{
+    return make_shared<UnknownSlicedValue>(static_cast<const UnknownSlicedValue&>(*this));
+}
+
+#endif

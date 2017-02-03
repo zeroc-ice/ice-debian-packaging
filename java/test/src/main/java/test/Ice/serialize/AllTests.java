@@ -8,13 +8,14 @@
 // **********************************************************************
 
 package test.Ice.serialize;
-import test.Ice.serialize.Test.*;
+
 import java.io.*;
+
+import test.Ice.serialize.Test.*;
 
 public class AllTests
 {
-    private static void
-    test(boolean b)
+    private static void test(boolean b)
     {
         if(!b)
         {
@@ -22,12 +23,14 @@ public class AllTests
         }
     }
 
-    public static InitialPrx
-    allTests(Ice.Communicator communicator, boolean collocated, PrintWriter out)
+    public static InitialPrx allTests(test.Util.Application app, boolean collocated)
     {
-        String ref = "initial:default -p 12010";
-        Ice.ObjectPrx base = communicator.stringToProxy(ref);
-        InitialPrx initial = InitialPrxHelper.checkedCast(base);
+        PrintWriter out = app.getWriter();
+        com.zeroc.Ice.Communicator communicator = app.communicator();
+
+        String ref = "initial:" + app.getTestEndpoint(0);
+        com.zeroc.Ice.ObjectPrx base = communicator.stringToProxy(ref);
+        InitialPrx initial = InitialPrx.checkedCast(base);
 
         out.print("testing serialization... ");
         out.flush();
@@ -40,7 +43,7 @@ public class AllTests
             //
             // We expect this test to raise an exception: we are attempting to deserialize
             // an instance of Struct1 using java.io.ObjectInputStream. However, we must
-            // use Ice.ObjectInputStream instead because Struct1 contains a proxy.
+            // use com.zeroc.Ice.ObjectInputStream instead because Struct1 contains a proxy.
             //
             byte[] bytes = initial.getStruct1();
             ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
@@ -64,7 +67,7 @@ public class AllTests
         {
             byte[] bytes = initial.getStruct1();
             ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-            Ice.ObjectInputStream ois = new Ice.ObjectInputStream(communicator, bais);
+            com.zeroc.Ice.ObjectInputStream ois = new com.zeroc.Ice.ObjectInputStream(communicator, bais);
             try
             {
                 Struct1 s = (Struct1)ois.readObject();
@@ -87,7 +90,7 @@ public class AllTests
         {
             byte[] bytes = initial.getBase();
             ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-            Ice.ObjectInputStream ois = new Ice.ObjectInputStream(communicator, bais);
+            com.zeroc.Ice.ObjectInputStream ois = new com.zeroc.Ice.ObjectInputStream(communicator, bais);
             try
             {
                 Base b = (Base) ois.readObject();
@@ -110,7 +113,7 @@ public class AllTests
         {
             byte[] bytes = initial.getEx();
             ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-            Ice.ObjectInputStream ois = new Ice.ObjectInputStream(communicator, bais);
+            com.zeroc.Ice.ObjectInputStream ois = new com.zeroc.Ice.ObjectInputStream(communicator, bais);
             try
             {
                 Ex ex = (Ex)ois.readObject();
@@ -132,8 +135,7 @@ public class AllTests
         return initial;
     }
 
-    private static void
-    checkStruct1(Struct1 s)
+    private static void checkStruct1(Struct1 s)
     {
         test(s.bo);
         test(s.by == (byte)1);
@@ -148,8 +150,7 @@ public class AllTests
         s.p.ice_ping(); // Make sure the deserialized proxy is usable.
     }
 
-    private static void
-    checkBase(Base b)
+    private static void checkBase(Base b)
     {
         test(b.b == b);
         test(b.o == b);

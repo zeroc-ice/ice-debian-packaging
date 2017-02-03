@@ -10,11 +10,12 @@
 #include <Communicator.h>
 #include <ImplicitContext.h>
 #include <Logger.h>
-#include <ObjectFactory.h>
 #include <Properties.h>
 #include <Proxy.h>
 #include <Types.h>
 #include <Util.h>
+#include <ValueFactoryManager.h>
+#include <IceUtil/DisableWarnings.h>
 #include <Ice/Communicator.h>
 #include <Ice/Initialize.h>
 #include <Ice/Locator.h>
@@ -37,9 +38,9 @@ IceRuby_Communicator_mark(Ice::CommunicatorPtr* p)
     assert(p);
     try
     {
-        ObjectFactoryPtr pof = ObjectFactoryPtr::dynamicCast((*p)->findObjectFactory(""));
-        assert(pof);
-        pof->mark();
+        ValueFactoryManagerPtr vfm = ValueFactoryManagerPtr::dynamicCast((*p)->getValueFactoryManager());
+        assert(vfm);
+        vfm->markSelf();
     }
     catch(const Ice::CommunicatorDestroyedException&)
     {
@@ -128,6 +129,7 @@ IceRuby_initialize(int argc, VALUE* argv, VALUE self)
         seq.insert(seq.begin(), getString(progName));
 
         data.compactIdResolver = new IdResolver;
+        data.valueFactoryManager = new ValueFactoryManager;
 
         if(hasArgs)
         {
@@ -171,6 +173,17 @@ IceRuby_initialize(int argc, VALUE* argv, VALUE self)
                 communicator = Ice::initialize(data);
             }
         }
+        catch(const Ice::LocalException& ex)
+        {
+            cerr << ex << endl;
+            for(i = 0; i < ac + 1; ++i)
+            {
+                free(av[i]);
+            }
+            delete[] av;
+
+            throw;
+        }
         catch(...)
         {
             for(i = 0; i < ac + 1; ++i)
@@ -181,7 +194,7 @@ IceRuby_initialize(int argc, VALUE* argv, VALUE self)
 
             throw;
         }
-        
+
         //
         // Replace the contents of the given argument list with the filtered arguments.
         //
@@ -204,9 +217,6 @@ IceRuby_initialize(int argc, VALUE* argv, VALUE self)
             free(av[i]);
         }
         delete[] av;
-
-        ObjectFactoryPtr factory = new ObjectFactory;
-        communicator->addObjectFactory(factory, "");
 
         VALUE result = Data_Wrap_Struct(_communicatorClass, IceRuby_Communicator_mark,
                                         IceRuby_Communicator_free, new Ice::CommunicatorPtr(communicator));
@@ -240,12 +250,27 @@ IceRuby_stringToIdentity(VALUE self, VALUE str)
 
 extern "C"
 VALUE
-IceRuby_identityToString(VALUE self, VALUE id)
+IceRuby_identityToString(int argc, VALUE* argv, VALUE self)
 {
     ICE_RUBY_TRY
     {
-        Ice::Identity ident = getIdentity(id);
-        string str = Ice::identityToString(ident);
+        if(argc < 1 || argc > 2)
+        {
+            throw RubyException(rb_eArgError, "wrong number of arguments");
+        }
+
+        Ice::Identity ident = getIdentity(argv[0]);
+
+
+        Ice::ToStringMode toStringMode = Ice::Unicode;
+        if(argc == 2)
+        {
+            volatile VALUE modeValue = callRuby(rb_funcall, argv[1], rb_intern("to_i"), 0);
+            assert(TYPE(modeValue) == T_FIXNUM);
+            toStringMode = static_cast<Ice::ToStringMode>(FIX2LONG(modeValue));
+        }
+
+        string str = Ice::identityToString(ident, toStringMode);
         return createString(str);
     }
     ICE_RUBY_CATCH
@@ -256,12 +281,19 @@ extern "C"
 VALUE
 IceRuby_Communicator_destroy(VALUE self)
 {
+    Ice::CommunicatorPtr p = getCommunicator(self);
+
+    ValueFactoryManagerPtr vfm = ValueFactoryManagerPtr::dynamicCast(p->getValueFactoryManager());
+    assert(vfm);
+
     ICE_RUBY_TRY
     {
-        Ice::CommunicatorPtr p = getCommunicator(self);
         p->destroy();
     }
     ICE_RUBY_CATCH
+
+    vfm->destroy();
+
     return Qnil;
 }
 
@@ -371,7 +403,7 @@ IceRuby_Communicator_proxyToProperty(VALUE self, VALUE obj, VALUE str)
             volatile VALUE value = createString(q->second);
             callRuby(rb_hash_aset, result, key, value);
         }
-        return result; 
+        return result;
     }
     ICE_RUBY_CATCH
     return Qnil;
@@ -414,10 +446,10 @@ IceRuby_Communicator_addObjectFactory(VALUE self, VALUE factory, VALUE id)
     ICE_RUBY_TRY
     {
         Ice::CommunicatorPtr p = getCommunicator(self);
-        ObjectFactoryPtr pof = ObjectFactoryPtr::dynamicCast(p->findObjectFactory(""));
-        assert(pof);
+        ValueFactoryManagerPtr vfm = ValueFactoryManagerPtr::dynamicCast(p->getValueFactoryManager());
+        assert(vfm);
         string idstr = getString(id);
-        pof->add(factory, idstr);
+        vfm->addObjectFactory(factory, idstr);
     }
     ICE_RUBY_CATCH
     return Qnil;
@@ -430,10 +462,25 @@ IceRuby_Communicator_findObjectFactory(VALUE self, VALUE id)
     ICE_RUBY_TRY
     {
         Ice::CommunicatorPtr p = getCommunicator(self);
-        ObjectFactoryPtr pof = ObjectFactoryPtr::dynamicCast(p->findObjectFactory(""));
-        assert(pof);
+        ValueFactoryManagerPtr vfm = ValueFactoryManagerPtr::dynamicCast(p->getValueFactoryManager());
+        assert(vfm);
         string idstr = getString(id);
-        return pof->find(idstr);
+        return vfm->findObjectFactory(idstr);
+    }
+    ICE_RUBY_CATCH
+    return Qnil;
+}
+
+extern "C"
+VALUE
+IceRuby_Communicator_getValueFactoryManager(VALUE self)
+{
+    ICE_RUBY_TRY
+    {
+        Ice::CommunicatorPtr p = getCommunicator(self);
+        ValueFactoryManagerPtr vfm = ValueFactoryManagerPtr::dynamicCast(p->getValueFactoryManager());
+        assert(vfm);
+        return vfm->getObject();
     }
     ICE_RUBY_CATCH
     return Qnil;
@@ -581,7 +628,7 @@ void
 IceRuby::initCommunicator(VALUE iceModule)
 {
     rb_define_module_function(iceModule, "initialize", CAST_METHOD(IceRuby_initialize), -1);
-    rb_define_module_function(iceModule, "identityToString", CAST_METHOD(IceRuby_identityToString), 1);
+    rb_define_module_function(iceModule, "identityToString", CAST_METHOD(IceRuby_identityToString), -1);
     rb_define_module_function(iceModule, "stringToIdentity", CAST_METHOD(IceRuby_stringToIdentity), 1);
 
     _communicatorClass = rb_define_class_under(iceModule, "CommunicatorI", rb_cObject);
@@ -596,6 +643,7 @@ IceRuby::initCommunicator(VALUE iceModule)
     rb_define_method(_communicatorClass, "identityToString", CAST_METHOD(IceRuby_Communicator_identityToString), 1);
     rb_define_method(_communicatorClass, "addObjectFactory", CAST_METHOD(IceRuby_Communicator_addObjectFactory), 2);
     rb_define_method(_communicatorClass, "findObjectFactory", CAST_METHOD(IceRuby_Communicator_findObjectFactory), 1);
+    rb_define_method(_communicatorClass, "getValueFactoryManager", CAST_METHOD(IceRuby_Communicator_getValueFactoryManager), 0);
     rb_define_method(_communicatorClass, "getImplicitContext", CAST_METHOD(IceRuby_Communicator_getImplicitContext), 0);
     rb_define_method(_communicatorClass, "getProperties", CAST_METHOD(IceRuby_Communicator_getProperties), 0);
     rb_define_method(_communicatorClass, "getLogger", CAST_METHOD(IceRuby_Communicator_getLogger), 0);

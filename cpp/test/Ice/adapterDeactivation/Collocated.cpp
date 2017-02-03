@@ -21,7 +21,7 @@ using namespace Test;
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", "default -p 12010");
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0));
 
     //
     // 2 threads are necessary to dispatch the collocated transient() call with AMI
@@ -29,10 +29,10 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     communicator->getProperties()->setProperty("TestAdapter.ThreadPool.Size", "2");
 
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
-    ServantLocatorPtr locator = new ServantLocatorI;
+    ServantLocatorPtr locator = ICE_MAKE_SHARED(ServantLocatorI);
     adapter->addServantLocator(locator, "");
 
-    TestIntfPrx allTests(const CommunicatorPtr&);
+    TestIntfPrxPtr allTests(const CommunicatorPtr&);
     allTests(communicator);
 
     adapter->waitForDeactivate();
@@ -46,32 +46,15 @@ main(int argc, char* argv[])
     Ice::registerIceSSL();
 #endif
 
-    int status;
-    Ice::CommunicatorPtr communicator;
-
     try
     {
-        communicator = Ice::initialize(argc, argv);
-        status = run(argc, argv, communicator);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        return run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
-        status = EXIT_FAILURE;
+        return  EXIT_FAILURE;
     }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
-    }
-
-    return status;
 }

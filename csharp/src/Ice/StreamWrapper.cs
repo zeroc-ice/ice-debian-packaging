@@ -10,61 +10,236 @@
 
 namespace IceInternal
 {
-
-    using System;
     using System.Diagnostics;
     using System.IO;
-    using System.Text;
 
     //
-    // Class to provide a System.IO.Stream interface on top of a BasicStream.
+    // Classes to provide a System.IO.Stream interface on top of an Ice stream.
     // We use this to serialize arbitrary .NET serializable classes into
     // a Slice byte sequence.
     //
-    // For input streams, this class is a wrapper around the BasicStream
+    // For input streams, this class is a wrapper around the InputStream
     // class that passes all methods through.
     //
-    // For output streams, we use a different stragegy:
+    // For output streams, we use a different strategy:
     // Slice sequences are encoded on the wire as a count of elements, followed
     // by the sequence contents. For arbitrary .NET classes, we do not know how
     // big the sequence that is eventually written will be. To avoid excessive
-    // data copying, this class mantains a private bytes_ array of 254 bytes and,
+    // data copying, this class maintains a private _bytes array of 254 bytes and,
     // initially, writes data into that array. If more than 254 bytes end up being
     // written, we write a dummy sequence size of 255 (which occupies five bytes
-    // on the wire) into the BasicStream and, once this class is disposed, patch
-    // that size to match the actual size. Otherwise, if the bytes_ buffer contains
+    // on the wire) into the stream and, once this class is disposed, patch
+    // that size to match the actual size. Otherwise, if the _bytes buffer contains
     // fewer than 255 bytes when this class is disposed, we write the sequence size
-    // as a single byte, followed by the contents of the bytes_ buffer.
+    // as a single byte, followed by the contents of the _bytes buffer.
     //
 
-    enum StreamType { Read, Write };
-
-    public class StreamWrapper : System.IO.Stream, System.IDisposable
+    public class OutputStreamWrapper : Stream, System.IDisposable
     {
-        //
-        // Writeable stream constructor
-        //
-        public StreamWrapper(BasicStream s)
+        public OutputStreamWrapper(Ice.OutputStream s)
         {
-            type_ = StreamType.Write;
-            s_ = s;
-            spos_ = s.pos();
-            bytes_ = new byte[254];
-            pos_ = 0;
-            length_ = 0;
+            _s = s;
+            _spos = s.pos();
+            _bytes = new byte[254];
+            _pos = 0;
+            _length = 0;
         }
 
-        //
-        // Readable stream constructor
-        //
-        public StreamWrapper(int size, BasicStream s)
+        public override int Read(byte[] buffer, int offset, int count)
         {
-            type_ = StreamType.Read;
-            s_ = s;
-            spos_ = 0;
-            bytes_ = null;
-            pos_ = 0;
-            length_ = size;
+            Debug.Assert(false);
+            return 0;
+        }
+
+        public override int ReadByte()
+        {
+            Debug.Assert(false);
+            return 0;
+        }
+
+        public override void Write(byte[] array, int offset, int count)
+        {
+            Debug.Assert(array != null && offset >= 0 && count >= 0 && offset + count <= array.Length);
+            try
+            {
+                if(_bytes != null)
+                {
+                    //
+                    // If we can fit the data into the first 254 bytes, write it to _bytes.
+                    //
+                    if(count <= _bytes.Length - _pos)
+                    {
+                        System.Buffer.BlockCopy(array, offset, _bytes, _pos, count);
+                        _pos += count;
+                        return;
+                    }
+
+                    _s.writeSize(255); // Dummy size, until we know how big the stream
+                                       // really is and can patch the size.
+                    if(_pos > 0)
+                    {
+                        //
+                        // Write the current contents of _bytes.
+                        //
+                        _s.expand(_pos);
+                        _s.getBuffer().b.put(_bytes, 0, _pos);
+                    }
+
+                    _bytes = null;
+                }
+
+                //
+                // Write data passed by caller.
+                //
+                _s.expand(count);
+                _s.getBuffer().b.put(array, offset, count);
+                _pos += count;
+            }
+            catch(System.Exception ex)
+            {
+                throw new IOException("could not write to stream", ex);
+            }
+        }
+
+        public override void WriteByte(byte value)
+        {
+            try
+            {
+                if(_bytes != null)
+                {
+                    //
+                    // If we can fit the data into the first 254 bytes, write it to _bytes.
+                    //
+                    if(_pos < _bytes.Length)
+                    {
+                        _bytes[_pos++] = value;
+                        return;
+                    }
+
+                    _s.writeSize(255); // Dummy size, until we know how big the stream
+                                       // really is and can patch the size.
+                    if(_pos > 0)
+                    {
+                        //
+                        // Write the current contents of _bytes.
+                        //
+                        _s.expand(_pos);
+                        _s.getBuffer().b.put(_bytes, 0, _pos);
+                    }
+
+                    _bytes = null;
+                }
+
+                //
+                // Write data passed by caller.
+                //
+                _s.expand(1);
+                _s.getBuffer().b.put(value);
+                _pos += 1;
+            }
+            catch(System.Exception ex)
+            {
+                throw new IOException("could not write to stream", ex);
+            }
+        }
+
+        public override bool CanRead
+        {
+            get
+            {
+                return false;
+            }
+        }
+
+        public override bool CanWrite
+        {
+            get
+            {
+                return true;
+            }
+        }
+
+        public override bool CanSeek
+        {
+            get
+            {
+                return false;
+            }
+        }
+
+        public override void Flush()
+        {
+            try
+            {
+                if(_bytes != null)
+                {
+                    Debug.Assert(_pos <= _bytes.Length);
+                    _s.pos(_spos);
+                    _s.writeSize(_pos);
+                    _s.expand(_pos);
+                    _s.getBuffer().b.put(_bytes, 0, _pos);
+                }
+                else
+                {
+                    int currentPos = _s.pos();
+                    _s.pos(_spos);
+                    _s.writeSize(_pos); // Patch previously-written dummy value.
+                    _s.pos(currentPos);
+                }
+            }
+            catch(System.Exception ex)
+            {
+                throw new IOException("could not flush stream", ex);
+            }
+        }
+
+        public override long Length
+        {
+            get
+            {
+                return _length;
+            }
+        }
+
+        public override long Position
+        {
+            get
+            {
+                return _pos;
+            }
+
+            set
+            {
+                Seek(value, SeekOrigin.Begin);
+            }
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            Debug.Assert(false);
+            return 0;
+        }
+
+        public override void SetLength(long value)
+        {
+            Debug.Assert(value >= 0);
+            _length = value;
+        }
+
+        private Ice.OutputStream _s;
+        private int _spos;
+        private byte[] _bytes;
+        private int _pos;
+        private long _length;
+    }
+
+    public class InputStreamWrapper : Stream, System.IDisposable
+    {
+        public InputStreamWrapper(int size, Ice.InputStream s)
+        {
+            _s = s;
+            _pos = 0;
+            _length = size;
         }
 
         public override int Read(byte[] buffer, int offset, int count)
@@ -72,7 +247,7 @@ namespace IceInternal
             Debug.Assert(buffer != null && offset >= 0 && count >= 0 && offset + count <= buffer.Length);
             try
             {
-                s_.getBuffer().b.get(buffer, offset, count);
+                _s.getBuffer().b.get(buffer, offset, count);
             }
             catch(System.Exception ex)
             {
@@ -85,7 +260,7 @@ namespace IceInternal
         {
             try
             {
-                return s_.getBuffer().b.get();
+                return _s.getBuffer().b.get();
             }
             catch(System.Exception ex)
             {
@@ -95,90 +270,12 @@ namespace IceInternal
 
         public override void Write(byte[] array, int offset, int count)
         {
-            Debug.Assert(type_ == StreamType.Write);
-            Debug.Assert(array != null && offset >= 0 && count >= 0 && offset + count <= array.Length);
-            try
-            {
-                if(bytes_ != null)
-                {
-                    //
-                    // If we can fit the data into the first 254 bytes, write it to bytes_.
-                    //
-                    if(count <= bytes_.Length - pos_)
-                    {
-                        System.Buffer.BlockCopy(array, offset, bytes_, pos_, count);
-                        pos_ += count;
-                        return;
-                    }
-
-                    s_.writeSize(255); // Dummy size, until we know how big the stream
-                                       // really is and can patch the size.
-                    if(pos_ > 0)
-                    {
-                        //
-                        // Write the current contents of bytes_.
-                        //
-                        s_.expand(pos_);
-                        s_.getBuffer().b.put(bytes_, 0, pos_);
-                    }
-
-                    bytes_ = null;
-                }
-
-                //
-                // Write data passed by caller.
-                //
-                s_.expand(count);
-                s_.getBuffer().b.put(array, offset, count);
-                pos_ += count;
-            }
-            catch(System.Exception ex)
-            {
-                throw new IOException("could not write to stream", ex);
-            }
+            Debug.Assert(false);
         }
 
         public override void WriteByte(byte value)
         {
-            Debug.Assert(type_ == StreamType.Write);
-            try
-            {
-                if(bytes_ != null)
-                {
-                    //
-                    // If we can fit the data into the first 254 bytes, write it to bytes_.
-                    //
-                    if(pos_ < bytes_.Length)
-                    {
-                        bytes_[pos_++] = value;
-                        return;
-                    }
-
-                    s_.writeSize(255); // Dummy size, until we know how big the stream
-                                       // really is and can patch the size.
-                    if(pos_ > 0)
-                    {
-                        //
-                        // Write the current contents of bytes_.
-                        //
-                        s_.expand(pos_);
-                        s_.getBuffer().b.put(bytes_, 0, pos_);
-                    }
-
-                    bytes_ = null;
-                }
-
-                //
-                // Write data passed by caller.
-                //
-                s_.expand(1);
-                s_.getBuffer().b.put(value);
-                pos_ += 1;
-            }
-            catch(System.Exception ex)
-            {
-                throw new IOException("could not write to stream", ex);
-            }
+            Debug.Assert(false);
         }
 
         public override bool CanRead
@@ -193,7 +290,7 @@ namespace IceInternal
         {
             get
             {
-                return type_ == StreamType.Write;
+                return false;
             }
         }
 
@@ -201,52 +298,19 @@ namespace IceInternal
         {
             get
             {
-                if(AssemblyUtil.runtime_ == AssemblyUtil.Runtime.Mono)
-                {
-                    //
-                    // The Mono deserialization implementation has a bug that causes a call to Seek() such
-                    // that the reading position is set to -1.
-                    //
-                    return false;
-                }
-                else
-                {
-                    return type_ == StreamType.Read;
-                }
+                return true;
             }
         }
 
         public override void Flush()
         {
-            try
-            {
-                if(bytes_ != null)
-                {
-                    Debug.Assert(pos_ <= bytes_.Length);
-                    s_.pos(spos_);
-                    s_.writeSize(pos_);
-                    s_.expand(pos_);
-                    s_.getBuffer().b.put(bytes_, 0, pos_);
-                }
-                else
-                {
-                    int currentPos = s_.pos();
-                    s_.pos(spos_);
-                    s_.writeSize(pos_); // Patch previously-written dummy value.
-                    s_.pos(currentPos);
-                }
-            }
-            catch(System.Exception ex)
-            {
-                throw new IOException("could not flush stream", ex);
-            }
         }
 
         public override long Length
         {
             get
             {
-                return length_;
+                return _length;
             }
         }
 
@@ -254,7 +318,7 @@ namespace IceInternal
         {
             get
             {
-                return pos_;
+                return _pos;
             }
 
             set
@@ -265,24 +329,22 @@ namespace IceInternal
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            Debug.Assert(type_ != StreamType.Write);
-
             // Deliberately no size check here--positioning beyond the limit of the stream is legal.
             switch(origin)
             {
                 case SeekOrigin.Begin:
                 {
-                    pos_ = (int)offset;
+                    _pos = (int)offset;
                     break;
                 }
                 case SeekOrigin.Current:
                 {
-                    pos_ += (int)offset;
+                    _pos += (int)offset;
                     break;
                 }
                 case SeekOrigin.End:
                 {
-                    pos_ = (int)length_ + (int)offset;
+                    _pos = (int)_length + (int)offset;
                     break;
                 }
                 default:
@@ -291,21 +353,17 @@ namespace IceInternal
                     break;
                 }
             }
-            s_.pos(pos_);
-            return pos_;
+            _s.pos(_pos);
+            return _pos;
         }
 
         public override void SetLength(long value)
         {
-            Debug.Assert(type_ == StreamType.Write && value >= 0);
-            length_ = value;
+            Debug.Assert(false);
         }
 
-        private StreamType type_;
-        private BasicStream s_;
-        private int spos_;
-        private byte[] bytes_;
-        private int pos_;
-        private long length_;
+        private Ice.InputStream _s;
+        private int _pos;
+        private long _length;
     }
 }

@@ -14,17 +14,16 @@ public class Client extends test.Util.Application
     @Override
     public int run(String[] args)
     {
-        AllTests.allTests(communicator(), getWriter(), _dispatcher);
+        AllTests.allTests(this, _dispatcher);
         return 0;
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         assert(_dispatcher == null);
         _dispatcher = new Dispatcher();
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.dispatcher");
 
         //

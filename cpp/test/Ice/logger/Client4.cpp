@@ -41,9 +41,9 @@ main(int argc, char* argv[])
     //
     int cp = GetConsoleOutputCP();
     SetConsoleOutputCP(CP_UTF8);
-    IceUtil::setProcessStringConverter(new IceUtil::WindowsStringConverter(28605));
+    setProcessStringConverter(Ice::createWindowsStringConverter(28605));
 #else
-    IceUtil::setProcessStringConverter(new IceUtil::IconvStringConverter<char>("ISO8859-15"));
+    setProcessStringConverter(Ice::createIconvStringConverter<char>("ISO8859-15"));
 #endif
     Ice::InitializationData id;
     id.properties = Ice::createProperties();

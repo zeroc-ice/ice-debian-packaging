@@ -13,12 +13,12 @@
 #include <IceUtil/Shared.h>
 #include <IceUtil/Mutex.h>
 #include <IceUtil/Monitor.h>
-#include <IceUtil/UniquePtr.h>
+#include <Ice/UniquePtr.h>
 
 #include <Ice/BatchRequestInterceptor.h>
 #include <Ice/BatchRequestQueueF.h>
 #include <Ice/InstanceF.h>
-#include <Ice/BasicStream.h>
+#include <Ice/OutputStream.h>
 
 namespace IceInternal
 {
@@ -29,11 +29,11 @@ public:
 
     BatchRequestQueue(const InstancePtr&, bool);
 
-    void prepareBatchRequest(BasicStream*);
-    void finishBatchRequest(BasicStream*, const Ice::ObjectPrx&, const std::string&);
-    void abortBatchRequest(BasicStream*);
+    void prepareBatchRequest(Ice::OutputStream*);
+    void finishBatchRequest(Ice::OutputStream*, const Ice::ObjectPrxPtr&, const std::string&);
+    void abortBatchRequest(Ice::OutputStream*);
 
-    int swap(BasicStream*);
+    int swap(Ice::OutputStream*);
 
     void destroy(const Ice::LocalException&);
     bool isEmpty();
@@ -44,13 +44,17 @@ private:
 
     void waitStreamInUse(bool);
 
+#ifdef ICE_CPP11_MAPPING
+    std::function<void(const Ice::BatchRequest&, int, int)> _interceptor;
+#else
     Ice::BatchRequestInterceptorPtr _interceptor;
-    BasicStream _batchStream;
+#endif
+    Ice::OutputStream _batchStream;
     bool _batchStreamInUse;
     bool _batchStreamCanFlush;
     int _batchRequestNum;
     size_t _batchMarker;
-    IceUtil::UniquePtr<Ice::LocalException> _exception;
+    IceInternal::UniquePtr<Ice::LocalException> _exception;
     size_t _maxSize;
 };
 

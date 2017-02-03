@@ -31,24 +31,17 @@ public:
     virtual std::string toString() const;
 
     virtual bool operator==(const IceInternal::Connector&) const;
-    virtual bool operator!=(const IceInternal::Connector&) const;
     virtual bool operator<(const IceInternal::Connector&) const;
 
 private:
 
-    ConnectorI(const InstancePtr&, const std::string&, const IceInternal::Address&,
-               const IceInternal::NetworkProxyPtr&, const IceInternal::Address&,
-               Ice::Int, const std::string&);
+    ConnectorI(const InstancePtr&, const IceInternal::ConnectorPtr&, const std::string&);
     virtual ~ConnectorI();
     friend class EndpointI;
 
     const InstancePtr _instance;
+    const IceInternal::ConnectorPtr _delegate;
     const std::string _host;
-    const IceInternal::Address _addr;
-    const IceInternal::NetworkProxyPtr _proxy;
-    const IceInternal::Address _sourceAddr;
-    const Ice::Int _timeout;
-    const std::string _connectionId;
 };
 
 }

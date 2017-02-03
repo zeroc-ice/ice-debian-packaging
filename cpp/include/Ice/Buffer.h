@@ -21,7 +21,8 @@ public:
 
     Buffer() : i(b.begin()) { }
     Buffer(const Ice::Byte* beg, const Ice::Byte* end) : b(beg, end), i(b.begin()) { }
-    virtual ~Buffer() { }
+    Buffer(const std::vector<Ice::Byte>& v) : b(v), i(b.begin()) { }
+    Buffer(Buffer& o, bool adopt) : b(o.b, adopt), i(b.begin()) { }
 
     void swapBuffer(Buffer&);
 
@@ -43,6 +44,8 @@ public:
 
         Container();
         Container(const_iterator, const_iterator);
+        Container(const std::vector<value_type>&);
+        Container(Container&, bool);
 
         ~Container();
 
@@ -77,13 +80,11 @@ public:
         }
 
         void swap(Container&);
-        
+
         void clear();
 
         void resize(size_type n) // Inlined for performance reasons.
         {
-            assert(!_buf || _capacity > 0);
-
             if(n == 0)
             {
                 clear();
@@ -94,17 +95,15 @@ public:
             }
             _size = n;
         }
-        
+
         void reset()
         {
-            assert(!_buf || _capacity > 0);
-
             if(_size > 0 && _size * 2 < _capacity)
             {
                 //
                 // If the current buffer size is smaller than the
                 // buffer capacity, we shrink the buffer memory to the
-                // current size. This is to avoid holding on too much
+                // current size. This is to avoid holding onto too much
                 // memory if it's not needed anymore.
                 //
                 if(++_shrinkCounter > 2)
@@ -137,7 +136,7 @@ public:
             assert(n < _size);
             return _buf[n];
         }
-        
+
     private:
 
         Container(const Container&);
@@ -148,6 +147,7 @@ public:
         size_type _size;
         size_type _capacity;
         int _shrinkCounter;
+        bool _owned;
     };
 
     Container b;

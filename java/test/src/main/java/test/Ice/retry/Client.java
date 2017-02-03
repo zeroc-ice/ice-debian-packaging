@@ -18,23 +18,23 @@ public class Client extends test.Util.Application
     @Override
     public int run(String[] args)
     {
-        Ice.Communicator communicator = communicator();
+        com.zeroc.Ice.Communicator communicator = communicator();
 
         //
         // Configure a second communicator for the invocation timeout
         // + retry test, we need to configure a large retry interval
         // to avoid time-sensitive failures.
         //
-        Ice.InitializationData initData2 = createInitializationData();
+        com.zeroc.Ice.InitializationData initData2 = createInitializationData();
         initData2.properties = communicator.getProperties()._clone();
         initData2.properties.setProperty("Ice.RetryIntervals", "0 1 10000");
         initData2.observer = instrumentation.getObserver();
-        Ice.Communicator communicator2 = initialize(initData2);
+        com.zeroc.Ice.Communicator communicator2 = initialize(initData2);
 
         try
         {
-            RetryPrx retry = AllTests.allTests(communicator, communicator2, getWriter(), instrumentation, 
-                                               "retry:default -p 12010");
+            RetryPrx retry = AllTests.allTests(this, communicator, communicator2, instrumentation,
+                                               "retry:" + getTestEndpoint(0));
             retry.shutdown();
             return 0;
         }
@@ -45,10 +45,9 @@ public class Client extends test.Util.Application
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.observer = instrumentation.getObserver();
 
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.retry");

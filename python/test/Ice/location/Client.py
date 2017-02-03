@@ -31,17 +31,10 @@ try:
     data = Ice.InitializationData()
     data.properties = Ice.createProperties(sys.argv)
     data.properties.setProperty("Ice.Default.Locator", "locator:default -p 12010")
-    communicator = Ice.initialize(sys.argv, data)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv, data) as communicator:
+        status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

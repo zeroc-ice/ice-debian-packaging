@@ -14,31 +14,26 @@ import test.Ice.checksum.Test.ChecksumPrx;
 public class Client extends test.Util.Application
 {
     @Override
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
-        Ice.Communicator communicator = communicator();
-        ChecksumPrx checksum = AllTests.allTests(communicator, false, getWriter());
+        ChecksumPrx checksum = AllTests.allTests(this, false);
         checksum.shutdown();
         return 0;
     }
 
-
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.checksum");
         return initData;
     }
 
-    public static void
-    main(String[] args)
+    public static void main(String[] args)
     {
         Client c = new Client();
         int status = c.main("Client", args);
-        
+
         System.gc();
         System.exit(status);
     }

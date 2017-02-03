@@ -18,14 +18,14 @@ run(id<ICECommunicator> communicator)
     id<ICEObjectAdapter> adapter = [communicator createObjectAdapter:@"TestAdapter"];
 
     ICEObject* object = [MetricsI metrics];
-    [adapter add:object identity:[communicator stringToIdentity:@"metrics"]];
+    [adapter add:object identity:[ICEUtil stringToIdentity:@"metrics"]];
     [adapter activate];
 
     [[communicator getProperties] setProperty:@"ControllerAdapter.Endpoints" value:@"default -p 12011"];
     id<ICEObjectAdapter> controllerAdapter = [communicator createObjectAdapter:@"ControllerAdapter"];
 
     ICEObject* controller = ICE_AUTORELEASE([[ControllerI alloc] init:adapter]);
-    [controllerAdapter add:controller identity:[communicator stringToIdentity:@"controller"]];
+    [controllerAdapter add:controller identity:[ICEUtil stringToIdentity:@"controller"]];
     [controllerAdapter activate];
 
     serverReady(communicator);
@@ -42,6 +42,13 @@ run(id<ICECommunicator> communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    ICEregisterIceSSL(YES);
+#if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+    ICEregisterIceIAP(YES);
+#endif
+#endif
+
     int status;
     @autoreleasepool
     {
@@ -61,7 +68,7 @@ main(int argc, char* argv[])
             [initData.properties setProperty:@"IceMX.Metrics.All.GroupBy" value:@"none"];
             [initData.properties setProperty:@"Ice.Default.Host" value:@"127.0.0.1"];
 #if TARGET_OS_IPHONE
-            initData.prefixTable__ = [NSDictionary dictionaryWithObjectsAndKeys:
+            initData.prefixTable_ = [NSDictionary dictionaryWithObjectsAndKeys:
                                       @"TestMetrics", @"::Test",
                                       @"ICEMX", @"::IceMX",
                                       nil];
@@ -77,15 +84,7 @@ main(int argc, char* argv[])
 
         if(communicator)
         {
-            @try
-            {
-                [communicator destroy];
-            }
-            @catch(ICEException* ex)
-            {
-                tprintf("%@\n", ex);
-                status = EXIT_FAILURE;
-            }
+            [communicator destroy];
         }
     }
     return status;

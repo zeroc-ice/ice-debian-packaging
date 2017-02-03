@@ -8,55 +8,20 @@
 // **********************************************************************
 
 using Test;
-using System.Diagnostics;
+using System;
 
-public class Client
+public class Client : TestCommon.Application
 {
-    private static int run(string[] args, Ice.Communicator communicator)
+    public override int run(string[] args)
     {
-        TestIntfPrx test = AllTests.allTests(communicator, false);
+        TestIntfPrx test = AllTests.allTests(this, false);
         test.shutdown();
         return 0;
     }
 
     public static int Main(string[] args)
     {
-        int status = 0;
-        Ice.Communicator communicator = null;
-
-        try
-        {
-            Ice.InitializationData data = new Ice.InitializationData();
-#if COMPACT
-            //
-            // When using Ice for .NET Compact Framework, we need to specify
-            // the assembly so that Ice can locate classes and exceptions.
-            //
-            data.properties = Ice.Util.createProperties();
-            data.properties.setProperty("Ice.FactoryAssemblies", "client");
-#endif
-            communicator = Ice.Util.initialize(ref args, data);
-            status = run(args, communicator);
-        }
-        catch(System.Exception ex)
-        {
-            System.Console.Error.WriteLine(ex);
-            status = 1;
-        }
-
-        if(communicator != null)
-        {
-            try
-            {
-                communicator.destroy();
-            }
-            catch(Ice.LocalException ex)
-            {
-                System.Console.Error.WriteLine(ex);
-                status = 1;
-            }
-        }
-
-        return status;
+        Client app = new Client();
+        return app.runmain(args);
     }
 }

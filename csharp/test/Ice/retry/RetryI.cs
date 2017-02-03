@@ -7,8 +7,6 @@
 //
 // **********************************************************************
 
-using System;
-
 public sealed class RetryI : Test.RetryDisp_
 {
     public RetryI()
@@ -21,7 +19,7 @@ public sealed class RetryI : Test.RetryDisp_
         {
             if(current.con != null)
             {
-                current.con.close(true);
+                current.con.close(Ice.ConnectionClose.CloseForcefully);
             }
             else
             {

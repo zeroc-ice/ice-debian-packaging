@@ -11,9 +11,8 @@
 #define ICE_GRID_REGISTRYI_H
 
 #include <IceUtil/Timer.h>
+#include <Ice/UniquePtr.h>
 #include <IceGrid/Registry.h>
-#include <IceGrid/Query.h>
-#include <IceGrid/Locator.h>
 #include <IceGrid/Internal.h>
 #include <IceGrid/PlatformInfo.h>
 #include <IceGrid/ReplicaSessionManager.h>
@@ -64,8 +63,8 @@ public:
     virtual SessionPrx createSessionFromSecureConnection(const Ice::Current&);
     virtual AdminSessionPrx createAdminSessionFromSecureConnection(const Ice::Current&);
 
-    virtual int getSessionTimeout(const Ice::Current& = Ice::Current()) const;
-    virtual int getACMTimeout(const Ice::Current& = Ice::Current()) const;
+    virtual int getSessionTimeout(const Ice::Current& = Ice::noExplicitCurrent) const;
+    virtual int getACMTimeout(const Ice::Current& = Ice::noExplicitCurrent) const;
     
     std::string getName() const;
     RegistryInfo getInfo() const;
@@ -121,7 +120,7 @@ private:
     IceUtil::TimerPtr _timer;
     SessionServantManagerPtr _servantManager;
     int _sessionTimeout;
-    IceUtil::UniquePtr<ReplicaSessionManager> _session;
+    IceInternal::UniquePtr<ReplicaSessionManager> _session;
     mutable PlatformInfo _platform;
     
     ClientSessionFactoryPtr _clientSessionFactory;

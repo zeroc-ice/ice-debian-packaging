@@ -30,7 +30,7 @@ namespace IceInternal
                 EndpointI[] endpoints = null;
                 if(proxy != null)
                 {
-                    Reference r = ((Ice.ObjectPrxHelperBase)proxy).reference__();
+                    Reference r = ((Ice.ObjectPrxHelperBase)proxy).iceReference();
                     if(_ref.isWellKnown() && !Protocol.isSupported(_ref.getEncoding(), r.getEncoding()))
                     {
                         //
@@ -150,7 +150,7 @@ namespace IceInternal
 
                         while(!_response && _exception == null)
                         {
-                            System.Threading.Monitor.Wait(this);
+                            Monitor.Wait(this);
                         }
                     }
 
@@ -163,7 +163,7 @@ namespace IceInternal
                     EndpointI[] endpoints = null;
                     if(_proxy != null)
                     {
-                        Reference r = ((Ice.ObjectPrxHelperBase)_proxy).reference__();
+                        Reference r = ((Ice.ObjectPrxHelperBase)_proxy).iceReference();
                         if(!r.isIndirect())
                         {
                             endpoints = r.getEndpoints();
@@ -204,7 +204,7 @@ namespace IceInternal
                     _locatorInfo.finishRequest(_ref, _wellKnownRefs, proxy, false);
                     _response = true;
                     _proxy = proxy;
-                    System.Threading.Monitor.PulseAll(this);
+                    Monitor.PulseAll(this);
                 }
                 foreach(RequestCallback callback in _callbacks)
                 {
@@ -219,7 +219,7 @@ namespace IceInternal
                 {
                     _locatorInfo.finishRequest(_ref, _wellKnownRefs, null, ex is Ice.UserException);
                     _exception = ex;
-                    System.Threading.Monitor.PulseAll(this);
+                    Monitor.PulseAll(this);
                 }
                 foreach(RequestCallback callback in _callbacks)
                 {
@@ -273,7 +273,7 @@ namespace IceInternal
                 try
                 {
                     _locatorInfo.getLocator().begin_findAdapterById(_ref.getAdapterId()).whenCompleted(
-                        this.response, this.exception);
+                        response, exception);
                 }
                 catch(Ice.Exception ex)
                 {
@@ -300,7 +300,7 @@ namespace IceInternal
 
         public override bool Equals(object obj)
         {
-            if(object.ReferenceEquals(this, obj))
+            if(ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -523,7 +523,8 @@ namespace IceInternal
             }
             else
             {
-                s.Append("object = " + r.getInstance().identityToString(r.getIdentity()) + "\n");
+                s.Append("object = " + Ice.Util.identityToString(r.getIdentity(), r.getInstance().toStringMode())
+                         + "\n");
             }
 
             s.Append("endpoints = ");
@@ -569,13 +570,13 @@ namespace IceInternal
                 {
                     System.Text.StringBuilder s = new System.Text.StringBuilder();
                     s.Append("object not found\n");
-                    s.Append("object = " + instance.identityToString(@ref.getIdentity()));
+                    s.Append("object = " + Ice.Util.identityToString(@ref.getIdentity(), instance.toStringMode()));
                     instance.initializationData().logger.trace(instance.traceLevels().locationCat, s.ToString());
                 }
 
                 Ice.NotRegisteredException e = new Ice.NotRegisteredException(ex);
                 e.kindOfObject = "object";
-                e.id = instance.identityToString(@ref.getIdentity());
+                e.id = Ice.Util.identityToString(@ref.getIdentity(), instance.toStringMode());
                 throw e;
             }
             catch(Ice.NotRegisteredException)
@@ -595,7 +596,7 @@ namespace IceInternal
                     }
                     else
                     {
-                        s.Append("object = " + instance.identityToString(@ref.getIdentity()) + "\n");
+                        s.Append("object = " + Ice.Util.identityToString(@ref.getIdentity(), instance.toStringMode()) + "\n");
                     }
                     s.Append("reason = " + ex);
                     instance.initializationData().logger.trace(instance.traceLevels().locationCat, s.ToString());
@@ -634,7 +635,7 @@ namespace IceInternal
                 else
                 {
                     s.Append("object\n");
-                    s.Append("object = " + instance.identityToString(@ref.getIdentity()));
+                    s.Append("object = " + Ice.Util.identityToString(@ref.getIdentity(), instance.toStringMode()));
                 }
                 instance.initializationData().logger.trace(instance.traceLevels().locationCat, s.ToString());
             }
@@ -674,7 +675,7 @@ namespace IceInternal
                 Instance instance = @ref.getInstance();
                 System.Text.StringBuilder s = new System.Text.StringBuilder();
                 s.Append("searching for object by id\nobject = ");
-                s.Append(instance.identityToString(@ref.getIdentity()));
+                s.Append(Ice.Util.identityToString(@ref.getIdentity(), instance.toStringMode()));
                 instance.initializationData().logger.trace(instance.traceLevels().locationCat, s.ToString());
             }
 
@@ -696,7 +697,7 @@ namespace IceInternal
         finishRequest(Reference @ref, List<Reference> wellKnownRefs, Ice.ObjectPrx proxy, bool notRegistered)
         {
             Ice.ObjectPrxHelperBase @base = proxy as Ice.ObjectPrxHelperBase;
-            if(proxy == null || @base.reference__().isIndirect())
+            if(proxy == null || @base.iceReference().isIndirect())
             {
                 //
                 // Remove the cached references of well-known objects for which we tried
@@ -710,10 +711,10 @@ namespace IceInternal
 
             if(!@ref.isWellKnown())
             {
-                if(proxy != null && !@base.reference__().isIndirect())
+                if(proxy != null && !@base.iceReference().isIndirect())
                 {
                     // Cache the adapter endpoints.
-                    _table.addAdapterEndpoints(@ref.getAdapterId(), @base.reference__().getEndpoints());
+                    _table.addAdapterEndpoints(@ref.getAdapterId(), @base.iceReference().getEndpoints());
                 }
                 else if(notRegistered) // If the adapter isn't registered anymore, remove it from the cache.
                 {
@@ -728,10 +729,10 @@ namespace IceInternal
             }
             else
             {
-                if(proxy != null && !@base.reference__().isWellKnown())
+                if(proxy != null && !@base.iceReference().isWellKnown())
                 {
                     // Cache the well-known object reference.
-                    _table.addObjectReference(@ref.getIdentity(), @base.reference__());
+                    _table.addObjectReference(@ref.getIdentity(), @base.iceReference());
                 }
                 else if(notRegistered) // If the well-known object isn't registered anymore, remove it from the cache.
                 {
@@ -761,7 +762,7 @@ namespace IceInternal
         {
             public LocatorKey(Ice.LocatorPrx prx)
             {
-                Reference r = ((Ice.ObjectPrxHelperBase)prx).reference__();
+                Reference r = ((Ice.ObjectPrxHelperBase)prx).iceReference();
                 _id = r.getIdentity();
                 _encoding = r.getEncoding();
             }
@@ -783,14 +784,14 @@ namespace IceInternal
             public override int GetHashCode()
             {
                 int h = 5381;
-                IceInternal.HashUtil.hashAdd(ref h, _id);
-                IceInternal.HashUtil.hashAdd(ref h, _encoding);
+                HashUtil.hashAdd(ref h, _id);
+                HashUtil.hashAdd(ref h, _encoding);
                 return h;
             }
 
             private Ice.Identity _id;
             private Ice.EncodingVersion _encoding;
-        };
+        }
 
         internal LocatorManager(Ice.Properties properties)
         {
@@ -831,7 +832,6 @@ namespace IceInternal
             //
             // TODO: reap unused locator info objects?
             //
-
             lock(this)
             {
                 LocatorInfo info = null;
@@ -880,7 +880,7 @@ namespace IceInternal
             }
         }
 
-        internal IceInternal.EndpointI[] getAdapterEndpoints(string adapter, int ttl, out bool cached)
+        internal EndpointI[] getAdapterEndpoints(string adapter, int ttl, out bool cached)
         {
             if(ttl == 0) // Locator cache disabled.
             {
@@ -902,7 +902,7 @@ namespace IceInternal
             }
         }
 
-        internal void addAdapterEndpoints(string adapter, IceInternal.EndpointI[] endpoints)
+        internal void addAdapterEndpoints(string adapter, EndpointI[] endpoints)
         {
             lock(this)
             {
@@ -911,7 +911,7 @@ namespace IceInternal
             }
         }
 
-        internal IceInternal.EndpointI[] removeAdapterEndpoints(string adapter)
+        internal EndpointI[] removeAdapterEndpoints(string adapter)
         {
             lock(this)
             {
@@ -983,14 +983,14 @@ namespace IceInternal
 
         sealed private class EndpointTableEntry
         {
-            public EndpointTableEntry(long time, IceInternal.EndpointI[] endpoints)
+            public EndpointTableEntry(long time, EndpointI[] endpoints)
             {
                 this.time = time;
                 this.endpoints = endpoints;
             }
 
             public long time;
-            public IceInternal.EndpointI[] endpoints;
+            public EndpointI[] endpoints;
         }
 
         sealed private class ReferenceTableEntry

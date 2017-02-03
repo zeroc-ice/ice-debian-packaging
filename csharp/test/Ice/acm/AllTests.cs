@@ -8,22 +8,10 @@
 // **********************************************************************
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using Test;
-#if SILVERLIGHT
-using System.Net;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Windows.Ink;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
-using System.Windows.Shapes;
-#endif
+
 
 class LoggerI : Ice.Logger
 {
@@ -105,9 +93,9 @@ class LoggerI : Ice.Logger
 
     private bool _started;
     private List<string> _messages = new List<string>();
-};
+}
 
-abstract class TestCase : Ice.ConnectionCallback
+abstract class TestCase
 {
     public TestCase(string name, RemoteCommunicatorPrx com)
     {
@@ -187,29 +175,28 @@ abstract class TestCase : Ice.ConnectionCallback
                                                                 _adapter.getTestIntf().ToString()));
         try
         {
-            proxy.ice_getConnection().setCallback(this);
+            proxy.ice_getConnection().setCloseCallback(_=>
+            {
+                lock(this)
+                {
+                    _closed = true;
+                    Monitor.Pulse(this);
+                }
+            });
+
+            proxy.ice_getConnection().setHeartbeatCallback(_=>
+            {
+                lock(this)
+                {
+                    ++_heartbeat;
+                }
+            });
+
             runTestCase(_adapter, proxy);
         }
         catch(Exception ex)
         {
             _msg = "unexpected exception:\n" + ex.ToString();
-        }
-    }
-
-    public void heartbeat(Ice.Connection con)
-    {
-        lock(this)
-        {
-            ++_heartbeat;
-        }
-    }
-
-    public void closed(Ice.Connection con)
-    {
-        lock(this)
-        {
-            _closed = true;
-            Monitor.Pulse(this);
         }
     }
 
@@ -264,9 +251,9 @@ abstract class TestCase : Ice.ConnectionCallback
 
     protected int _heartbeat;
     protected bool _closed;
-};
+}
 
-public class AllTests : TestCommon.TestApp
+public class AllTests : TestCommon.AllTests
 {
     class InvocationHeartbeatTest : TestCase
     {
@@ -283,7 +270,7 @@ public class AllTests : TestCommon.TestApp
                 test(_heartbeat >= 2);
             }
         }
-    };
+    }
 
     class InvocationHeartbeatOnHoldTest : TestCase
     {
@@ -311,7 +298,7 @@ public class AllTests : TestCommon.TestApp
                 waitForClosed();
             }
         }
-    };
+    }
 
     class InvocationNoHeartbeatTest : TestCase
     {
@@ -341,7 +328,7 @@ public class AllTests : TestCommon.TestApp
                 }
             }
         }
-    };
+    }
 
     class InvocationHeartbeatCloseOnIdleTest : TestCase
     {
@@ -364,7 +351,7 @@ public class AllTests : TestCommon.TestApp
                 test(!_closed);
             }
         }
-    };
+    }
 
     class CloseOnIdleTest : TestCase
     {
@@ -383,7 +370,7 @@ public class AllTests : TestCommon.TestApp
                 test(_heartbeat == 0);
             }
         }
-    };
+    }
 
     class CloseOnInvocationTest : TestCase
     {
@@ -402,7 +389,7 @@ public class AllTests : TestCommon.TestApp
                 test(!_closed);
             }
         }
-    };
+    }
 
     class CloseOnIdleAndInvocationTest : TestCase
     {
@@ -432,7 +419,7 @@ public class AllTests : TestCommon.TestApp
 
             waitForClosed();
         }
-    };
+    }
 
     class ForcefulCloseOnIdleAndInvocationTest : TestCase
     {
@@ -453,7 +440,7 @@ public class AllTests : TestCommon.TestApp
                 test(_heartbeat == 0);
             }
         }
-    };
+    }
 
     class HeartbeatOnIdleTest : TestCase
     {
@@ -471,7 +458,7 @@ public class AllTests : TestCommon.TestApp
                 test(_heartbeat >= 3);
             }
         }
-    };
+    }
 
     class HeartbeatAlwaysTest : TestCase
     {
@@ -493,7 +480,31 @@ public class AllTests : TestCommon.TestApp
                 test(_heartbeat >= 3);
             }
         }
-    };
+    }
+
+    class HeartbeatManualTest : TestCase
+    {
+        public HeartbeatManualTest(RemoteCommunicatorPrx com) : base("manual heartbeats", com)
+        {
+            //
+            // Disable heartbeats.
+            //
+            setClientACM(10, -1, 0);
+            setServerACM(10, -1, 0);
+        }
+
+        public override void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
+        {
+            proxy.startHeartbeatCount();
+            Ice.Connection con = proxy.ice_getConnection();
+            con.heartbeat();
+            con.heartbeat();
+            con.heartbeat();
+            con.heartbeat();
+            con.heartbeat();
+            proxy.waitForHeartbeatCount(5);
+        }
+    }
 
     class SetACMTest : TestCase
     {
@@ -524,19 +535,15 @@ public class AllTests : TestCommon.TestApp
             test(acm.close == Ice.ACMClose.CloseOnInvocationAndIdle);
             test(acm.heartbeat == Ice.ACMHeartbeat.HeartbeatAlways);
 
-            proxy.waitForHeartbeat(2);
+            proxy.startHeartbeatCount();
+            proxy.waitForHeartbeatCount(2);
         }
-    };
+    }
 
-
-#if SILVERLIGHT
-    override
-    public void run(Ice.Communicator communicator)
-#else
-    public static void allTests(Ice.Communicator communicator)
-#endif
+    public static void allTests(TestCommon.Application app)
     {
-        string @ref = "communicator:default -p 12010";
+        Ice.Communicator communicator = app.communicator();
+        string @ref = "communicator:" + app.getTestEndpoint(0);
         RemoteCommunicatorPrx com = RemoteCommunicatorPrxHelper.uncheckedCast(communicator.stringToProxy(@ref));
 
         List<TestCase> tests = new List<TestCase>();
@@ -553,6 +560,7 @@ public class AllTests : TestCommon.TestApp
 
         tests.Add(new HeartbeatOnIdleTest(com));
         tests.Add(new HeartbeatAlwaysTest(com));
+        tests.Add(new HeartbeatManualTest(com));
         tests.Add(new SetACMTest(com));
 
         foreach(TestCase test in tests)
@@ -572,9 +580,9 @@ public class AllTests : TestCommon.TestApp
             test.destroy();
         }
 
-        System.Console.Out.Write("shutting down... ");
-        System.Console.Out.Flush();
+        Console.Out.Write("shutting down... ");
+        Console.Out.Flush();
         com.shutdown();
-        System.Console.WriteLine("ok");
+        Console.WriteLine("ok");
     }
 }

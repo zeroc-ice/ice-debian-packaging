@@ -19,12 +19,12 @@ using namespace Test;
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", "default -p 12010");
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0));
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
-    Ice::ObjectPtr object = new InitialI(adapter);
-    adapter->add(object, communicator->stringToIdentity("initial"));
+    Ice::ObjectPtr object = ICE_MAKE_SHARED(InitialI, adapter);
+    adapter->add(object, Ice::stringToIdentity("initial"));
 
-    InitialPrx allTests(const Ice::CommunicatorPtr&);
+    InitialPrxPtr allTests(const Ice::CommunicatorPtr&);
     allTests(communicator);
 
     return EXIT_SUCCESS;
@@ -36,32 +36,16 @@ main(int argc, char* argv[])
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL();
 #endif
-    int status;
-    Ice::CommunicatorPtr communicator;
 
     try
     {
-        communicator = Ice::initialize(argc, argv);
-        status = run(argc, argv, communicator);
+        Ice::InitializationData initData = getTestInitData(argc, argv);
+        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        return run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)
     {
         cerr << ex << endl;
-        status = EXIT_FAILURE;
+        return  EXIT_FAILURE;
     }
-
-    if(communicator)
-    {
-        try
-        {
-            communicator->destroy();
-        }
-        catch(const Ice::Exception& ex)
-        {
-            cerr << ex << endl;
-            status = EXIT_FAILURE;
-        }
-    }
-
-    return status;
 }

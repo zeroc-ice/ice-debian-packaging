@@ -7,11 +7,23 @@
 //
 // **********************************************************************
 
-using Test;
+using System;
+using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
+using Test;
 
 public class TestI : TestIntfDisp_
 {
+    protected static void test(bool b)
+    {
+        if(!b)
+        {
+            Debug.Assert(false);
+            throw new Exception();
+        }
+    }
+
     public TestI()
     {
     }
@@ -73,9 +85,15 @@ public class TestI : TestIntfDisp_
     }
 
     override public void
-    close(bool force, Ice.Current current)
+    close(CloseMode mode, Ice.Current current)
     {
-        current.con.close(force);
+        current.con.close((Ice.ConnectionClose)((int)mode));
+    }
+
+    override public void
+    sleep(int ms, Ice.Current current)
+    {
+        Thread.Sleep(ms);
     }
 
     override public void
@@ -88,6 +106,37 @@ public class TestI : TestIntfDisp_
     supportsFunctionalTests(Ice.Current current)
     {
         return false;
+    }
+
+    override public async Task
+    opAsyncDispatchAsync(Ice.Current current)
+    {
+        await System.Threading.Tasks.Task.Delay(10);
+    }
+
+    override public async Task<int>
+    opWithResultAsyncDispatchAsync(Ice.Current current)
+    {
+        await System.Threading.Tasks.Task.Delay(10);
+        test(Thread.CurrentThread.Name.Contains("Ice.ThreadPool.Server"));
+        var r = await self(current).opWithResultAsync();
+        test(Thread.CurrentThread.Name.Contains("Ice.ThreadPool.Server"));
+        return r;
+    }
+
+    override public async Task
+    opWithUEAsyncDispatchAsync(Ice.Current current)
+    {
+        test(Thread.CurrentThread.Name.Contains("Ice.ThreadPool.Server"));
+        await System.Threading.Tasks.Task.Delay(10);
+        test(Thread.CurrentThread.Name.Contains("Ice.ThreadPool.Server"));
+        await self(current).opWithUEAsync();
+    }
+
+    TestIntfPrx
+    self(Ice.Current current)
+    {
+        return TestIntfPrxHelper.uncheckedCast(current.adapter.createProxy(current.id));
     }
 
     private int _batchCount;

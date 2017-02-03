@@ -23,8 +23,20 @@ using namespace std;
 using namespace Ice;
 using namespace IceInternal;
 
+#ifndef ICE_CPP11_MAPPING
 IceUtil::Shared* IceInternal::upCast(IncomingAsync* p) { return p; }
 IceUtil::Shared* Ice::upCast(AMD_Object_ice_invoke* p) { return p; }
+
+Ice::AMDCallback::~AMDCallback()
+{
+    // Out of line to avoid weak vtable
+}
+
+Ice::AMD_Object_ice_invoke::~AMD_Object_ice_invoke()
+{
+    // Out of line to avoid weak vtable
+}
+#endif
 
 namespace
 {
@@ -53,288 +65,171 @@ Init init;
 
 IceInternal::IncomingAsync::IncomingAsync(Incoming& in) :
     IncomingBase(in),
-    _instanceCopy(_os.instance()),
-    _responseHandlerCopy(_responseHandler),
-    _retriable(in.isRetriable()),
-    _active(true)
+    _responseSent(false),
+    _responseHandlerCopy(ICE_GET_SHARED_FROM_THIS(_responseHandler))
 {
-    if(_retriable)
-    {
-        in.setActive(*this);
-    }
+#ifndef ICE_CPP11_MAPPING
+    in.setAsync(this);
+#endif
 }
 
-void
-IceInternal::IncomingAsync::__deactivate(Incoming& in)
+#ifdef ICE_CPP11_MAPPING
+shared_ptr<IncomingAsync>
+IceInternal::IncomingAsync::create(Incoming& in)
 {
-    assert(_retriable);
-    {
-        IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(globalMutex);
-        if(!_active)
-        {
-            //
-            // Since _deactivate can only be called on an active object,
-            // this means the response has already been sent (see __validateXXX below)
-            //
-            throw ResponseSentException(__FILE__, __LINE__);
-        }
-        _active = false;
-    }
-
-    in.__adopt(*this);
+    auto async = make_shared<IncomingAsync>(in);
+    in.setAsync(async);
+    return async;
 }
+#endif
 
+#ifndef ICE_CPP11_MAPPING
 void
-IceInternal::IncomingAsync::ice_exception(const ::std::exception& ex)
+IceInternal::IncomingAsync::ice_exception(const ::std::exception& exc)
 {
-    //
-    // Only call __exception if this incoming is not retriable or if
-    // all the interceptors return true and no response has been sent
-    // yet.
-    //
-
-    if(_retriable)
+    try
     {
-        try
+        for(DispatchInterceptorCallbacks::iterator p = _interceptorCBs.begin(); p != _interceptorCBs.end(); ++p)
         {
-            for(deque<Ice::DispatchInterceptorAsyncCallbackPtr>::iterator p = _interceptorAsyncCallbackQueue.begin();
-                p != _interceptorAsyncCallbackQueue.end(); ++p)
+            if(!(*p)->exception(exc))
             {
-                if((*p)->exception(ex) == false)
-                {
-                    return;
-                }
+                return;
             }
         }
-        catch(...)
-        {
-            return;
-        }
-    
-        IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(globalMutex);
-        if(!_active)
-        {
-            return;
-        }
-        _active = false;
+    }
+    catch(...)
+    {
+        return;
     }
 
-    if(_responseHandler)
-    {
-        __exception(ex);
-    }
-    else
-    {
-        //
-        // Response has already been sent.
-        //
-        if(_os.instance()->initializationData().properties->getPropertyAsIntWithDefault("Ice.Warn.Dispatch", 1) > 0)
-        {
-            __warning(ex.what());
-        }
-    }
+    checkResponseSent();
+    IncomingBase::exception(exc, true); // User thread
 }
 
 void
 IceInternal::IncomingAsync::ice_exception()
 {
-    //
-    // Only call __exception if this incoming is not retriable or if
-    // all the interceptors return true and no response has been sent
-    // yet.
-    //
+    try
+    {
+        for(DispatchInterceptorCallbacks::iterator p = _interceptorCBs.begin(); p != _interceptorCBs.end(); ++p)
+        {
+            if(!(*p)->exception())
+            {
+                return;
+            }
+        }
+    }
+    catch(...)
+    {
+        return;
+    }
 
-    if(_retriable)
+    checkResponseSent();
+    IncomingBase::exception("unknown c++ exception", true); // User thread
+}
+
+#endif
+
+void
+IceInternal::IncomingAsync::kill(Incoming& in)
+{
+    checkResponseSent();
+    in._observer.adopt(_observer); // Give back the observer to incoming.
+}
+
+void
+IceInternal::IncomingAsync::completed()
+{
+    for(DispatchInterceptorCallbacks::iterator p = _interceptorCBs.begin(); p != _interceptorCBs.end(); ++p)
     {
         try
         {
-            for(deque<Ice::DispatchInterceptorAsyncCallbackPtr>::iterator p = _interceptorAsyncCallbackQueue.begin();
-                p != _interceptorAsyncCallbackQueue.end(); ++p)
+#ifdef ICE_CPP11_MAPPING
+            if(p->first && !p->first())
+#else
+            if(!(*p)->response())
+#endif
             {
-                if((*p)->exception() == false)
-                {
-                    return;
-                }
+                return;
             }
         }
         catch(...)
         {
-            return;
         }
-    
-        IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(globalMutex);
-        if(!_active)
-        {
-            return;
-        }
-        _active = false;
     }
 
-    if(_responseHandler)
-    {
-        __exception();
-    }
-    else
-    {
-        //
-        // Response has already been sent.
-        //
-        if(_os.instance()->initializationData().properties->getPropertyAsIntWithDefault("Ice.Warn.Dispatch", 1) > 0)
-        {
-            __warning("unknown exception");
-        }
-    }
+    checkResponseSent();
+    IncomingBase::response(true); // User thread
 }
 
+#ifdef ICE_CPP11_MAPPING
 void
-IceInternal::IncomingAsync::__response()
+IceInternal::IncomingAsync::completed(exception_ptr ex)
 {
-    try
-    {
-        if(_locator && !__servantLocatorFinished(true))
-        {
-            return;
-        }
-
-        assert(_responseHandler);
-
-        if(_response)
-        {
-            _observer.reply(static_cast<Int>(_os.b.size() - headerSize - 4));
-            _responseHandler->sendResponse(_current.requestId, &_os, _compress, true);
-        }
-        else
-        {
-            _responseHandler->sendNoResponse();
-        }
-
-        _observer.detach();
-        _responseHandler = 0;
-    }
-    catch(const LocalException& ex)
-    {
-        _responseHandler->invokeException(_current.requestId, ex, 1, true); // Fatal invocation exception
-    }
-}
-
-void
-IceInternal::IncomingAsync::__exception(const std::exception& exc)
-{
-    try
-    {
-        if(_locator && !__servantLocatorFinished(true))
-        {
-            return;
-        }
-
-        __handleException(exc, true);
-    }
-    catch(const LocalException& ex)
-    {
-        _responseHandler->invokeException(_current.requestId, ex, 1, true);  // Fatal invocation exception
-    }
-}
-
-void
-IceInternal::IncomingAsync::__exception()
-{
-    try
-    {
-        if(_locator && !__servantLocatorFinished(true))
-        {
-            return;
-        }
-
-        __handleException(true);
-    }
-    catch(const LocalException& ex)
-    {
-        _responseHandler->invokeException(_current.requestId, ex, 1, true);  // Fatal invocation exception
-    }
-}
-
-bool
-IceInternal::IncomingAsync::__validateResponse(bool ok)
-{
-    //
-    // Only returns true if this incoming is not retriable or if all
-    // the interceptors return true and no response has been sent
-    // yet. Upon getting a true return value, the caller should send
-    // the response.
-    //
-
-    if(_retriable)
+    for(DispatchInterceptorCallbacks::iterator p = _interceptorCBs.begin(); p != _interceptorCBs.end(); ++p)
     {
         try
         {
-            for(deque<DispatchInterceptorAsyncCallbackPtr>::iterator p = _interceptorAsyncCallbackQueue.begin();
-                p != _interceptorAsyncCallbackQueue.end(); ++p)
+            if(p->second && !p->second(ex))
             {
-                if((*p)->response(ok) == false)
-                {
-                    return false;
-                }
+                return;
             }
         }
         catch(...)
         {
-            return false;
         }
-        
-        IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(globalMutex);
-        if(!_active)
-        {
-            return false;
-        }
-        _active = false;
     }
-    return true;
+
+    checkResponseSent();
+    try
+    {
+        rethrow_exception(ex);
+    }
+    catch(const std::exception& exc)
+    {
+        IncomingBase::exception(exc, true); // User thread
+    }
+    catch(...)
+    {
+        IncomingBase::exception("unknown c++ exception", true); // User thread
+    }
+}
+#endif
+
+void
+IceInternal::IncomingAsync::checkResponseSent()
+{
+    IceUtil::Mutex::Lock sync(*globalMutex);
+    if(_responseSent)
+    {
+        throw ResponseSentException(__FILE__, __LINE__);
+    }
+    _responseSent = true;
 }
 
-IceAsync::Ice::AMD_Object_ice_invoke::AMD_Object_ice_invoke(Incoming& in) :
-    IncomingAsync(in)
+#ifndef ICE_CPP11_MAPPING
+IceAsync::Ice::AMD_Object_ice_invoke::AMD_Object_ice_invoke(Incoming& in) : IncomingAsync(in)
 {
 }
 
 void
 IceAsync::Ice::AMD_Object_ice_invoke::ice_response(bool ok, const vector<Byte>& outEncaps)
 {
-    if(__validateResponse(ok))
+    if(outEncaps.empty())
     {
-        try
-        {
-            if(outEncaps.empty())
-            {
-                __writeParamEncaps(0, 0, ok);
-            }
-            else
-            {
-                __writeParamEncaps(&outEncaps[0], static_cast< ::Ice::Int>(outEncaps.size()), ok);
-            }
-        }
-        catch(const LocalException& ex)
-        {
-            __exception(ex);
-            return;
-        }
-        __response();
+        writeParamEncaps(0, 0, ok);
     }
+    else
+    {
+        writeParamEncaps(&outEncaps[0], static_cast<Int>(outEncaps.size()), ok);
+    }
+    completed();
 }
 
 void
 IceAsync::Ice::AMD_Object_ice_invoke::ice_response(bool ok, const pair<const Byte*, const Byte*>& outEncaps)
 {
-    if(__validateResponse(ok))
-    {
-        try
-        {
-            __writeParamEncaps(outEncaps.first, static_cast<Int>(outEncaps.second - outEncaps.first), ok);
-        }
-        catch(const LocalException& ex)
-        {
-            __exception(ex);
-            return;
-        }
-        __response();
-    }
+    writeParamEncaps(outEncaps.first, static_cast<Int>(outEncaps.second - outEncaps.first), ok);
+    completed();
 }
+#endif

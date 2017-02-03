@@ -20,26 +20,6 @@ namespace Glacier2
 /// </summary>
 public class SessionHelper
 {
-    private class ConnectionCallbackI : Ice.ConnectionCallback
-    {
-        internal ConnectionCallbackI(SessionHelper sessionHelper)
-        {
-            _sessionHelper = sessionHelper;
-        }
-
-        public void heartbeat(Ice.Connection con)
-        {
-
-        }
-
-        public void closed(Ice.Connection con)
-        {
-            _sessionHelper.destroy();
-        }
-
-        private readonly SessionHelper _sessionHelper;
-    }
-
     /// <summary>
     /// Creates a Glacier2 session.
     /// </summary>
@@ -320,7 +300,7 @@ public class SessionHelper
                 Ice.Connection connection = _router.ice_getCachedConnection();
                 Debug.Assert(connection != null);
                 connection.setACM(acmTimeout, Ice.Util.None, Ice.ACMHeartbeat.HeartbeatAlways);
-                connection.setCallback(new ConnectionCallbackI(this));
+                connection.setCloseCallback(_ => destroy());
             }
         }
 
@@ -330,7 +310,7 @@ public class SessionHelper
                 {
                     _callback.connected(this);
                 }
-                catch(Glacier2.SessionNotExistException)
+                catch(SessionNotExistException)
                 {
                     destroy();
                 }
@@ -340,7 +320,7 @@ public class SessionHelper
     private void
     destroyInternal()
     {
-        Glacier2.RouterPrx router;
+        RouterPrx router;
         Ice.Communicator communicator;
         lock(this)
         {
@@ -381,13 +361,7 @@ public class SessionHelper
             communicator.getLogger().warning("SessionHelper: unexpected exception when destroying the session:\n" + e);
         }
 
-        try
-        {
-            communicator.destroy();
-        }
-        catch(Exception)
-        {
-        }
+        communicator.destroy();
 
         // Notify the callback that the session is gone.
         dispatchCallback(() =>
@@ -404,16 +378,11 @@ public class SessionHelper
         {
             communicator = _communicator;
         }
-        try
-        {
-            communicator.destroy();
-        }
-        catch(Exception)
-        {
-        }
+
+        communicator.destroy();
     }
 
-    delegate Glacier2.SessionPrx ConnectStrategy(Glacier2.RouterPrx router);
+    delegate SessionPrx ConnectStrategy(RouterPrx router);
 
     private void
     connectImpl(ConnectStrategy factory)
@@ -473,19 +442,14 @@ public class SessionHelper
                         _callback.createdCommunicator(this);
                     });
 
-                Glacier2.RouterPrx routerPrx = Glacier2.RouterPrxHelper.uncheckedCast(_communicator.getDefaultRouter());
-                Glacier2.SessionPrx session = factory(routerPrx);
+                RouterPrx routerPrx = RouterPrxHelper.uncheckedCast(_communicator.getDefaultRouter());
+                SessionPrx session = factory(routerPrx);
                 connected(routerPrx, session);
             }
             catch(Exception ex)
             {
-                try
-                {
-                    _communicator.destroy();
-                }
-                catch(Exception)
-                {
-                }
+                _communicator.destroy();
+
                 dispatchCallback(() =>
                     {
                         _callback.connectFailed(this, ex);
@@ -494,13 +458,8 @@ public class SessionHelper
         })).Start();
     }
 
-#if COMPACT
     private void
-    dispatchCallback(Ice.VoidAction callback, Ice.Connection conn)
-#else
-    private void
-    dispatchCallback(System.Action callback, Ice.Connection conn)
-#endif
+    dispatchCallback(Action callback, Ice.Connection conn)
     {
         if(_initData.dispatcher != null)
         {
@@ -512,13 +471,8 @@ public class SessionHelper
         }
     }
 
-#if COMPACT
     private void
-    dispatchCallbackAndWait(Ice.VoidAction callback)
-#else
-    private void
-    dispatchCallbackAndWait(System.Action callback)
-#endif
+    dispatchCallbackAndWait(Action callback)
     {
         if(_initData.dispatcher != null)
         {
@@ -539,8 +493,8 @@ public class SessionHelper
     private readonly Ice.InitializationData _initData;
     private Ice.Communicator _communicator;
     private Ice.ObjectAdapter _adapter;
-    private Glacier2.RouterPrx _router;
-    private Glacier2.SessionPrx _session;
+    private RouterPrx _router;
+    private SessionPrx _session;
     private bool _connected = false;
     private string _category;
     private string _finderStr;

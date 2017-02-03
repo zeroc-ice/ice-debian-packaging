@@ -9,10 +9,8 @@
 
 namespace IceInternal
 {
-    using System;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.Net;
     using System.Threading;
 
     public class AsyncIOThread
@@ -23,20 +21,8 @@ namespace IceInternal
 
             _thread = new HelperThread(this);
             updateObserver();
-#if !SILVERLIGHT
-            if(instance.initializationData().properties.getProperty("Ice.ThreadPriority").Length > 0)
-            {
-                ThreadPriority priority = IceInternal.Util.stringToThreadPriority(
-                                           instance.initializationData().properties.getProperty("Ice.ThreadPriority"));
-                _thread.Start(priority);
-            }
-            else
-            {
-                _thread.Start(ThreadPriority.Normal);
-            }
-#else
-            _thread.Start();
-#endif
+            _thread.Start(Util.stringToThreadPriority(
+                                        instance.initializationData().properties.getProperty("Ice.ThreadPriority")));
         }
 
         public void
@@ -65,7 +51,7 @@ namespace IceInternal
             {
                 Debug.Assert(!_destroyed);
                 _queue.AddLast(callback);
-                System.Threading.Monitor.Pulse(this);
+                Monitor.Pulse(this);
             }
         }
 
@@ -75,7 +61,7 @@ namespace IceInternal
             {
                 Debug.Assert(!_destroyed);
                 _destroyed = true;
-                System.Threading.Monitor.Pulse(this);
+                Monitor.Pulse(this);
             }
         }
 
@@ -109,7 +95,7 @@ namespace IceInternal
 
                     while(!_destroyed && _queue.Count == 0)
                     {
-                        System.Threading.Monitor.Wait(this);
+                        Monitor.Wait(this);
                     }
 
                     LinkedList<ThreadPoolWorkItem> tmp = queue;
@@ -146,7 +132,7 @@ namespace IceInternal
 
             if(_observer != null)
             {
-                    _observer.detach();
+                _observer.detach();
             }
         }
 
@@ -178,18 +164,11 @@ namespace IceInternal
                 return _name;
             }
 
-#if !SILVERLIGHT
             public void Start(ThreadPriority priority)
-#else
-            public void Start()
-#endif
             {
                 _thread = new Thread(new ThreadStart(Run));
                 _thread.IsBackground = true;
                 _thread.Name = _name;
-#if !SILVERLIGHT
-                _thread.Priority = priority;
-#endif
                 _thread.Start();
             }
 

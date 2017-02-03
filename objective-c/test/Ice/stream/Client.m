@@ -22,7 +22,7 @@ run(id<ICECommunicator> communicator)
     // Test the stream api.
     //
     tprintf("testing primitive types... ");
-    
+
     {
         NSData* byte = [NSData data];
         in = [ICEUtil createInputStream:communicator data:byte];
@@ -41,12 +41,6 @@ run(id<ICECommunicator> communicator)
         in = [ICEUtil createInputStream:communicator data:data];
         [in startEncapsulation];
         BOOL v;
-        v = [in readBool];
-        test(v);
-        [in endEncapsulation];
-
-        in = [ICEUtil wrapInputStream:communicator data:data];
-        [in startEncapsulation];
         v = [in readBool];
         test(v);
         [in endEncapsulation];
@@ -144,9 +138,9 @@ run(id<ICECommunicator> communicator)
     }
 
     tprintf("ok\n");
-    
+
     tprintf("testing constructed types... ");
-    
+
     {
         out = [ICEUtil createOutputStream:communicator];
         [TestStreamMyEnumHelper write:@(TestStreamenum3) stream:out];
@@ -195,12 +189,12 @@ run(id<ICECommunicator> communicator)
         o.sh = 4;
         o.i = 3;
         [TestStreamOptionalClassHelper write:o stream:out];
-        [out writePendingObjects];
+        [out writePendingValues];
         data = [out finished];
         in = [ICEUtil createInputStream:communicator data:data];
         TestStreamOptionalClass* ICE_AUTORELEASING_QUALIFIER o2;
         [TestStreamOptionalClassHelper read:&o2 stream:in];
-        [in readPendingObjects];
+        [in readPendingValues];
         test(o2.bo == o.bo);
         test(o2.by == o.by);
         if([in getEncoding] == ICEEncoding_1_0)
@@ -223,12 +217,12 @@ run(id<ICECommunicator> communicator)
         o.sh = 4;
         o.i = 3;
         [TestStreamOptionalClassHelper write:o stream:out];
-        [out writePendingObjects];
+        [out writePendingValues];
         data = [out finished];
         in = [ICEUtil createInputStream:communicator data:data encoding:ICEEncoding_1_0];
         TestStreamOptionalClass* ICE_AUTORELEASING_QUALIFIER o2;
         [TestStreamOptionalClassHelper read:&o2 stream:in];
-        [in readPendingObjects];
+        [in readPendingValues];
         test(o2.bo == o.bo);
         test(o2.by == o.by);
         test(![o2 hasSh]);
@@ -236,7 +230,7 @@ run(id<ICECommunicator> communicator)
     }
 
     {
-	BOOL buf[] = { YES, YES, NO, YES };
+        BOOL buf[] = { YES, YES, NO, YES };
         ICEBoolSeq* arr = [ICEBoolSeq dataWithBytes:buf length:sizeof(buf)];
 
         out = [ICEUtil createOutputStream:communicator];
@@ -482,11 +476,11 @@ run(id<ICECommunicator> communicator)
         }
         out = [ICEUtil createOutputStream:communicator];
         [TestStreamSmallStructSHelper write:arr stream:out];
-        [out writePendingObjects];
+        [out writePendingValues];
         data = [out finished];
         in = [ICEUtil createInputStream:communicator data:data];
         TestStreamSmallStructS* arr2 = [TestStreamSmallStructSHelper read:in];
-        [in readPendingObjects];
+        [in readPendingValues];
         test([arr2 count] == [arr count]);
         for(int j = 0; j < [arr2 count]; ++j)
         {
@@ -537,7 +531,7 @@ run(id<ICECommunicator> communicator)
 
             ICEDouble doubleS[] = { 1, 2, 3, 4 };
             c.seq7 = [NSMutableData dataWithBytes:doubleS length:sizeof(doubleS)];
-            
+
             c.seq8 = [ICEMutableStringSeq array];
             [(ICEMutableStringSeq*)c.seq8 addObject:@"string1"];
             [(ICEMutableStringSeq*)c.seq8 addObject:@"string2"];
@@ -546,17 +540,17 @@ run(id<ICECommunicator> communicator)
 
             TestStreamMyEnum enumS[] = { TestStreamenum3, TestStreamenum2, TestStreamenum1 };
             c.seq9 = [NSMutableData dataWithBytes:enumS length:sizeof(enumS)];
-            
+
             c.d = [NSDictionary dictionaryWithObject:[TestStreamMyClass myClass] forKey:@"hi"];
             [arr addObject:c];
         }
         out = [ICEUtil createOutputStream:communicator];
         [TestStreamMyClassSHelper write:arr stream:out];
-        [out writePendingObjects];
+        [out writePendingValues];
         data = [out finished];
         in = [ICEUtil createInputStream:communicator data:data];
         TestStreamMyClassS* arr2 = [TestStreamMyClassSHelper read:in];
-        [in readPendingObjects];
+        [in readPendingValues];
         test([arr2 count] > 0);
         test([arr2 count] == [arr count]);
         for(int j = 0; j < [arr2 count]; ++j)
@@ -583,7 +577,7 @@ run(id<ICECommunicator> communicator)
             f.c = nil;
             f.o = nil;
         }
-                
+
         TestStreamMutableMyClassSS* arrS = [TestStreamMutableMyClassSS array];
         [arrS addObject:arr];
         [arrS addObject:[TestStreamMyClassS array]];
@@ -602,12 +596,12 @@ run(id<ICECommunicator> communicator)
         TestStreamMyInterface ICE_AUTORELEASING_QUALIFIER * i = [TestStreamMyInterface new];
         out = [ICEUtil createOutputStream:communicator];
         [TestStreamMyInterfaceHelper write:i stream:out];
-        [out writePendingObjects];
+        [out writePendingValues];
         data = [out finished];
         in = [ICEUtil createInputStream:communicator data:data];
         i = nil;
         [TestStreamMyInterfaceHelper read:&i stream:in];
-        [in readPendingObjects];
+        [in readPendingValues];
         test(i != nil);
     }
 
@@ -620,7 +614,7 @@ run(id<ICECommunicator> communicator)
     //     obj.s.e = TestStreamenum2;
     //     TestObjectWriterPtr writer = new TestObjectWriter:obj];
     //     [out writeObject:writer];
-    //     [out writePendingObjects];
+    //     [out writePendingValues];
     //     data = [out finished];
     //     test([writer called);
     // }
@@ -631,14 +625,14 @@ run(id<ICECommunicator> communicator)
     //     obj->s.e = TestStreamenum2;
     //     TestObjectWriterPtr writer = new TestObjectWriter:obj];
     //     [out writeObject:writer];
-    //     [out writePendingObjects];
+    //     [out writePendingValues];
     //     data = [out finished];
     //     test([writer called]);
     //     [factoryWrapper setFactory:new TestObjectFactory];
     //     in = [ICEUtil createInputStream:communicator data:data];
     //     TestReadObjectCallbackPtr cb = new TestReadObjectCallback;
     //     [in readObject:cb];
-    //     [in readPendingObjects];
+    //     [in readPendingValues];
     //     test([cb obj]);
     //     TestObjectReaderPtr reader = TestObjectReaderPtr::dynamicCast(cb->obj);
     //     test(reader);
@@ -677,7 +671,7 @@ run(id<ICECommunicator> communicator)
 
         ICEDouble doubleS[] = { 1, 2, 3, 4 };
         c.seq7 = [NSMutableData dataWithBytes:doubleS length:sizeof(doubleS)];
-            
+
         c.seq8 = [ICEMutableStringSeq array];
         [(ICEMutableStringSeq*)c.seq8 addObject:@"string1"];
         [(ICEMutableStringSeq*)c.seq8 addObject:@"string2"];
@@ -686,7 +680,7 @@ run(id<ICECommunicator> communicator)
 
         TestStreamMyEnum enumS[] = { TestStreamenum3, TestStreamenum2, TestStreamenum1 };
         c.seq9 = [NSMutableData dataWithBytes:enumS length:sizeof(enumS)];
-            
+
         c.d = [NSDictionary dictionaryWithObject:[TestStreamMyClass myClass] forKey:@"hi"];
 
         ex.c = c;
@@ -784,17 +778,17 @@ run(id<ICECommunicator> communicator)
         [dict setObject:c forKey:@"key2"];
         out = [ICEUtil createOutputStream:communicator];
         [TestStreamStringMyClassDHelper write:dict stream:out];
-        [out writePendingObjects];
+        [out writePendingValues];
         data = [out finished];
         in = [ICEUtil createInputStream:communicator data:data];
         TestStreamStringMyClassD* dict2 = [TestStreamStringMyClassDHelper read:in];
-        [in readPendingObjects];
+        [in readPendingValues];
         test([dict2 count] == [dict count]);
-        test([dict2 objectForKey:@"key1"] != nil && 
+        test([dict2 objectForKey:@"key1"] != nil &&
              ((TestStreamMyClass*)[dict2 objectForKey:@"key1"]).s.e == TestStreamenum2);
-        test([dict2 objectForKey:@"key2"] != nil && 
+        test([dict2 objectForKey:@"key2"] != nil &&
              ((TestStreamMyClass*)[dict2 objectForKey:@"key2"]).s.e == TestStreamenum3);
-        
+
     }
 
     {
@@ -926,6 +920,13 @@ run(id<ICECommunicator> communicator)
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    ICEregisterIceSSL(YES);
+#if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
+    ICEregisterIceIAP(YES);
+#endif
+#endif
+
     int status;
     @autoreleasepool
     {
@@ -936,11 +937,11 @@ main(int argc, char* argv[])
             ICEInitializationData* initData = [ICEInitializationData initializationData];
             initData.properties = defaultClientProperties(&argc, argv);
 #if TARGET_OS_IPHONE
-            initData.prefixTable__ = [NSDictionary dictionaryWithObjectsAndKeys:
-                                      @"TestStream", @"::Test", 
-                                      @"TestStreamSub", @"::Test::Sub", 
-                                      @"TestStream2", @"::Test2", 
-                                      @"TestStream2Sub2", @"::Test2::Sub2", 
+            initData.prefixTable_ = [NSDictionary dictionaryWithObjectsAndKeys:
+                                      @"TestStream", @"::Test",
+                                      @"TestStreamSub", @"::Test::Sub",
+                                      @"TestStream2", @"::Test2",
+                                      @"TestStream2Sub2", @"::Test2::Sub2",
                                       nil];
 #endif
             communicator = [ICEUtil createCommunicator:&argc argv:argv initData:initData];
@@ -958,15 +959,7 @@ main(int argc, char* argv[])
 
         if(communicator)
         {
-            @try
-            {
-                [communicator destroy];
-            }
-            @catch(ICEException* ex)
-            {
-            tprintf("%@\n", ex);
-                status = EXIT_FAILURE;
-            }
+            [communicator destroy];
         }
     }
     return status;

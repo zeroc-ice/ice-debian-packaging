@@ -26,51 +26,21 @@ toString(int value)
     return os.str();
 }
 
-class ConnectionCallbackI : public Ice::ConnectionCallback, private IceUtil::Monitor<IceUtil::Mutex>
-{
-public:
-
-    void
-    waitForCount(int count)
-    {
-        Lock sync(*this);
-        _count = count;
-        while(_count > 0)
-        {
-            wait();
-        }
-    }
-
-private:
-
-    virtual void
-    heartbeat(const Ice::ConnectionPtr&)
-    {
-        Lock sync(*this);
-        --_count;
-        notifyAll();
-    }
-
-    virtual void
-    closed(const Ice::ConnectionPtr&)
-    {
-    }
-
-    int _count;
-};
-typedef IceUtil::Handle<ConnectionCallbackI> ConnectionCallbackIPtr;
-
 }
 
-RemoteObjectAdapterPrx
+RemoteObjectAdapterPrxPtr
 RemoteCommunicatorI::createObjectAdapter(int timeout, int close, int heartbeat, const Current& current)
 {
     Ice::CommunicatorPtr com = current.adapter->getCommunicator();
     Ice::PropertiesPtr properties = com->getProperties();
     string protocol = properties->getPropertyWithDefault("Ice.Default.Protocol", "tcp");
-    string host = properties->getPropertyWithDefault("Ice.Default.Host", "127.0.0.1");
+    string opts;
+    if(protocol != "bt")
+    {
+        opts = " -h \"" + properties->getPropertyWithDefault("Ice.Default.Host", "127.0.0.1") + "\"";
+    }
 
-    string name = IceUtil::generateUUID();
+    string name = generateUUID();
     if(timeout >= 0)
     {
         properties->setProperty(name + ".ACM.Timeout", toString(timeout));
@@ -84,8 +54,10 @@ RemoteCommunicatorI::createObjectAdapter(int timeout, int close, int heartbeat, 
         properties->setProperty(name + ".ACM.Heartbeat", toString(heartbeat));
     }
     properties->setProperty(name + ".ThreadPool.Size", "2");
-    ObjectAdapterPtr adapter = com->createObjectAdapterWithEndpoints(name, protocol + " -h \"" + host + "\"");
-    return RemoteObjectAdapterPrx::uncheckedCast(current.adapter->addWithUUID(new RemoteObjectAdapterI(adapter)));
+    ObjectAdapterPtr adapter = com->createObjectAdapterWithEndpoints(name, protocol + opts);
+
+    return ICE_UNCHECKED_CAST(RemoteObjectAdapterPrx, current.adapter->addWithUUID(
+                              ICE_MAKE_SHARED(RemoteObjectAdapterI, adapter)));
 }
 
 void
@@ -96,13 +68,13 @@ RemoteCommunicatorI::shutdown(const Ice::Current& current)
 
 RemoteObjectAdapterI::RemoteObjectAdapterI(const Ice::ObjectAdapterPtr& adapter) :
     _adapter(adapter),
-    _testIntf(TestIntfPrx::uncheckedCast(_adapter->add(new TestI(),
-                                         adapter->getCommunicator()->stringToIdentity("test"))))
+    _testIntf(ICE_UNCHECKED_CAST(TestIntfPrx, _adapter->add(ICE_MAKE_SHARED(TestI),
+                                         stringToIdentity("test"))))
 {
     _adapter->activate();
 }
 
-TestIntfPrx
+TestIntfPrxPtr
 RemoteObjectAdapterI::getTestIntf(const Ice::Current&)
 {
     return _testIntf;
@@ -155,9 +127,23 @@ TestI::interruptSleep(const Ice::Current& current)
 }
 
 void
-TestI::waitForHeartbeat(int count, const Ice::Current& current)
+TestI::startHeartbeatCount(const Ice::Current& current)
 {
-    ConnectionCallbackIPtr callback = new ConnectionCallbackI();
-    current.con->setCallback(callback);
-    callback->waitForCount(count);
+    _callback = ICE_MAKE_SHARED(HeartbeatCallbackI);
+#ifdef ICE_CPP11_MAPPING
+    HeartbeatCallbackIPtr callback = _callback;
+    current.con->setHeartbeatCallback([callback](Ice::ConnectionPtr connection)
+    {
+        callback->heartbeat(move(connection));
+    });
+#else
+    current.con->setHeartbeatCallback(_callback);
+#endif
+}
+
+void
+TestI::waitForHeartbeatCount(int count, const Ice::Current&)
+{
+    assert(_callback);
+    _callback->waitForCount(count);
 }

@@ -9,11 +9,14 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
-
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build"]]
 
 #include <Ice/Identity.ice>
-#include <Ice/ProcessF.ice>
+#include <Ice/Process.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:ICE"]
 module Ice
@@ -84,7 +87,9 @@ interface Locator
 {
     /**
      *
-     * Find an object by identity and return its proxy.
+     * Find an object by identity and return a proxy that contains
+     * the adapter ID or endpoints which can be used to access the
+     * object.
      *
      * @param id The identity.
      *
@@ -99,8 +104,8 @@ interface Locator
 
     /**
      *
-     * Find an adapter by id and return its proxy (a dummy direct
-     * proxy created by the adapter).
+     * Find an adapter by id and return a proxy that contains
+     * its endpoints.
      *
      * @param id The adapter id.
      *
@@ -225,5 +230,3 @@ interface LocatorFinder
 };
 
 };
-
-

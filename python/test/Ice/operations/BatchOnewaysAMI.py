@@ -19,19 +19,15 @@ class Callback:
         self._cond = threading.Condition()
 
     def check(self):
-        self._cond.acquire()
-        try:
+        with self._cond:
             while not self._called:
                 self._cond.wait()
             self._called = False
-        finally:
-            self._cond.release()
 
     def called(self):
-        self._cond.acquire()
-        self._called = True
-        self._cond.notify()
-        self._cond.release()
+        with self._cond:
+            self._called = True
+            self._cond.notify()
 
 def batchOneways(p):
 
@@ -65,14 +61,14 @@ def batchOneways(p):
         batch1.end_ice_ping(batch1.begin_ice_ping())
         batch2.end_ice_ping(batch2.begin_ice_ping())
         batch1.end_ice_flushBatchRequests(batch1.begin_ice_flushBatchRequests())
-        batch1.ice_getConnection().close(False)
+        batch1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
         batch1.end_ice_ping(batch1.begin_ice_ping())
         batch2.end_ice_ping(batch2.begin_ice_ping())
 
         batch1.ice_getConnection()
         batch2.ice_getConnection()
 
-        batch1.ice_getConnection().close(False)
+        batch1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
 
         batch1.end_ice_ping(batch1.begin_ice_ping())
         batch2.end_ice_ping(batch2.begin_ice_ping())

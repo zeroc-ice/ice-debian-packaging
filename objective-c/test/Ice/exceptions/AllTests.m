@@ -23,70 +23,70 @@ exceptionsAllTests(id<ICECommunicator> communicator)
     tprintf("testing object adapter registration exceptions... ");
     {
         id<ICEObjectAdapter> first;
-	@try
-	{
-	    first = [communicator createObjectAdapter:@"TestAdapter0"];
-	    test(false);
-	}
-	@catch(ICEInitializationException *ex)
-	{
-	    // Expeccted
-	}
+        @try
+        {
+            first = [communicator createObjectAdapter:@"TestAdapter0"];
+            test(false);
+        }
+        @catch(ICEInitializationException *ex)
+        {
+            // Expeccted
+        }
 
-	[[communicator getProperties] setProperty:@"TestAdapter0.Endpoints" value:@"default"];
-	first = [communicator createObjectAdapter:@"TestAdapter0"];
-	@try
-	{
-	    [communicator createObjectAdapter:@"TestAdapter0"];
-	    test(false);
-	}
-	@catch(ICEAlreadyRegisteredException *ex)
-	{
-	    // Expected
-	}
+        [[communicator getProperties] setProperty:@"TestAdapter0.Endpoints" value:@"default"];
+        first = [communicator createObjectAdapter:@"TestAdapter0"];
+        @try
+        {
+            [communicator createObjectAdapter:@"TestAdapter0"];
+            test(false);
+        }
+        @catch(ICEAlreadyRegisteredException *ex)
+        {
+            // Expected
+        }
 
-	@try
-	{
-	}
-	@catch(ICEAlreadyRegisteredException *ex)
-	{
-	    // Expected
-	}
+        @try
+        {
+        }
+        @catch(ICEAlreadyRegisteredException *ex)
+        {
+            // Expected
+        }
 
-	//
-	// Properties must remain unaffected if an exception occurs.
-	//
-	test([[[communicator getProperties] getProperty:@"TestAdapter0.Endpoints"] isEqualToString:@"default"]);
-	[first deactivate];
+        //
+        // Properties must remain unaffected if an exception occurs.
+        //
+        test([[[communicator getProperties] getProperty:@"TestAdapter0.Endpoints"] isEqualToString:@"default"]);
+        [first deactivate];
     }
     tprintf("ok\n");
 
     tprintf("testing servant registration exceptions... ");
     {
         [[communicator getProperties] setProperty:@"TestAdapter1.Endpoints" value:@"default"];
-	id<ICEObjectAdapter> adapter = [communicator createObjectAdapter:@"TestAdapter1"];
-	ICEObject* obj = [ExceptionsEmptyI empty];
-	[adapter add:obj identity:[communicator stringToIdentity:@"x"]];
-	@try
-	{
-	    [adapter add:obj identity:[communicator stringToIdentity:@"x"]];
-	    test(false);
-	}
-	@catch(ICEAlreadyRegisteredException *ex)
-	{
-	}
+        id<ICEObjectAdapter> adapter = [communicator createObjectAdapter:@"TestAdapter1"];
+        ICEObject* obj = [ExceptionsEmptyI empty];
+        [adapter add:obj identity:[ICEUtil stringToIdentity:@"x"]];
+        @try
+        {
+            [adapter add:obj identity:[ICEUtil stringToIdentity:@"x"]];
+            test(false);
+        }
+        @catch(ICEAlreadyRegisteredException *ex)
+        {
+        }
 
- 	[adapter remove:[communicator stringToIdentity:@"x"]];
- 	@try
- 	{
- 	    [adapter remove:[communicator stringToIdentity:@"x"]];
- 	    test(false);
- 	}
- 	@catch(ICENotRegisteredException *ex)
- 	{
- 	}
+        [adapter remove:[ICEUtil stringToIdentity:@"x"]];
+        @try
+        {
+            [adapter remove:[ICEUtil stringToIdentity:@"x"]];
+            test(false);
+        }
+        @catch(ICENotRegisteredException *ex)
+        {
+        }
 
-	[adapter deactivate];
+        [adapter deactivate];
     }
     tprintf("ok\n");
 
@@ -107,7 +107,7 @@ exceptionsAllTests(id<ICECommunicator> communicator)
     @try
     {
         [thrower throwAasA:1];
-	test(false);
+        test(false);
     }
     @catch(TestExceptionsA *ex)
     {
@@ -318,6 +318,7 @@ exceptionsAllTests(id<ICECommunicator> communicator)
         }
         @catch(NSException *ex)
         {
+            NSLog(@"%@", ex);
             test(false);
         }
 
@@ -405,10 +406,10 @@ exceptionsAllTests(id<ICECommunicator> communicator)
 
     tprintf("catching object not exist exception... ");
 
-    ICEIdentity *id_ = [communicator stringToIdentity:@"does not exist"];
+    ICEIdentity *id_ = [ICEUtil stringToIdentity:@"does not exist"];
     @try
     {
-	id<TestExceptionsThrowerPrx> thrower2 = [TestExceptionsThrowerPrx uncheckedCast:[thrower ice_identity:id_]];
+        id<TestExceptionsThrowerPrx> thrower2 = [TestExceptionsThrowerPrx uncheckedCast:[thrower ice_identity:id_]];
         [thrower2 throwAasA:1];
 //      //[thrower2 ice_ping];
         test(false);

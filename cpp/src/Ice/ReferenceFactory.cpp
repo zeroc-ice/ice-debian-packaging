@@ -20,11 +20,11 @@
 #include <Ice/LocatorInfo.h>
 #include <Ice/Locator.h>
 #include <Ice/LoggerUtil.h>
-#include <Ice/BasicStream.h>
+#include <Ice/InputStream.h>
 #include <Ice/Properties.h>
 #include <Ice/DefaultsAndOverrides.h>
 #include <Ice/PropertyNames.h>
-#include <IceUtil/StringUtil.h>
+#include <Ice/StringUtil.h>
 
 using namespace std;
 using namespace Ice;
@@ -155,7 +155,8 @@ IceInternal::ReferenceFactory::create(const string& str, const string& propertyP
     //
     // Parsing the identity may raise IdentityParseException.
     //
-    Identity ident = _instance->stringToIdentity(idstr);
+    Identity ident = Ice::stringToIdentity(idstr);
+
     if(ident.name.empty())
     {
         //
@@ -279,7 +280,7 @@ IceInternal::ReferenceFactory::create(const string& str, const string& propertyP
 
                 try
                 {
-                    facet = IceUtilInternal::unescapeString(argument, 0, argument.size());
+                    facet = unescapeString(argument, 0, argument.size(), "");
                 }
                 catch(const IceUtil::IllegalArgumentException& e)
                 {
@@ -288,7 +289,6 @@ IceInternal::ReferenceFactory::create(const string& str, const string& propertyP
                     throw ex;
                 }
 
-                facet = UTF8ToNative(facet, _instance->getStringConverter());
                 break;
             }
 
@@ -479,7 +479,7 @@ IceInternal::ReferenceFactory::create(const string& str, const string& propertyP
 
                 string es = s.substr(beg, end - beg);
                 EndpointIPtr endp = _instance->endpointFactoryManager()->create(es, false);
-                if(endp != 0)
+                if(endp != ICE_NULLPTR)
                 {
                     endpoints.push_back(endp);
                 }
@@ -554,7 +554,7 @@ IceInternal::ReferenceFactory::create(const string& str, const string& propertyP
 
             try
             {
-                adapter = IceUtilInternal::unescapeString(adapterstr, 0, adapterstr.size());
+                adapter = unescapeString(adapterstr, 0, adapterstr.size(), "");
             }
             catch(const IceUtil::IllegalArgumentException& e)
             {
@@ -568,8 +568,6 @@ IceInternal::ReferenceFactory::create(const string& str, const string& propertyP
                 ex.str = "empty adapter id in `" + s + "'";
                 throw ex;
             }
-
-            adapter = UTF8ToNative(adapter, _instance->getStringConverter());
 
             return create(ident, facet, mode, secure, protocol, encoding, endpoints, adapter, propertyPrefix);
             break;
@@ -586,7 +584,7 @@ IceInternal::ReferenceFactory::create(const string& str, const string& propertyP
 }
 
 ReferencePtr
-IceInternal::ReferenceFactory::create(const Identity& ident, BasicStream* s)
+IceInternal::ReferenceFactory::create(const Identity& ident, InputStream* s)
 {
     //
     // Don't read the identity here. Operations calling this
@@ -626,7 +624,7 @@ IceInternal::ReferenceFactory::create(const Identity& ident, BasicStream* s)
 
     Ice::ProtocolVersion protocol;
     Ice::EncodingVersion encoding;
-    if(s->getReadEncoding() != Ice::Encoding_1_0)
+    if(s->getEncoding() != Ice::Encoding_1_0)
     {
         s->read(protocol);
         s->read(encoding);
@@ -660,7 +658,7 @@ IceInternal::ReferenceFactory::create(const Identity& ident, BasicStream* s)
 }
 
 ReferenceFactoryPtr
-IceInternal::ReferenceFactory::setDefaultRouter(const RouterPrx& defaultRouter)
+IceInternal::ReferenceFactory::setDefaultRouter(const RouterPrxPtr& defaultRouter)
 {
     if(defaultRouter == _defaultRouter)
     {
@@ -673,14 +671,14 @@ IceInternal::ReferenceFactory::setDefaultRouter(const RouterPrx& defaultRouter)
     return factory;
 }
 
-RouterPrx
+RouterPrxPtr
 IceInternal::ReferenceFactory::getDefaultRouter() const
 {
     return _defaultRouter;
 }
 
 ReferenceFactoryPtr
-IceInternal::ReferenceFactory::setDefaultLocator(const LocatorPrx& defaultLocator)
+IceInternal::ReferenceFactory::setDefaultLocator(const LocatorPrxPtr& defaultLocator)
 {
     if(defaultLocator == _defaultLocator)
     {
@@ -693,7 +691,7 @@ IceInternal::ReferenceFactory::setDefaultLocator(const LocatorPrx& defaultLocato
     return factory;
 }
 
-LocatorPrx
+LocatorPrxPtr
 IceInternal::ReferenceFactory::getDefaultLocator() const
 {
     return _defaultLocator;
@@ -815,7 +813,7 @@ IceInternal::ReferenceFactory::create(const Identity& ident,
         string property;
 
         property = propertyPrefix + ".Locator";
-        LocatorPrx locator = LocatorPrx::uncheckedCast(_communicator->propertyToProxy(property));
+        LocatorPrxPtr locator = ICE_UNCHECKED_CAST(LocatorPrx, _communicator->propertyToProxy(property));
         if(locator)
         {
             if(locator->ice_getEncodingVersion() != encoding)
@@ -829,7 +827,7 @@ IceInternal::ReferenceFactory::create(const Identity& ident,
         }
 
         property = propertyPrefix + ".Router";
-        RouterPrx router = RouterPrx::uncheckedCast(_communicator->propertyToProxy(property));
+        RouterPrxPtr router = ICE_UNCHECKED_CAST(RouterPrx, _communicator->propertyToProxy(property));
         if(router)
         {
             if(propertyPrefix.size() > 7 && propertyPrefix.substr(propertyPrefix.size() - 7, 7) == ".Router")
@@ -934,4 +932,3 @@ IceInternal::ReferenceFactory::create(const Identity& ident,
                                  invocationTimeout,
                                  ctx);
 }
-

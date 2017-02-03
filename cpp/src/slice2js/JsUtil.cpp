@@ -28,16 +28,16 @@ using namespace IceUtil;
 using namespace IceUtilInternal;
 
 static string
-lookupKwd(const string& name, bool mangleCasts = false)
+lookupKwd(const string& name)
 {
     //
     // Keyword list. *Must* be kept in alphabetical order.
     //
     static const string keywordList[] =
     {
-        "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do", "else",
-        "enum", "export", "extends", "false", "finally", "for", "function", "if", "implements", "import", "in",
-        "instanceof", "interface", "let", "new", "null", "package", "private", "protected", "public", "return",
+        "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do", 
+        "else", "enum", "export", "extends", "false", "finally", "for", "function", "if", "implements", "import", 
+        "in", "instanceof", "interface", "let", "new", "null", "package", "private", "protected", "public", "return",
         "static", "super", "switch", "this", "throw", "true", "try", "typeof", "var", "void", "while", "with",
         "yield"
     };
@@ -49,10 +49,7 @@ lookupKwd(const string& name, bool mangleCasts = false)
     {
         return "_" + name;
     }
-    if(mangleCasts && (name == "checkedCast" || name == "uncheckedCast"))
-    {
-        return "_" + name;
-    }
+
     return name;
 }
 
@@ -102,18 +99,6 @@ fixIds(const StringList& ids)
     return newIds;
 }
 
-static string
-fixSuffix(const string& param)
-{
-    const string thisSuffix = "this.";
-    string p = param;
-    if(p.find(thisSuffix) == 0)
-    {
-        p = "self." + p.substr(thisSuffix.size());
-    }
-    return p;
-}
-
 bool
 Slice::JsGenerator::isClassType(const TypePtr& type)
 {
@@ -128,7 +113,7 @@ Slice::JsGenerator::isClassType(const TypePtr& type)
 // not scoped, but a JS keyword, return the "_"-prefixed name.
 //
 string
-Slice::JsGenerator::fixId(const string& name, bool mangleCasts)
+Slice::JsGenerator::fixId(const string& name)
 {
     if(name.empty())
     {
@@ -136,7 +121,7 @@ Slice::JsGenerator::fixId(const string& name, bool mangleCasts)
     }
     if(name[0] != ':')
     {
-        return lookupKwd(name, mangleCasts);
+        return lookupKwd(name);
     }
 
     const StringList ids = splitScopedName(name);
@@ -155,118 +140,13 @@ Slice::JsGenerator::fixId(const string& name, bool mangleCasts)
 }
 
 string
-Slice::JsGenerator::fixId(const ContainedPtr& cont, bool mangleCasts)
+Slice::JsGenerator::fixId(const ContainedPtr& cont)
 {
-    return fixId(cont->name(), mangleCasts);
+    return fixId(cont->name());
 }
 
 string
-Slice::JsGenerator::getOptionalFormat(const TypePtr& type)
-{
-    BuiltinPtr bp = BuiltinPtr::dynamicCast(type);
-    if(bp)
-    {
-        switch(bp->kind())
-        {
-        case Builtin::KindByte:
-        case Builtin::KindBool:
-        {
-            return "Ice.OptionalFormat.F1";
-        }
-        case Builtin::KindShort:
-        {
-            return "Ice.OptionalFormat.F2";
-        }
-        case Builtin::KindInt:
-        case Builtin::KindFloat:
-        {
-            return "Ice.OptionalFormat.F4";
-        }
-        case Builtin::KindLong:
-        case Builtin::KindDouble:
-        {
-            return "Ice.OptionalFormat.F8";
-        }
-        case Builtin::KindString:
-        {
-            return "Ice.OptionalFormat.VSize";
-        }
-        case Builtin::KindObject:
-        {
-            return "Ice.OptionalFormat.Class";
-        }
-        case Builtin::KindObjectProxy:
-        {
-            return "Ice.OptionalFormat.FSize";
-        }
-        case Builtin::KindLocalObject:
-        {
-            assert(false);
-            break;
-        }
-        }
-    }
-
-    if(EnumPtr::dynamicCast(type))
-    {
-        return "Ice.OptionalFormat.Size";
-    }
-
-    SequencePtr seq = SequencePtr::dynamicCast(type);
-    if(seq)
-    {
-        return seq->type()->isVariableLength() ? "Ice.OptionalFormat.FSize" : "Ice.OptionalFormat.VSize";
-    }
-
-    DictionaryPtr d = DictionaryPtr::dynamicCast(type);
-    if(d)
-    {
-        return (d->keyType()->isVariableLength() || d->valueType()->isVariableLength()) ?
-            "Ice.OptionalFormat.FSize" : "Ice.OptionalFormat.VSize";
-    }
-
-    StructPtr st = StructPtr::dynamicCast(type);
-    if(st)
-    {
-        return st->isVariableLength() ? "Ice.OptionalFormat.FSize" : "Ice.OptionalFormat.VSize";
-    }
-
-    if(ProxyPtr::dynamicCast(type))
-    {
-        return "Ice.OptionalFormat.FSize";
-    }
-
-    ClassDeclPtr cl = ClassDeclPtr::dynamicCast(type);
-    assert(cl);
-    return "Ice.OptionalFormat.Class";
-}
-
-string
-Slice::JsGenerator::getStaticId(const TypePtr& type)
-{
-    BuiltinPtr b = BuiltinPtr::dynamicCast(type);
-    ClassDeclPtr cl = ClassDeclPtr::dynamicCast(type);
-
-    assert((b && b->kind() == Builtin::KindObject) || cl);
-
-    if(b)
-    {
-        return "Ice.ObjectImpl.ice_staticId()";
-    }
-    else if(cl->isInterface())
-    {
-        ContainedPtr cont = ContainedPtr::dynamicCast(cl->container());
-        assert(cont);
-        return fixId(cont->scoped()) + "." + cl->name() + "Disp_.ice_staticId()";
-    }
-    else
-    {
-        return fixId(cl->scoped()) + ".ice_staticId()";
-    }
-}
-
-string
-Slice::JsGenerator::typeToString(const TypePtr& type, bool optional)
+Slice::JsGenerator::typeToString(const TypePtr& type)
 {
     if(!type)
     {
@@ -283,9 +163,10 @@ Slice::JsGenerator::typeToString(const TypePtr& type, bool optional)
         "Number",           // float
         "Number",           // double
         "String",
-        "Ice.Object",
+        "Ice.Value",
         "Ice.ObjectPrx",
-        "Object"
+        "Object",
+        "Ice.Value"
     };
 
     BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
@@ -309,7 +190,9 @@ Slice::JsGenerator::typeToString(const TypePtr& type, bool optional)
     DictionaryPtr d = DictionaryPtr::dynamicCast(type);
     if(d)
     {
-        return "Ice.HashMap";
+        const TypePtr keyType = d->keyType();
+        BuiltinPtr b = BuiltinPtr::dynamicCast(keyType);
+        return ((b && b->kind() == Builtin::KindLong) || StructPtr::dynamicCast(keyType)) ? "Ice.HashMap" : "Map";
     }
 
     ContainedPtr contained = ContainedPtr::dynamicCast(type);
@@ -322,7 +205,7 @@ Slice::JsGenerator::typeToString(const TypePtr& type, bool optional)
 }
 
 string
-Slice::JsGenerator::getLocalScope(const string& scope)
+Slice::JsGenerator::getLocalScope(const string& scope, const string& separator)
 {
     assert(!scope.empty());
 
@@ -353,7 +236,7 @@ Slice::JsGenerator::getLocalScope(const string& scope)
     {
         if(i != ids.begin())
         {
-            result << '.';
+            result << separator;
         }
         result << *i;
     }
@@ -399,7 +282,7 @@ Slice::JsGenerator::writeMarshalUnmarshalCode(Output &out,
                                               const string& param,
                                               bool marshal)
 {
-    string stream = marshal ? "__os" : "__is";
+    string stream = marshal ? "ostr" : "istr";
 
     BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
     if(builtin)
@@ -503,6 +386,7 @@ Slice::JsGenerator::writeMarshalUnmarshalCode(Output &out,
                 return;
             }
             case Builtin::KindObject:
+            case Builtin::KindValue:
             {
                 // Handle by isClassType below.
                 break;
@@ -531,11 +415,11 @@ Slice::JsGenerator::writeMarshalUnmarshalCode(Output &out,
     {
         if(marshal)
         {
-            out << nl << typeToString(type) << ".__write(" << stream << ", " << param << ");";
+            out << nl << typeToString(type) << "._write(" << stream << ", " << param << ");";
         }
         else
         {
-            out << nl << param << " = " << typeToString(type) << ".__read(" << stream << ");";
+            out << nl << param << " = " << typeToString(type) << "._read(" << stream << ");";
         }
         return;
     }
@@ -557,12 +441,11 @@ Slice::JsGenerator::writeMarshalUnmarshalCode(Output &out,
     {
         if(marshal)
         {
-            out << nl << stream << ".writeObject(" << param << ");";
+            out << nl << stream << ".writeValue(" << param << ");";
         }
         else
         {
-            out << nl << stream << ".readObject(function(__o){ " << fixSuffix(param) << " = __o; }, "
-                << typeToString(type) << ");";
+            out << nl << stream << ".readValue(obj => " << param << " = obj, " << typeToString(type) << ");";
         }
         return;
     }
@@ -590,18 +473,18 @@ Slice::JsGenerator::writeOptionalMarshalUnmarshalCode(Output &out,
                                                       int tag,
                                                       bool marshal)
 {
-    string stream = marshal ? "__os" : "__is";
+    string stream = marshal ? "ostr" : "istr";
 
     if(isClassType(type))
     {
         if(marshal)
         {
-            out << nl << stream << ".writeOptObject(" << tag << ", " << param << ");";
+            out << nl << stream << ".writeOptionalValue(" << tag << ", " << param << ");";
         }
         else
         {
-            out << nl << stream << ".readOptObject(" << tag << ", function(__o){ " << fixSuffix(param)
-                << " = __o; }, " << typeToString(type) << ");";
+            out << nl << stream << ".readOptionalValue(" << tag << ", obj => " << param << " = obj, "
+                << typeToString(type) << ");";
         }
         return;
     }
@@ -610,22 +493,22 @@ Slice::JsGenerator::writeOptionalMarshalUnmarshalCode(Output &out,
     {
         if(marshal)
         {
-            out << nl << typeToString(type) <<".__writeOpt(" << stream << ", " << tag << ", " << param << ");";
+            out << nl << typeToString(type) <<"._writeOpt(" << stream << ", " << tag << ", " << param << ");";
         }
         else
         {
-            out << nl << param << " = " << typeToString(type) << ".__readOpt(" << stream << ", " << tag << ");";
+            out << nl << param << " = " << typeToString(type) << "._readOpt(" << stream << ", " << tag << ");";
         }
         return;
     }
 
     if(marshal)
     {
-        out << nl << getHelper(type) <<".writeOpt(" << stream << ", " << tag << ", " << param << ");";
+        out << nl << getHelper(type) <<".writeOptional(" << stream << ", " << tag << ", " << param << ");";
     }
     else
     {
-        out << nl << param << " = " << getHelper(type) << ".readOpt(" << stream << ", " << tag << ");";
+        out << nl << param << " = " << getHelper(type) << ".readOptional(" << stream << ", " << tag << ");";
     }
 }
 
@@ -670,6 +553,7 @@ Slice::JsGenerator::getHelper(const TypePtr& type)
                 return "Ice.StringHelper";
             }
             case Builtin::KindObject:
+            case Builtin::KindValue:
             {
                 return "Ice.ObjectHelper";
             }
@@ -687,12 +571,26 @@ Slice::JsGenerator::getHelper(const TypePtr& type)
 
     if(EnumPtr::dynamicCast(type))
     {
-        return typeToString(type) + ".__helper";
+        return typeToString(type) + "._helper";
     }
 
-    if(ProxyPtr::dynamicCast(type) || StructPtr::dynamicCast(type))
+    if(StructPtr::dynamicCast(type))
     {
         return typeToString(type);
+    }
+    
+    ProxyPtr prx = ProxyPtr::dynamicCast(type);
+    if(prx)
+    {
+        ClassDefPtr def = prx->_class()->definition();
+        if(def->isInterface() || def->allOperations().size() > 0)
+        {
+            return typeToString(type);
+        }
+        else
+        {
+            return "Ice.ObjectPrx";
+        }
     }
 
     if(SequencePtr::dynamicCast(type) || DictionaryPtr::dynamicCast(type))

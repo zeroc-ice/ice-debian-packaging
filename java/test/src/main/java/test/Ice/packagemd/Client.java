@@ -16,16 +16,15 @@ public class Client extends test.Util.Application
     @Override
     public int run(String[] args)
     {
-        InitialPrx initial = AllTests.allTests(communicator(), getWriter());
+        InitialPrx initial = AllTests.allTests(this);
         initial.shutdown();
         return 0;
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Warn.Dispatch", "0");
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.packagemd");
         initData.properties.setProperty("Ice.Package.Test1", "test.Ice.packagemd");

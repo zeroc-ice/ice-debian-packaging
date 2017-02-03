@@ -12,8 +12,10 @@
 
 #include <Test.h>
 
-class TestFacetI : virtual public ::Test::TestFacet,
-                   virtual public Ice::PropertiesAdminUpdateCallback,
+class TestFacetI : public virtual ::Test::TestFacet,
+#ifndef ICE_CPP11_MAPPING
+                   public virtual Ice::PropertiesAdminUpdateCallback,
+#endif
                    IceUtil::Monitor<IceUtil::Mutex>
 {
 public:
@@ -27,8 +29,7 @@ public:
 private:
 
     Ice::PropertyDict _changes;
-    bool _called;
 };
-typedef IceUtil::Handle<TestFacetI> TestFacetIPtr;
+ICE_DEFINE_PTR(TestFacetIPtr, TestFacetI);
 
 #endif

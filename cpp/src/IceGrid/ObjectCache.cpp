@@ -99,8 +99,8 @@ ObjectCache::add(const ObjectInfo& info, const string& application)
     if(_traceLevels && _traceLevels->object > 0)
     {
         Ice::Trace out(_traceLevels->logger, _traceLevels->objectCat);
-        out << "added object `" << _communicator->identityToString(id) << "'";  
-    }    
+        out << "added object `" << _communicator->identityToString(id) << "'";
+    }
 }
 
 ObjectEntryPtr
@@ -131,15 +131,15 @@ ObjectCache::remove(const Ice::Identity& id)
     map<string, TypeEntry>::iterator p = _types.find(entry->getType());
     assert(p != _types.end());
     if(p->second.remove(entry))
-    {   
+    {
         _types.erase(p);
     }
 
     if(_traceLevels && _traceLevels->object > 0)
     {
         Ice::Trace out(_traceLevels->logger, _traceLevels->objectCat);
-        out << "removed object `" << _communicator->identityToString(id) << "'";        
-    }    
+        out << "removed object `" << _communicator->identityToString(id) << "'";
+    }
 }
 
 Ice::ObjectProxySeq
@@ -229,4 +229,3 @@ ObjectEntry::canRemove()
 {
     return true;
 }
-

@@ -47,6 +47,7 @@ struct ToInternalServerDescriptor : std::unary_function<CommunicatorDescriptorPt
         if(svc)
         {
             filename += "_" + svc->name;
+            _desc->services->push_back(svc->name);
         }
 
         PropertyDescriptorSeq& props = _desc->properties[filename];
@@ -177,7 +178,7 @@ struct ToInternalServerDescriptor : std::unary_function<CommunicatorDescriptorPt
     int _iceVersion;
 };
 
-class LoadCB : virtual public IceUtil::Shared
+class LoadCB : public virtual IceUtil::Shared
 {
 public:
 
@@ -244,7 +245,7 @@ private:
     const int _timeout;
 };
 
-class DestroyCB : virtual public IceUtil::Shared
+class DestroyCB : public virtual IceUtil::Shared
 {
 public:
 
@@ -663,7 +664,7 @@ NodeEntry::destroyServer(const ServerEntryPtr& entry, const ServerInfo& info, in
 
         if(noRestart)
         {
-            node->begin_destroyServerWithoutRestart(info.descriptor->id, info.uuid, info.revision, 
+            node->begin_destroyServerWithoutRestart(info.descriptor->id, info.uuid, info.revision,
                                                     _cache.getReplicaName(),
                                                     newCallback_Node_destroyServerWithoutRestart(
                                                         new DestroyCB(_cache.getTraceLevels(), entry, _name),
@@ -930,6 +931,7 @@ NodeEntry::getInternalServerDescriptor(const ServerInfo& info) const
     server->activationTimeout = info.descriptor->activationTimeout;
     server->deactivationTimeout = info.descriptor->deactivationTimeout;
     server->applicationDistrib = info.descriptor->applicationDistrib;
+    server->services = Ice::StringSeq();
     if(!info.descriptor->distrib.icepatch.empty())
     {
         server->distrib = new InternalDistributionDescriptor(info.descriptor->distrib.icepatch,

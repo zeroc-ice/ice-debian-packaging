@@ -12,30 +12,54 @@ package test.Ice.binding;
 public class Server extends test.Util.Application
 {
     @Override
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
-        Ice.Communicator communicator = communicator();
-        Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
-        Ice.Identity id = communicator.stringToIdentity("communicator");
-        adapter.add(new RemoteCommunicatorI(), id);
+        com.zeroc.Ice.Communicator communicator = communicator();
+        com.zeroc.Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
+        com.zeroc.Ice.Identity id = com.zeroc.Ice.Util.stringToIdentity("communicator");
+        adapter.add(new RemoteCommunicatorI(this), id);
         adapter.activate();
 
         return WAIT;
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.binding");
-        initData.properties.setProperty("TestAdapter.Endpoints", "default -p 12010:udp");
+        initData.properties.setProperty("TestAdapter.Endpoints", getTestEndpoint(initData.properties, 0) + ":udp");
+        initData.logger = new com.zeroc.Ice.Logger() {
+            @Override public void print(String message)
+            {
+            }
+
+            @Override public void trace(String category, String message)
+            {
+            }
+
+            @Override public void warning(String message)
+            {
+            }
+
+            @Override public void error(String message)
+            {
+            }
+
+            @Override public String getPrefix()
+            {
+                return "NullLogger";
+            }
+
+            @Override public com.zeroc.Ice.Logger cloneWithPrefix(String prefix)
+            {
+                return this;
+            }
+        };
         return initData;
     }
 
-    public static void
-    main(String[] args)
+    public static void main(String[] args)
     {
         Server app = new Server();
         int result = app.main("Server", args);

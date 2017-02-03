@@ -1,4 +1,3 @@
-
 // **********************************************************************
 //
 // Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
@@ -10,11 +9,15 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build"]]
 
 #include <Ice/ObjectAdapterF.ice>
 #include <Ice/Identity.ice>
 #include <Ice/Endpoint.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:ICE"]
 module Ice
@@ -24,8 +27,17 @@ module Ice
  *
  * Base class providing access to the connection details. *
  **/
+["php:internal"]
 local class ConnectionInfo
 {
+    /**
+     *
+     * The information of the underyling transport or null if there's
+     * no underlying transport.
+     *
+     **/
+    ConnectionInfo underlying;
+
     /**
      *
      * Whether or not the connection is an incoming or outgoing
@@ -47,20 +59,6 @@ local class ConnectionInfo
      *
      **/
     string connectionId;
-
-    /**
-     *
-     * The connection buffer receive size.
-     *
-     **/
-    int rcvSize;
-
-    /**
-     *
-     * The connection buffer send size.
-     *
-     **/
-    int sndSize;
 };
 
 local interface Connection;
@@ -68,30 +66,47 @@ local interface Connection;
 /**
  *
  * An application can implement this interface to receive notifications when
- * a connection closes or receives a heartbeat message.
+ * a connection closes.
  *
- * @see Connection#setCallback
+ * @see Connection#setCloseCallback
  *
  **/
-local interface ConnectionCallback
+["delegate"]
+local interface CloseCallback
+{
+    /**
+     *
+     * This method is called by the the connection when the connection
+     * is closed. If the callback needs more information about the closure,
+     * it can call {@link Connection#throwException}.
+     *
+     * @param con The connection that closed.
+     **/
+    void closed(Connection con);
+};
+
+/**
+ *
+ * An application can implement this interface to receive notifications when
+ * a connection receives a heartbeat message.
+ *
+ * @see Connection#setHeartbeatCallback
+ *
+ **/
+["delegate"]
+local interface HeartbeatCallback
 {
     /**
      *
      * This method is called by the the connection when a heartbeat is
      * received from the peer.
      *
+     * @param con The connection on which a heartbeat was received.
      **/
     void heartbeat(Connection con);
-
-    /**
-     *
-     * This method is called by the the connection when the connection
-     * is closed.
-     *
-     **/
-    void closed(Connection con);
 };
 
+["cpp:unscoped"]
 local enum ACMClose
 {
     CloseOff,
@@ -101,6 +116,7 @@ local enum ACMClose
     CloseOnIdleForceful
 };
 
+["cpp:unscoped"]
 local enum ACMHeartbeat
 {
     HeartbeatOff,
@@ -117,25 +133,43 @@ local struct ACM
 };
 
 /**
+ * Determines the behavior when manually closing a connection.
+ **/
+["cpp:unscoped"]
+local enum ConnectionClose
+{
+    /**
+     * Close the connection immediately without sending a close connection protocol message to the peer
+     * and waiting for the peer to acknowledge it.
+     **/
+    CloseForcefully,
+    /**
+     * Close the connection by notifying the peer but do not wait for pending invocations to complete.
+     **/
+    CloseGracefully,
+    /**
+     * Wait for all pending invocations to complete before closing the connection.
+     **/
+    CloseGracefullyAndWait
+};
+
+/**
  *
  * The user-level interface to a connection.
  *
  **/
+["php:internal"]
 local interface Connection
 {
     /**
      *
-     * Close a connection, either gracefully or forcefully. If a
-     * connection is closed forcefully, it closes immediately, without
-     * sending the relevant close connection protocol messages to the
-     * peer and waiting for the peer to acknowledge these protocol
-     * messages.
+     * Manually close the connection using the specified closure mode.
      *
-     * @param force If true, close forcefully. Otherwise the
-     * connection is closed gracefully.
+     * @param mode Determines how the connection will be closed.
      *
+     * @see ConnectionClose
      **/
-    void close(bool force);
+    void close(ConnectionClose mode);
 
     /**
      *
@@ -205,18 +239,37 @@ local interface Connection
      * associated with the connection.
      *
      **/
-    ["async"] void flushBatchRequests();
+    ["async-oneway"] void flushBatchRequests();
 
     /**
      *
-     * Set callback on the connection. The callback is called by the
+     * Set a close callback on the connection. The callback is called by the
      * connection when it's closed. The callback is called from the
-     * Ice thread pool associated with the connection.
+     * Ice thread pool associated with the connection. If the callback needs
+     * more information about the closure, it can call {@link Connection#throwException}.
      *
-     * @param callback The connection callback object.
+     * @param callback The close callback object.
      *
      **/
-    void setCallback(ConnectionCallback callback);
+    void setCloseCallback(CloseCallback callback);
+
+    /**
+     *
+     * Set a heartbeat callback on the connection. The callback is called by the
+     * connection when a heartbeat is received. The callback is called
+     * from the Ice thread pool associated with the connection.
+     *
+     * @param callback The heartbeat callback object.
+     *
+     **/
+    void setHeartbeatCallback(HeartbeatCallback callback);
+
+    /**
+     *
+     * Send a heartbeat message.
+     *
+     **/
+    ["async-oneway"] void heartbeat();
 
     /**
      *
@@ -280,16 +333,26 @@ local interface Connection
      **/
     ["cpp:const"] ConnectionInfo getInfo();
 
-
     /**
      *
-     * Set the connectiion buffer receive/send size.
+     * Set the connection buffer receive/send size.
      *
      * @param rcvSize The connection receive buffer size.
      * @param sndSize The connection send buffer size.
      *
      **/
     void setBufferSize(int rcvSize, int sndSize);
+
+    /**
+     *
+     * Throw an exception indicating the reason for connection closure. For example,
+     * {@link CloseConnectionException} is raised if the connection was closed gracefully,
+     * whereas {@link ConnectionManuallyClosedException} is raised if the connection was
+     * manually closed by the application. This operation does nothing if the connection is
+     * not yet closed.
+     *
+     **/
+    ["cpp:const"] void throwException();
 };
 
 /**
@@ -297,6 +360,7 @@ local interface Connection
  * Provides access to the connection details of an IP connection
  *
  **/
+["php:internal"]
 local class IPConnectionInfo extends ConnectionInfo
 {
     /** The local address. */
@@ -317,8 +381,22 @@ local class IPConnectionInfo extends ConnectionInfo
  * Provides access to the connection details of a TCP connection
  *
  **/
+["php:internal"]
 local class TCPConnectionInfo extends IPConnectionInfo
 {
+    /**
+     *
+     * The connection buffer receive size.
+     *
+     **/
+    int rcvSize = 0;
+
+    /**
+     *
+     * The connection buffer send size.
+     *
+     **/
+    int sndSize = 0;
 };
 
 /**
@@ -326,13 +404,36 @@ local class TCPConnectionInfo extends IPConnectionInfo
  * Provides access to the connection details of a UDP connection
  *
  **/
+["php:internal"]
 local class UDPConnectionInfo extends IPConnectionInfo
 {
-    /** The multicast address. */
+    /**
+     *
+     * The multicast address.
+     *
+     **/
     string mcastAddress;
 
-    /** The multicast port. */
+    /**
+     *
+     * The multicast port.
+     *
+     **/
     int mcastPort = -1;
+
+    /**
+     *
+     * The connection buffer receive size.
+     *
+     **/
+    int rcvSize = 0;
+
+    /**
+     *
+     * The connection buffer send size.
+     *
+     **/
+    int sndSize = 0;
 };
 
 dictionary<string, string> HeaderDict;
@@ -342,7 +443,8 @@ dictionary<string, string> HeaderDict;
  * Provides access to the connection details of a WebSocket connection
  *
  **/
-local class WSConnectionInfo extends TCPConnectionInfo
+["php:internal"]
+local class WSConnectionInfo extends ConnectionInfo
 {
     /** The headers from the HTTP upgrade request. */
     HeaderDict headers;

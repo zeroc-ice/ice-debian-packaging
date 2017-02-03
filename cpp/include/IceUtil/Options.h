@@ -22,47 +22,46 @@
 namespace IceUtilInternal
 {
 
-class ICE_UTIL_API APIException : public IceUtil::Exception
+class ICE_API APIException : public IceUtil::ExceptionHelper<APIException>
 {
 public:
 
     APIException(const char*, int, const ::std::string&);
+#ifndef ICE_CPP11_COMPILER
     virtual ~APIException() throw();
-    virtual ::std::string ice_name() const;
+#endif
+    virtual ::std::string ice_id() const;
     virtual void ice_print(std::ostream&) const;
+#ifndef ICE_CPP11_MAPPING
     virtual APIException* ice_clone() const;
-    virtual void ice_throw() const;
+#endif
 
     ::std::string reason;
-
-private:
-
-    static const char* _name;
 };
 
-ICE_UTIL_API ::std::ostream& operator<<(::std::ostream&, const APIException&);
+ICE_API ::std::ostream& operator<<(::std::ostream&, const APIException&);
 
-class ICE_UTIL_API BadOptException : public IceUtil::Exception
+class ICE_API BadOptException : public IceUtil::ExceptionHelper<BadOptException>
 {
 public:
 
     BadOptException(const char*, int, const ::std::string&);
+#ifndef ICE_CPP11_COMPILER
     virtual ~BadOptException() throw();
-    virtual ::std::string ice_name() const;
+#endif
+    virtual ::std::string ice_id() const;
     virtual void ice_print(std::ostream&) const;
+
+#ifndef ICE_CPP11_MAPPING
     virtual BadOptException* ice_clone() const;
-    virtual void ice_throw() const;
+#endif
 
     ::std::string reason;
-
-private:
-
-    static const char* _name;
 };
 
-ICE_UTIL_API ::std::ostream& operator<<(::std::ostream&, const BadOptException&);
+ICE_API ::std::ostream& operator<<(::std::ostream&, const BadOptException&);
 
-class ICE_UTIL_API Options
+class ICE_API Options
 {
 public:
 

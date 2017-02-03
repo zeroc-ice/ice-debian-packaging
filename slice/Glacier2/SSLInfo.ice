@@ -9,10 +9,14 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["cpp:header-ext:h", "cpp:dll-export:GLACIER2_API", "objc:header-dir:objc", "objc:dll-export:GLACIER2_API", "js:ice-build"]]
 [["cpp:include:Glacier2/Config.h"]]
 
 #include <Ice/BuiltinSequences.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:GLACIER2"]
 module Glacier2
@@ -48,4 +52,3 @@ struct SSLInfo
 };
 
 };
-

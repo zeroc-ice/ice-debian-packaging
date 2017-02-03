@@ -110,6 +110,7 @@ class reader(threading.Thread):
                 c = self.p.stdout.read(1)
                 if not c:
                     self.cv.acquire()
+                    self.trace(None)
                     self._finish = True # We have finished processing output
                     self.cv.notify()
                     self.cv.release()
@@ -135,8 +136,9 @@ class reader(threading.Thread):
     def trace(self, c):
         if self._trace:
             if self._tracesuppress:
-                self._tbuf.write(c)
-                if c == '\n':
+                if not c is None:
+                    self._tbuf.write(c)
+                if c == '\n' or c is None:
                     content = self._tbuf.getvalue()
                     suppress = False
                     for p in self._tracesuppress:
@@ -149,7 +151,7 @@ class reader(threading.Thread):
                         sys.stdout.write(content)
                     self._tbuf.truncate(0)
                     self._tbuf.seek(0)
-            else:
+            elif not c is None:
                 sys.stdout.write(c)
                 sys.stdout.flush()
 
@@ -260,7 +262,7 @@ class reader(threading.Thread):
                     if len(pattern) != olen:
                         continue
 
-                    # If no match and we have finished processing output rasise a TIMEOUT
+                    # If no match and we have finished processing output raise a TIMEOUT
                     if self._finish:
                       raise  TIMEOUT ('timeout exceeded in match\npattern: "%s"\nbuffer: "%s"\n' %
                                            (escape(s), escape(buf, False)))
@@ -343,18 +345,19 @@ def cleanup():
         except:
             pass
     processes.clear()
-atexit.register(cleanup)
+#atexit.register(cleanup)
 
 def signal_handler(signal, frame):
     cleanup()
     sys.exit(0)
 
-if win32:
-    signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
+#if win32:
+#    signal.signal(signal.SIGINT, signal_handler)
+#signal.signal(signal.SIGTERM, signal_handler)
 
 class Expect (object):
-    def __init__(self, command, startReader = True, timeout=30, logfile=None, mapping = None, desc = None, cwd = None, env = None):
+    def __init__(self, command, startReader=True, timeout=30, logfile=None, mapping=None, desc=None, cwd=None, env=None,
+                 preexec_fn=None):
         self.buf = "" # The part before the match
         self.before = "" # The part before the match
         self.after = "" # The part after the match
@@ -374,8 +377,8 @@ class Expect (object):
 
         if win32:
             # Don't rely on win32api
-            #import win32process
-            #creationflags = win32process.CREATE_NEW_PROCESS_GROUP)
+            # import win32process
+            # creationflags = win32process.CREATE_NEW_PROCESS_GROUP)
             #
             # universal_newlines = True is necessary for Python 3 on Windows
             #
@@ -384,12 +387,13 @@ class Expect (object):
             # command.
             #
             CREATE_NEW_PROCESS_GROUP = 512
-            self.p = subprocess.Popen(command, env = env, cwd = cwd, shell=False, bufsize=0, stdin=subprocess.PIPE,
+            self.p = subprocess.Popen(command, env=env, cwd=cwd, shell=False, bufsize=0, stdin=subprocess.PIPE,
                                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                       creationflags = CREATE_NEW_PROCESS_GROUP, universal_newlines=True)
         else:
-            self.p = subprocess.Popen(splitCommand(command), env = env, cwd = cwd, shell=False, bufsize=0,
-                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            self.p = subprocess.Popen(splitCommand(command), env=env, cwd=cwd, shell=False, bufsize=0,
+                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                      preexec_fn=preexec_fn)
         global processes
         processes[self.p.pid] = self.p
 
@@ -397,7 +401,7 @@ class Expect (object):
 
         # The thread is marked as a daemon thread. This is done so that if
         # an expect script runs off the end of main without kill/wait on each
-        # spawned process the script will not hang tring to join with the
+        # spawned process the script will not hang trying to join with the
         # reader thread.
         self.r.setDaemon(True)
 
@@ -492,7 +496,11 @@ class Expect (object):
             while time.time() < end and self.p and self.p.poll() is None:
                 time.sleep(0.1)
             if self.p and self.p.poll() is None:
-                raise TIMEOUT ('timedwait exceeded timeout')
+                raise TIMEOUT ('timed wait exceeded timeout')
+        elif win32:
+            # We poll on Windows or otherwise KeyboardInterrupt isn't delivered
+            while self.p.poll() is None:
+                time.sleep(0.5)
 
         if self.p is None:
             return self.exitstatus
@@ -503,7 +511,8 @@ class Expect (object):
         if win32 and self.exitstatus != 0 and self.killed is not None:
             self.exitstatus = -self.killed
         global processes
-        del processes[self.p.pid]
+        if self.p.pid in processes:
+            del processes[self.p.pid]
         self.p = None
         self.r.join()
         # Simulate a match on EOF
@@ -519,6 +528,10 @@ class Expect (object):
         # First try to break the app. Don't bother if this is win32
         # and we're using java. It won't break (BREAK causes a stack
         # trace).
+
+        if self.p is None:
+            return
+
         if self.hasInterruptSupport():
             try:
                 if win32:
@@ -632,6 +645,32 @@ class Expect (object):
 
     def trace(self, suppress = None):
         self.r.enabletrace(suppress)
+
+    def waitSuccess(self, exitstatus = 0, timeout = None):
+        """Wait for the process to terminate for up to timeout seconds, and
+           validate the exit status is as expected."""
+
+        def test(result, expected):
+            if expected != result:
+                raise RuntimeError("unexpected exit status: expected: %d, got %d\n" % (expected, result))
+
+        self.wait(timeout)
+        if self.mapping == "java":
+            if self.killed is not None:
+                if win32:
+                    test(self.exitstatus, -self.killed)
+                else:
+                    if self.killed == signal.SIGINT:
+                        test(130, self.exitstatus)
+                    else:
+                        test(self.exitstatus, exitstatus)
+            else:
+                test(self.exitstatus, exitstatus)
+        else:
+            test(self.exitstatus, exitstatus)
+
+    def getOutput(self):
+        return self.buf
 
     def hasInterruptSupport(self):
         """Return True if the application gracefully terminated, False otherwise."""

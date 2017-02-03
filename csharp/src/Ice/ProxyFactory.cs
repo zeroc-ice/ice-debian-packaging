@@ -17,53 +17,52 @@ namespace IceInternal
     {
         public Ice.ObjectPrx stringToProxy(string str)
         {
-            Reference r = instance_.referenceFactory().create(str, null);
+            Reference r = _instance.referenceFactory().create(str, null);
             return referenceToProxy(r);
         }
-        
+
         public string proxyToString(Ice.ObjectPrx proxy)
         {
             if(proxy != null)
             {
                 Ice.ObjectPrxHelperBase h = (Ice.ObjectPrxHelperBase) proxy;
-                return h.reference__().ToString();
+                return h.iceReference().ToString();
             }
             else
             {
                 return "";
             }
         }
-        
+
         public Ice.ObjectPrx propertyToProxy(string prefix)
         {
-            string proxy = instance_.initializationData().properties.getProperty(prefix);
-            Reference r = instance_.referenceFactory().create(proxy, prefix);
+            string proxy = _instance.initializationData().properties.getProperty(prefix);
+            Reference r = _instance.referenceFactory().create(proxy, prefix);
             return referenceToProxy(r);
         }
 
-        public Dictionary<string, string>
-        proxyToProperty(Ice.ObjectPrx proxy, string prefix)
+        public Dictionary<string, string> proxyToProperty(Ice.ObjectPrx proxy, string prefix)
         {
             if(proxy != null)
             {
                 Ice.ObjectPrxHelperBase h = (Ice.ObjectPrxHelperBase) proxy;
-                return h.reference__().toProperty(prefix);
+                return h.iceReference().toProperty(prefix);
             }
             else
             {
                 return new Dictionary<string, string>();
             }
         }
-        
-        public Ice.ObjectPrx streamToProxy(BasicStream s)
+
+        public Ice.ObjectPrx streamToProxy(Ice.InputStream s)
         {
             Ice.Identity ident = new Ice.Identity();
-            ident.read__(s);
-            
-            Reference r = instance_.referenceFactory().create(ident, s);
+            ident.ice_readMembers(s);
+
+            Reference r = _instance.referenceFactory().create(ident, s);
             return referenceToProxy(r);
         }
-        
+
         public Ice.ObjectPrx referenceToProxy(Reference r)
         {
             if(r != null)
@@ -77,29 +76,11 @@ namespace IceInternal
                 return null;
             }
         }
-        
-        public void proxyToStream(Ice.ObjectPrx proxy, BasicStream s)
-        {
-            if(proxy != null)
-            {
-                Ice.ObjectPrxHelperBase h = (Ice.ObjectPrxHelperBase)proxy;
-                Reference r = h.reference__();
-                r.getIdentity().write__(s);
-                r.streamWrite(s);
-            }
-            else
-            {
-                Ice.Identity ident = new Ice.Identity();
-                ident.name = "";
-                ident.category = "";
-                ident.write__(s);
-            }
-        }
-        
+
         public int checkRetryAfterException(Ice.LocalException ex, Reference @ref, ref int cnt)
         {
-            TraceLevels traceLevels = instance_.traceLevels();
-            Ice.Logger logger = instance_.initializationData().logger;
+            TraceLevels traceLevels = _instance.traceLevels();
+            Ice.Logger logger = _instance.initializationData().logger;
 
             //
             // We don't retry batch requests because the exception might have caused
@@ -189,12 +170,13 @@ namespace IceInternal
                 throw ex;
             }
 
-
             //
-            // Don't retry if the communicator is destroyed or object adapter
-            // deactivated.
+            // Don't retry if the communicator is destroyed, object adapter is deactivated,
+            // or connection is manually closed.
             //
-            if(ex is Ice.CommunicatorDestroyedException || ex is Ice.ObjectAdapterDeactivatedException)
+            if(ex is Ice.CommunicatorDestroyedException ||
+               ex is Ice.ObjectAdapterDeactivatedException ||
+               ex is Ice.ConnectionManuallyClosedException)
             {
                 throw ex;
             }
@@ -202,7 +184,7 @@ namespace IceInternal
             //
             // Don't retry invocation timeouts.
             //
-            if(ex is Ice.InvocationTimeoutException || ex is Ice.InvocationCanceledException) 
+            if(ex is Ice.InvocationTimeoutException || ex is Ice.InvocationCanceledException)
             {
                 throw ex;
             }
@@ -252,36 +234,36 @@ namespace IceInternal
         //
         internal ProxyFactory(Instance instance)
         {
-            instance_ = instance;
-            
-            string[] arr = instance_.initializationData().properties.getPropertyAsList("Ice.RetryIntervals");
+            _instance = instance;
+
+            string[] arr = _instance.initializationData().properties.getPropertyAsList("Ice.RetryIntervals");
 
             if(arr.Length > 0)
             {
                 _retryIntervals = new int[arr.Length];
-                
+
                 for (int i = 0; i < arr.Length; i++)
                 {
                     int v;
-                    
+
                     try
                     {
-                        v = System.Int32.Parse(arr[i], CultureInfo.InvariantCulture);
+                        v = int.Parse(arr[i], CultureInfo.InvariantCulture);
                     }
                     catch(System.FormatException)
                     {
                         v = 0;
                     }
-                    
+
                     //
                     // If -1 is the first value, no retry and wait intervals.
-                    // 
+                    //
                     if(i == 0 && v == -1)
                     {
                         _retryIntervals = new int[0];
                         break;
                     }
-                    
+
                     _retryIntervals[i] = v > 0?v:0;
                 }
             }
@@ -291,8 +273,8 @@ namespace IceInternal
                 _retryIntervals[0] = 0;
             }
         }
-        
-        private Instance instance_;
+
+        private Instance _instance;
         private int[] _retryIntervals;
     }
 

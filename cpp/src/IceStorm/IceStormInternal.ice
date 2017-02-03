@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["cpp:header-ext:h"]]
+[["ice-prefix", "cpp:header-ext:h"]]
 
 #include <IceStorm/IceStorm.ice>
 #include <IceStorm/Election.ice>
@@ -37,6 +37,10 @@ module IceStorm
     Ice::ByteSeq data;
     /** The Ice::Current::Context data from the originating request. */
     Ice::Context context;
+};
+
+local exception SendQueueSizeMaxReached
+{
 };
 
 /** A sequence of EventData. */

@@ -14,17 +14,22 @@
 #include <Ice/EventHandlerF.h>
 #include <Ice/InstanceF.h>
 #include <Ice/ThreadPoolF.h>
-#include <Ice/BasicStream.h>
 #include <Ice/Network.h>
+#include <Ice/VirtualShared.h>
 
 namespace IceInternal
 {
 
-class ICE_API EventHandler : virtual public ::IceUtil::Shared
+class ICE_API EventHandler :
+#ifdef ICE_CPP11_MAPPING
+        public EnableSharedFromThis<EventHandler>
+#else
+        public virtual Ice::LocalObject
+#endif
 {
 public:
 
-#if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
     //
     // Called to start a new asynchronous read or write operation.
     //
@@ -53,19 +58,19 @@ public:
     virtual NativeInfoPtr getNativeInfo() = 0;
 
 protected:
-    
+
     EventHandler();
     virtual ~EventHandler();
 
-#if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
-    SocketOperation _ready;
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
     SocketOperation _pending;
     SocketOperation _started;
+    SocketOperation _completed;
     bool _finish;
 #else
     SocketOperation _disabled;
 #endif
-    bool _hasMoreData;
+    SocketOperation _ready;
     SocketOperation _registered;
 
     friend class ThreadPool;

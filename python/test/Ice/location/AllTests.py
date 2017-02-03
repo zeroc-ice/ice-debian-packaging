@@ -9,7 +9,7 @@
 
 import Ice, Test, sys
 
-class HelloI(Test.Hello):
+class HelloI(Test._HelloDisp):
     def sayHello(self, current=None):
         pass
 
@@ -22,8 +22,8 @@ def allTests(communicator, ref):
     locator = communicator.getDefaultLocator()
     test(manager)
 
-    registry = Test.TestLocatorRegistryPrx.checkedCast(locator.getRegistry());
-    test(registry);
+    registry = Test.TestLocatorRegistryPrx.checkedCast(locator.getRegistry())
+    test(registry)
 
     sys.stdout.write("testing stringToProxy... ")
     sys.stdout.flush()
@@ -36,34 +36,34 @@ def allTests(communicator, ref):
 
     sys.stdout.write("testing ice_locator and ice_getLocator...  ")
     sys.stdout.flush()
-    test(Ice.proxyIdentityEqual(base.ice_getLocator(), communicator.getDefaultLocator()));
-    anotherLocator = Ice.LocatorPrx.uncheckedCast(communicator.stringToProxy("anotherLocator"));
-    base = base.ice_locator(anotherLocator);
-    test(Ice.proxyIdentityEqual(base.ice_getLocator(), anotherLocator));
-    communicator.setDefaultLocator(None);
-    base = communicator.stringToProxy("test @ TestAdapter");
-    test(not base.ice_getLocator());
-    base = base.ice_locator(anotherLocator);
-    test(Ice.proxyIdentityEqual(base.ice_getLocator(), anotherLocator));
-    communicator.setDefaultLocator(locator);
-    base = communicator.stringToProxy("test @ TestAdapter");
-    test(Ice.proxyIdentityEqual(base.ice_getLocator(), communicator.getDefaultLocator())); 
-        
+    test(Ice.proxyIdentityEqual(base.ice_getLocator(), communicator.getDefaultLocator()))
+    anotherLocator = Ice.LocatorPrx.uncheckedCast(communicator.stringToProxy("anotherLocator"))
+    base = base.ice_locator(anotherLocator)
+    test(Ice.proxyIdentityEqual(base.ice_getLocator(), anotherLocator))
+    communicator.setDefaultLocator(None)
+    base = communicator.stringToProxy("test @ TestAdapter")
+    test(not base.ice_getLocator())
+    base = base.ice_locator(anotherLocator)
+    test(Ice.proxyIdentityEqual(base.ice_getLocator(), anotherLocator))
+    communicator.setDefaultLocator(locator)
+    base = communicator.stringToProxy("test @ TestAdapter")
+    test(Ice.proxyIdentityEqual(base.ice_getLocator(), communicator.getDefaultLocator()))
+
     #
     # We also test ice_router/ice_getRouter (perhaps we should add a
     # test/Ice/router test?)
     #
-    test(not base.ice_getRouter());
-    anotherRouter = Ice.RouterPrx.uncheckedCast(communicator.stringToProxy("anotherRouter"));
-    base = base.ice_router(anotherRouter);
-    test(Ice.proxyIdentityEqual(base.ice_getRouter(), anotherRouter));
-    router = Ice.RouterPrx.uncheckedCast(communicator.stringToProxy("dummyrouter"));
-    communicator.setDefaultRouter(router);
-    base = communicator.stringToProxy("test @ TestAdapter");
-    test(Ice.proxyIdentityEqual(base.ice_getRouter(), communicator.getDefaultRouter()));
-    communicator.setDefaultRouter(None);
-    base = communicator.stringToProxy("test @ TestAdapter");
-    test(not base.ice_getRouter());
+    test(not base.ice_getRouter())
+    anotherRouter = Ice.RouterPrx.uncheckedCast(communicator.stringToProxy("anotherRouter"))
+    base = base.ice_router(anotherRouter)
+    test(Ice.proxyIdentityEqual(base.ice_getRouter(), anotherRouter))
+    router = Ice.RouterPrx.uncheckedCast(communicator.stringToProxy("dummyrouter"))
+    communicator.setDefaultRouter(router)
+    base = communicator.stringToProxy("test @ TestAdapter")
+    test(Ice.proxyIdentityEqual(base.ice_getRouter(), communicator.getDefaultRouter()))
+    communicator.setDefaultRouter(None)
+    base = communicator.stringToProxy("test @ TestAdapter")
+    test(not base.ice_getRouter())
     print("ok")
 
     sys.stdout.write("starting server... ")
@@ -106,24 +106,28 @@ def allTests(communicator, ref):
     try:
         obj3 = Test.TestIntfPrx.checkedCast(base3)
         obj3.ice_ping()
-    except Ice.LocalException:
+    except Ice.LocalException as ex:
+        print(ex)
         test(False)
     try:
         obj2 = Test.TestIntfPrx.checkedCast(base2)
         obj2.ice_ping()
-    except Ice.LocalException:
+    except Ice.LocalException as ex:
+        print(ex)
         test(False)
     obj.shutdown()
     manager.startServer()
     try:
         obj2 = Test.TestIntfPrx.checkedCast(base2)
         obj2.ice_ping()
-    except Ice.LocalException:
+    except Ice.LocalException as ex:
+        print(ex)
         test(False)
     try:
         obj3 = Test.TestIntfPrx.checkedCast(base3)
         obj3.ice_ping()
-    except Ice.LocalException:
+    except Ice.LocalException as ex:
+        print(ex)
         test(False)
     obj.shutdown()
     manager.startServer()
@@ -196,7 +200,7 @@ def allTests(communicator, ref):
     sys.stdout.flush()
     hello = Test.HelloPrx.checkedCast(communicator.stringToProxy("hello"))
     obj.migrateHello()
-    hello.ice_getConnection().close(False);
+    hello.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
     hello.sayHello()
     obj.migrateHello()
     hello.sayHello()
@@ -233,21 +237,21 @@ def allTests(communicator, ref):
     #
     sys.stdout.write("testing indirect references to collocated objects... ")
     sys.stdout.flush()
-    properties = communicator.getProperties();
-    properties.setProperty("Ice.PrintAdapterReady", "0");
-    adapter = communicator.createObjectAdapterWithEndpoints("Hello", "default");
-    adapter.setLocator(locator);
+    properties = communicator.getProperties()
+    properties.setProperty("Ice.PrintAdapterReady", "0")
+    adapter = communicator.createObjectAdapterWithEndpoints("Hello", "default")
+    adapter.setLocator(locator)
     assert(adapter.getLocator() == locator)
 
-    id = Ice.Identity();
-    id.name = Ice.generateUUID();
-    registry.addObject(adapter.add(HelloI(), id));
-    adapter.activate();
-    
-    helloPrx = Test.HelloPrx.checkedCast(communicator.stringToProxy(communicator.identityToString(id)));
-    test(not helloPrx.ice_getConnection());
+    id = Ice.Identity()
+    id.name = Ice.generateUUID()
+    registry.addObject(adapter.add(HelloI(), id))
+    adapter.activate()
 
-    adapter.deactivate();
+    helloPrx = Test.HelloPrx.checkedCast(communicator.stringToProxy(Ice.identityToString(id)))
+    test(not helloPrx.ice_getConnection())
+
+    adapter.deactivate()
     print("ok")
 
     sys.stdout.write("shutdown server manager... ")

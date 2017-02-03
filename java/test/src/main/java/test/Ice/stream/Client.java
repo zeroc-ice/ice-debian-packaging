@@ -11,20 +11,21 @@ package test.Ice.stream;
 
 import java.io.PrintWriter;
 
-import Ice.BoolSeqHelper;
-import Ice.ByteSeqHelper;
-import Ice.DoubleSeqHelper;
-import Ice.FloatSeqHelper;
-import Ice.ShortSeqHelper;
-import Ice.IntSeqHelper;
-import Ice.LongSeqHelper;
-import Ice.StringSeqHelper;
+import com.zeroc.Ice.BoolSeqHelper;
+import com.zeroc.Ice.ByteSeqHelper;
+import com.zeroc.Ice.DoubleSeqHelper;
+import com.zeroc.Ice.FloatSeqHelper;
+import com.zeroc.Ice.ShortSeqHelper;
+import com.zeroc.Ice.IntSeqHelper;
+import com.zeroc.Ice.LongSeqHelper;
+import com.zeroc.Ice.StringSeqHelper;
+import com.zeroc.Ice.InputStream;
+import com.zeroc.Ice.OutputStream;
 import test.Ice.stream.Test.*;
 
 public class Client extends test.Util.Application
 {
-    private static void
-    test(boolean b)
+    private static void test(boolean b)
     {
         if(!b)
         {
@@ -32,7 +33,7 @@ public class Client extends test.Util.Application
         }
     }
 
-    private static class TestObjectWriter extends Ice.ObjectWriter
+    private static class TestObjectWriter extends com.zeroc.Ice.ValueWriter
     {
         TestObjectWriter(MyClass obj)
         {
@@ -40,10 +41,9 @@ public class Client extends test.Util.Application
         }
 
         @Override
-        public void
-        write(Ice.OutputStream out)
+        public void write(OutputStream out)
         {
-            obj.__write(out);
+            obj._iceWrite(out);
             called = true;
         }
 
@@ -51,14 +51,13 @@ public class Client extends test.Util.Application
         boolean called = false;
     }
 
-    private static class TestObjectReader extends Ice.ObjectReader
+    private static class TestObjectReader extends com.zeroc.Ice.ValueReader
     {
         @Override
-        public void
-        read(Ice.InputStream in)
+        public void read(InputStream in)
         {
             obj = new MyClass();
-            obj.__read(in);
+            obj._iceRead(in);
             called = true;
         }
 
@@ -66,82 +65,45 @@ public class Client extends test.Util.Application
         boolean called = false;
     }
 
-    private static class TestObjectFactory implements Ice.ObjectFactory
+    private static class TestValueFactory implements com.zeroc.Ice.ValueFactory
     {
         @Override
-        public Ice.Object
-        create(String type)
+        public com.zeroc.Ice.Value create(String type)
         {
             assert(type.equals(MyClass.ice_staticId()));
             return new TestObjectReader();
         }
-
-        @Override
-        public void
-        destroy()
-        {
-        }
     }
 
-    private static class MyInterfaceI extends _MyInterfaceDisp
-    {
-    };
-
-    private static class MyInterfaceFactory implements Ice.ObjectFactory
+    private static class TestReadValueCallback implements com.zeroc.Ice.ReadValueCallback
     {
         @Override
-        public Ice.Object
-        create(String type)
-        {
-            assert(type.equals(_MyInterfaceDisp.ice_staticId()));
-            return new MyInterfaceI();
-        }
-        
-        @Override
-        public void
-        destroy()
-        {
-        }
-    }
-
-    private static class TestReadObjectCallback implements Ice.ReadObjectCallback
-    {
-        @Override
-        public void
-        invoke(Ice.Object obj)
+        public void valueReady(com.zeroc.Ice.Value obj)
         {
             this.obj = obj;
         }
 
-        Ice.Object obj;
+        com.zeroc.Ice.Value obj;
     }
 
-    private static class MyClassFactoryWrapper implements Ice.ObjectFactory
+    private static class MyClassFactoryWrapper implements com.zeroc.Ice.ValueFactory
     {
         MyClassFactoryWrapper()
         {
-            _factory = MyClass.ice_factory();
+            setFactory(null);
         }
 
         @Override
-        public Ice.Object
-        create(String type)
+        public com.zeroc.Ice.Value create(String type)
         {
             return _factory.create(type);
         }
 
-        @Override
-        public void
-        destroy()
-        {
-        }
-
-        void
-        setFactory(Ice.ObjectFactory factory)
+        void setFactory(com.zeroc.Ice.ValueFactory factory)
         {
             if(factory == null)
             {
-                _factory = MyClass.ice_factory();
+                _factory = id -> { return new MyClass(); };
             }
             else
             {
@@ -149,20 +111,18 @@ public class Client extends test.Util.Application
             }
         }
 
-        private Ice.ObjectFactory _factory;
+        private com.zeroc.Ice.ValueFactory _factory;
     }
 
     @Override
-    public int
-    run(String[] args)
+    public int run(String[] args)
     {
-        Ice.Communicator comm = communicator();
+        com.zeroc.Ice.Communicator comm = communicator();
         MyClassFactoryWrapper factoryWrapper = new MyClassFactoryWrapper();
-        comm.addObjectFactory(factoryWrapper, MyClass.ice_staticId());
-        comm.addObjectFactory(new MyInterfaceFactory(), _MyInterfaceDisp.ice_staticId());
+        comm.getValueFactoryManager().add(factoryWrapper, MyClass.ice_staticId());
 
-        Ice.InputStream in;
-        Ice.OutputStream out;
+        InputStream in;
+        OutputStream out;
 
         PrintWriter printWriter = getWriter();
         printWriter.print("testing primitive types... ");
@@ -170,123 +130,97 @@ public class Client extends test.Util.Application
 
         {
             byte[] data = new byte[0];
-            in = Ice.Util.createInputStream(comm, data);
-            in.destroy();
+            in = new InputStream(comm, data);
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             out.startEncapsulation();
             out.writeBool(true);
             out.endEncapsulation();
             byte[] data = out.finished();
-            out.destroy();
 
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             in.startEncapsulation();
             test(in.readBool());
             in.endEncapsulation();
-            in.destroy();
-
-            in = Ice.Util.wrapInputStream(comm, data);
-            in.startEncapsulation();
-            test(in.readBool());
-            in.endEncapsulation();
-            in.destroy();
         }
 
         {
             byte[] data = new byte[0];
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             try
             {
                 in.readBool();
                 test(false);
             }
-            catch(Ice.UnmarshalOutOfBoundsException ex)
+            catch(com.zeroc.Ice.UnmarshalOutOfBoundsException ex)
             {
             }
-            in.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             out.writeBool(true);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             test(in.readBool());
-            out.destroy();
-            in.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             out.writeByte((byte)1);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             test(in.readByte() == (byte)1);
-            out.destroy();
-            in.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             out.writeShort((short)2);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             test(in.readShort() == (short)2);
-            out.destroy();
-            in.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             out.writeInt(3);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             test(in.readInt() == 3);
-            out.destroy();
-            in.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             out.writeLong(4);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             test(in.readLong() == 4);
-            out.destroy();
-            in.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             out.writeFloat((float)5.0);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             test(in.readFloat() == (float)5.0);
-            out.destroy();
-            in.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             out.writeDouble(6.0);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             test(in.readDouble() == 6.0);
-            out.destroy();
-            in.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             out.writeString("hello world");
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             test(in.readString().equals("hello world"));
-            out.destroy();
-            in.destroy();
         }
 
         printWriter.println("ok");
@@ -295,17 +229,15 @@ public class Client extends test.Util.Application
         printWriter.flush();
 
         {
-            out = Ice.Util.createOutputStream(comm);
-            MyEnum.enum3.ice_write(out);
+            out = new OutputStream(comm);
+            MyEnum.ice_write(out, MyEnum.enum3);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             test(MyEnum.ice_read(in) == MyEnum.enum3);
-            out.destroy();
-            in.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             SmallStruct s = new SmallStruct();
             s.bo = true;
             s.by = (byte)1;
@@ -316,31 +248,28 @@ public class Client extends test.Util.Application
             s.d = 6.0;
             s.str = "7";
             s.e = MyEnum.enum2;
-            s.p = MyClassPrxHelper.uncheckedCast(comm.stringToProxy("test:default"));
-            s.ice_write(out);
+            s.p = comm.stringToProxy("test:default");
+            SmallStruct.ice_write(out, s);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
-            SmallStruct s2 = new SmallStruct();
-            s2.ice_read(in);
+            in = new InputStream(comm, data);
+            SmallStruct s2 = SmallStruct.ice_read(in, null);
             test(s2.equals(s));
-            out.destroy();
-            in.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             OptionalClass o = new OptionalClass();
             o.bo = true;
             o.by = (byte)5;
             o.setSh((short)4);
             o.setI(3);
-            out.writeObject(o);
-            out.writePendingObjects();
+            out.writeValue(o);
+            out.writePendingValues();
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
-            TestReadObjectCallback cb = new TestReadObjectCallback();
-            in.readObject(cb);
-            in.readPendingObjects();
+            in = new InputStream(comm, data);
+            TestReadValueCallback cb = new TestReadValueCallback();
+            in.readValue(cb);
+            in.readPendingValues();
             OptionalClass o2 = (OptionalClass)cb.obj;
             test(o2.bo == o.bo);
             test(o2.by == o.by);
@@ -354,31 +283,27 @@ public class Client extends test.Util.Application
                 test(o2.getSh() == o.getSh());
                 test(o2.getI() == o.getI());
             }
-            out.destroy();
-            in.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm, Ice.Util.Encoding_1_0);
+            out = new OutputStream(comm, com.zeroc.Ice.Util.Encoding_1_0);
             OptionalClass o = new OptionalClass();
             o.bo = true;
             o.by = (byte)5;
             o.setSh((short)4);
             o.setI(3);
-            out.writeObject(o);
-            out.writePendingObjects();
+            out.writeValue(o);
+            out.writePendingValues();
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data, Ice.Util.Encoding_1_0);
-            TestReadObjectCallback cb = new TestReadObjectCallback();
-            in.readObject(cb);
-            in.readPendingObjects();
+            in = new InputStream(comm, com.zeroc.Ice.Util.Encoding_1_0, data);
+            TestReadValueCallback cb = new TestReadValueCallback();
+            in.readValue(cb);
+            in.readPendingValues();
             OptionalClass o2 = (OptionalClass)cb.obj;
             test(o2.bo == o.bo);
             test(o2.by == o.by);
             test(!o2.hasSh());
             test(!o2.hasI());
-            out.destroy();
-            in.destroy();
         }
 
         {
@@ -389,14 +314,12 @@ public class Client extends test.Util.Application
                 true,
                 false
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             BoolSeqHelper.write(out, arr);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             boolean[] arr2 = BoolSeqHelper.read(in);
             test(java.util.Arrays.equals(arr2, arr));
-            out.destroy();
-            in.destroy();
 
             final boolean[][] arrS =
             {
@@ -404,14 +327,12 @@ public class Client extends test.Util.Application
                 new boolean[0],
                 arr
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             BoolSSHelper.write(out, arrS);
             data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             boolean[][] arr2S = BoolSSHelper.read(in);
             test(java.util.Arrays.deepEquals(arr2S, arrS));
-            out.destroy();
-            in.destroy();
         }
 
         {
@@ -422,14 +343,12 @@ public class Client extends test.Util.Application
                 (byte)0x12,
                 (byte)0x22
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             ByteSeqHelper.write(out, arr);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             byte[] arr2 = ByteSeqHelper.read(in);
             test(java.util.Arrays.equals(arr2, arr));
-            out.destroy();
-            in.destroy();
 
             final byte[][] arrS =
             {
@@ -437,27 +356,23 @@ public class Client extends test.Util.Application
                 new byte[0],
                 arr
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             ByteSSHelper.write(out, arrS);
             data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             byte[][] arr2S = ByteSSHelper.read(in);
             test(java.util.Arrays.deepEquals(arr2S, arrS));
-            out.destroy();
-            in.destroy();
         }
 
         {
             test.Ice.stream.Serialize.Small small = new test.Ice.stream.Serialize.Small();
             small.i = 99;
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             out.writeSerializable(small);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             test.Ice.stream.Serialize.Small small2 = (test.Ice.stream.Serialize.Small)in.readSerializable();
             test(small2.i == 99);
-            out.destroy();
-            in.destroy();
         }
 
         {
@@ -468,14 +383,12 @@ public class Client extends test.Util.Application
                 (short)0x12,
                 (short)0x22
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             ShortSeqHelper.write(out, arr);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             short[] arr2 = ShortSeqHelper.read(in);
             test(java.util.Arrays.equals(arr2, arr));
-            out.destroy();
-            in.destroy();
 
             final short[][] arrS =
             {
@@ -483,14 +396,12 @@ public class Client extends test.Util.Application
                 new short[0],
                 arr
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             ShortSSHelper.write(out, arrS);
             data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             short[][] arr2S = ShortSSHelper.read(in);
             test(java.util.Arrays.deepEquals(arr2S, arrS));
-            out.destroy();
-            in.destroy();
         }
 
         {
@@ -501,14 +412,12 @@ public class Client extends test.Util.Application
                 0x12,
                 0x22
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             IntSeqHelper.write(out, arr);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             int[] arr2 = IntSeqHelper.read(in);
             test(java.util.Arrays.equals(arr2, arr));
-            out.destroy();
-            in.destroy();
 
             final int[][] arrS =
             {
@@ -516,14 +425,12 @@ public class Client extends test.Util.Application
                 new int[0],
                 arr
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             IntSSHelper.write(out, arrS);
             data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             int[][] arr2S = IntSSHelper.read(in);
             test(java.util.Arrays.deepEquals(arr2S, arrS));
-            out.destroy();
-            in.destroy();
         }
 
         {
@@ -534,14 +441,12 @@ public class Client extends test.Util.Application
                 0x12,
                 0x22
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             LongSeqHelper.write(out, arr);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             long[] arr2 = LongSeqHelper.read(in);
             test(java.util.Arrays.equals(arr2, arr));
-            out.destroy();
-            in.destroy();
 
             final long[][] arrS =
             {
@@ -549,14 +454,12 @@ public class Client extends test.Util.Application
                 new long[0],
                 arr
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             LongSSHelper.write(out, arrS);
             data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             long[][] arr2S = LongSSHelper.read(in);
             test(java.util.Arrays.deepEquals(arr2S, arrS));
-            out.destroy();
-            in.destroy();
         }
 
         {
@@ -567,14 +470,12 @@ public class Client extends test.Util.Application
                 3,
                 4
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             FloatSeqHelper.write(out, arr);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             float[] arr2 = FloatSeqHelper.read(in);
             test(java.util.Arrays.equals(arr2, arr));
-            out.destroy();
-            in.destroy();
 
             final float[][] arrS =
             {
@@ -582,14 +483,12 @@ public class Client extends test.Util.Application
                 new float[0],
                 arr
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             FloatSSHelper.write(out, arrS);
             data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             float[][] arr2S = FloatSSHelper.read(in);
             test(java.util.Arrays.deepEquals(arr2S, arrS));
-            out.destroy();
-            in.destroy();
         }
 
         {
@@ -600,14 +499,12 @@ public class Client extends test.Util.Application
                 3,
                 4
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             DoubleSeqHelper.write(out, arr);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             double[] arr2 = DoubleSeqHelper.read(in);
             test(java.util.Arrays.equals(arr2, arr));
-            out.destroy();
-            in.destroy();
 
             final double[][] arrS =
             {
@@ -615,14 +512,12 @@ public class Client extends test.Util.Application
                 new double[0],
                 arr
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             DoubleSSHelper.write(out, arrS);
             data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             double[][] arr2S = DoubleSSHelper.read(in);
             test(java.util.Arrays.deepEquals(arr2S, arrS));
-            out.destroy();
-            in.destroy();
         }
 
         {
@@ -633,14 +528,12 @@ public class Client extends test.Util.Application
                 "string3",
                 "string4"
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             StringSeqHelper.write(out, arr);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             String[] arr2 = StringSeqHelper.read(in);
             test(java.util.Arrays.equals(arr2, arr));
-            out.destroy();
-            in.destroy();
 
             final String[][] arrS =
             {
@@ -648,14 +541,12 @@ public class Client extends test.Util.Application
                 new String[0],
                 arr
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             StringSSHelper.write(out, arrS);
             data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             String[][] arr2S = StringSSHelper.read(in);
             test(java.util.Arrays.deepEquals(arr2S, arrS));
-            out.destroy();
-            in.destroy();
         }
 
         {
@@ -666,14 +557,12 @@ public class Client extends test.Util.Application
                 MyEnum.enum1,
                 MyEnum.enum2
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             MyEnumSHelper.write(out, arr);
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             MyEnum[] arr2 = MyEnumSHelper.read(in);
             test(java.util.Arrays.equals(arr2, arr));
-            out.destroy();
-            in.destroy();
 
             final MyEnum[][] arrS =
             {
@@ -681,14 +570,12 @@ public class Client extends test.Util.Application
                 new MyEnum[0],
                 arr
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             MyEnumSSHelper.write(out, arrS);
             data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             MyEnum[][] arr2S = MyEnumSSHelper.read(in);
             test(java.util.Arrays.deepEquals(arr2S, arrS));
-            out.destroy();
-            in.destroy();
         }
 
         {
@@ -710,16 +597,16 @@ public class Client extends test.Util.Application
                 arr[i].seq8 = new String[] { "string1", "string2", "string3", "string4" };
                 arr[i].seq9 = new MyEnum[] { MyEnum.enum3, MyEnum.enum2, MyEnum.enum1 };
                 arr[i].seq10 = new MyClass[4]; // null elements.
-                arr[i].d = new java.util.HashMap<String, MyClass>();
+                arr[i].d = new java.util.HashMap<>();
                 arr[i].d.put("hi", arr[i]);
             }
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             MyClassSHelper.write(out, arr);
-            out.writePendingObjects();
+            out.writePendingValues();
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             MyClass[] arr2 = MyClassSHelper.read(in);
-            in.readPendingObjects();
+            in.readPendingValues();
             test(arr2.length == arr.length);
             for(int i = 0; i < arr2.length; ++i)
             {
@@ -738,8 +625,6 @@ public class Client extends test.Util.Application
                 test(java.util.Arrays.equals(arr2[i].seq9, arr[i].seq9));
                 test(arr2[i].d.get("hi") == arr2[i]);
             }
-            out.destroy();
-            in.destroy();
 
             final MyClass[][] arrS =
             {
@@ -747,73 +632,55 @@ public class Client extends test.Util.Application
                 new MyClass[0],
                 arr
             };
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             MyClassSSHelper.write(out, arrS);
             data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             MyClass[][] arr2S = MyClassSSHelper.read(in);
             test(arr2S.length == arrS.length);
             test(arr2S[0].length == arrS[0].length);
             test(arr2S[1].length == arrS[1].length);
             test(arr2S[2].length == arrS[2].length);
-            out.destroy();
-            in.destroy();
-        }
-        
-        {
-            MyInterface i = new MyInterfaceI();
-            out = Ice.Util.createOutputStream(comm);
-            MyInterfaceHelper.write(out, i);
-            out.writePendingObjects();
-            byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
-            MyInterfaceHolder j = new MyInterfaceHolder();
-            MyInterfaceHelper.read(in, j);
-            in.readPendingObjects();
-            test(j.value != null);
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             MyClass obj = new MyClass();
             obj.s = new SmallStruct();
             obj.s.e = MyEnum.enum2;
             TestObjectWriter writer = new TestObjectWriter(obj);
-            out.writeObject(writer);
-            out.writePendingObjects();
+            out.writeValue(writer);
+            out.writePendingValues();
             out.finished();
             test(writer.called);
-            out.destroy();
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             MyClass obj = new MyClass();
             obj.s = new SmallStruct();
             obj.s.e = MyEnum.enum2;
             TestObjectWriter writer = new TestObjectWriter(obj);
-            out.writeObject(writer);
-            out.writePendingObjects();
+            out.writeValue(writer);
+            out.writePendingValues();
             byte[] data = out.finished();
             test(writer.called);
-            factoryWrapper.setFactory(new TestObjectFactory());
-            in = Ice.Util.createInputStream(comm, data);
-            TestReadObjectCallback cb = new TestReadObjectCallback();
-            in.readObject(cb);
-            in.readPendingObjects();
+            factoryWrapper.setFactory(new TestValueFactory());
+            in = new InputStream(comm, data);
+            TestReadValueCallback cb = new TestReadValueCallback();
+            in.readValue(cb);
+            in.readPendingValues();
             test(cb.obj != null);
             test(cb.obj instanceof TestObjectReader);
             TestObjectReader reader = (TestObjectReader)cb.obj;
             test(reader.called);
             test(reader.obj != null);
             test(reader.obj.s.e == MyEnum.enum2);
-            out.destroy();
-            in.destroy();
             factoryWrapper.setFactory(null);
         }
 
         {
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             MyException ex = new MyException();
 
             MyClass c = new MyClass();
@@ -831,15 +698,15 @@ public class Client extends test.Util.Application
             c.seq8 = new String[] { "string1", "string2", "string3", "string4" };
             c.seq9 = new MyEnum[] { MyEnum.enum3, MyEnum.enum2, MyEnum.enum1 };
             c.seq10 = new MyClass[4]; // null elements.
-            c.d = new java.util.HashMap<String, MyClass>();
+            c.d = new java.util.HashMap<>();
             c.d.put("hi", c);
 
             ex.c = c;
-        
+
             out.writeException(ex);
             byte[] data = out.finished();
- 
-            in = Ice.Util.createInputStream(comm, data);
+
+            in = new InputStream(comm, data);
             try
             {
                 in.throwException();
@@ -858,63 +725,63 @@ public class Client extends test.Util.Application
                 test(java.util.Arrays.equals(ex1.c.seq8, c.seq8));
                 test(java.util.Arrays.equals(ex1.c.seq9, c.seq9));
             }
-            catch(Ice.UserException ex1)
+            catch(com.zeroc.Ice.UserException ex1)
             {
                 test(false);
             }
         }
 
         {
-            java.util.Map<Byte, Boolean> dict = new java.util.HashMap<Byte, Boolean>();
+            java.util.Map<Byte, Boolean> dict = new java.util.HashMap<>();
             dict.put((byte)4, true);
             dict.put((byte)1, false);
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             ByteBoolDHelper.write(out, dict);
             byte data[] = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             java.util.Map<Byte, Boolean> dict2 = ByteBoolDHelper.read(in);
             test(dict2.equals(dict));
         }
 
         {
-            java.util.Map<Short, Integer> dict = new java.util.HashMap<Short, Integer>();
+            java.util.Map<Short, Integer> dict = new java.util.HashMap<>();
             dict.put((short)1, 9);
             dict.put((short)4, 8);
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             ShortIntDHelper.write(out, dict);
             byte data[] = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             java.util.Map<Short, Integer> dict2 = ShortIntDHelper.read(in);
             test(dict2.equals(dict));
         }
 
 
         {
-            java.util.Map<Long, Float> dict = new java.util.HashMap<Long, Float>();
+            java.util.Map<Long, Float> dict = new java.util.HashMap<>();
             dict.put((long)123809828, 0.51f);
             dict.put((long)123809829, 0.56f);
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             LongFloatDHelper.write(out, dict);
             byte data[] = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             java.util.Map<Long, Float> dict2 = LongFloatDHelper.read(in);
             test(dict2.equals(dict));
         }
 
         {
-            java.util.Map<String, String> dict = new java.util.HashMap<String, String>();
+            java.util.Map<String, String> dict = new java.util.HashMap<>();
             dict.put("key1", "value1");
             dict.put("key2", "value2");
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             StringStringDHelper.write(out, dict);
             byte data[] = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             java.util.Map<String, String> dict2 = StringStringDHelper.read(in);
             test(dict2.equals(dict));
         }
 
         {
-            java.util.Map<String, MyClass> dict = new java.util.HashMap<String, MyClass>();
+            java.util.Map<String, MyClass> dict = new java.util.HashMap<>();
             MyClass c;
             c = new MyClass();
             c.s = new SmallStruct();
@@ -924,13 +791,13 @@ public class Client extends test.Util.Application
             c.s = new SmallStruct();
             c.s.e = MyEnum.enum3;
             dict.put("key2", c);
-            out = Ice.Util.createOutputStream(comm);
+            out = new OutputStream(comm);
             StringMyClassDHelper.write(out, dict);
-            out.writePendingObjects();
+            out.writePendingValues();
             byte[] data = out.finished();
-            in = Ice.Util.createInputStream(comm, data);
+            in = new InputStream(comm, data);
             java.util.Map<String, MyClass> dict2 = StringMyClassDHelper.read(in);
-            in.readPendingObjects();
+            in.readPendingValues();
             test(dict2.size() == dict.size());
             test(dict2.get("key1").s.e == MyEnum.enum2);
             test(dict2.get("key2").s.e == MyEnum.enum3);
@@ -942,10 +809,9 @@ public class Client extends test.Util.Application
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.stream");
         return initData;
     }

@@ -34,7 +34,7 @@ stringToSeq(const string& str, vector<string>& seq)
 }
 
 static void
-stringToSeq(const CommunicatorPtr& comm, const string& str, vector<Identity>& seq)
+stringToSeq(const string& str, vector<Identity>& seq)
 {
     string const ws = " \t";
 
@@ -61,7 +61,7 @@ stringToSeq(const CommunicatorPtr& comm, const string& str, vector<Identity>& se
                     //
                     // TODO: should this be an unmatched quote error?
                     //
-                    seq.push_back(comm->stringToIdentity(str.substr(current)));
+                    seq.push_back(stringToIdentity(str.substr(current)));
                     break;
                 }
 
@@ -76,7 +76,7 @@ stringToSeq(const CommunicatorPtr& comm, const string& str, vector<Identity>& se
                 if(markString)
                 {
                     ++current;
-                    seq.push_back(comm->stringToIdentity(str.substr(current, end-current)));
+                    seq.push_back(stringToIdentity(str.substr(current, end-current)));
                     break;
                 }
                 else
@@ -95,7 +95,7 @@ stringToSeq(const CommunicatorPtr& comm, const string& str, vector<Identity>& se
         {
             end = str.find_first_of(ws, current);
             string::size_type len = (end == string::npos) ? string::npos : end - current;
-            seq.push_back(comm->stringToIdentity(str.substr(current, len)));
+            seq.push_back(stringToIdentity(str.substr(current, len)));
             break;
         }
         }
@@ -214,7 +214,7 @@ Glacier2::FilterManager::create(const InstancePtr& instance, const string& userI
     // 
     IdentitySeq allowIdSeq;
     allow = props->getProperty("Glacier2.Filter.Identity.Accept");
-    stringToSeq(instance->communicator(), allow, allowIdSeq);
+    stringToSeq(allow, allowIdSeq);
     Glacier2::IdentitySetIPtr identityFilter = new Glacier2::IdentitySetI(allowIdSeq);
 
     return new Glacier2::FilterManager(instance, categoryFilter, adapterIdFilter, identityFilter);

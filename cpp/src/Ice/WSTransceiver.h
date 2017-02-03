@@ -24,38 +24,25 @@ namespace IceInternal
 class ConnectorI;
 class AcceptorI;
 
-//
-// Delegate interface implemented by TcpTransceiver or IceSSL::Transceiver or any transport that WS can
-// delegate to.
-//
-class ICE_API WSTransceiverDelegate : virtual public IceUtil::Shared
-{
-public:
-
-    virtual Ice::ConnectionInfoPtr getWSInfo(const Ice::HeaderDict&) const = 0;
-};
-
 class WSTransceiver : public Transceiver
 {
 public:
 
     virtual NativeInfoPtr getNativeInfo();
-#if defined(ICE_USE_IOCP)
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
     virtual AsyncInfo* getAsyncInfo(SocketOperation);
-#elif defined(ICE_OS_WINRT)
-    virtual void setCompletedHandler(SocketOperationCompletedHandler^);
 #endif
 
-    virtual SocketOperation initialize(Buffer&, Buffer&, bool&);
+    virtual SocketOperation initialize(Buffer&, Buffer&);
     virtual SocketOperation closing(bool, const Ice::LocalException&);
     virtual void close();
     virtual SocketOperation write(Buffer&);
-    virtual SocketOperation read(Buffer&, bool&);
-#if defined(ICE_USE_IOCP) || defined(ICE_OS_WINRT)
+    virtual SocketOperation read(Buffer&);
+#if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
     virtual bool startWrite(Buffer&);
     virtual void finishWrite(Buffer&);
     virtual void startRead(Buffer&);
-    virtual void finishRead(Buffer&, bool&);
+    virtual void finishRead(Buffer&);
 #endif
     virtual std::string protocol() const;
     virtual std::string toString() const;
@@ -66,7 +53,7 @@ public:
 
 private:
 
-    WSTransceiver(const ProtocolInstancePtr&, const TransceiverPtr&, const std::string&, int, const std::string&);
+    WSTransceiver(const ProtocolInstancePtr&, const TransceiverPtr&, const std::string&, const std::string&);
     WSTransceiver(const ProtocolInstancePtr&, const TransceiverPtr&);
     virtual ~WSTransceiver();
 
@@ -88,7 +75,6 @@ private:
     const ProtocolInstancePtr _instance;
     const TransceiverPtr _delegate;
     const std::string _host;
-    const int _port;
     const std::string _resource;
     const bool _incoming;
 

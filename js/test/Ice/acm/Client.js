@@ -21,44 +21,49 @@
         }
     };
 
-    var LoggerI = Ice.Class({
-        __init__: function(out)
+    class LoggerI
+    {
+        constructor(out)
         {
             this._messages = [];
             this._out = out;
-        },
-        print: function(msg)
+        }
+
+        print(msg)
         {
             this._messages.push(msg);
-        },
-        trace: function(category, message)
+        }
+
+        trace(category, message)
         {
             this._messages.push("[" + category + "] " + message);
-        },
-        warning: function(message)
+        }
+
+        warning(message)
         {
             this._messages.push("warning: " + message);
-        },
-        error: function(message)
+        }
+
+        error(message)
         {
             this._messages.push("error: " + message);
-        },
-        cloneWithPrefix: function(prefix)
+        }
+
+        cloneWithPrefix(prefix)
         {
             return this;
-        },
-        dump: function()
+        }
+
+        dump()
         {
-            for(var i = 0; i < this._messages.length; ++i)
-            {
-                this._out.writeLine(this._messages[i]);
-            }
+            this._messages.forEach(message => this._out.writeLine(message));
             this._messages = [];
         }
-    });
+    }
 
-    var TestCase = Ice.Class({
-        __init__: function(name, com, out)
+    class TestCase
+    {
+        constructor(name, com, out)
         {
             this._name = name;
             this._com = com;
@@ -75,8 +80,9 @@
 
             this._heartbeat = 0;
             this._closed = false;
-        },
-        init: function()
+        }
+
+        init()
         {
             var initData = new Ice.InitializationData();
             initData.properties = this._com.ice_getCommunicator().getProperties().clone();
@@ -98,23 +104,20 @@
             //initData.properties.setProperty("Ice.Trace.Network", "2");
             this._communicator = Ice.initialize(initData);
 
-            var self = this;
             return this._com.createObjectAdapter(this._serverACMTimeout,
                                                  this._serverACMClose,
-                                                 this._serverACMHeartbeat).then(function(adapter)
+                                                 this._serverACMHeartbeat).then(adapter =>
                                                                                 {
-                                                                                    self._adapter = adapter;
+                                                                                    this._adapter = adapter;
                                                                                 });
-        },
-        destroy: function()
+        }
+
+        destroy()
         {
-            var self = this;
-            return this._adapter.deactivate().then(function()
-                                                   {
-                                                       return self._communicator.destroy();
-                                                   });
-        },
-        join: function(out)
+            return this._adapter.deactivate().then(() => this._communicator.destroy());
+        }
+
+        join(out)
         {
             this._logger.dump();
             out.write("testing " + this._name + "... ");
@@ -127,258 +130,251 @@
                 out.writeLine("failed! " + this._msg);
                 test(false);
             }
-        },
-        start: function()
+        }
+
+        start()
         {
-            var proxy = null;
-            var self = this;
-            return this._adapter.getTestIntf().then(
-                function(prx)
+            return this._adapter.getTestIntf().then(prx =>
                 {
-                    proxy = Test.TestIntfPrx.uncheckedCast(self._communicator.stringToProxy(prx.toString()));
-                    return proxy.ice_getConnection();
-                }
-            ).then(
-                function(con)
-                {
-                    con.setCallback(self);
-                    return self.runTestCase(self._adapter, proxy);
-                }
-            ).exception(
-                function(ex)
-                {
-                    self._msg = "unexpected exception:\n" + ex.toString() + "\n" + ex.stack;
-                }
-            );
-        },
-        heartbeat: function(con)
+                    prx = Test.TestIntfPrx.uncheckedCast(this._communicator.stringToProxy(prx.toString()));
+                    return prx.ice_getConnection().then(con =>
+                        {
+                            con.setCloseCallback(connection => this._closed = true);
+
+                            con.setHeartbeatCallback(connection => ++this._heartbeat);
+
+                            return this.runTestCase(this._adapter, prx);
+                        }).catch(ex =>
+                            {
+                                this._msg = "unexpected exception:\n" + ex.toString() + "\n" + ex.stack;
+                            });
+                });
+        }
+
+        waitForClosed()
         {
-            ++this._heartbeat;
-        },
-        closed: function(con)
-        {
-            this._closed = true;
-        },
-        runTestCase: function(adapter, proxy)
+            if(!this._closed)
+            {
+                var now = Date.now();
+                return Ice.Promise.delay(1000).then(() => {
+                    if(Date.now() - now > 1000)
+                    {
+                        test(false);
+                    }
+                    return Promise.resolve();
+                })
+            }
+            return Promise.resolve();
+        }
+
+        runTestCase(adapter, proxy)
         {
             test(false); // Abstract
-        },
-        setClientACM: function(timeout, close, heartbeat)
+        }
+
+        setClientACM(timeout, close, heartbeat)
         {
             this._clientACMTimeout = timeout;
             this._clientACMClose = close;
             this._clientACMHeartbeat = heartbeat;
-        },
-        setServerACM: function(timeout, close, heartbeat)
+        }
+
+        setServerACM(timeout, close, heartbeat)
         {
             this._serverACMTimeout = timeout;
             this._serverACMClose = close;
             this._serverACMHeartbeat = heartbeat;
         }
-    });
+    }
 
-    var InvocationHeartbeatTest = Ice.Class(TestCase, {
-        __init__: function(com, out)
+    class InvocationHeartbeatTest extends TestCase
+    {
+        constructor(com, out)
         {
-            TestCase.call(this, "invocation heartbeat", com, out);
-        },
-        runTestCase: function(adapter, proxy)
-        {
-            var self = this;
-            return proxy.sleep(2).then(
-                function()
-                {
-                    test(self._heartbeat >= 2);
-                }
-            );
+            super("invocation heartbeat", com, out);
         }
-    });
 
-    var InvocationHeartbeatOnHoldTest = Ice.Class(TestCase, {
-        __init__: function(com, out)
+        runTestCase(adapter, proxy)
         {
-            TestCase.call(this, "invocation with heartbeat on hold", com, out);
+            return proxy.sleep(2).then(() =>
+                {
+                    test(this._heartbeat >= 2);
+                });
+        }
+    }
+
+    class InvocationHeartbeatOnHoldTest extends TestCase
+    {
+        constructor(com, out)
+        {
+            super("invocation with heartbeat on hold", com, out);
             // Use default ACM configuration.
-        },
-        runTestCase: function(adapter, proxy)
+        }
+
+        runTestCase(adapter, proxy)
         {
             // When the OA is put on hold, connections shouldn't
             // send heartbeats, the invocation should therefore
             // fail.
-            var self = this;
             return proxy.sleepAndHold(10).then(
-                function()
-                {
-                    test(false);
-                },
-                function(ex)
-                {
-                    test(self._closed);
-                    return adapter.activate().then(function()
-                                                   {
-                                                       return proxy.interruptSleep();
-                                                   });
-                }
-            );
+                () => test(false),
+                ex => adapter.activate())
+                    .then(() => proxy.interruptSleep())
+                    .then(() => this.waitForClosed());
         }
-    });
+    }
 
-    var InvocationNoHeartbeatTest = Ice.Class(TestCase, {
-        __init__: function(com, out)
+    class InvocationNoHeartbeatTest extends TestCase
+    {
+        constructor(com, out)
         {
-            TestCase.call(this, "invocation with no heartbeat", com, out);
+            super("invocation with no heartbeat", com, out);
             this.setServerACM(1, 2, 0); // Disable heartbeat on invocations
-        },
-        runTestCase: function(adapter, proxy)
+        }
+
+        runTestCase(adapter, proxy)
         {
             // Heartbeats are disabled on the server, the
             // invocation should fail since heartbeats are
             // expected.
-            var self = this;
             return proxy.sleep(10).then(
-                function()
+                () => test(false),
+                ex =>
                 {
-                    test(false);
-                },
-                function(ex)
-                {
-                    test(self._heartbeat === 0);
-                    test(self._closed);
                     return proxy.interruptSleep();
-                }
-            );
+                }).then(() => this.waitForClosed())
+            .then(() => {
+                test(this._heartbeat === 0);
+            });
         }
-    });
+    }
 
-    var InvocationHeartbeatCloseOnIdleTest = Ice.Class(TestCase, {
-        __init__: function(com, out)
+    class InvocationHeartbeatCloseOnIdleTest extends TestCase
+    {
+        constructor(com, out)
         {
-            TestCase.call(this, "invocation with no heartbeat and close on idle", com, out);
+            super("invocation with no heartbeat and close on idle", com, out);
             this.setClientACM(1, 1, 0); // Only close on idle.
             this.setServerACM(1, 2, 0); // Disable heartbeat on invocations
-        },
-        runTestCase: function(adapter, proxy)
+        }
+
+        runTestCase(adapter, proxy)
         {
             // No close on invocation, the call should succeed this
             // time.
-            var self = this;
-            return proxy.sleep(2).then(function()
+            return proxy.sleep(2).then(() =>
                                        {
-                                           test(self._heartbeat === 0);
-                                           test(!self._closed);
+                                           test(this._heartbeat === 0);
+                                           test(!this._closed);
                                        });
         }
-    });
+    }
 
-    var CloseOnIdleTest = Ice.Class(TestCase, {
-        __init__: function(com, out)
+    class CloseOnIdleTest extends TestCase
+    {
+        constructor(com, out)
         {
-            TestCase.call(this, "close on idle", com, out);
+            super("close on idle", com, out);
             this.setClientACM(1, 1, 0); // Only close on idle
-        },
-        runTestCase: function(adapter, proxy)
+        }
+
+        runTestCase(adapter, proxy)
         {
-            var self = this;
-            return Ice.Promise.delay(1500).then(function()
+            return Ice.Promise.delay(2000).then(() => this.waitForClosed()).then(() =>
                                                 {
-                                                    test(self._heartbeat === 0);
-                                                    test(self._closed);
+                                                    test(this._heartbeat === 0);
+                                                    test(this._closed);
                                                 });
         }
-    });
+    }
 
-    var CloseOnInvocationTest = Ice.Class(TestCase, {
-        __init__: function(com, out)
+    class CloseOnInvocationTest extends TestCase
+    {
+        constructor(com, out)
         {
-            TestCase.call(this, "close on invocation", com, out);
+            super("close on invocation", com, out);
             this.setClientACM(1, 2, 0); // Only close on invocation
-        },
-        runTestCase: function(adapter, proxy)
+        }
+
+        runTestCase(adapter, proxy)
         {
-            var self = this;
-            return Ice.Promise.delay(1500).then(function()
+            return Ice.Promise.delay(1500).then(() =>
                                                 {
-                                                    test(self._heartbeat === 0);
-                                                    test(!self._closed);
+                                                    test(this._heartbeat === 0);
+                                                    test(!this._closed);
                                                 });
         }
-    });
+    }
 
-    var CloseOnIdleAndInvocationTest = Ice.Class(TestCase, {
-        __init__: function(com, out)
+    class CloseOnIdleAndInvocationTest extends TestCase
+    {
+        constructor(com, out)
         {
-            TestCase.call(this, "close on idle and invocation", com, out);
+            super("close on idle and invocation", com, out);
             this.setClientACM(1, 3, 0); // Only close on idle and invocation
-        },
-        runTestCase: function(adapter, proxy)
+        }
+
+        runTestCase(adapter, proxy)
         {
             //
             // Put the adapter on hold. The server will not respond to
             // the graceful close. This allows to test whether or not
             // the close is graceful or forceful.
             //
-            var self = this;
             return adapter.hold().delay(1500).then(
-                function()
+                () =>
                 {
-                    test(self._heartbeat === 0);
-                    test(!self._closed); // Not closed yet because of graceful close.
+                    test(this._heartbeat === 0);
+                    test(!this._closed); // Not closed yet because of graceful close.
                     return adapter.activate();
-                }
-            ).delay(500).then(
-                function()
-                {
-                    test(self._closed); // Connection should be closed this time.
-                }
-            );
+                }).delay(500).then(() => this.waitForClosed()); // Connection should be closed this time.
         }
-    });
+    }
 
-    var ForcefullCloseOnIdleAndInvocationTest = Ice.Class(TestCase, {
-        __init__: function(com, out)
+    class ForcefullCloseOnIdleAndInvocationTest extends TestCase
+    {
+        constructor(com, out)
         {
-            TestCase.call(this, "forcefull close on idle and invocation", com, out);
+            super("forcefull close on idle and invocation", com, out);
             this.setClientACM(1, 4, 0); // Only close on idle and invocation
-        },
-        runTestCase: function(adapter, proxy)
+        }
+
+        runTestCase(adapter, proxy)
         {
-            var self = this;
-            return adapter.hold().delay(1500).then(
-                function()
+            return adapter.hold().delay(1500).then(() => this.waitForClosed()).then(
+                () =>
                 {
-                    test(self._heartbeat === 0);
-                    test(self._closed); // Connection closed forcefully by ACM
+                    test(this._heartbeat === 0);
+                    test(this._closed); // Connection closed forcefully by ACM
                 });
         }
-    });
+    }
 
-    var HeartbeatOnIdleTest = Ice.Class(TestCase, {
-        __init__: function(com, out)
+    class HeartbeatOnIdleTest extends TestCase
+    {
+        constructor(com, out)
         {
-            TestCase.call(this, "heartbeat on idle", com, out);
+            super("heartbeat on idle", com, out);
             this.setServerACM(1, -1, 2); // Enable server heartbeats.
-        },
-        runTestCase: function(adapter, proxy)
-        {
-            var self = this;
-            return Ice.Promise.delay(2000).then(
-                function()
-                {
-                    test(self._heartbeat >= 3);
-                });
         }
-    });
 
-    var HeartbeatAlwaysTest = Ice.Class(TestCase, {
-        __init__: function(com, out)
+        runTestCase(adapter, proxy)
         {
-            TestCase.call(this, "heartbeat always", com, out);
+            return Ice.Promise.delay(2000).then(() => test(this._heartbeat >= 3));
+        }
+    }
+
+    class HeartbeatAlwaysTest extends TestCase
+    {
+        constructor(com, out)
+        {
+            super("heartbeat always", com, out);
             this.setServerACM(1, -1, 3); // Enable server heartbeats.
-        },
-        runTestCase: function(adapter, proxy)
+        }
+
+        runTestCase(adapter, proxy)
         {
-            var self = this;
-            var p = new Ice.Promise().succeed();
+            var p = Promise.resolve();
 
             // Use this function so we don't have a function defined
             // inside of a loop
@@ -391,20 +387,50 @@
             {
                 p = p.then(icePing(proxy)).delay(200);
             }
-            return p.then(function()
-                          {
-                              test(self._heartbeat >= 3);
-                          });
+            return p.then(() => test(this._heartbeat >= 3));
         }
-    });
+    }
 
-    var SetACMTest = Ice.Class(TestCase, {
-        __init__: function(com, out)
+    class HeartbeatManualTest extends TestCase
+    {
+        constructor(com, out)
         {
-            TestCase.call(this, "setACM/getACM", com, out);
+            super("manual heartbeats", com, out);
+            //
+            // Disable heartbeats.
+            //
+            this.setClientACM(10, -1, 0);
+            this.setServerACM(10, -1, 0);
+        }
+
+        runTestCase(adapter, proxy)
+        {
+            function sendHeartbeats(con)
+            {
+                var p = Promise.resolve();
+                for(var i = 0; i < 5; ++i)
+                {
+                    p = p.then(con.heartbeat());
+                }
+                return p;
+            }
+
+            return proxy.startHeartbeatCount().then(
+                () => proxy.ice_getConnection()).then(
+                    con => sendHeartbeats(con)).then(
+                        () => proxy.waitForHeartbeatCount(5));
+        }
+    }
+
+    class SetACMTest extends TestCase
+    {
+        constructor(com, out)
+        {
+            super("setACM/getACM", com, out);
             this.setClientACM(15, 4, 0);
-        },
-        runTestCase: function(adapter, proxy)
+        }
+
+        runTestCase(adapter, proxy)
         {
             var acm = new Ice.ACM();
             acm = proxy.ice_getCachedConnection().getACM();
@@ -426,9 +452,9 @@
             test(acm.close === Ice.ACMClose.CloseOnInvocationAndIdle);
             test(acm.heartbeat === Ice.ACMHeartbeat.HeartbeatAlways);
 
-            return proxy.waitForHeartbeat(2);
+            return proxy.startHeartbeatCount().then(() => proxy.waitForHeartbeatCount(2));
         }
-    });
+    }
 
     var allTests = function(out, communicator)
     {
@@ -464,76 +490,31 @@
 
             tests.push(new HeartbeatOnIdleTest(com, out));
             tests.push(new HeartbeatAlwaysTest(com, out));
+            tests.push(new HeartbeatManualTest(com, out));
             tests.push(new SetACMTest(com, out));
         }
 
-        var promises = [];
-        for(var test in tests)
-        {
-            promises.push(tests[test].init());
-        }
-
-        return Ice.Promise.all(promises).then(
-            function()
-            {
-                promises = [];
-                for(var test in tests)
+        return Ice.Promise.all(tests.map(test => test.init())
+            ).then(() => Ice.Promise.all(tests.map(test => test.start()))
+            ).then(() => tests.forEach(test => test.join(out))
+            ).then(() => Ice.Promise.all(tests.map(test => test.destroy()))
+            ).then(() =>
                 {
-                    promises.push(tests[test].start());
+                    out.write("shutting down... ");
+                    return com.shutdown();
                 }
-                return Ice.Promise.all(promises);
-            }
-        ).then(
-            function()
-            {
-                for(var test in tests)
-                {
-                    tests[test].join(out);
-                }
-            }
-        ).then(
-            function()
-            {
-                promises = [];
-                for(var test in tests)
-                {
-                    promises.push(tests[test].destroy());
-                }
-                return Ice.Promise.all(promises);
-            }
-        ).then(
-            function()
-            {
-                out.write("shutting down... ");
-                return com.shutdown();
-            }
-        ).then(
-            function()
-            {
-                out.writeLine("ok");
-            }
-        );
+            ).then(() => out.writeLine("ok"));
     };
 
     var run = function(out, id)
     {
         id.properties.setProperty("Ice.Warn.Connections", "0");
         var c = Ice.initialize(id);
-        return Promise.try(
-            function()
-            {
-                return allTests(out, c);
-            }
-        ).finally(
-            function()
-            {
-                return c.destroy();
-            }
-        );
+        return Promise.try(() => allTests(out, c)).finally(() => c.destroy());
     };
-    exports.__test__ = run;
-    exports.__runServer__ = true;
+    exports._test = run;
+    exports._runServer = true;
 }
 (typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? module : undefined,
- typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice.__require,
+ typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice._require,
  typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? exports : this));

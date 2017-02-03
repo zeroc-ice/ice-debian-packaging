@@ -7,15 +7,13 @@
 //
 // **********************************************************************
 
+
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
 
-#if SILVERLIGHT
-using System.Windows.Controls;
-#endif
 
-public class AllTests : TestCommon.TestApp
+public class AllTests : TestCommon.AllTests
 {
     private static string testString = "This is a test string";
 
@@ -80,7 +78,7 @@ public class AllTests : TestCommon.TestApp
             byte[] outEncaps;
             if(result.getProxy().end_ice_invoke(out outEncaps, result))
             {
-                Ice.InputStream inS = Ice.Util.createInputStream(_communicator, outEncaps);
+                Ice.InputStream inS = new Ice.InputStream(_communicator, outEncaps);
                 inS.startEncapsulation();
                 string s = inS.readString();
                 test(s.Equals(cmp));
@@ -99,7 +97,7 @@ public class AllTests : TestCommon.TestApp
         {
             if(ok)
             {
-                Ice.InputStream inS = Ice.Util.createInputStream(_communicator, outEncaps);
+                Ice.InputStream inS = new Ice.InputStream(_communicator, outEncaps);
                 inS.startEncapsulation();
                 string s = inS.readString();
                 test(s.Equals(testString));
@@ -129,7 +127,7 @@ public class AllTests : TestCommon.TestApp
             }
             else
             {
-                Ice.InputStream inS = Ice.Util.createInputStream(_communicator, outEncaps);
+                Ice.InputStream inS = new Ice.InputStream(_communicator, outEncaps);
                 inS.startEncapsulation();
                 try
                 {
@@ -140,7 +138,7 @@ public class AllTests : TestCommon.TestApp
                     inS.endEncapsulation();
                     callback.called();
                 }
-                catch(System.Exception)
+                catch(Exception)
                 {
                     test(false);
                 }
@@ -155,7 +153,7 @@ public class AllTests : TestCommon.TestApp
             }
             else
             {
-                Ice.InputStream inS = Ice.Util.createInputStream(_communicator, outEncaps);
+                Ice.InputStream inS = new Ice.InputStream(_communicator, outEncaps);
                 inS.startEncapsulation();
                 try
                 {
@@ -166,7 +164,7 @@ public class AllTests : TestCommon.TestApp
                     inS.endEncapsulation();
                     callback.called();
                 }
-                catch(System.Exception)
+                catch(Exception)
                 {
                     test(false);
                 }
@@ -183,22 +181,11 @@ public class AllTests : TestCommon.TestApp
 
         private CallbackBase callback = new CallbackBase();
     }
-#if SILVERLIGHT
-    public override Ice.InitializationData initData()
-    {
-        Ice.InitializationData initData = new Ice.InitializationData();
-        initData.properties = Ice.Util.createProperties();
-        initData.properties.setProperty("Ice.FactoryAssemblies", "invoke,version=1.0.0.0");
-        return initData;
-    }
 
-    override
-    public void run(Ice.Communicator communicator)
-#else
-    public static Test.MyClassPrx allTests(Ice.Communicator communicator)
-#endif
+    public static Test.MyClassPrx allTests(TestCommon.Application app)
     {
-        Ice.ObjectPrx baseProxy = communicator.stringToProxy("test:default -p 12010");
+        Ice.Communicator communicator = app.communicator();
+        Ice.ObjectPrx baseProxy = communicator.stringToProxy("test:" + app.getTestEndpoint(0));
         Test.MyClassPrx cl = Test.MyClassPrxHelper.checkedCast(baseProxy);
         Test.MyClassPrx oneway = Test.MyClassPrxHelper.uncheckedCast(cl.ice_oneway());
         Test.MyClassPrx batchOneway = Test.MyClassPrxHelper.uncheckedCast(cl.ice_batchOneway());
@@ -219,7 +206,7 @@ public class AllTests : TestCommon.TestApp
             test(batchOneway.ice_invoke("opOneway", Ice.OperationMode.Normal, null, out outEncaps));
             batchOneway.ice_flushBatchRequests();
 
-            Ice.OutputStream outS = Ice.Util.createOutputStream(communicator);
+            Ice.OutputStream outS = new Ice.OutputStream(communicator);
             outS.startEncapsulation();
             outS.writeString(testString);
             outS.endEncapsulation();
@@ -227,7 +214,80 @@ public class AllTests : TestCommon.TestApp
 
             if(cl.ice_invoke("opString", Ice.OperationMode.Normal, inEncaps, out outEncaps))
             {
-                Ice.InputStream inS = Ice.Util.createInputStream(communicator, outEncaps);
+                Ice.InputStream inS = new Ice.InputStream(communicator, outEncaps);
+                inS.startEncapsulation();
+                string s = inS.readString();
+                test(s.Equals(testString));
+                s = inS.readString();
+                inS.endEncapsulation();
+                test(s.Equals(testString));
+            }
+            else
+            {
+                test(false);
+            }
+        }
+
+        for(int i = 0; i < 2; ++i)
+        {
+            byte[] outEncaps;
+            Dictionary<string, string> ctx = null;
+            if(i == 1)
+            {
+                ctx = new Dictionary<string, string>();
+                ctx["raise"] = "";
+            }
+
+            if(cl.ice_invoke("opException", Ice.OperationMode.Normal, null, out outEncaps, ctx))
+            {
+                test(false);
+            }
+            else
+            {
+                Ice.InputStream inS = new Ice.InputStream(communicator, outEncaps);
+                inS.startEncapsulation();
+                try
+                {
+                    inS.throwException();
+                }
+                catch(Test.MyException)
+                {
+                    inS.endEncapsulation();
+                }
+                catch(Exception)
+                {
+                    test(false);
+                }
+            }
+        }
+
+        WriteLine("ok");
+
+        Write("testing asynchronous ice_invoke with Async Task API... ");
+        Flush();
+
+        {
+            try
+            {
+                oneway.ice_invokeAsync("opOneway", Ice.OperationMode.Normal, null).Wait();
+            }
+            catch(Exception)
+            {
+                test(false);
+            }
+
+
+            Ice.OutputStream outS = new Ice.OutputStream(communicator);
+            outS.startEncapsulation();
+            outS.writeString(testString);
+            outS.endEncapsulation();
+            byte[] inEncaps = outS.finished();
+
+            // begin_ice_invoke with no callback
+            var result = cl.ice_invokeAsync("opString", Ice.OperationMode.Normal, inEncaps).Result;
+            if(result.returnValue)
+            {
+                Ice.InputStream inS = new Ice.InputStream(communicator, result.outEncaps);
                 inS.startEncapsulation();
                 string s = inS.readString();
                 test(s.Equals(testString));
@@ -242,14 +302,14 @@ public class AllTests : TestCommon.TestApp
         }
 
         {
-            byte[] outEncaps;
-            if(cl.ice_invoke("opException", Ice.OperationMode.Normal, null, out outEncaps))
+            var result = cl.ice_invokeAsync("opException", Ice.OperationMode.Normal, null).Result;
+            if(result.returnValue)
             {
                 test(false);
             }
             else
             {
-                Ice.InputStream inS = Ice.Util.createInputStream(communicator, outEncaps);
+                Ice.InputStream inS = new Ice.InputStream(communicator, result.outEncaps);
                 inS.startEncapsulation();
                 try
                 {
@@ -259,7 +319,7 @@ public class AllTests : TestCommon.TestApp
                 {
                     inS.endEncapsulation();
                 }
-                catch(System.Exception)
+                catch(Exception)
                 {
                     test(false);
                 }
@@ -268,7 +328,7 @@ public class AllTests : TestCommon.TestApp
 
         WriteLine("ok");
 
-        Write("testing asynchronous ice_invoke... ");
+        Write("testing asynchronous ice_invoke with AsyncResult API... ");
         Flush();
 
         {
@@ -279,7 +339,7 @@ public class AllTests : TestCommon.TestApp
                 test(false);
             }
 
-            Ice.OutputStream outS = Ice.Util.createOutputStream(communicator);
+            Ice.OutputStream outS = new Ice.OutputStream(communicator);
             outS.startEncapsulation();
             outS.writeString(testString);
             outS.endEncapsulation();
@@ -289,7 +349,7 @@ public class AllTests : TestCommon.TestApp
             result = cl.begin_ice_invoke("opString", Ice.OperationMode.Normal, inEncaps);
             if(cl.end_ice_invoke(out outEncaps, result))
             {
-                Ice.InputStream inS = Ice.Util.createInputStream(communicator, outEncaps);
+                Ice.InputStream inS = new Ice.InputStream(communicator, outEncaps);
                 inS.startEncapsulation();
                 string s = inS.readString();
                 test(s.Equals(testString));
@@ -328,7 +388,7 @@ public class AllTests : TestCommon.TestApp
             }
             else
             {
-                Ice.InputStream inS = Ice.Util.createInputStream(communicator, outEncaps);
+                Ice.InputStream inS = new Ice.InputStream(communicator, outEncaps);
                 inS.startEncapsulation();
                 try
                 {
@@ -338,7 +398,7 @@ public class AllTests : TestCommon.TestApp
                 {
                     inS.endEncapsulation();
                 }
-                catch(System.Exception)
+                catch(Exception)
                 {
                     test(false);
                 }
@@ -361,11 +421,6 @@ public class AllTests : TestCommon.TestApp
         }
 
         WriteLine("ok");
-
-#if SILVERLIGHT
-        cl.shutdown();
-#else
         return cl;
-#endif
     }
 }

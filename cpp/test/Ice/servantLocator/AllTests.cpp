@@ -17,7 +17,7 @@ using namespace Ice;
 using namespace Test;
 
 void
-testExceptions(const TestIntfPrx& obj)
+testExceptions(const TestIntfPrxPtr& obj)
 {
     try
     {
@@ -84,7 +84,7 @@ testExceptions(const TestIntfPrx& obj)
     }
     catch(const UnknownUserException& ex)
     {
-        test(ex.unknown == "Test::TestIntfUserException");
+        test(ex.unknown == "::Test::TestIntfUserException");
     }
     catch(const Ice::OperationNotExistException&)
     {
@@ -101,7 +101,8 @@ testExceptions(const TestIntfPrx& obj)
     }
     catch(const UnknownLocalException& ex)
     {
-        test(ex.unknown.find("Ice::SocketException") != string::npos);
+        test(ex.unknown.find("Ice::SocketException") != string::npos ||
+             ex.unknown.find("Ice.SocketException") != string::npos);
     }
     catch(...)
     {
@@ -141,7 +142,7 @@ testExceptions(const TestIntfPrx& obj)
     {
         test(false);
     }
-    
+
     try
     {
         obj->unknownExceptionWithServantException();
@@ -213,30 +214,35 @@ testExceptions(const TestIntfPrx& obj)
     }
 }
 
-TestIntfPrx
+TestIntfPrxPtr
 allTests(const CommunicatorPtr& communicator)
 {
+    const string endp = getTestEndpoint(communicator, 0);
     cout << "testing stringToProxy... " << flush;
-    ObjectPrx base = communicator->stringToProxy("asm:default -p 12010");
+    ObjectPrxPtr base = communicator->stringToProxy("asm:" + endp);
     test(base);
     cout << "ok" << endl;
 
     cout << "testing checked cast... " << flush;
-    TestIntfPrx obj = TestIntfPrx::checkedCast(base);
+    TestIntfPrxPtr obj = ICE_CHECKED_CAST(TestIntfPrx, base);
     test(obj);
+#ifdef ICE_CPP11_MAPPING
+    test(Ice::targetEqualTo(obj, base));
+#else
     test(obj == base);
+#endif
     cout << "ok" << endl;
 
     cout << "testing ice_ids... " << flush;
     try
     {
-        ObjectPrx o = communicator->stringToProxy("category/locate:default -p 12010");
+        ObjectPrxPtr o = communicator->stringToProxy("category/locate:" + endp);
         o->ice_ids();
         test(false);
     }
     catch(const UnknownUserException& ex)
     {
-        test(ex.unknown == "Test::TestIntfUserException");
+        test(ex.unknown == "::Test::TestIntfUserException");
     }
     catch(...)
     {
@@ -245,13 +251,13 @@ allTests(const CommunicatorPtr& communicator)
 
     try
     {
-        ObjectPrx o = communicator->stringToProxy("category/finished:default -p 12010");
+        ObjectPrxPtr o = communicator->stringToProxy("category/finished:" + endp);
         o->ice_ids();
         test(false);
     }
     catch(const UnknownUserException& ex)
     {
-        test(ex.unknown == "Test::TestIntfUserException");
+        test(ex.unknown == "::Test::TestIntfUserException");
     }
     catch(...)
     {
@@ -260,11 +266,12 @@ allTests(const CommunicatorPtr& communicator)
     cout << "ok" << endl;
 
     cout << "testing servant locator..." << flush;
-    base = communicator->stringToProxy("category/locate:default -p 12010");
-    obj = TestIntfPrx::checkedCast(base);
+    base = communicator->stringToProxy("category/locate:" + endp);
+    obj = ICE_CHECKED_CAST(TestIntfPrx, base);
     try
     {
-        TestIntfPrx::checkedCast(communicator->stringToProxy("category/unknown:default -p 12010"));
+        ICE_CHECKED_CAST(TestIntfPrx,
+                         communicator->stringToProxy("category/unknown:" + getTestEndpoint(communicator, 0)));
     }
     catch(const ObjectNotExistException&)
     {
@@ -272,20 +279,21 @@ allTests(const CommunicatorPtr& communicator)
     cout << "ok" << endl;
 
     cout << "testing default servant locator..." << flush;
-    base = communicator->stringToProxy("anothercategory/locate:default -p 12010");
-    obj = TestIntfPrx::checkedCast(base);
-    base = communicator->stringToProxy("locate:default -p 12010");
-    obj = TestIntfPrx::checkedCast(base);
+    base = communicator->stringToProxy("anothercategory/locate:" + endp);
+    obj = ICE_CHECKED_CAST(TestIntfPrx, base);
+    base = communicator->stringToProxy("locate:" + endp);
+    obj = ICE_CHECKED_CAST(TestIntfPrx, base);
     try
     {
-        TestIntfPrx::checkedCast(communicator->stringToProxy("anothercategory/unknown:default -p 12010"));
+        ICE_CHECKED_CAST(TestIntfPrx,
+                         communicator->stringToProxy("anothercategory/unknown:" + getTestEndpoint(communicator, 0)));
     }
     catch(const ObjectNotExistException&)
     {
     }
     try
     {
-        TestIntfPrx::checkedCast(communicator->stringToProxy("unknown:default -p 12010"));
+        ICE_CHECKED_CAST(TestIntfPrx, communicator->stringToProxy("unknown:" + endp));
     }
     catch(const Ice::ObjectNotExistException&)
     {
@@ -293,14 +301,14 @@ allTests(const CommunicatorPtr& communicator)
     cout << "ok" << endl;
 
     cout << "testing locate exceptions... " << flush;
-    base = communicator->stringToProxy("category/locate:default -p 12010");
-    obj = TestIntfPrx::checkedCast(base);
+    base = communicator->stringToProxy("category/locate:" + endp);
+    obj = ICE_CHECKED_CAST(TestIntfPrx, base);
     testExceptions(obj);
     cout << "ok" << endl;
 
     cout << "testing finished exceptions... " << flush;
-    base = communicator->stringToProxy("category/finished:default -p 12010");
-    obj = TestIntfPrx::checkedCast(base);
+    base = communicator->stringToProxy("category/finished:" + endp);
+    obj = ICE_CHECKED_CAST(TestIntfPrx, base);
     testExceptions(obj);
 
     //
@@ -339,8 +347,8 @@ allTests(const CommunicatorPtr& communicator)
     cout << "ok" << endl;
 
     cout << "testing servant locator removal... " << flush;
-    base = communicator->stringToProxy("test/activation:default -p 12010");
-    TestActivationPrx activation = TestActivationPrx::checkedCast(base);
+    base = communicator->stringToProxy("test/activation:" + endp);
+    TestActivationPrxPtr activation = ICE_CHECKED_CAST(TestActivationPrx, base);
     activation->activateServantLocator(false);
     try
     {

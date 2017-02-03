@@ -19,16 +19,34 @@
 
 #import <stdlib.h>
 
-#define ICE_DEPRECATED_API(msg) __attribute__((deprecated(msg)))          
+//
+// Use system headers as preferred way to detect 32 or 64 bit mode and
+// fallback to architecture based checks
+//
+#include <stdint.h>
+
+#if defined(__WORDSIZE) && (__WORDSIZE == 64)
+#   define ICE_64
+#elif defined(__WORDSIZE) && (__WORDSIZE == 32)
+#   define ICE_32
+#elif defined(__APPLE__) && (defined(__x86_64) || defined(__arm64))
+#   define ICE_64
+#else
+#   define ICE_32
+#endif
+
+#define ICE_DEPRECATED_API(msg) __attribute__((deprecated(msg)))
 #define ICE_DECLSPEC_EXPORT __attribute__((visibility ("default")))
 #define ICE_DECLSPEC_IMPORT __attribute__((visibility ("default")))
 
 #ifndef ICE_API
-#   ifdef ICE_API_EXPORTS
+#   if defined(ICE_STATIC_LIBS)
+#       define ICE_API /**/
+#   elif defined(ICE_API_EXPORTS)
 #       define ICE_API ICE_DECLSPEC_EXPORT
-#    else
+#   else
 #       define ICE_API ICE_DECLSPEC_IMPORT
-#    endif
+#   endif
 #endif
 
 //
@@ -38,7 +56,7 @@
 typedef unsigned char ICEByte;
 typedef short ICEShort;
 typedef int ICEInt;
-#if defined(__x86_64)
+#if defined(ICE_64)
 typedef long ICELong;
 #else
 typedef long long ICELong;

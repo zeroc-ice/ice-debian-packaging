@@ -10,12 +10,12 @@ icegridadmin [options]
 
 .SH DESCRIPTION
 
-The icegridadmin utility is a command-line tool for administering an IceGrid 
-domain. Deploying an application with this utility requires an XML file that 
-defines the descriptors. Full documentation for icegridadmin is available 
-online at: 
+The icegridadmin utility is a command-line tool for administering an IceGrid
+domain. Deploying an application with this utility requires an XML file that
+defines the descriptors. Full documentation for icegridadmin is available
+online at:
 .br
-"https://doc.zeroc.com/display/Ice36/icegridadmin+Command+Line+Tool".
+"https://doc.zeroc.com/display/Ice37/icegridadmin+Command+Line+Tool".
 
 .SH OPTIONS
 
@@ -45,6 +45,21 @@ Print debug messages.
 Start icegridadmin as a server (to parse XML files).
 
 .TP
+.BR \-i ", " \-\-instanceName\fR
+.br
+Connect to the registry with the given instance name.
+
+.TP
+.BR \-H ", " \-\-host\fR
+.br
+Connect to the registry at the given host.
+
+.TP
+.BR \-P ", " \-\-port\fR
+.br
+Connect to the registry running on the given port.
+
+.TP
 .BR \-u ", " \-\-username\fR
 .br
 Login with the given username.
@@ -66,5 +81,6 @@ Connect to the replica NAME.
 
 .SH SEE ALSO
 
+.BR icegriddb (1),
 .BR icegridnode (1),
-.BR icegridregistry (1),
+.BR icegridregistry (1)

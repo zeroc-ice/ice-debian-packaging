@@ -8,7 +8,7 @@
 # **********************************************************************
 
 require 'Ice'
-Ice::loadSlice('-I. --all Forward.ice ClientPrivate.ice')
+Ice::loadSlice('-I. --all ClientPrivate.ice')
 
 def test(b)
     if !b
@@ -97,7 +97,7 @@ def allTests(communicator)
             #
             sb = t.SBSUnknownDerivedAsSBaseCompact()
             test(false)
-        rescue Ice::NoObjectFactoryException
+        rescue Ice::NoValueFactoryException
             # Expected.
         rescue
             test(false)
@@ -110,11 +110,11 @@ def allTests(communicator)
     begin
         o = t.SUnknownAsObject()
         test(t.ice_getEncodingVersion() != Ice::Encoding_1_0)
-        test(o.is_a?(Ice::UnknownSlicedObject))
+        test(o.is_a?(Ice::UnknownSlicedValue))
         test(o.unknownTypeId == "::Test::SUnknown")
         test(o._ice_slicedData != nil)
         t.checkSUnknown(o)
-    rescue Ice::NoObjectFactoryException
+    rescue Ice::NoValueFactoryException
         test(t.ice_getEncodingVersion() == Ice::Encoding_1_0)
     rescue Ice::Exception
         test(false)
@@ -604,7 +604,7 @@ def allTests(communicator)
         t.throwBaseAsBase()
         test(false)
     rescue Test::BaseException => e
-        test(e.ice_name() == "Test::BaseException")
+        test(e.ice_id() == "::Test::BaseException")
         test(e.sbe == "sbe")
         test(e.pb)
         test(e.pb.sb == "sb")
@@ -620,7 +620,7 @@ def allTests(communicator)
         t.throwDerivedAsBase()
         test(false)
     rescue Test::DerivedException => e
-        test(e.ice_name() == "Test::DerivedException")
+        test(e.ice_id() == "::Test::DerivedException")
         test(e.sbe == "sbe")
         test(e.pb)
         test(e.pb.sb == "sb1")
@@ -642,7 +642,7 @@ def allTests(communicator)
         t.throwDerivedAsDerived()
         test(false)
     rescue Test::DerivedException => e
-        test(e.ice_name() == "Test::DerivedException")
+        test(e.ice_id() == "::Test::DerivedException")
         test(e.sbe == "sbe")
         test(e.pb)
         test(e.pb.sb == "sb1")
@@ -664,7 +664,7 @@ def allTests(communicator)
         t.throwUnknownDerivedAsBase()
         test(false)
     rescue Test::BaseException => e
-        test(e.ice_name() == "Test::BaseException")
+        test(e.ice_id() == "::Test::BaseException")
         test(e.sbe == "sbe")
         test(e.pb)
         test(e.pb.sb == "sb d2")

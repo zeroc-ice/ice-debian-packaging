@@ -10,19 +10,7 @@
 using System;
 using Test;
 
-#if SILVERLIGHT
-using System.Net;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Windows.Ink;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
-using System.Windows.Shapes;
-#endif
-
-public class AllTests : TestCommon.TestApp
+public class AllTests : TestCommon.AllTests
 {
     private class Condition
     {
@@ -30,7 +18,7 @@ public class AllTests : TestCommon.TestApp
         {
             _value = value;
         }
-        
+
         public void
         set(bool value)
         {
@@ -48,7 +36,7 @@ public class AllTests : TestCommon.TestApp
                 return _value;
             }
         }
-    
+
         private bool _value;
     }
 
@@ -79,23 +67,19 @@ public class AllTests : TestCommon.TestApp
         private int _expected;
     }
 
-#if SILVERLIGHT
-    override
-    public void run(Ice.Communicator communicator)
-#else
-    public static void allTests(Ice.Communicator communicator)
-#endif
+    public static void allTests(TestCommon.Application app)
     {
+        Ice.Communicator communicator = app.communicator();
         Write("testing stringToProxy... ");
         Flush();
-        String @ref = "hold:default -p 12010";
+        String @ref = "hold:" + app.getTestEndpoint(0);
         Ice.ObjectPrx @base = communicator.stringToProxy(@ref);
         test(@base != null);
-        String refSerialized = "hold:default -p 12011";
+        String refSerialized = "hold:" + app.getTestEndpoint(1);
         Ice.ObjectPrx baseSerialized = communicator.stringToProxy(refSerialized);
         test(baseSerialized != null);
         WriteLine("ok");
-        
+
         Write("testing checked cast... ");
         Flush();
         HoldPrx hold = HoldPrxHelper.checkedCast(@base);
@@ -107,7 +91,7 @@ public class AllTests : TestCommon.TestApp
         test(holdSerialized != null);
         test(holdSerialized.Equals(baseSerialized));
         WriteLine("ok");
-        
+
         Write("changing state between active and hold rapidly... ");
         Flush();
         for(int i = 0; i < 100; ++i)
@@ -127,7 +111,7 @@ public class AllTests : TestCommon.TestApp
             holdSerializedOneway.putOnHold(0);
         }
         WriteLine("ok");
-        
+
         Write("testing without serialize mode... ");
         Flush();
         System.Random rand = new System.Random();
@@ -203,7 +187,7 @@ public class AllTests : TestCommon.TestApp
                 {
                     result.waitForSent();
                     holdSerialized.ice_ping(); // Ensure everything's dispatched.
-                    holdSerialized.ice_getConnection().close(false);
+                    holdSerialized.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
                 }
             }
             result.waitForCompleted();
@@ -226,7 +210,7 @@ public class AllTests : TestCommon.TestApp
             hold.putOnHold(-1);
             hold.ice_ping();
             hold.putOnHold(-1);
-            hold.ice_ping();            
+            hold.ice_ping();
         }
         WriteLine("ok");
 
@@ -236,4 +220,4 @@ public class AllTests : TestCommon.TestApp
         WriteLine("ok");
     }
 }
-        
+

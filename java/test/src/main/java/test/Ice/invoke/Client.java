@@ -16,44 +16,17 @@ public class Client extends test.Util.Application
     @Override
     public int run(String[] args)
     {
-        MyClassPrx myClass = AllTests.allTests(communicator(), getWriter());
-        
-        //
-        // Use reflection to load lambda.AllTests as that is only supported with Java >= 1.8
-        // 
-        try
-        {
-            Class<?> cls = IceInternal.Util.findClass("test.Ice.invoke.lambda.AllTests", null);
-            if(cls != null)
-            {
-                java.lang.reflect.Method allTests = cls.getDeclaredMethod("allTests", 
-                    new Class<?>[]{Ice.Communicator.class, java.io.PrintWriter.class});
-                allTests.invoke(null, communicator(), getWriter());
-            }
-        }
-        catch(java.lang.NoSuchMethodException ex)
-        {
-            throw new RuntimeException(ex);
-        }
-        catch(java.lang.IllegalAccessException ex)
-        {
-            throw new RuntimeException(ex);
-        }
-        catch(java.lang.reflect.InvocationTargetException ex)
-        {
-            throw new RuntimeException(ex);
-        }
-        
+        MyClassPrx myClass = AllTests.allTests(this);
+
         myClass.shutdown();
 
         return 0;
     }
 
     @Override
-    protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
+    protected com.zeroc.Ice.InitializationData getInitData(String[] args, java.util.List<String> rArgs)
     {
-        Ice.InitializationData initData = createInitializationData() ;
-        initData.properties = Ice.Util.createProperties(argsH);
+        com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.invoke");
         return initData;
     }

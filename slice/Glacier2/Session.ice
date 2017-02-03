@@ -9,12 +9,16 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc", "js:ice-build"]]
+[["cpp:header-ext:h", "cpp:dll-export:GLACIER2_API", "objc:header-dir:objc", "objc:dll-export:GLACIER2_API", "js:ice-build"]]
 [["cpp:include:Glacier2/Config.h"]]
 
 #include <Ice/BuiltinSequences.ice>
 #include <Ice/Identity.ice>
 #include <Glacier2/SSLInfo.ice>
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:GLACIER2"]
 module Glacier2
@@ -22,13 +26,7 @@ module Glacier2
 
 /**
  *
- * This exception is raised if an attempt to create a new session
- * failed.
- *
- * @see Router#createSession
- * @see Router#createSessionFromSecureConnection
- * @see SessionManager#create
- * @see SSLSessionManager#create
+ * This exception is raised if an attempt to create a new session failed.
  *
  **/
 ["preserve-slice"]
@@ -44,8 +42,7 @@ exception CannotCreateSessionException
 
 /**
  *
- * A client-visible session object, which is tied to the lifecycle of
- * a {@link Router}.
+ * A client-visible session object, which is tied to the lifecycle of a {@link Router}.
  *
  * @see Router
  * @see SessionManager
@@ -55,8 +52,7 @@ interface Session
 {
     /**
      *
-     * Destroy the session. This is called automatically when the
-     * {@link Router} is destroyed.
+     * Destroy the session. This is called automatically when the router is destroyed.
      *
      **/
     void destroy();
@@ -271,4 +267,3 @@ interface SSLSessionManager
 };
 
 };
-

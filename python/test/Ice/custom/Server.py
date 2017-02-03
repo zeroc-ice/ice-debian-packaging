@@ -18,7 +18,7 @@ def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-class CustomI(Test.Custom):
+class CustomI(Test._CustomDisp):
     def opByteString1(self, b1, current=None):
         if sys.version_info[0] == 2:
             test(isinstance(b1, str))
@@ -93,23 +93,16 @@ def run(args, communicator):
     communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010")
     adapter = communicator.createObjectAdapter("TestAdapter")
     object = CustomI()
-    adapter.add(object, communicator.stringToIdentity("test"))
+    adapter.add(object, Ice.stringToIdentity("test"))
     adapter.activate()
     communicator.waitForShutdown()
     return True
 
 try:
-    communicator = Ice.initialize(sys.argv)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv) as communicator:
+         status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

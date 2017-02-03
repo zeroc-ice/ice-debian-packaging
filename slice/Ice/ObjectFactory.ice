@@ -9,7 +9,11 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "objc:header-dir:objc"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API"]]
+
+#ifndef __SLICE2JAVA_COMPAT__
+[["java:package:com.zeroc"]]
+#endif
 
 ["objc:prefix:ICE"]
 module Ice
@@ -17,15 +21,13 @@ module Ice
 
 /**
  *
- * A factory for objects. Object factories are used in several
- * places, for example, when receiving "objects by value" and
- * when Freeze restores a persistent object. Object factories
- * must be implemented by the application writer, and registered
+ * A factory for objects. Object factories are used when receiving "objects by value".
+ * An object factory must be implemented by the application writer and registered
  * with the communicator.
  *
- * @see Freeze
- *
  **/
+
+["deprecate:ObjectFactory has been deprecated, use ValueFactory instead.", "php:internal"]
 local interface ObjectFactory
 {
     /**
@@ -44,7 +46,7 @@ local interface ObjectFactory
      * factory is unable to create the object.
      *
      **/
-    Object create(string type);
+    Value create(string type);
 
     /**
      *
@@ -58,4 +60,3 @@ local interface ObjectFactory
 };
 
 };
-

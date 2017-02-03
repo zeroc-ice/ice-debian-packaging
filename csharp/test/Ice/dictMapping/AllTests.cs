@@ -7,34 +7,13 @@
 //
 // **********************************************************************
 
-using System;
-
-#if SILVERLIGHT
-using System.Net;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Windows.Ink;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
-using System.Windows.Shapes;
-#endif
-
-public class AllTests : TestCommon.TestApp
+public class AllTests : TestCommon.AllTests
 {
-#if SILVERLIGHT
-    override
-    public void run(Ice.Communicator communicator)
-#else
-    public static Test.MyClassPrx allTests(Ice.Communicator communicator, bool collocated)
-#endif
+    public static Test.MyClassPrx allTests(TestCommon.Application app, bool collocated)
     {
-#if SILVERLIGHT
-        bool collocated = false;
-#endif
+        Ice.Communicator communicator = app.communicator();
         Flush();
-        string rf = "test:default -p 12010";
+        string rf = "test:" + app.getTestEndpoint(0);
         Ice.ObjectPrx baseProxy = communicator.stringToProxy(rf);
         Test.MyClassPrx cl = Test.MyClassPrxHelper.checkedCast(baseProxy);
 
@@ -50,10 +29,6 @@ public class AllTests : TestCommon.TestApp
             TwowaysAMI.twowaysAMI(communicator, cl);
             WriteLine("ok");
         }
-#if SILVERLIGHT
-        cl.shutdown();
-#else
         return cl;
-#endif
     }
 }

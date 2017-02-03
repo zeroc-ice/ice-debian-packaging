@@ -24,9 +24,11 @@ namespace IcePatch2
 // allow the user to interact with the patching and report progress 
 // on the patching.
 //
-class ICE_PATCH2_API PatcherFeedback : public IceUtil::Shared
+class ICEPATCH2_API PatcherFeedback : public IceUtil::Shared
 {
 public:
+
+    virtual ~PatcherFeedback();
 
     //
     // The summary file can't be loaded for the given reason. This
@@ -74,9 +76,12 @@ typedef IceUtil::Handle<PatcherFeedback> PatcherFeedbackPtr;
 // IcePatch2 clients instantiate the IcePatch2::Patcher class to patch
 // a given local data directory.
 //
-class ICE_PATCH2_API Patcher : public IceUtil::Shared
+class ICEPATCH2_API Patcher : public IceUtil::Shared
 {
 public:
+
+    virtual ~Patcher();
+
     //
     // Prepare the patching. This involves creating the local checksum
     // files if no summary file exists or if a thorough patch was
@@ -112,7 +117,7 @@ typedef IceUtil::Handle<Patcher> PatcherPtr;
 // IcePatch2 clients instantiate the IcePatch2::Patcher class
 // using the patcher factory.
 //
-class ICE_PATCH2_API PatcherFactory : public IceUtil::noncopyable
+class ICEPATCH2_API PatcherFactory : public IceUtil::noncopyable
 {
 public:
     

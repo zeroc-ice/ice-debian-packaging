@@ -8,7 +8,7 @@
 // **********************************************************************
 
 #include <Util.h>
-#include <IceUtil/UUID.h>
+#include <Ice/UUID.h>
 #include <Slice/PHPUtil.h>
 #include <algorithm>
 #include <ctype.h>
@@ -542,7 +542,7 @@ convertLocalException(const Ice::LocalException& ex, zval* zex)
         zend_update_property(cls, zex, const_cast<char*>("supported"), sizeof("supported") - 1, &v);
         zval_ptr_dtor(&v);
     }
-    catch(const Ice::NoObjectFactoryException& e)
+    catch(const Ice::NoValueFactoryException& e)
     {
         setStringMember(zex, "reason", e.reason);
         setStringMember(zex, "type", e.type);
@@ -564,6 +564,10 @@ convertLocalException(const Ice::LocalException& ex, zval* zex)
     catch(const Ice::SecurityException& e)
     {
         setStringMember(zex, "reason", e.reason);
+    }
+    catch(const Ice::ConnectionManuallyClosedException& e)
+    {
+        add_property_bool(zex, "graceful", e.graceful ? 1 : 0);
     }
     catch(const Ice::LocalException&)
     {
@@ -590,7 +594,7 @@ IcePHP::convertException(zval* zex, const Ice::Exception& ex)
     }
     catch(const Ice::LocalException& e)
     {
-        zend_class_entry* cls = idToClass(e.ice_name());
+        zend_class_entry* cls = idToClass(e.ice_id());
         if(cls)
         {
             if(object_init_ex(zex, cls) != SUCCESS)
@@ -862,7 +866,7 @@ ZEND_FUNCTION(Ice_generateUUID)
         WRONG_PARAM_COUNT;
     }
 
-    string uuid = IceUtil::generateUUID();
+    string uuid = Ice::generateUUID();
     RETURN_STRINGL(STRCAST(uuid.c_str()), static_cast<int>(uuid.size()));
 }
 

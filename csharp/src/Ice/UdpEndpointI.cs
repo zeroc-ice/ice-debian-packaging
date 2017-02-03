@@ -9,7 +9,6 @@
 
 namespace IceInternal
 {
-
     using System.Diagnostics;
     using System.Collections;
     using System.Collections.Generic;
@@ -36,10 +35,10 @@ namespace IceInternal
             _compress = false;
         }
 
-        public UdpEndpointI(ProtocolInstance instance, BasicStream s) :
+        public UdpEndpointI(ProtocolInstance instance, Ice.InputStream s) :
             base(instance, s)
         {
-            if(s.getReadEncoding().Equals(Ice.Util.Encoding_1_0))
+            if(s.getEncoding().Equals(Ice.Util.Encoding_1_0))
             {
                 s.readByte();
                 s.readByte();
@@ -159,6 +158,24 @@ namespace IceInternal
             return null;
         }
 
+        public override void initWithOptions(List<string> args, bool oaEndpoint)
+        {
+            base.initWithOptions(args, oaEndpoint);
+
+            if(_mcastInterface.Equals("*"))
+            {
+                if(oaEndpoint)
+                {
+                    _mcastInterface = "";
+                }
+                else
+                {
+                    throw new Ice.EndpointParseException("`--interface *' not valid for proxy endpoint `" +
+                                                         ToString() + "'");
+                }
+            }
+        }
+
         public UdpEndpointI endpoint(UdpTransceiver transceiver)
         {
             return new UdpEndpointI(instance_, host_, transceiver.effectivePort(), sourceAddr_, _mcastInterface,
@@ -254,13 +271,13 @@ namespace IceInternal
         //
         // Marshal the endpoint
         //
-        public override void streamWriteImpl(BasicStream s)
+        public override void streamWriteImpl(Ice.OutputStream s)
         {
             base.streamWriteImpl(s);
-            if(s.getWriteEncoding().Equals(Ice.Util.Encoding_1_0))
+            if(s.getEncoding().Equals(Ice.Util.Encoding_1_0))
             {
-                Ice.Util.Protocol_1_0.write__(s);
-                Ice.Util.Encoding_1_0.write__(s);
+                Ice.Util.Protocol_1_0.ice_writeMembers(s);
+                Ice.Util.Encoding_1_0.ice_writeMembers(s);
             }
             // Not transmitted.
             //s.writeBool(_connect);
@@ -270,10 +287,10 @@ namespace IceInternal
         public override void hashInit(ref int h)
         {
             base.hashInit(ref h);
-            IceInternal.HashUtil.hashAdd(ref h, _mcastInterface);
-            IceInternal.HashUtil.hashAdd(ref h, _mcastTtl);
-            IceInternal.HashUtil.hashAdd(ref h, _connect);
-            IceInternal.HashUtil.hashAdd(ref h, _compress);
+            HashUtil.hashAdd(ref h, _mcastInterface);
+            HashUtil.hashAdd(ref h, _mcastTtl);
+            HashUtil.hashAdd(ref h, _connect);
+            HashUtil.hashAdd(ref h, _compress);
         }
 
         public override void fillEndpointInfo(Ice.IPEndpointInfo info)
@@ -353,9 +370,9 @@ namespace IceInternal
 
                 try
                 {
-                    _mcastTtl = System.Int32.Parse(argument, CultureInfo.InvariantCulture);
+                    _mcastTtl = int.Parse(argument, CultureInfo.InvariantCulture);
                 }
-                catch(System.FormatException ex)
+                catch(FormatException ex)
                 {
                     Ice.EndpointParseException e = new Ice.EndpointParseException(ex);
                     e.str = "invalid TTL value `" + argument + "' in endpoint " + endpoint;
@@ -428,7 +445,7 @@ namespace IceInternal
             return endpt;
         }
 
-        public EndpointI read(BasicStream s)
+        public EndpointI read(Ice.InputStream s)
         {
             return new UdpEndpointI(_instance, s);
         }
@@ -438,7 +455,7 @@ namespace IceInternal
             _instance = null;
         }
 
-        public EndpointFactory clone(ProtocolInstance instance)
+        public EndpointFactory clone(ProtocolInstance instance, EndpointFactory del)
         {
             return new UdpEndpointFactory(instance);
         }

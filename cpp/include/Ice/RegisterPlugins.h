@@ -16,7 +16,7 @@
 // Register functions for Ice plugins are declared here.
 //
 // These functions can be used to explicitly link with a plugin rather
-// thanrelying on the loading of the plugin at runtime. The application
+// than relying on the loading of the plugin at runtime. The application
 // must call the register function before initializing the communicator.
 //
 
@@ -38,7 +38,7 @@ namespace Ice
 ICE_PLUGIN_REGISTER_DECLSPEC_IMPORT void registerIceStringConverter(bool = true);
 #endif
 
-#ifndef ICE_SSL_API_EXPORTS
+#ifndef ICESSL_API_EXPORTS
 ICE_PLUGIN_REGISTER_DECLSPEC_IMPORT void registerIceSSL(bool = true);
 #endif
 
@@ -50,6 +50,23 @@ ICE_PLUGIN_REGISTER_DECLSPEC_IMPORT void registerIceDiscovery(bool = true);
 ICE_PLUGIN_REGISTER_DECLSPEC_IMPORT void registerIceLocatorDiscovery(bool = true);
 #endif
 
+#if !defined(_WIN32) && !defined(__APPLE__)
+#   ifndef ICEBT_API_EXPORTS
+ICE_PLUGIN_REGISTER_DECLSPEC_IMPORT void registerIceBT(bool = true);
+#   endif
+#endif
+
+#if defined(__APPLE__) && TARGET_OS_IPHONE != 0
+#   ifndef ICEIAP_API_EXPORTS
+ICE_PLUGIN_REGISTER_DECLSPEC_IMPORT void registerIceIAP(bool = true);
+#   endif
+#endif
+
+#if defined(_MSC_VER) && !defined(ICE_BUILDING_SRC)
+#   pragma comment(lib, ICE_LIBNAME("IceDiscovery"))
+#   pragma comment(lib, ICE_LIBNAME("IceLocatorDiscovery"))
+#   pragma comment(lib, ICE_LIBNAME("IceSSL"))
+#endif
 }
 
 #endif

@@ -9,8 +9,6 @@
 
 namespace IceInternal
 {
-
-    using System.Collections;
     using System.Collections.Generic;
     using System.Diagnostics;
 
@@ -46,9 +44,9 @@ namespace IceInternal
             }
         }
 
-        public override bool Equals(System.Object obj)
+        public override bool Equals(object obj)
         {
-            if(object.ReferenceEquals(this, obj))
+            if(ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -97,15 +95,18 @@ namespace IceInternal
                 return;
             }
 
-            _router.begin_getClientProxy().whenCompleted(
-                (Ice.ObjectPrx proxy) => 
+            _router.getClientProxyAsync().ContinueWith(
+                (t) =>
                 {
-                    callback.setEndpoints(setClientEndpoints(proxy));
-                },
-                (Ice.Exception ex) => 
-                {
-                    Debug.Assert(ex is Ice.LocalException);
-                    callback.setException((Ice.LocalException)ex);
+                    try
+                    {
+                        callback.setEndpoints(setClientEndpoints(t.Result));
+                    }
+                    catch(System.AggregateException ae)
+                    {
+                        Debug.Assert(ae.InnerException is Ice.LocalException);
+                        callback.setException((Ice.LocalException)ae.InnerException);
+                    }
                 });
         }
 
@@ -153,18 +154,21 @@ namespace IceInternal
                     return true;
                 }
             }
-            _router.begin_addProxies(new Ice.ObjectPrx[] { proxy }).whenCompleted(
-                (Ice.ObjectPrx[] evictedProxies) => 
+
+            _router.addProxiesAsync(new Ice.ObjectPrx[] { proxy }).ContinueWith(
+                (t) =>
                 {
-                    addAndEvictProxies(proxy, evictedProxies);
-                    callback.addedProxy();
-                },
-                (Ice.Exception ex) => 
-                {
-                    Debug.Assert(ex is Ice.LocalException);
-                    callback.setException((Ice.LocalException)ex);
+                    try
+                    {
+                        addAndEvictProxies(proxy, t.Result);
+                        callback.addedProxy();
+                    }
+                    catch(System.AggregateException ae)
+                    {
+                        Debug.Assert(ae.InnerException is Ice.LocalException);
+                        callback.setException((Ice.LocalException)ae.InnerException);
+                    }
                 });
-            
             return false;
         }
 
@@ -203,7 +207,7 @@ namespace IceInternal
                         //
                         // If getClientProxy() return nil, use router endpoints.
                         //
-                        _clientEndpoints = ((Ice.ObjectPrxHelperBase)_router).reference__().getEndpoints();
+                        _clientEndpoints = ((Ice.ObjectPrxHelperBase)_router).iceReference().getEndpoints();
                     }
                     else
                     {
@@ -219,7 +223,7 @@ namespace IceInternal
                             clientProxy = clientProxy.ice_timeout(_router.ice_getConnection().timeout());
                         }
 
-                        _clientEndpoints = ((Ice.ObjectPrxHelperBase)clientProxy).reference__().getEndpoints();
+                        _clientEndpoints = ((Ice.ObjectPrxHelperBase)clientProxy).iceReference().getEndpoints();
                     }
                 }
                 return _clientEndpoints;
@@ -236,7 +240,7 @@ namespace IceInternal
                 }
 
                 serverProxy = serverProxy.ice_router(null); // The server proxy cannot be routed.
-                _serverEndpoints = ((Ice.ObjectPrxHelperBase)serverProxy).reference__().getEndpoints();
+                _serverEndpoints = ((Ice.ObjectPrxHelperBase)serverProxy).iceReference().getEndpoints();
                 return _serverEndpoints;
             }
         }

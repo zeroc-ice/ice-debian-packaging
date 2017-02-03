@@ -22,7 +22,7 @@ def run(args, communicator):
     communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010")
     communicator.getProperties().setProperty("TestAdapter.ACM.Timeout", "0")
     adapter = communicator.createObjectAdapter("TestAdapter")
-    id = communicator.stringToIdentity("communicator")
+    id = Ice.stringToIdentity("communicator")
     adapter.add(TestI.RemoteCommunicatorI(), id)
     adapter.activate()
 
@@ -37,17 +37,10 @@ try:
     initData.properties = Ice.createProperties(sys.argv)
     initData.properties.setProperty("Ice.Warn.Connections", "0");
     initData.properties.setProperty("Ice.ACM.Timeout", "1");
-    communicator = Ice.initialize(sys.argv, initData)
-    status = run(sys.argv, communicator)
+    with Ice.initialize(sys.argv, initData) as communicator:
+        status = run(sys.argv, communicator)
 except:
     traceback.print_exc()
     status = False
-
-if communicator:
-    try:
-        communicator.destroy()
-    except:
-        traceback.print_exc()
-        status = False
 
 sys.exit(not status)

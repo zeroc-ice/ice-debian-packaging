@@ -355,6 +355,7 @@ generated from the section label.
         <property name="IPv4" />
         <property name="IPv6" />
         <property name="LogFile" />
+        <property name="LogFile.SizeMax" />
         <property name="LogStdErr.Convert"/>
         <property name="MessageSizeMax" />
         <property name="Nohup" />
@@ -382,6 +383,7 @@ generated from the section label.
         <property name="ThreadPool.Client" class="threadpool" />
         <property name="ThreadPool.Server" class="threadpool" />
         <property name="ThreadPriority"/>
+        <property name="ToStringMode" />
         <property name="Trace.Admin.Properties" />
         <property name="Trace.Admin.Logger" />
         <property name="Trace.Locator" />
@@ -427,7 +429,7 @@ generated from the section label.
         <property name="DomainId"/>
     </section>
 
-    <section name="IceGridDiscovery">
+    <section name="IceLocatorDiscovery">
         <property name="Reply" class="objectadapter" />
         <property name="Locator" class="objectadapter" />
         <property name="Lookup"/>
@@ -502,7 +504,6 @@ generated from the section label.
         <property name="Registry.AdminSSLPermissionsVerifier" class="proxy" />
         <property name="Registry.Client" class="objectadapter" />
         <property name="Registry.CryptPasswords" />
-        <property name="Registry.Data" />
         <property name="Registry.DefaultTemplates" />
         <property name="Registry.Discovery" class="objectadapter" />
         <property name="Registry.Discovery.Enabled" />
@@ -511,6 +512,8 @@ generated from the section label.
         <property name="Registry.Discovery.Interface" />
         <property name="Registry.DynamicRegistration" />
         <property name="Registry.Internal" class="objectadapter" />
+        <property name="Registry.LMDB.MapSize" />
+        <property name="Registry.LMDB.Path" />
         <property name="Registry.NodeSessionTimeout" />
         <property name="Registry.PermissionsVerifier" class="proxy" />
         <property name="Registry.ReplicaName" />
@@ -535,14 +538,7 @@ generated from the section label.
         <property name="Registry.Trace.Topic"/>
         <property name="Registry.Trace.TopicManager"/>
         <property name="Registry.UserAccounts" />
-        <property name="SQL.DatabaseType" />
-        <property name="SQL.EncodingVersion" />
-        <property name="SQL.HostName" />
-        <property name="SQL.Port" />
-        <property name="SQL.DatabaseName" />
-        <property name="SQL.UserName" />
-        <property name="SQL.Password" />
-</section>
+    </section>
 
     <section name="IcePatch2">
         <property class="objectadapter" />
@@ -575,11 +571,9 @@ generated from the section label.
         <property name="DHParams" />
         <property name="EntropyDaemon" />
         <property name="FindCert" />
-        <property name="FindCert.[any]" deprecatedBy="IceSSL.FindCert"/>
-        <property name="ImportCert.[any]" deprecated="true"/>
+        <property name="FindCert.[any]" deprecated="true"/>
         <property name="InitOpenSSL" />
         <property name="KeyFile" deprecated="true"/>
-        <property name="KeySet" deprecatedBy="IceSSL.CertStoreLocation" />
         <property name="Keychain"/>
         <property name="KeychainPassword"/>
         <property name="Keystore" />
@@ -588,7 +582,6 @@ generated from the section label.
         <property name="Password" />
         <property name="PasswordCallback" />
         <property name="PasswordRetryMax" />
-        <property name="PersistKeySet" deprecated="true"/>
         <property name="Protocols" />
         <property name="ProtocolVersionMax" />
         <property name="ProtocolVersionMin" />
@@ -610,6 +603,11 @@ generated from the section label.
         <property name="TopicManager.[any]" />
         <property name="Host" />
         <property name="Port" />
+    </section>
+
+    <section name="IceBT">
+        <property name="RcvSize" />
+        <property name="SndSize" />
     </section>
 
     <section name="Glacier2">

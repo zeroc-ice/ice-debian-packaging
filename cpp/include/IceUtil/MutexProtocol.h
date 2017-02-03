@@ -21,7 +21,7 @@ enum MutexProtocol
     PrioNone
 };
 
-ICE_UTIL_API MutexProtocol getDefaultMutexProtocol();
+ICE_API MutexProtocol getDefaultMutexProtocol();
 
 } // End namespace IceUtil
 

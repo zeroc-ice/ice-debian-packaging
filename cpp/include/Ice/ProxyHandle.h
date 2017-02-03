@@ -10,6 +10,8 @@
 #ifndef ICE_PROXY_HANDLE_H
 #define ICE_PROXY_HANDLE_H
 
+#ifndef ICE_CPP11_MAPPING // C++98 mapping
+
 #include <IceUtil/Handle.h>
 #include <Ice/Config.h>
 
@@ -23,8 +25,8 @@ template<typename T> class Handle;
 
 }
 
-namespace IceProxy 
-{ 
+namespace IceProxy
+{
 namespace Ice
 {
 
@@ -42,18 +44,20 @@ class ObjectAdapter;
 typedef ::IceInternal::Handle< ::Ice::ObjectAdapter> ObjectAdapterPtr;
 
 typedef ::std::map< ::std::string, ::std::string> Context;
+ICE_API extern const Context noExplicitContext;
+
 }
 
 namespace IceInternal
 {
 
-template<typename P> P 
-checkedCastImpl(const ::Ice::ObjectPrx&, const ::Ice::Context*);
+template<typename P> P
+checkedCastImpl(const ::Ice::ObjectPrx&, const ::Ice::Context&);
 
-template<typename P> P 
-checkedCastImpl(const ::Ice::ObjectPrx&, const std::string&, const ::Ice::Context*);
+template<typename P> P
+checkedCastImpl(const ::Ice::ObjectPrx&, const std::string&, const ::Ice::Context&);
 
-template<typename P> P 
+template<typename P> P
 uncheckedCastImpl(const ::Ice::ObjectPrx&);
 
 template<typename P> P
@@ -62,13 +66,13 @@ uncheckedCastImpl(const ::Ice::ObjectPrx&, const std::string&);
 //
 // Upcast
 //
-template<typename T, typename Y> inline ProxyHandle<T> 
-checkedCastHelper(const ::IceInternal::ProxyHandle<Y>& b, T*, const ::Ice::Context*)
+template<typename T, typename Y> inline ProxyHandle<T>
+checkedCastHelper(const ::IceInternal::ProxyHandle<Y>& b, T*, const ::Ice::Context&)
 {
     return b;
 }
 
-template<typename T, typename Y> inline ProxyHandle<T> 
+template<typename T, typename Y> inline ProxyHandle<T>
 uncheckedCastHelper(const ::IceInternal::ProxyHandle<Y>& b, T*)
 {
     return b;
@@ -77,8 +81,8 @@ uncheckedCastHelper(const ::IceInternal::ProxyHandle<Y>& b, T*)
 //
 // Downcast
 //
-template<typename T, typename Y> inline ProxyHandle<T> 
-checkedCastHelper(const ::IceInternal::ProxyHandle<Y>& b, void*, const ::Ice::Context* ctx)
+template<typename T, typename Y> inline ProxyHandle<T>
+checkedCastHelper(const ::IceInternal::ProxyHandle<Y>& b, void*, const ::Ice::Context& ctx)
 {
 #ifdef __SUNPRO_CC
     //
@@ -91,7 +95,7 @@ checkedCastHelper(const ::IceInternal::ProxyHandle<Y>& b, void*, const ::Ice::Co
 #endif
 }
 
-template<typename T, typename Y> inline ProxyHandle<T> 
+template<typename T, typename Y> inline ProxyHandle<T>
 uncheckedCastHelper(const ::IceInternal::ProxyHandle<Y>& b, void*)
 {
 #ifdef __SUNPRO_CC
@@ -114,7 +118,7 @@ template<typename T>
 class ProxyHandle : public ::IceUtil::HandleBase<T>
 {
 public:
-    
+
     ProxyHandle(T* p = 0)
     {
         this->_ptr = p;
@@ -124,7 +128,7 @@ public:
             upCast(this->_ptr)->__incRef();
         }
     }
-    
+
     template<typename Y>
     ProxyHandle(const ProxyHandle<Y>& r)
     {
@@ -156,7 +160,7 @@ public:
             upCast(this->_ptr)->__incRef();
         }
     }
-    
+
     ~ProxyHandle()
     {
         if(this->_ptr)
@@ -164,7 +168,7 @@ public:
             upCast(this->_ptr)->__decRef();
         }
     }
-    
+
     ProxyHandle& operator=(T* p)
     {
         if(this->_ptr != p)
@@ -178,12 +182,12 @@ public:
             {
                 upCast(this->_ptr)->__decRef();
             }
-            
+
             this->_ptr = p;
         }
         return *this;
     }
-        
+
     template<typename Y>
     ProxyHandle& operator=(const ProxyHandle<Y>& r)
     {
@@ -198,7 +202,7 @@ public:
             {
                 upCast(this->_ptr)->__decRef();
             }
-            
+
             this->_ptr = r._ptr;
         }
         return *this;
@@ -218,7 +222,7 @@ public:
             {
                 upCast(this->_ptr)->__decRef();
             }
-            
+
             this->_ptr = r._ptr;
         }
         return *this;
@@ -237,29 +241,28 @@ public:
             {
                 upCast(this->_ptr)->__decRef();
             }
-            
+
             this->_ptr = r._ptr;
         }
         return *this;
     }
 
-    ::IceProxy::Ice::Object* __upCast() const
+    ::IceProxy::Ice::Object* _upCast() const
     {
         return upCast(this->_ptr);
     }
-        
+
     template<class Y>
-    static ProxyHandle checkedCast(const ProxyHandle<Y>& r)
+    static ProxyHandle checkedCast(const ProxyHandle<Y>& r, const ::Ice::Context& ctx = ::Ice::noExplicitContext)
     {
         Y* tag = 0;
-        Ice::Context* ctx = 0;
         return ::IceInternal::checkedCastHelper<T>(r, tag, ctx);
     }
 
     template<class Y>
-    static ProxyHandle checkedCast(const ProxyHandle<Y>& r, const std::string& f)
+    static ProxyHandle checkedCast(const ProxyHandle<Y>& r, const std::string& f,
+                                   const ::Ice::Context& ctx = ::Ice::noExplicitContext)
     {
-        Ice::Context* ctx = 0;
 #ifdef __SUNPRO_CC
         //
         // Sun CC bug introduced in version 5.10
@@ -268,27 +271,6 @@ public:
         return ::IceInternal::checkedCastImpl<ProxyHandle>(o, f, ctx);
 #else
         return ::IceInternal::checkedCastImpl<ProxyHandle>(r, f, ctx);
-#endif
-    }
-
-    template<class Y>
-    static ProxyHandle checkedCast(const ProxyHandle<Y>& r, const ::Ice::Context& ctx)
-    {
-        Y* tag = 0;
-        return ::IceInternal::checkedCastHelper<T>(r, tag, &ctx);
-    }
-
-    template<class Y>
-    static ProxyHandle checkedCast(const ProxyHandle<Y>& r, const std::string& f, const ::Ice::Context& ctx)
-    {
-#ifdef __SUNPRO_CC
-        //
-        // Sun CC bug introduced in version 5.10
-        //
-        const ::Ice::ObjectPrx& o = r;
-        return ::IceInternal::checkedCastImpl<ProxyHandle>(o, f, &ctx);
-#else
-        return ::IceInternal::checkedCastImpl<ProxyHandle>(r, f, &ctx);
 #endif
     }
 
@@ -326,5 +308,7 @@ std::ostream& operator<<(std::ostream& os, ::IceInternal::ProxyHandle<Y> p)
 }
 
 }
+
+#endif
 
 #endif

@@ -20,27 +20,34 @@
 namespace Ice
 {
 
+class CommunicatorI;
+ICE_DEFINE_PTR(CommunicatorIPtr, CommunicatorI);
+
 class CommunicatorI : public Communicator
+#ifdef ICE_CPP11_MAPPING
+                    , public std::enable_shared_from_this<CommunicatorI>
+#endif
+
 {
 public:
-    
-    virtual void destroy();
+
+    virtual void destroy() ICE_NOEXCEPT;
     virtual void shutdown();
     virtual void waitForShutdown();
     virtual bool isShutdown() const;
 
-    virtual ObjectPrx stringToProxy(const std::string&) const;
-    virtual std::string proxyToString(const ObjectPrx&) const;
+    virtual ObjectPrxPtr stringToProxy(const std::string&) const;
+    virtual std::string proxyToString(const ObjectPrxPtr&) const;
 
-    virtual ObjectPrx propertyToProxy(const std::string&) const;
-    virtual PropertyDict proxyToProperty(const ObjectPrx&, const std::string&) const;
+    virtual ObjectPrxPtr propertyToProxy(const std::string&) const;
+    virtual PropertyDict proxyToProperty(const ObjectPrxPtr&, const std::string&) const;
 
     virtual Identity stringToIdentity(const std::string&) const;
     virtual std::string identityToString(const Identity&) const;
 
     virtual ObjectAdapterPtr createObjectAdapter(const std::string&);
     virtual ObjectAdapterPtr createObjectAdapterWithEndpoints(const std::string&, const std::string&);
-    virtual ObjectAdapterPtr createObjectAdapterWithRouter(const std::string&, const RouterPrx&);
+    virtual ObjectAdapterPtr createObjectAdapterWithRouter(const std::string&, const RouterPrxPtr&);
 
     virtual void addObjectFactory(const ObjectFactoryPtr&, const std::string&);
     virtual ObjectFactoryPtr findObjectFactory(const std::string&) const;
@@ -51,38 +58,47 @@ public:
     virtual LoggerPtr getLogger() const;
     virtual Ice::Instrumentation::CommunicatorObserverPtr getObserver() const;
 
-    virtual RouterPrx getDefaultRouter() const;
-    virtual void setDefaultRouter(const RouterPrx&);
+    virtual RouterPrxPtr getDefaultRouter() const;
+    virtual void setDefaultRouter(const RouterPrxPtr&);
 
-    virtual LocatorPrx getDefaultLocator() const;
-    virtual void setDefaultLocator(const LocatorPrx&);
+    virtual LocatorPrxPtr getDefaultLocator() const;
+    virtual void setDefaultLocator(const LocatorPrxPtr&);
 
     virtual PluginManagerPtr getPluginManager() const;
 
+    virtual ValueFactoryManagerPtr getValueFactoryManager() const;
+
     virtual void flushBatchRequests();
 
+#ifdef ICE_CPP11_MAPPING
+    virtual ::std::function<void()>
+    flushBatchRequestsAsync(::std::function<void(::std::exception_ptr)>,
+                            ::std::function<void(bool)> = nullptr);
+#else
     virtual AsyncResultPtr begin_flushBatchRequests();
     virtual AsyncResultPtr begin_flushBatchRequests(const CallbackPtr&, const LocalObjectPtr& = 0);
     virtual AsyncResultPtr begin_flushBatchRequests(const Callback_Communicator_flushBatchRequestsPtr&,
                                                     const LocalObjectPtr& = 0);
 
-    virtual AsyncResultPtr begin_flushBatchRequests(
-        const IceInternal::Function<void (const Exception&)>&,
-        const IceInternal::Function<void (bool)>& = IceInternal::Function<void (bool)>());
-
     virtual void end_flushBatchRequests(const AsyncResultPtr&);
+#endif
 
-    virtual ObjectPrx createAdmin(const ObjectAdapterPtr&, const Identity&);
-    virtual ObjectPrx getAdmin() const;
+    virtual ObjectPrxPtr createAdmin(const ObjectAdapterPtr&, const Identity&);
+    virtual ObjectPrxPtr getAdmin() const;
     virtual void addAdminFacet(const ObjectPtr&, const std::string&);
     virtual ObjectPtr removeAdminFacet(const std::string&);
     virtual ObjectPtr findAdminFacet(const std::string&);
     virtual FacetMap findAllAdminFacets();
 
+    virtual ~CommunicatorI();
+
 private:
 
-    CommunicatorI(const InitializationData&);
-    virtual ~CommunicatorI();
+#ifndef ICE_CPP11_MAPPING
+    CommunicatorI() {}
+#endif
+
+    static CommunicatorIPtr create(const InitializationData&);
 
     //
     // Certain initialization tasks need to be completed after the
@@ -96,7 +112,9 @@ private:
     friend ICE_API ::IceInternal::InstancePtr IceInternal::getInstance(const ::Ice::CommunicatorPtr&);
     friend ICE_API ::IceUtil::TimerPtr IceInternal::getInstanceTimer(const ::Ice::CommunicatorPtr&);
 
-    AsyncResultPtr __begin_flushBatchRequests(const IceInternal::CallbackBasePtr&, const LocalObjectPtr&);
+#ifndef ICE_CPP11_MAPPING
+    AsyncResultPtr _iceI_begin_flushBatchRequests(const IceInternal::CallbackBasePtr&, const LocalObjectPtr&);
+#endif
 
     const ::IceInternal::InstancePtr _instance;
 
