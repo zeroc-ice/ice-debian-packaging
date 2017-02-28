@@ -8,10 +8,11 @@ tmp/*
 debhelper-build-stamp
 files
 libzeroc-ice-dev/*
-libzeroc-ice-java/*
+libzeroc-ice3.7-java/*
 libzeroc-ice3.7/*
 libzeroc-icestorm3.7/*
 php-zeroc-ice/*
+python3-zeroc-ice/*
 zeroc-glacier2/*
 zeroc-ice-all-dev/*
 zeroc-ice-all-runtime/*
