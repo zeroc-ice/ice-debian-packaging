@@ -30,6 +30,10 @@ export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
 			  -PjgoodiesFormsVersion=debian \
 			  -PiceBuilderVersion=debian
 
+#
+# These files are not installed with any debian package.
+#
+INSTALL_EXCLUDE		= usr/lib/$(DEB_HOST_MULTIARCH)/libIceStormService.so
 
 export PYTHONDIR := $(shell python3 -c "import sys;print('python{0}.{1}'.format(sys.version_info.major, sys.version_info.minor))")
 
@@ -90,11 +94,13 @@ override_dh_auto_install-arch:
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v} install; \
 	done
 	PYTHON=python3 $(MAKE) $(MAKEOPTS) -C python install
+	rm -rf $(addprefix $(DESTDIR)/,$(INSTALL_EXCLUDE))
 
 override_dh_auto_install-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp install
 	$(MAKE) $(MAKEOPTS) -C java install
 	rm -rf $(DESTDIR)/usr/share/java/*-sources.jar
+	rm -rf $(addprefix $(DESTDIR)/,$(INSTALL_EXCLUDE))
 
 override_dh_auto_clean-arch:
 	$(MAKE) $(MAKEOPTS) -C cpp clean
