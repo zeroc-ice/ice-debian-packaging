@@ -73,7 +73,7 @@ Architecture: any
 Multi-Arch: same
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
-Depends: adduser, 
+Depends: adduser,
          ${misc:Depends},
          ${shlibs:Depends}
 Description: C++ run-time libraries for the Ice framework
@@ -189,6 +189,7 @@ Depends: libzeroc-ice3.7-java (= ${source:Version}),
          zeroc-icegrid (>= ${source:Version}),
          zeroc-icegridgui (>= ${source:Version}),
          zeroc-icepatch2 (>= ${source:Version}),
+         zeroc-icebridge (>= ${source:Version}),
          ${misc:Depends}
 Replaces: icebox, libzeroc-ice-java (<=3.5.1)
 Description: Ice run-time packages (metapackage)
@@ -266,7 +267,7 @@ Description: IceGrid Admin graphical client
  The IceGrid service helps you locate, deploy and manage Ice servers.
  .
  The IceGrid GUI give you complete control over your deployed applications.
- Activities such as starting a server or modifying a configuration setting are 
+ Activities such as starting a server or modifying a configuration setting are
  just a mouse click away.
  .
  Ice is a comprehensive RPC framework that helps you network your software
@@ -324,6 +325,24 @@ Description: File distribution and patching
  This package contains IcePatch2 service, with IcePatch2, you can easily
  distribute a large set of files to many clients, and keep these files
  synced with your source set.
+ .
+ Ice is a comprehensive RPC framework that helps you network your software
+ with minimal effort. Ice takes care of all interactions with low-level
+ network programming interfaces and allows you to focus your efforts on
+ your application logic.
+
+Package: zeroc-icebridge
+Architecture: any
+Multi-Arch: foreign
+Section: net
+Depends: libzeroc-ice3.7 (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
+Description: Bridge service
+ This package contains the Ice bridge. The Ice bridge allows you to bridge
+ connections securely between one or multiple clients and a server. It
+ relays requests from clients to a target server and makes every effort
+ to be as transparent as possible.
  .
  Ice is a comprehensive RPC framework that helps you network your software
  with minimal effort. Ice takes care of all interactions with low-level
