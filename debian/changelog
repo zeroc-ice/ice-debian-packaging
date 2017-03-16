@@ -1,6 +1,6 @@
 zeroc-ice (3.6.3-5) unstable; urgency=medium
 
-  * Fix Bug#857219 do not install libIceStormService.so
+  * Do not install libIceStormService.so (Closes: #857219)
   * Fix libzeroc-ice3.6-java install to use 3.6 name
 
  -- Jose <jose@zeroc.com>  Thu, 09 Mar 2017 16:22:39 +0100
