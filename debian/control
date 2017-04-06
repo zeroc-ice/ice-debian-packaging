@@ -257,8 +257,8 @@ Section: admin
 Replaces: ice-utils,
           icegrid-gui,
           ice-utils-java
-Conflicts: zeroc-ice-utils-java (< 3.6.3-1)
-Breaks: zeroc-ice-utils-java (< 3.6.3-1)
+Conflicts: zeroc-ice-utils-java (<= 3.6.2)
+Breaks: zeroc-ice-utils-java (<= 3.6.2)
 Depends: default-jre | default-jdk | openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer | openjdk-7-jre | openjdk-8-jre,
          libzeroc-ice3.7-java (= ${source:Version}),
          ${java:Depends},
