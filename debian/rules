@@ -33,14 +33,8 @@ export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
 #
 # These files are not installed with any debian package.
 #
-INSTALL_EXCLUDE		= usr/share/man/man1/slice2objc.1 \
-			  usr/share/man/man1/slice2py.1 \
-			  usr/share/man/man1/slice2rb.1 \
-			  usr/bin/slice2cs \
-			  usr/bin/slice2rb \
-			  usr/bin/slice2objc \
-			  usr/bin/slice2confluence \
-			  usr/bin/slice2py
+INSTALL_EXCLUDE		= usr/bin/slice2confluence \
+
 
 PHP_VERSIONS 		:= $(shell /usr/sbin/phpquery -V)
 
