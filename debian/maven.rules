@@ -6,6 +6,7 @@ com.zeroc icelocatordiscovery jar s/3\.7\..*/3.7/
 com.zeroc icegrid jar s/3\.7\..*/3.7/
 com.zeroc icepatch2 jar s/3\.7\..*/3.7/
 com.zeroc icestorm jar s/3\.7\..*/3.7/
+com.zeroc icessl jar s/3\.7\..*/3.7/
 com.zeroc glacier2-compat jar s/3\.7\..*/3.7/
 com.zeroc icebt-compat jar s/3\.7\..*/3.7/
 com.zeroc icebox-compat jar s/3\.7\..*/3.7/

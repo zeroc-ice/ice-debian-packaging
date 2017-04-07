@@ -6,6 +6,7 @@ java/lib/icegrid-3.7.0-beta0.pom --artifact=java/lib/icegrid-3.7.0-beta0.jar --j
 java/lib/icelocatordiscovery-3.7.0-beta0.pom --artifact=java/lib/icelocatordiscovery-3.7.0-beta0.jar --java-lib --no-usj-versionless
 java/lib/icepatch2-3.7.0-beta0.pom --artifact=java/lib/icepatch2-3.7.0-beta0.jar --java-lib --no-usj-versionless
 java/lib/icestorm-3.7.0-beta0.pom --artifact=java/lib/icestorm-3.7.0-beta0.jar --java-lib --no-usj-versionless
+java/lib/icessl-3.7.0-beta0.pom --artifact=java/lib/icessl-3.7.0-beta0.jar --java-lib --no-usj-versionless
 java-compat/lib/glacier2-compat-3.7.0-beta0.pom --artifact=java-compat/lib/glacier2-compat-3.7.0-beta0.jar --java-lib --no-usj-versionless
 java-compat/lib/icebt-compat-3.7.0-beta0.pom --artifact=java-compat/lib/icebt-compat-3.7.0-beta0.jar --java-lib --no-usj-versionless
 java-compat/lib/icebox-compat-3.7.0-beta0.pom --artifact=java-compat/lib/icebox-compat-3.7.0-beta0.jar --java-lib --no-usj-versionless
