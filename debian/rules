@@ -38,13 +38,14 @@ export DH_BUILD_DDEBS	= 1
 #
 # These files are not installed with any debian package.
 #
-INSTALL_EXCLUDE		= usr/bin/slice2confluence \
+INSTALL_EXCLUDE		= usr/bin/slice2confluence
 
 
 PHP_VERSIONS 		:= $(shell /usr/sbin/phpquery -V)
 
-export PYTHON 		= python3
-export PYTHONDIR 	:= $(shell python3 -c "import sys;print('python{0}.{1}'.format(sys.version_info.major, sys.version_info.minor))")
+PYTHON_VERSIONS 	:= 2 3
+export PYTHON2DIR 	:= $(shell python2 -c "import sys;print('python{0}.{1}'.format(sys.version_info.major, sys.version_info.minor))")
+export PYTHON3DIR 	:= $(shell python3 -c "import sys;print('python{0}.{1}'.format(sys.version_info.major, sys.version_info.minor))")
 
 export VERSION   := $(shell echo $(DEB_VERSION_UPSTREAM) | sed -e 's,^\([.0-9|.a-z]*\).*,\1,')
 
@@ -85,7 +86,10 @@ override_dh_auto_build-arch:
 	  cp -a php php-$${v}; \
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v}; \
 	done
-	$(MAKE) $(MAKEOPTS) LANGUAGES=python
+	for v in $(PYTHON_VERSIONS); do \
+	  cp -a python python-$${v}; \
+	  $(MAKE) $(MAKEOPTS) PYTHON=python$${v} -C python-$${v}; \
+	done
 
 override_dh_auto_build-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp slice2java
@@ -96,8 +100,10 @@ override_dh_auto_install-arch:
 	for v in $(PHP_VERSIONS); do \
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v} install; \
 	done
+	for v in $(PYTHON_VERSIONS); do \
+	  $(MAKE) $(MAKEOPTS) PYTHON=python$${v} -C python-$${v} install; \
+	done
 	rm -rf $(addprefix $(DESTDIR)/,$(INSTALL_EXCLUDE))
-	$(MAKE) $(MAKEOPTS) LANGUAGES=python install
 
 override_dh_auto_install-indep:
 	$(MAKE) $(MAKEOPTS) LANGUAGES="java java-compat" install
@@ -108,7 +114,9 @@ override_dh_auto_clean-arch:
 	for v in $(PHP_VERSIONS); do \
 	  rm -rf php-$${v}; \
 	done
-	$(MAKE) $(MAKEOPTS) LANGUAGES=python distclean
+	for v in $(PYTHON_VERSIONS); do \
+	  rm -rf python-$${v}; \
+	done
 
 override_dh_auto_clean-indep:
 	$(MAKE) $(MAKEOPTS) LANGUAGES=cpp distclean

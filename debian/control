@@ -123,6 +123,21 @@ Description: PHP extension for Ice
  network programming interfaces and allows you to focus your efforts on
  your application logic.
 
+Package: python-zeroc-ice
+Architecture: any
+Section: python
+Depends: libzeroc-ice3.7 (= ${binary:Version}),
+         ${misc:Depends},
+         ${python:Depends},
+         ${shlibs:Depends}
+Description: Python 2 extension for Ice
+ This package contains a Python 2 extension for communication with Ice.
+ .
+ Ice is a comprehensive RPC framework that helps you network your software
+ with minimal effort. Ice takes care of all interactions with low-level
+ network programming interfaces and allows you to focus your efforts on
+ your application logic.
+
 Package: python3-zeroc-ice
 Architecture: any
 Section: python
@@ -181,6 +196,7 @@ Depends: libzeroc-ice3.7-java (= ${source:Version}),
          libzeroc-ice3.7 (>= ${source:Version}),
          libzeroc-icestorm3.7 (>= ${source:Version}),
          php-zeroc-ice (>= ${source:Version}),
+         python-zeroc-ice (>= ${source:Version}),
          python3-zeroc-ice (>= ${source:Version}),
          zeroc-glacier2 (>= ${source:Version}),
          zeroc-ice-slice (>= ${source:Version}),
