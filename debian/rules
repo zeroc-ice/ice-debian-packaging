@@ -30,6 +30,8 @@ export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
 			  -PjgoodiesFormsVersion=debian \
 			  -PiceBuilderVersion=debian
 
+export ENABLE_DBGSYM	= auto
+
 #
 # These files are not installed with any debian package.
 #
