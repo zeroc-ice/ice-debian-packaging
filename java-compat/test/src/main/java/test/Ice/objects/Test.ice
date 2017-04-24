@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,6 +10,8 @@
 #pragma once
 
 [["java:package:test.Ice.objects"]]
+[["suppress-warning:deprecated"]] // For classes with operations
+
 module Test
 {
 
@@ -161,6 +163,11 @@ exception EDerived extends EBase
     A1 a4;
 };
 
+class Recursive
+{
+    Recursive v;
+};
+
 class Initial
 {
     void shutdown();
@@ -170,6 +177,9 @@ class Initial
     D getD();
     E getE();
     F getF();
+
+    void setRecursive(Recursive p);
+    bool supportsClassGraphDepthMax();
 
     ["marshaled-result"] B getMB();
     ["amd", "marshaled-result"] B getAMDMB();

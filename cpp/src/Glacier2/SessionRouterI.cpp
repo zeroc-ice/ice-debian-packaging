@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -80,7 +80,7 @@ public:
             // Close the connection otherwise the peer has no way to know that
             // the session has gone.
             //
-            _connection->close(CloseForcefully);
+            _connection->close(ICE_SCOPED_ENUM(ConnectionClose, Forcefully));
             _router->destroySession(_connection);
         }
     }
@@ -477,7 +477,7 @@ CreateSession::CreateSession(const SessionRouterIPtr& sessionRouter, const strin
                 _context["_con.cipher"] = info->cipher;
                 if(info->certs.size() > 0)
                 {
-                    _context["_con.peerCert"] = info->certs[0];
+                    _context["_con.peerCert"] = info->certs[0]->encode();
                 }
             }
         }
@@ -775,9 +775,9 @@ SessionRouterI::destroy()
 }
 
 ObjectPrx
-SessionRouterI::getClientProxy(const Current& current) const
+SessionRouterI::getClientProxy(IceUtil::Optional<bool>& hasRoutingTable, const Current& current) const
 {
-    return getRouter(current.con, current.id)->getClientProxy(current); // Forward to the per-client router.
+    return getRouter(current.con, current.id)->getClientProxy(hasRoutingTable, current); // Forward to the per-client router.
 }
 
 ObjectPrx
@@ -853,10 +853,13 @@ SessionRouterI::createSessionFromSecureConnection_async(
         sslinfo.localPort = ipInfo->localPort;
         sslinfo.localHost = ipInfo->localAddress;
         sslinfo.cipher = info->cipher;
-        sslinfo.certs = info->certs;
+        for(std::vector<IceSSL::CertificatePtr>::const_iterator i = info->certs.begin(); i != info->certs.end(); ++i)
+        {
+            sslinfo.certs.push_back((*i)->encode());
+        }
         if(info->certs.size() > 0)
         {
-            userDN = IceSSL::Certificate::decode(info->certs[0])->getSubjectDN();
+            userDN = info->certs[0]->getSubjectDN();
         }
     }
     catch(const IceSSL::CertificateEncodingException&)
@@ -922,7 +925,7 @@ SessionRouterI::refreshSession(const Ice::ConnectionPtr& con)
             // Close the connection otherwise the peer has no way to know that the
             // session has gone.
             //
-            con->close(CloseForcefully);
+            con->close(ICE_SCOPED_ENUM(ConnectionClose, Forcefully));
             throw SessionNotExistException();
         }
     }
@@ -1152,7 +1155,7 @@ SessionRouterI::getRouterImpl(const ConnectionPtr& connection, const Ice::Identi
             out << "rejecting request, no session is associated with the connection.\n";
             out << "identity: " << identityToString(id);
         }
-        connection->close(CloseForcefully);
+        connection->close(ICE_SCOPED_ENUM(ConnectionClose, Forcefully));
         throw ObjectNotExistException(__FILE__, __LINE__);
     }
     return 0;
@@ -1256,7 +1259,7 @@ SessionRouterI::finishCreateSession(const ConnectionPtr& connection, const Route
 
     if(_instance->serverObjectAdapter())
     {
-        string category = router->getServerProxy()->ice_getIdentity().category;
+        string category = router->getServerProxy(Ice::emptyCurrent)->ice_getIdentity().category;
         assert(!category.empty());
         pair<map<string, RouterIPtr>::iterator, bool> rc =
             _routersByCategory.insert(pair<const string, RouterIPtr>(category, router));

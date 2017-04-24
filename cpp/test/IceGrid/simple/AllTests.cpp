@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -71,12 +71,6 @@ allTests(const Ice::CommunicatorPtr& communicator)
             initData.properties->setProperty("Ice.Default.Locator", "");
             initData.properties->setProperty("Ice.Plugin.IceLocatorDiscovery",
                                              "IceLocatorDiscovery:createIceLocatorDiscovery");
-#ifdef __APPLE__
-            if(initData.properties->getPropertyAsInt("Ice.PreferIPv6Address") > 0)
-            {
-                initData.properties->setProperty("IceLocatorDiscovery.Interface", "::1");
-            }
-#endif
             {
                 ostringstream port;
                 port << getTestPort(initData.properties, 99);
@@ -106,8 +100,12 @@ allTests(const Ice::CommunicatorPtr& communicator)
             // handles failure to find a locator. Also test
             // Ice::registerIceLocatorDiscovery()
             //
+#ifndef ICE_STATIC_LIBS
             Ice::registerIceLocatorDiscovery();
             initData.properties->setProperty("Ice.Plugin.IceLocatorDiscovery", "");
+#else
+            initData.properties->setProperty("Ice.Plugin.IceLocatorDiscovery", "1");
+#endif
             initData.properties->setProperty("IceLocatorDiscovery.InstanceName", "unknown");
             initData.properties->setProperty("IceLocatorDiscovery.RetryCount", "1");
             initData.properties->setProperty("IceLocatorDiscovery.Timeout", "100");
@@ -238,7 +236,7 @@ allTestsWithDeploy(const Ice::CommunicatorPtr& communicator)
 
     IceGrid::AdminSessionPrx session = registry->createAdminSession("foo", "bar");
 
-    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::HeartbeatAlways);
+    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
 
     IceGrid::AdminPrx admin = session->getAdmin();
     test(admin);

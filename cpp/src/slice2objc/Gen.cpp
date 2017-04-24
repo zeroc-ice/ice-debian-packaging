@@ -1,12 +1,13 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
+#include <IceUtil/DisableWarnings.h>
 #include <IceUtil/Functional.h>
 #include "Gen.h"
 #include <limits>
@@ -867,7 +868,7 @@ Slice::Gen::printHeader(Output& o)
     static const char* header =
 "// **********************************************************************\n"
 "//\n"
-"// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.\n"
+"// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.\n"
 "//\n"
 "// This copy of Ice is licensed to you under the terms described in the\n"
 "// ICE_LICENSE file included in this distribution.\n"
@@ -1214,15 +1215,29 @@ Slice::Gen::TypesVisitor::visitOperation(const OperationPtr& p)
 
     if(cl->isLocal() && (cl->hasMetaData("async-oneway") || p->hasMetaData("async-oneway")))
     {
-        // TODO: add support for parameters when needed.
-        _H << nl << "-(id<ICEAsyncResult>) begin_" << name << deprecateSymbol << ";";
-        _H << nl << "-(id<ICEAsyncResult>) begin_" << name << ":(void(^)(ICEException*))exception"
-           << deprecateSymbol << ";";
-        _H << nl << "-(id<ICEAsyncResult>) begin_" << name
-           << ":(void(^)(ICEException*))exception sent:(void(^)(BOOL))sent"
-           << deprecateSymbol << ";";
-        _H << nl << "-(void) end_" << name << ":(id<ICEAsyncResult>)result"
-           << deprecateSymbol << ";";
+        string marshalParams = getMarshalParams(p);
+        string unmarshalParams = getUnmarshalParams(p);
+
+        _H << nl << "-(id<ICEAsyncResult>) begin_" << name << marshalParams << deprecateSymbol << ";";
+        _H << nl << "-(id<ICEAsyncResult>) begin_" << name << marshalParams;
+        if(!marshalParams.empty())
+        {
+            _H << " exception";
+        }
+        _H << ":(void(^)(ICEException*))exception" << deprecateSymbol << ";";
+        _H << nl << "-(id<ICEAsyncResult>) begin_" << name << marshalParams;
+        if(!marshalParams.empty())
+        {
+            _H << " exception";
+        }
+        _H << ":(void(^)(ICEException*))exception sent:(void(^)(BOOL))sent" << deprecateSymbol << ";";
+
+        _H << nl << "-(void) end_" << name << unmarshalParams;
+        if(!unmarshalParams.empty())
+        {
+            _H << " result";
+        }
+        _H << ":(id<ICEAsyncResult>)result" << deprecateSymbol << ";";
     }
 }
 
@@ -1509,7 +1524,9 @@ void
 Slice::Gen::TypesVisitor::visitEnum(const EnumPtr& p)
 {
     string name = fixName(p);
-    EnumeratorList enumerators = p->getEnumerators();
+    EnumeratorList enumerators = p->enumerators();
+    string enumeratorPrefix = p->hasMetaData("objc:scoped") ? p->name() : "";
+
     _H << sp;
 
     //
@@ -1522,7 +1539,7 @@ Slice::Gen::TypesVisitor::visitEnum(const EnumPtr& p)
     EnumeratorList::const_iterator en = enumerators.begin();
     while(en != enumerators.end())
     {
-        _H << nl << fixName(*en);
+        _H << nl << moduleName(findModule(*en)) << enumeratorPrefix << (*en)->name();
         //
         // If any of the enumerators were assigned an explicit value, we emit
         // an explicit value for *all* enumerators.
@@ -1552,12 +1569,13 @@ Slice::Gen::TypesVisitor::visitConst(const ConstPtr& p)
         _H << nl << "static const " << typeToString(p->type());
     }
     _H << " " << fixName(p) << " = ";
-    writeConstantValue(_H, p->type(), p->value());
+    writeConstantValue(_H, p->type(), p->valueType(), p->value());
     _H << ';';
 }
 
 void
-Slice::Gen::TypesVisitor::writeConstantValue(IceUtilInternal::Output& out, const TypePtr& type, const string& val) const
+Slice::Gen::TypesVisitor::writeConstantValue(IceUtilInternal::Output& out, const TypePtr& type,
+                                             const SyntaxTreeBasePtr& valueType, const string& val) const
 {
     if(isString(type))
     {
@@ -1568,7 +1586,10 @@ Slice::Gen::TypesVisitor::writeConstantValue(IceUtilInternal::Output& out, const
         EnumPtr ep = EnumPtr::dynamicCast(type);
         if(ep)
         {
-            out  << moduleName(findModule(ep)) << val;
+            EnumeratorPtr lte = EnumeratorPtr::dynamicCast(valueType);
+            assert(lte);
+            string enumeratorPrefix = ep->hasMetaData("objc:scoped") ? ep->name() : "";
+            out << moduleName(findModule(ep)) << enumeratorPrefix << lte->name();
         }
         else
         {
@@ -1854,7 +1875,7 @@ Slice::Gen::TypesVisitor::writeMemberDefaultValueInit(const DataMemberList& data
                 _M << nl << "self->has_" << name << "__ = YES;";
             }
             _M << nl << "self->" << name << " = ";
-            writeConstantValue(_M, (*p)->type(), (*p)->defaultValue());
+            writeConstantValue(_M, (*p)->type(), (*p)->defaultValueType(), (*p)->defaultValue());
             _M << ";";
         }
         else
@@ -1868,7 +1889,7 @@ Slice::Gen::TypesVisitor::writeMemberDefaultValueInit(const DataMemberList& data
             EnumPtr en = EnumPtr::dynamicCast((*p)->type());
             if(en)
             {
-                string firstEnum = fixName(en->getEnumerators().front());
+                string firstEnum = fixName(en->enumerators().front());
                 _M << nl <<  "self->" << name << " = " << firstEnum << ';';
             }
 

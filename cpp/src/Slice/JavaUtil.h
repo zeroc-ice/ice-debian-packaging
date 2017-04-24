@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -145,7 +145,7 @@ protected:
         TypeModeReturn
     };
     std::string typeToString(const TypePtr&, TypeMode, const std::string& = std::string(),
-                             const StringList& = StringList(), bool = true, bool = false) const;
+                             const StringList& = StringList(), bool = true, bool = false, bool = false) const;
 
     //
     // Get the Java object name for a type. For primitive types, this returns the
@@ -333,6 +333,9 @@ protected:
         OptionalReturnParam,
         OptionalMember
     };
+
+    std::string getWriteFunction(const std::string&, const TypePtr&);
+    std::string getReadFunction(const std::string&, const TypePtr&);
 
     void writeMarshalUnmarshalCode(::IceUtilInternal::Output&, const std::string&, const TypePtr&, OptionalMode,
                                    bool, int, const std::string&, bool, int&, const std::string& = "",

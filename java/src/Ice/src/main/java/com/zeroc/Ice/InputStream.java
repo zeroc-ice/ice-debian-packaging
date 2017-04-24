@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,7 +14,6 @@ import java.io.IOException;
 import com.zeroc.IceInternal.Buffer;
 import com.zeroc.IceInternal.Instance;
 import com.zeroc.IceInternal.Protocol;
-import com.zeroc.IceInternal.SequencePatcher;
 
 /**
  * Interface for input streams used to extract Slice types from a sequence
@@ -351,7 +350,7 @@ public class InputStream
      *
      * @param r The compact ID resolver.
      **/
-    public void setCompactIdResolver(CompactIdResolver r)
+    public void setCompactIdResolver(java.util.function.IntFunction<String> r)
     {
         _compactIdResolver = r;
     }
@@ -363,7 +362,7 @@ public class InputStream
      *
      * @param r The class resolver.
      **/
-    public void setClassResolver(ClassResolver r)
+    public void setClassResolver(java.util.function.Function<String, Class<?>> r)
     {
         _classResolver = r;
     }
@@ -473,11 +472,11 @@ public class InputStream
         other._logger = _logger;
         _logger = tmpLogger;
 
-        CompactIdResolver tmpCompactIdResolver = other._compactIdResolver;
+        java.util.function.IntFunction<String> tmpCompactIdResolver = other._compactIdResolver;
         other._compactIdResolver = _compactIdResolver;
         _compactIdResolver = tmpCompactIdResolver;
 
-        ClassResolver tmpClassResolver = other._classResolver;
+        java.util.function.Function<String, Class<?>> tmpClassResolver = other._classResolver;
         other._classResolver = _classResolver;
         _classResolver = tmpClassResolver;
     }
@@ -585,7 +584,7 @@ public class InputStream
         }
         _encapsStack.sz = sz;
 
-        EncodingVersion encoding = EncodingVersion.ice_read(this, null);
+        EncodingVersion encoding = EncodingVersion.ice_read(this);
         Protocol.checkSupportedEncoding(encoding); // Make sure the encoding is supported.
         _encapsStack.setEncoding(encoding);
 
@@ -654,7 +653,7 @@ public class InputStream
             throw new UnmarshalOutOfBoundsException();
         }
 
-        EncodingVersion encoding = EncodingVersion.ice_read(this, null);
+        EncodingVersion encoding = EncodingVersion.ice_read(this);
         Protocol.checkSupportedEncoding(encoding); // Make sure the encoding is supported.
 
         if(encoding.equals(Util.Encoding_1_0))
@@ -750,7 +749,7 @@ public class InputStream
         {
             throw new UnmarshalOutOfBoundsException();
         }
-        EncodingVersion encoding = EncodingVersion.ice_read(this, null);
+        EncodingVersion encoding = EncodingVersion.ice_read(this);
         try
         {
             _buf.b.position(_buf.b.position() + sz - 6);
@@ -794,7 +793,7 @@ public class InputStream
     /**
      * Indicates that unmarshaling is complete, except for any class instances. The application must call this method
      * only if the stream actually contains class instances. Calling <code>readPendingValues</code> triggers the
-     * calls to {@link ReadValueCallback#valueReady} that inform the application that unmarshaling of an instance
+     * calls to consumers provided with {@link #readValue} to inform the application that unmarshaling of an instance
      * is complete.
      **/
     public void readPendingValues()
@@ -1046,7 +1045,7 @@ public class InputStream
      *
      * @return The deserialized Java object.
      **/
-    public java.io.Serializable readSerializable()
+    public <T extends java.io.Serializable> T readSerializable(Class<T> cl)
     {
         int sz = readAndCheckSeqSize(1);
         if (sz == 0)
@@ -1058,7 +1057,7 @@ public class InputStream
         {
             com.zeroc.IceInternal.InputStreamWrapper w = new com.zeroc.IceInternal.InputStreamWrapper(sz, _buf.b);
             in = new com.zeroc.IceInternal.ObjectInputStream(_instance, w);
-            return (java.io.Serializable)in.readObject();
+            return cl.cast(in.readObject());
         }
         catch(LocalException ex)
         {
@@ -1081,6 +1080,24 @@ public class InputStream
                     throw new MarshalException("cannot deserialize object", ex);
                 }
             }
+        }
+    }
+
+    /**
+     * Extracts a optional serializable Java object from the stream.
+     *
+     * @param tag The numeric tag associated with the value.
+     * @return The optional value (if any).
+     **/
+    public <T extends java.io.Serializable> java.util.Optional<T> readSerializable(int tag, Class<T> cl)
+    {
+        if(readOptional(tag, OptionalFormat.VSize))
+        {
+            return java.util.Optional.of(readSerializable(cl));
+        }
+        else
+        {
+            return java.util.Optional.empty();
         }
     }
 
@@ -1803,6 +1820,16 @@ public class InputStream
         return _instance.proxyFactory().streamToProxy(this);
     }
 
+    public <T extends ObjectPrx> T readProxy(java.util.function.Function<ObjectPrx, T> cast)
+    {
+        if(_instance == null)
+        {
+            throw new MarshalException("cannot unmarshal a proxy without a communicator");
+        }
+
+        return cast.apply(_instance.proxyFactory().streamToProxy(this));
+    }
+
     /**
      * Extracts an optional proxy from the stream. The stream must have been initialized with a communicator.
      *
@@ -1815,6 +1842,26 @@ public class InputStream
         {
             skip(4);
             return java.util.Optional.of(readProxy());
+        }
+        else
+        {
+            return java.util.Optional.empty();
+        }
+    }
+
+    /**
+     * Extracts an optional proxy from the stream. The stream must have been initialized with a communicator.
+     *
+     * @param tag The numeric tag associated with the value.
+     * @param cast The uncheckedCast function to call on the unmarshaled proxy to obtain the correct proxy type.
+     * @return The optional value (if any).
+     **/
+    public <T extends ObjectPrx> java.util.Optional<T> readProxy(int tag, java.util.function.Function<ObjectPrx, T> cast)
+    {
+        if(readOptional(tag, OptionalFormat.FSize))
+        {
+            skip(4);
+            return java.util.Optional.of(readProxy(cast));
         }
         else
         {
@@ -1852,40 +1899,93 @@ public class InputStream
     }
 
     /**
-     * Extracts the index of a Slice value from the stream.
+     * Extracts a Slice value from the stream.
      *
-     * @param cb The callback to notify the application when the extracted instance is available.
-     * The stream extracts Slice values in stages. The Ice run time calls {@link ReadValueCallback#valueReady}
-     * when the corresponding instance has been fully unmarshaled.
+     * @param cb The consumer to notify when the extracted instance is available. The stream
+     * extracts Slice values in stages. The Ice run time calls accept on the consumer when
+     * the corresponding instance has been fully unmarshaled.
      *
-     * @see ReadValueCallback
+     * @param cls The type of the Ice.Value to unmarshal.
      **/
-    public void readValue(ReadValueCallback cb)
+    public <T extends Value> void readValue(java.util.function.Consumer<T> cb, Class<T> cls)
     {
         initEncaps();
-        _encapsStack.decoder.readValue(cb);
-    }
-
-    /**
-     * Extracts the index of an optional Slice value from the stream.
-     *
-     * @param tag The numeric tag associated with the value.
-     * @param cb The callback to notify the application when the extracted instance is available.
-     * The stream extracts Slice values in stages. The Ice run time calls {@link ReadValueCallback#valueReady}
-     * when the corresponding instance has been fully unmarshaled.
-     *
-     * @see ReadValueCallback
-     **/
-    public void readValue(int tag, ReadValueCallback cb)
-    {
-        if(readOptional(tag, OptionalFormat.Class))
+        if(cb == null)
         {
-            readValue(cb);
+            _encapsStack.decoder.readValue(null);
         }
         else
         {
-            cb.valueReady(null);
+            _encapsStack.decoder.readValue(v -> {
+                if(v == null || cls.isInstance(v))
+                {
+                    cb.accept(cls.cast(v));
+                }
+                else
+                {
+                    com.zeroc.IceInternal.Ex.throwUOE(cls, v);
+                }
+            });
         }
+    }
+
+    /**
+     * Extracts a Slice value from the stream.
+     *
+     * @param cb The consumer to notify when the extracted instance is available. The stream
+     * extracts Slice values in stages. The Ice run time calls accept on the consumer when
+     * the corresponding instance has been fully unmarshaled.
+     **/
+    public void readValue(java.util.function.Consumer<Value> cb)
+    {
+        readValue(cb, Value.class);
+    }
+
+    /**
+     * Extracts an optional Slice value from the stream.
+     *
+     * @param tag The numeric tag associated with the value.
+     *
+     * @param cb The consumer to notify when the extracted instance is available. The stream
+     * extracts Slice values in stages. The Ice run time calls accept on the consumer when
+     * the corresponding instance has been fully unmarshaled.
+     *
+     * @param cls The type of the Ice.Value to unmarshal.
+     **/
+    public <T extends Value> void readValue(int tag, java.util.function.Consumer<java.util.Optional<T>> cb, Class<T> cls)
+    {
+        if(readOptional(tag, OptionalFormat.Class))
+        {
+            if(cb != null)
+            {
+                readValue(v -> cb.accept(java.util.Optional.ofNullable(v)), cls);
+            }
+            else
+            {
+                readValue(null);
+            }
+        }
+        else
+        {
+            if(cb != null)
+            {
+                cb.accept(java.util.Optional.empty());
+            }
+        }
+    }
+
+    /**
+     * Extracts an optional Slice value from the stream.
+     *
+     * @param tag The numeric tag associated with the value.
+     *
+     * @param cb The consumer to notify when the extracted instance is available. The stream
+     * extracts Slice values in stages. The Ice run time calls accept on the consumer when
+     * the corresponding instance has been fully unmarshaled.
+     **/
+    public void readValue(int tag, java.util.function.Consumer<java.util.Optional<Value>> cb)
+    {
+        readValue(tag, cb, Value.class);
     }
 
     /**
@@ -2005,7 +2105,7 @@ public class InputStream
         }
         case Class:
         {
-            readValue(null);
+            readValue(null, null);
             break;
         }
         }
@@ -2113,7 +2213,7 @@ public class InputStream
         {
             if(_classResolver != null)
             {
-                Class<?> c = _classResolver.resolveClass(id);
+                Class<?> c = _classResolver.apply(id);
                 if(c != null)
                 {
                     userEx = (UserException)c.newInstance();
@@ -2138,7 +2238,7 @@ public class InputStream
 
     abstract private static class EncapsDecoder
     {
-        EncapsDecoder(InputStream stream, boolean sliceValues, ValueFactoryManager f, ClassResolver cr)
+        EncapsDecoder(InputStream stream, boolean sliceValues, ValueFactoryManager f, java.util.function.Function<String, Class<?>> cr)
         {
             _stream = stream;
             _sliceValues = sliceValues;
@@ -2148,7 +2248,7 @@ public class InputStream
             _unmarshaledMap = new java.util.TreeMap<>();
         }
 
-        abstract void readValue(ReadValueCallback cb);
+        abstract void readValue(java.util.function.Consumer<Value> cb);
         abstract void throwException(UserExceptionFactory factory)
             throws UserException;
 
@@ -2214,7 +2314,7 @@ public class InputStream
                 {
                     if(_classResolver != null)
                     {
-                        cls = _classResolver.resolveClass(typeId);
+                        cls = _classResolver.apply(typeId);
                         _typeIdCache.put(typeId, cls != null ? cls : EncapsDecoder.class);
                     }
                 }
@@ -2275,7 +2375,7 @@ public class InputStream
             return v;
         }
 
-        protected void addPatchEntry(int index, ReadValueCallback cb)
+        protected void addPatchEntry(int index, java.util.function.Consumer<Value> cb)
         {
             assert(index > 0);
 
@@ -2286,7 +2386,7 @@ public class InputStream
             Value obj = _unmarshaledMap.get(index);
             if(obj != null)
             {
-                cb.valueReady(obj);
+                cb.accept(obj);
                 return;
             }
 
@@ -2300,7 +2400,7 @@ public class InputStream
             // the callback will be called when the instance is
             // unmarshaled.
             //
-            java.util.LinkedList<ReadValueCallback> l = _patchMap.get(index);
+            java.util.LinkedList<java.util.function.Consumer<Value>> l = _patchMap.get(index);
             if(l == null)
             {
                 //
@@ -2335,7 +2435,7 @@ public class InputStream
                 //
                 // Patch all instances now that the instance is unmarshaled.
                 //
-                java.util.LinkedList<ReadValueCallback> l = _patchMap.get(index);
+                java.util.LinkedList<java.util.function.Consumer<Value>> l = _patchMap.get(index);
                 if(l != null)
                 {
                     assert(l.size() > 0);
@@ -2343,9 +2443,9 @@ public class InputStream
                     //
                     // Patch all pointers that refer to the instance.
                     //
-                    for(ReadValueCallback cb : l)
+                    for(java.util.function.Consumer<Value> cb : l)
                     {
-                        cb.valueReady(v);
+                        cb.accept(v);
                     }
 
                     //
@@ -2405,12 +2505,12 @@ public class InputStream
         protected final InputStream _stream;
         protected final boolean _sliceValues;
         protected ValueFactoryManager _valueFactoryManager;
-        protected ClassResolver _classResolver;
+        protected java.util.function.Function<String, Class<?>> _classResolver;
 
         //
         // Encapsulation attributes for value unmarshaling.
         //
-        protected java.util.TreeMap<Integer, java.util.LinkedList<ReadValueCallback> > _patchMap;
+        protected java.util.TreeMap<Integer, java.util.LinkedList<java.util.function.Consumer<Value>> > _patchMap;
         private java.util.TreeMap<Integer, Value> _unmarshaledMap;
         private java.util.TreeMap<Integer, String> _typeIdMap;
         private int _typeIdIndex;
@@ -2420,14 +2520,14 @@ public class InputStream
 
     private static final class EncapsDecoder10 extends EncapsDecoder
     {
-        EncapsDecoder10(InputStream stream, boolean sliceValues, ValueFactoryManager f, ClassResolver cr)
+        EncapsDecoder10(InputStream stream, boolean sliceValues, ValueFactoryManager f, java.util.function.Function<String, Class<?>> cr)
         {
             super(stream, sliceValues, f, cr);
             _sliceType = SliceType.NoSlice;
         }
 
         @Override
-        void readValue(ReadValueCallback cb)
+        void readValue(java.util.function.Consumer<Value> cb)
         {
             assert(cb != null);
 
@@ -2443,7 +2543,7 @@ public class InputStream
 
             if(index == 0)
             {
-                cb.valueReady(null);
+                cb.accept(null);
             }
             else
             {
@@ -2711,8 +2811,8 @@ public class InputStream
 
     private static class EncapsDecoder11 extends EncapsDecoder
     {
-        EncapsDecoder11(InputStream stream, boolean sliceValues, ValueFactoryManager f, ClassResolver cr,
-                        CompactIdResolver r)
+        EncapsDecoder11(InputStream stream, boolean sliceValues, ValueFactoryManager f, java.util.function.Function<String, Class<?>> cr,
+                        java.util.function.IntFunction<String> r)
         {
             super(stream, sliceValues, f, cr);
             _compactIdResolver = r;
@@ -2721,7 +2821,7 @@ public class InputStream
         }
 
         @Override
-        void readValue(ReadValueCallback cb)
+        void readValue(java.util.function.Consumer<Value> cb)
         {
             int index = _stream.readSize();
             if(index < 0)
@@ -2732,7 +2832,7 @@ public class InputStream
             {
                 if(cb != null)
                 {
-                    cb.valueReady(null);
+                    cb.accept(null);
                 }
             }
             else if(_current != null && (_current.sliceFlags & Protocol.FLAG_HAS_INDIRECTION_TABLE) != 0)
@@ -3088,7 +3188,7 @@ public class InputStream
             return false;
         }
 
-        private int readInstance(int index, ReadValueCallback cb)
+        private int readInstance(int index, java.util.function.Consumer<Value> cb)
         {
             assert(index > 0);
 
@@ -3163,7 +3263,7 @@ public class InputStream
                         {
                             try
                             {
-                                _current.typeId = _compactIdResolver.resolve(_current.compactId);
+                                _current.typeId = _compactIdResolver.apply(_current.compactId);
                             }
                             catch(LocalException ex)
                             {
@@ -3171,7 +3271,7 @@ public class InputStream
                             }
                             catch(Throwable ex)
                             {
-                                throw new MarshalException("exception in CompactIdResolver for ID " +
+                                throw new MarshalException("exception in compact ID resolver for ID " +
                                                            _current.compactId, ex);
                             }
                         }
@@ -3255,7 +3355,7 @@ public class InputStream
 
             if(cb != null)
             {
-                cb.valueReady(v);
+                cb.accept(v);
             }
 
             return index;
@@ -3286,8 +3386,8 @@ public class InputStream
                 info.instances = new Value[table != null ? table.length : 0];
                 for(int j = 0; j < info.instances.length; ++j)
                 {
-                    addPatchEntry(table[j],
-                                  new SequencePatcher<Value>(info.instances, Value.class, Value.ice_staticId(), j));
+                    final int k = j;
+                    addPatchEntry(table[j], v -> info.instances[k] = v);
                 }
             }
 
@@ -3313,7 +3413,7 @@ public class InputStream
         private static final class IndirectPatchEntry
         {
             int index;
-            ReadValueCallback cb;
+            java.util.function.Consumer<Value> cb;
         }
 
         private static final class InstanceData
@@ -3345,7 +3445,7 @@ public class InputStream
             InstanceData next;
         }
 
-        private CompactIdResolver _compactIdResolver;
+        private java.util.function.IntFunction<String> _compactIdResolver;
         private InstanceData _current;
         private int _valueIdIndex; // The ID of the next instance to unmarshal.
         private java.util.TreeMap<Integer, Class<?> > _compactIdCache; // Cache of compact type IDs.
@@ -3442,6 +3542,6 @@ public class InputStream
 
     private ValueFactoryManager _valueFactoryManager;
     private Logger _logger;
-    private CompactIdResolver _compactIdResolver;
-    private ClassResolver _classResolver;
+    private java.util.function.IntFunction<String> _compactIdResolver;
+    private java.util.function.Function<String, Class<?>> _classResolver;
 }

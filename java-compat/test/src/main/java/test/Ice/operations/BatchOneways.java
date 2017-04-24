@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -79,6 +79,11 @@ class BatchOneways
 
         MyClassPrx batch = MyClassPrxHelper.uncheckedCast(p.ice_batchOneway());
         batch.ice_flushBatchRequests(); // Empty flush
+        if(batch.ice_getConnection() != null)
+        {
+            batch.ice_getConnection().flushBatchRequests(Ice.CompressBatch.BasedOnProxy);
+        }
+        batch.ice_getCommunicator().flushBatchRequests(Ice.CompressBatch.BasedOnProxy);
 
         p.opByteSOnewayCallCount(); // Reset the call count
 
@@ -115,7 +120,7 @@ class BatchOneways
             batch1.ice_ping();
             batch2.ice_ping();
             batch1.ice_flushBatchRequests();
-            batch1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+            batch1.ice_getConnection().close(Ice.ConnectionClose.GracefullyWithWait);
             batch1.ice_ping();
             batch2.ice_ping();
 
@@ -123,7 +128,7 @@ class BatchOneways
             batch2.ice_getConnection();
 
             batch1.ice_ping();
-            batch1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+            batch1.ice_getConnection().close(Ice.ConnectionClose.GracefullyWithWait);
             batch1.ice_ping();
             batch2.ice_ping();
         }
@@ -176,6 +181,42 @@ class BatchOneways
             test(interceptor.count() == 2);
 
             ic.destroy();
+        }
+
+        p.ice_ping();
+        if(p.ice_getConnection() != null &&
+           p.ice_getCommunicator().getProperties().getProperty("Ice.Override.Compress").equals(""))
+        {
+            Ice.ObjectPrx prx = p.ice_getConnection().createProxy(p.ice_getIdentity()).ice_batchOneway();
+
+            MyClassPrx batchC1 = MyClassPrxHelper.uncheckedCast(prx.ice_compress(false));
+            MyClassPrx batchC2 = MyClassPrxHelper.uncheckedCast(prx.ice_compress(true));
+            MyClassPrx batchC3 = MyClassPrxHelper.uncheckedCast(prx.ice_identity(identity));
+
+            batchC1.opByteSOneway(bs1);
+            batchC1.opByteSOneway(bs1);
+            batchC1.opByteSOneway(bs1);
+            batchC1.ice_getConnection().flushBatchRequests(Ice.CompressBatch.Yes);
+
+            batchC2.opByteSOneway(bs1);
+            batchC2.opByteSOneway(bs1);
+            batchC2.opByteSOneway(bs1);
+            batchC1.ice_getConnection().flushBatchRequests(Ice.CompressBatch.No);
+
+            batchC1.opByteSOneway(bs1);
+            batchC1.opByteSOneway(bs1);
+            batchC1.opByteSOneway(bs1);
+            batchC1.ice_getConnection().flushBatchRequests(Ice.CompressBatch.BasedOnProxy);
+
+            batchC1.opByteSOneway(bs1);
+            batchC2.opByteSOneway(bs1);
+            batchC1.opByteSOneway(bs1);
+            batchC1.ice_getConnection().flushBatchRequests(Ice.CompressBatch.BasedOnProxy);
+
+            batchC1.opByteSOneway(bs1);
+            batchC3.opByteSOneway(bs1);
+            batchC1.opByteSOneway(bs1);
+            batchC1.ice_getConnection().flushBatchRequests(Ice.CompressBatch.BasedOnProxy);
         }
     }
 }

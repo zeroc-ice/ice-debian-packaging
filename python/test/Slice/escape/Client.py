@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -24,19 +24,15 @@ Ice.loadSlice('Clash.ice')
 
 import _and
 
-class delI(_and._delDisp):
+class delI(_and._del):
     def _elifAsync(self, _else, current=None):
         pass
 
-class execI(_and._execDisp):
+class execI(_and._exec):
     def _finally(self, current=None):
         assert current.operation == "finally"
 
-class forI(_and._forDisp):
-    def foo(self, _from, current=None):
-        pass
-
-class ifI(_and._ifDisp):
+class ifI(_and._if):
     def _elifAsync(self, _else, current=None):
         pass
     def _finally(self, current=None):
@@ -61,7 +57,7 @@ def testtypes():
     assert "_finally" in dir(_and.execPrx)
     d1 = execI()
 
-    e1 = forI()
+    e1 = _and._for()
     f = _and.ifPrx.uncheckedCast(None)
 
     assert "_finally" in dir(_and.ifPrx)

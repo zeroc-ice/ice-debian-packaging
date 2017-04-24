@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -520,7 +520,7 @@ Slice::printHeader(Output& out)
     static const char* header =
 "// **********************************************************************\n"
 "//\n"
-"// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.\n"
+"// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.\n"
 "//\n"
 "// This copy of Ice is licensed to you under the terms described in the\n"
 "// ICE_LICENSE file included in this distribution.\n"
@@ -648,6 +648,20 @@ Slice::typeToString(const TypePtr& type, const StringList& metaData, int typeCtx
         "::std::shared_ptr<void>",
         "::std::shared_ptr<::Ice::Value>"
     };
+    
+    if((typeCtx & TypeContextLocal) != 0)
+    {
+        for(StringList::const_iterator i = metaData.begin(); i != metaData.end(); ++i)
+        {
+            const string cppType = "cpp:type:";
+            const string meta = *i;
+
+            if(meta.find(cppType) == 0)
+            {
+                return meta.substr(cppType.size());
+            }
+        }
+    }
 
     BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
     if(builtin)
@@ -1112,23 +1126,23 @@ Slice::outputTypeToString(const TypePtr& type, bool optional, const StringList& 
 string
 Slice::operationModeToString(Operation::Mode mode, bool cpp11)
 {
+    string prefix = cpp11 ? "::Ice::OperationMode::" : "::Ice::";
     switch(mode)
     {
         case Operation::Normal:
         {
-            return cpp11 ? "::Ice::OperationMode::Normal" : "::Ice::Normal";
+            return prefix + "Normal";
         }
 
         case Operation::Nonmutating:
         {
-            return cpp11 ? "::Ice::OperationMode::Nonmutating" : "::Ice::Nonmutating";
+            return prefix + "Nonmutating";
         }
 
         case Operation::Idempotent:
         {
-            return cpp11 ? "::Ice::OperationMode::Idempotent" : "::Ice::Idempotent";
+            return prefix + "Idempotent";
         }
-
         default:
         {
             assert(false);
@@ -1139,16 +1153,18 @@ Slice::operationModeToString(Operation::Mode mode, bool cpp11)
 }
 
 string
-Slice::opFormatTypeToString(const OperationPtr& op)
+Slice::opFormatTypeToString(const OperationPtr& op, bool cpp11)
 {
+    string prefix = cpp11 ? "::Ice::FormatType::" : "::Ice::";
+
     switch(op->format())
     {
     case DefaultFormat:
-        return "::Ice::DefaultFormat";
+        return prefix + "DefaultFormat";
     case CompactFormat:
-        return "::Ice::CompactFormat";
+        return prefix + "CompactFormat";
     case SlicedFormat:
-        return "::Ice::SlicedFormat";
+        return prefix + "SlicedFormat";
 
     default:
         assert(false);
@@ -1679,7 +1695,7 @@ Slice::findMetaData(const StringList& metaData, int typeCtx)
             //
             // The priority of the metadata is as follows:
             // 1: array, range (C++98 only), view-type for "view" parameters
-            // 2: class (C++98 only), unscoped (C++11 only)
+            // 2: class (C++98 only), scoped (C++98 only), unscoped (C++11 only)
             //
 
             if(pos != string::npos)
@@ -1716,7 +1732,7 @@ Slice::findMetaData(const StringList& metaData, int typeCtx)
                 }
             }
             //
-            // Otherwise if the data is "class", "unscoped" it is returned.
+            // Otherwise if the data is "class", "scoped" or "unscoped" it is returned.
             //
             else
             {
@@ -1724,6 +1740,10 @@ Slice::findMetaData(const StringList& metaData, int typeCtx)
                 if(ss == "class" && !(typeCtx & TypeContextCpp11))
                 {
                     return "%class";
+                }
+                else if(ss == "scoped" && !(typeCtx & TypeContextCpp11))
+                {
+                    return "%scoped";
                 }
                 else if(ss == "unscoped" && (typeCtx & TypeContextCpp11))
                 {

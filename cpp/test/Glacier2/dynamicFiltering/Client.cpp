@@ -1,13 +1,13 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#include <Ice/Application.h>
+#include <Ice/Ice.h>
 #include <Glacier2/Router.h>
 #include <Test.h>
 #include <TestCommon.h>
@@ -26,10 +26,6 @@ public:
 int
 main(int argc, char* argv[])
 {
-#ifdef ICE_STATIC_LIBS
-    Ice::registerIceSSL();
-#endif
-
     SessionControlClient app;
 
     Ice::InitializationData initData = getTestInitData(argc, argv);

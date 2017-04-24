@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -124,7 +124,7 @@ public class AllTests
             {
                 test(seq.length > 16384);
             }
-            obj.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+            obj.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             communicator.getProperties().setProperty("Ice.UDP.SndSize", "64000");
             seq = new byte[50000];
             try
@@ -146,23 +146,22 @@ public class AllTests
         {
             out.print("testing udp multicast... ");
             out.flush();
-            String endpoint;
+            StringBuilder endpoint = new StringBuilder();
             if(communicator.getProperties().getProperty("Ice.IPv6").equals("1"))
             {
+                endpoint.append("udp -h \"ff15::1:1\" -p ");
+                endpoint.append(app.getTestPort(communicator.getProperties(), 10));
                 if(System.getProperty("os.name").contains("OS X"))
                 {
-                    endpoint = "udp -h \"ff15::1:1\" -p 12020 --interface \"::1\"";
-                }
-                else
-                {
-                    endpoint = "udp -h \"ff15::1:1\" -p 12020";
+                    endpoint.append(" --interface \"::1\"");
                 }
             }
             else
             {
-                endpoint = "udp -h 239.255.1.1 -p 12020";
+                endpoint.append("udp -h 239.255.1.1 -p ");
+                endpoint.append(app.getTestPort(communicator.getProperties(), 10));
             }
-            base = communicator.stringToProxy("test -d:" + endpoint);
+            base = communicator.stringToProxy("test -d:" + endpoint.toString());
             TestIntfPrx objMcast = TestIntfPrx.uncheckedCast(base);
 
             nRetry = 5;
@@ -212,7 +211,7 @@ public class AllTests
 
         //
         // Sending the replies back on the multicast UDP connection doesn't work for most
-        // platform (it works for OS X Leopard but not Snow Leopard, doesn't work on SLES,
+        // platform (it works for macOS Leopard but not Snow Leopard, doesn't work on SLES,
         // Windows...). For Windows, see UdpTransceiver constructor for the details. So
         // we don't run this test.
         //

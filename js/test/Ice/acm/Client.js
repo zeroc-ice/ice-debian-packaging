@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,7 +11,6 @@
 {
     var Ice = require("ice").Ice;
     var Test = require("Test").Test;
-    var Promise = Ice.Promise;
 
     var test = function(b)
     {
@@ -87,7 +86,7 @@
             var initData = new Ice.InitializationData();
             initData.properties = this._com.ice_getCommunicator().getProperties().clone();
             initData.logger = this._logger;
-            initData.properties.setProperty("Ice.ACM.Timeout", "1");
+            initData.properties.setProperty("Ice.ACM.Timeout", "2");
             if(this._clientACMTimeout >= 0)
             {
                 initData.properties.setProperty("Ice.ACM.Client.Timeout", "" + this._clientACMTimeout);
@@ -156,15 +155,28 @@
             if(!this._closed)
             {
                 var now = Date.now();
-                return Ice.Promise.delay(1000).then(() => {
-                    if(Date.now() - now > 1000)
-                    {
-                        test(false);
-                    }
-                    return Promise.resolve();
-                })
+                var promise = Ice.Promise.delay(100);
+                var p = promise;
+                for(var i = 0; i < 20; ++i)
+                {
+                    p = p.then(() => {
+                        if(this._closed)
+                        {
+                            return;
+                        }
+                        else if(Date.now() - now >= 2000)
+                        {
+                            test(false);
+                        }
+                        else
+                        {
+                            return Ice.Promise.delay(100);
+                        }
+                    });
+                }
+                return p;
             }
-            return Promise.resolve();
+            return Ice.Promise.resolve();
         }
 
         runTestCase(adapter, proxy)
@@ -196,7 +208,7 @@
 
         runTestCase(adapter, proxy)
         {
-            return proxy.sleep(2).then(() =>
+            return proxy.sleep(4).then(() =>
                 {
                     test(this._heartbeat >= 2);
                 });
@@ -229,7 +241,7 @@
         constructor(com, out)
         {
             super("invocation with no heartbeat", com, out);
-            this.setServerACM(1, 2, 0); // Disable heartbeat on invocations
+            this.setServerACM(2, 2, 0); // Disable heartbeat on invocations
         }
 
         runTestCase(adapter, proxy)
@@ -254,15 +266,15 @@
         constructor(com, out)
         {
             super("invocation with no heartbeat and close on idle", com, out);
-            this.setClientACM(1, 1, 0); // Only close on idle.
-            this.setServerACM(1, 2, 0); // Disable heartbeat on invocations
+            this.setClientACM(2, 1, 0); // Only close on idle.
+            this.setServerACM(2, 2, 0); // Disable heartbeat on invocations
         }
 
         runTestCase(adapter, proxy)
         {
             // No close on invocation, the call should succeed this
             // time.
-            return proxy.sleep(2).then(() =>
+            return proxy.sleep(4).then(() =>
                                        {
                                            test(this._heartbeat === 0);
                                            test(!this._closed);
@@ -275,12 +287,12 @@
         constructor(com, out)
         {
             super("close on idle", com, out);
-            this.setClientACM(1, 1, 0); // Only close on idle
+            this.setClientACM(2, 1, 0); // Only close on idle
         }
 
         runTestCase(adapter, proxy)
         {
-            return Ice.Promise.delay(2000).then(() => this.waitForClosed()).then(() =>
+            return Ice.Promise.delay(4000).then(() => this.waitForClosed()).then(() =>
                                                 {
                                                     test(this._heartbeat === 0);
                                                     test(this._closed);
@@ -293,12 +305,12 @@
         constructor(com, out)
         {
             super("close on invocation", com, out);
-            this.setClientACM(1, 2, 0); // Only close on invocation
+            this.setClientACM(2, 2, 0); // Only close on invocation
         }
 
         runTestCase(adapter, proxy)
         {
-            return Ice.Promise.delay(1500).then(() =>
+            return Ice.Promise.delay(3000).then(() =>
                                                 {
                                                     test(this._heartbeat === 0);
                                                     test(!this._closed);
@@ -311,7 +323,7 @@
         constructor(com, out)
         {
             super("close on idle and invocation", com, out);
-            this.setClientACM(1, 3, 0); // Only close on idle and invocation
+            this.setClientACM(2, 3, 0); // Only close on idle and invocation
         }
 
         runTestCase(adapter, proxy)
@@ -321,7 +333,7 @@
             // the graceful close. This allows to test whether or not
             // the close is graceful or forceful.
             //
-            return adapter.hold().delay(1500).then(
+            return adapter.hold().delay(3000).then(
                 () =>
                 {
                     test(this._heartbeat === 0);
@@ -336,12 +348,12 @@
         constructor(com, out)
         {
             super("forcefull close on idle and invocation", com, out);
-            this.setClientACM(1, 4, 0); // Only close on idle and invocation
+            this.setClientACM(2, 4, 0); // Only close on idle and invocation
         }
 
         runTestCase(adapter, proxy)
         {
-            return adapter.hold().delay(1500).then(() => this.waitForClosed()).then(
+            return adapter.hold().delay(3000).then(() => this.waitForClosed()).then(
                 () =>
                 {
                     test(this._heartbeat === 0);
@@ -355,12 +367,12 @@
         constructor(com, out)
         {
             super("heartbeat on idle", com, out);
-            this.setServerACM(1, -1, 2); // Enable server heartbeats.
+            this.setServerACM(2, -1, 2); // Enable server heartbeats.
         }
 
         runTestCase(adapter, proxy)
         {
-            return Ice.Promise.delay(2000).then(() => test(this._heartbeat >= 3));
+            return Ice.Promise.delay(4000).then(() => test(this._heartbeat >= 3));
         }
     }
 
@@ -369,12 +381,12 @@
         constructor(com, out)
         {
             super("heartbeat always", com, out);
-            this.setServerACM(1, -1, 3); // Enable server heartbeats.
+            this.setServerACM(2, -1, 3); // Enable server heartbeats.
         }
 
         runTestCase(adapter, proxy)
         {
-            var p = Promise.resolve();
+            var p = Ice.Promise.resolve();
 
             // Use this function so we don't have a function defined
             // inside of a loop
@@ -383,9 +395,9 @@
                 return proxy.ice_ping();
             }
 
-            for(var i = 0; i < 12; ++i)
+            for(var i = 0; i < 10; ++i)
             {
-                p = p.then(icePing(proxy)).delay(200);
+                p = p.then(icePing(proxy)).delay(400);
             }
             return p.then(() => test(this._heartbeat >= 3));
         }
@@ -407,7 +419,7 @@
         {
             function sendHeartbeats(con)
             {
-                var p = Promise.resolve();
+                var p = Ice.Promise.resolve();
                 for(var i = 0; i < 5; ++i)
                 {
                     p = p.then(con.heartbeat());
@@ -510,7 +522,7 @@
     {
         id.properties.setProperty("Ice.Warn.Connections", "0");
         var c = Ice.initialize(id);
-        return Promise.try(() => allTests(out, c)).finally(() => c.destroy());
+        return Ice.Promise.try(() => allTests(out, c)).finally(() => c.destroy());
     };
     exports._test = run;
     exports._runServer = true;

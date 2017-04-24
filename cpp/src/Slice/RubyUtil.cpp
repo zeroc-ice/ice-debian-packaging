@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -905,13 +905,10 @@ Slice::Ruby::CodeVisitor::visitStructStart(const StructPtr& p)
     _out.inc();
     _out << nl << "return false if";
     _out.inc();
+    _out << " !other.is_a? " << getAbsolute(p, IdentToUpper);
     for(MemberInfoList::iterator r = memberList.begin(); r != memberList.end(); ++r)
     {
-        if(r != memberList.begin())
-        {
-            _out << " or";
-        }
-        _out << nl << "@" << r->fixedName << " != other." << r->fixedName;
+        _out << " or" << nl << "@" << r->fixedName << " != other." << r->fixedName;
     }
     _out.dec();
     _out << nl << "true";
@@ -1028,7 +1025,7 @@ Slice::Ruby::CodeVisitor::visitEnum(const EnumPtr& p)
 {
     string scoped = p->scoped();
     string name = fixIdent(p->name(), IdentToUpper);
-    EnumeratorList enums = p->getEnumerators();
+    EnumeratorList enums = p->enumerators();
 
     _out << sp << nl << "if not defined?(" << getAbsolute(p, IdentToUpper) << ')';
     _out.inc();
@@ -1286,7 +1283,7 @@ Slice::Ruby::CodeVisitor::getInitializer(const DataMemberPtr& m)
     EnumPtr en = EnumPtr::dynamicCast(p);
     if(en)
     {
-        EnumeratorList enums = en->getEnumerators();
+        EnumeratorList enums = en->enumerators();
         return getAbsolute(en, IdentToUpper) + "::" + fixIdent(enums.front()->name(), IdentToUpper);
     }
 
@@ -1355,16 +1352,9 @@ Slice::Ruby::CodeVisitor::writeConstantValue(const TypePtr& type, const SyntaxTr
         }
         else if(en)
         {
-            _out << getAbsolute(en, IdentToUpper) << "::";
-            string::size_type colon = value.rfind(':');
-            if(colon != string::npos)
-            {
-                _out << fixIdent(value.substr(colon + 1), IdentToUpper);
-            }
-            else
-            {
-                _out << fixIdent(value, IdentToUpper);
-            }
+            EnumeratorPtr lte = EnumeratorPtr::dynamicCast(valueType);
+            assert(lte);
+            _out << getAbsolute(lte, IdentToUpper);
         }
         else
         {
@@ -1572,7 +1562,7 @@ Slice::Ruby::printHeader(IceUtilInternal::Output& out)
     static const char* header =
 "# **********************************************************************\n"
 "#\n"
-"# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.\n"
+"# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.\n"
 "#\n"
 "# This copy of Ice is licensed to you under the terms described in the\n"
 "# ICE_LICENSE file included in this distribution.\n"

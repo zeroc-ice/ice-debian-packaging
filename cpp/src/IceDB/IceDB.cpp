@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -489,7 +489,7 @@ CursorBase::renew(const ReadOnlyTxn& txn)
 
 //
 // On Windows, we use a default LMDB map size of 10MB, whereas on other platforms
-// (Linux, OS X), we use a default of 100MB.
+// (Linux, macOS), we use a default of 100MB.
 //
 // On Windows, LMDB does not use sparse files and allocates immediately the file
 // with the given (max) size. This is why we need a fairly small default map size

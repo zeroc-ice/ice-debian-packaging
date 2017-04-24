@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -68,6 +68,16 @@ public:
     void response(bool);
     void exception(const std::exception&, bool);
     void exception(const std::string&, bool);
+#if defined(_MSC_VER) && (_MSC_VER == 1500)
+    //
+    // COMPILERFIX VC90 get confused with overloads above
+    // when passing a const char* as first argument.
+    //
+    void exception(const char* msg, bool amd)
+    {
+        exception(std::string(msg), amd);
+    }
+#endif
 
 protected:
 
@@ -81,6 +91,17 @@ protected:
 
     void handleException(const std::exception&, bool);
     void handleException(const std::string&, bool);
+
+#if defined(_MSC_VER) && (_MSC_VER == 1500)
+    //
+    // COMPILERFIX VC90 get confused with overloads above
+    // when passing a const char* as first argument.
+    //
+    void handleException(const char* msg, bool amd)
+    {
+        handleException(std::string(msg), amd);
+    }
+#endif
 
     Ice::Current _current;
     Ice::ObjectPtr _servant;

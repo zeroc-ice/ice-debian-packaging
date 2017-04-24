@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -37,21 +37,6 @@ namespace Ice
     }
 
     /// <summary>
-    /// A delegate for the dispatcher. The dispatcher is called by the Ice
-    /// runtime to dispatch servant calls and AMI callbacks.
-    /// </summary>
-    public delegate void Dispatcher(System.Action call, Connection con);
-
-    /// <summary>
-    /// Applications that make use of compact type IDs to conserve space
-    /// when marshaling class instances, and also use the streaming API to
-    /// extract such classes, can intercept the translation between compact
-    /// type IDs and their corresponding string type IDs by installing an
-    /// instance of CompactIdResolver in InitializationData.
-    /// </summary>
-    public delegate string CompactIdResolver(int id);
-
-    /// <summary>
     /// A class that encpasulates data to initialize a communicator.
     /// </summary>
     public class InitializationData : ICloneable
@@ -85,22 +70,37 @@ namespace Ice
         /// <summary>
         /// The thread hook for the communicator.
         /// </summary>
+        [Obsolete("This data member is deprecated. Use threadStart or threadStop instead.")]
         public ThreadNotification threadHook;
+
+        /// <summary>
+        /// The thread start hook for the communicator. The Ice run time
+        /// calls this hook for each new thread it creates. The call is
+        /// made by the newly-started thread.
+        /// </summary>
+        public System.Action threadStart;
+
+        /// <summary>
+        /// The thread stop hook for the communicator. The Ice run time
+        /// calls stop before it destroys a thread. The call is made by
+        /// thread that is about to be destroyed.
+        /// </summary>
+        public System.Action threadStop;
 
         /// <summary>
         /// The dispatcher for the communicator.
         /// </summary>
-        public Dispatcher dispatcher;
+        public System.Action<System.Action, Connection> dispatcher;
 
         /// <summary>
         /// The compact type ID resolver.
         /// </summary>
-        public CompactIdResolver compactIdResolver;
+        public System.Func<int, string> compactIdResolver;
 
         /// <summary>
         /// The batch request interceptor.
         /// </summary>
-        public BatchRequestInterceptor batchRequestInterceptor;
+        public System.Action<BatchRequest, int, int> batchRequestInterceptor;
 
         /// <summary>
         /// The value factory manager.
@@ -165,14 +165,14 @@ namespace Ice
         /// <returns>The initialized communicator.</returns>
         public static Communicator initialize(ref string[] args)
         {
-            return initialize(ref args, null);
+            return initialize(ref args, (InitializationData)null);
         }
 
         /// <summary>
         /// Creates a communicator.
         /// </summary>
         /// <param name="args">A command-line argument vector. Any Ice-related options
-        /// in this vector are used to intialize the communicator.
+        /// in this vector are used to initialize the communicator.
         /// This method modifies the argument vector by removing any Ice-related options.</param>
         /// <param name="initData">Additional intialization data. Property settings in args
         /// override property settings in initData.</param>
@@ -198,6 +198,27 @@ namespace Ice
         /// <summary>
         /// Creates a communicator.
         /// </summary>
+        /// <param name="args">A command-line argument vector. Any Ice-related options
+        /// in this vector are used to initialize the communicator.
+        /// This method modifies the argument vector by removing any Ice-related options.</param>
+        /// <param name="configFile">Path to a config file that sets the new communicator's default
+        /// properties.</param>
+        /// <returns>The initialized communicator.</returns>
+        public static Communicator initialize(ref string[] args, string configFile)
+        {
+            InitializationData initData = null;
+            if(configFile != null)
+            {
+                initData = new InitializationData();
+                initData.properties = Util.createProperties();
+                initData.properties.load(configFile);
+            }
+            return initialize(ref args, initData);
+        }
+
+        /// <summary>
+        /// Creates a communicator.
+        /// </summary>
         /// <param name="initData">Additional intialization data.</param>
         /// <returns>The initialized communicator.</returns>
         public static Communicator initialize(InitializationData initData)
@@ -218,11 +239,29 @@ namespace Ice
         }
 
         /// <summary>
+        /// Creates a communicator.
+        /// </summary>
+        /// <param name="configFile">Path to a config file that sets the new communicator's default
+        /// properties.</param>
+        /// <returns>The initialized communicator.</returns>
+        public static Communicator initialize(string configFile)
+        {
+            InitializationData initData = null;
+            if(configFile != null)
+            {
+                initData = new InitializationData();
+                initData.properties = Util.createProperties();
+                initData.properties.load(configFile);
+            }
+            return initialize(initData);
+        }
+
+        /// <summary>
         /// Creates a communicator using a default configuration.
         /// </summary>
         public static Communicator initialize()
         {
-            return initialize(null);
+            return initialize((InitializationData)null);
         }
 
         /// <summary>
@@ -476,7 +515,7 @@ namespace Ice
         /// <returns>The Ice version.</returns>
         public static string stringVersion()
         {
-            return "3.7a4"; // "A.B.C", with A=major, B=minor, C=patch
+            return "3.7b0"; // "A.B.C", with A=major, B=minor, C=patch
         }
 
         /// <summary>
@@ -487,7 +526,7 @@ namespace Ice
         /// <returns>The Ice version.</returns>
         public static int intVersion()
         {
-            return 30754; // AABBCC, with AA=major, BB=minor, CC=patch
+            return 30760; // AABBCC, with AA=major, BB=minor, CC=patch
         }
 
         /// <summary>

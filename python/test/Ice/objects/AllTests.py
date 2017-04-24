@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -211,6 +211,31 @@ def allTests(communicator):
         test(len(retS) == 1 and len(outS) == 1)
     except Ice.OperationNotExistException:
         pass
+    print("ok")
+
+    sys.stdout.write("testing recursive type... ")
+    sys.stdout.flush()
+    top = Test.Recursive()
+    p = top;
+    depth = 0;
+    try:
+        while depth <= 1000:
+            p.v = Test.Recursive()
+            p = p.v;
+            if (depth < 10 and (depth % 10) == 0) or \
+               (depth < 1000 and (depth % 100) == 0) or \
+               (depth < 10000 and (depth % 1000) == 0) or \
+               (depth % 10000) == 0:
+                initial.setRecursive(top)
+            depth += 1
+        test(not initial.supportsClassGraphDepthMax())
+    except Ice.UnknownLocalException:
+        # Expected marshal exception from the server (max class graph depth reached)
+        pass
+    except Ice.UnknownException:
+        # Expected stack overflow from the server (Java only)
+        pass
+    initial.setRecursive(Test.Recursive())
     print("ok")
 
     sys.stdout.write("testing compact ID... ")

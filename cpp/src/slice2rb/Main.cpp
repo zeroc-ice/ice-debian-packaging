@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -16,8 +16,11 @@ using namespace Slice;
 using namespace Slice::Ruby;
 using namespace IceUtilInternal;
 
-int
-main(int argc, char* argv[])
+#ifdef _WIN32
+int wmain(int argc, wchar_t* argv[])
+#else
+int main(int argc, char* argv[])
+#endif
 {
     vector<string> args = Slice::argvToArgs(argc, argv);
     try

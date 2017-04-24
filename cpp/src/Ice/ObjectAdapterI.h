@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -85,14 +85,15 @@ public:
 
     virtual void setLocator(const LocatorPrxPtr&);
     virtual Ice::LocatorPrxPtr getLocator() const;
-    virtual void refreshPublishedEndpoints();
-
     virtual EndpointSeq getEndpoints() const;
+
+    virtual void refreshPublishedEndpoints();
     virtual EndpointSeq getPublishedEndpoints() const;
+    virtual void setPublishedEndpoints(const EndpointSeq&);
 
     bool isLocal(const ObjectPrxPtr&) const;
 
-    void flushAsyncBatchRequests(const IceInternal::CommunicatorFlushBatchAsyncPtr&);
+    void flushAsyncBatchRequests(const IceInternal::CommunicatorFlushBatchAsyncPtr&, CompressBatch);
 
     void updateConnectionObservers();
     void updateThreadObservers();

@@ -1,7 +1,7 @@
 # encoding: utf-8
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -98,7 +98,7 @@ def twoways(communicator, p)
     #
     # ice_isA
     #
-    test(p.ice_isA(Test::MyClass::ice_staticId()))
+    test(p.ice_isA("::Test::MyClass"))
 
     #
     # ice_ids
@@ -112,13 +112,13 @@ def twoways(communicator, p)
     #
     # ice_id
     #
-    test(p.ice_id == Test::MyDerivedClass::ice_staticId())
+    test(p.ice_id == "::Test::MyDerivedClass")
 
     #
     # Proxy ice_staticId
     #
-    test(Test::MyClassPrx::ice_staticId() == Test::MyClass::ice_staticId())
-    test(Test::MyDerivedClassPrx::ice_staticId() == Test::MyDerivedClass::ice_staticId())
+    test(Test::MyClassPrx::ice_staticId() == "::Test::MyClass")
+    test(Test::MyDerivedClassPrx::ice_staticId() == "::Test::MyDerivedClass")
     test(Ice::ObjectPrx::ice_staticId() == Ice::Value::ice_staticId())
 
     #

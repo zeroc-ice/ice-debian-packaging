@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -12,7 +12,6 @@
     var Ice = require("ice").Ice;
     var IceSSL = require("ice").IceSSL;
     var Test = require("Test").Test;
-    var Promise = Ice.Promise;
 
     function getTCPEndpointInfo(info)
     {
@@ -61,7 +60,7 @@
 
         var defaultHost = communicator.getProperties().getPropertyWithDefault("Ice.Default.Host");
 
-        return Promise.try(
+        return Ice.Promise.try(
             function()
             {
                 out.write("testing proxy endpoint information... ");
@@ -199,7 +198,7 @@
     var run = function(out, id)
     {
         var communicator = Ice.initialize(id);
-        return Promise.try(
+        return Ice.Promise.try(
             function()
             {
                 return allTests(communicator, out);

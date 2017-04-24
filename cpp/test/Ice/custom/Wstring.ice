@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -26,7 +26,7 @@ exception WstringException
     string reason;
 };
 
-class WstringClass
+interface WstringClass
 {
     string opString(string s1, out string s2);
 
@@ -34,8 +34,6 @@ class WstringClass
 
     void throwExcept(string reason)
         throws WstringException;
-
-    string s;
 };
 
 };
@@ -57,7 +55,7 @@ dictionary<["cpp:type:wstring"] string, ["cpp:type:wstring"] string> WstringWStr
     string reason;
 };
 
-["cpp:type:wstring"] class WstringClass
+["cpp:type:wstring"] interface WstringClass
 {
     string opString(string s1, out string s2);
 
@@ -65,8 +63,6 @@ dictionary<["cpp:type:wstring"] string, ["cpp:type:wstring"] string> WstringWStr
 
     void throwExcept(string reason)
         throws WstringException;
-
-    string s;
 };
 
 };

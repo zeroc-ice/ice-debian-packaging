@@ -17,12 +17,12 @@ include pre-compiled JAR files.
 Building any Ice application for Android requires Android Studio and the Android
 SDK build tools. We tested with the following components:
 
-- Android Studio 1.2.1
-- Android SDK Build-tools 21.1.1
+- Android Studio 2.3
+- Android SDK Build-tools 25
 
-Ice requires at minimum API level 17:
+Ice requires at minimum API level 21:
 
-- Android 4.2.2 (API17)
+- Android 5 (API21)
 
 If you want to target a later version of the Android API level for the test
 suite, edit `gradle.properties` and change the following variables:
@@ -31,16 +31,16 @@ suite, edit `gradle.properties` and change the following variables:
     ice_minSdkVersion
     ice_targetSdkVersion
 
-### Slice to Java Translator
+### Slice to Java Compiler
 
-To build this project you'll need the Slice to Java translator, which generates
-Java code from Slice definitions. The translator is written in C++. If you have
+To build this project you'll need the Slice to Java compiler, which generates
+Java code from Slice definitions. The compiler is written in C++. If you have
 a suitable C++ development environment, you can build [Ice for C++](../cpp)
-yourself. Otherwise, you can obtain the translator by installing a
+yourself. Otherwise, you can obtain the compiler by installing a
 [binary distribution][1].
 
 The project's Gradle-based build system will automatically search for the
-translator in this repository and in the default installation directories used
+compiler in this repository and in the default installation directories used
 by the binary distributions for our supported platforms.
 
 ### Bzip2 Compression

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -185,15 +185,36 @@ namespace IceSSL
 
         public EndpointI endpoint(IceInternal.EndpointI del)
         {
-            return new EndpointI(_instance, del);
+            if(del == _delegate)
+            {
+                return this;
+            }
+            else
+            {
+                return new EndpointI(_instance, del);
+            }
         }
 
-        public override List<IceInternal.EndpointI> expand()
+        public override List<IceInternal.EndpointI> expandIfWildcard()
         {
             List<IceInternal.EndpointI> l = new List<IceInternal.EndpointI>();
-            foreach(IceInternal.EndpointI e in _delegate.expand())
+            foreach(IceInternal.EndpointI e in _delegate.expandIfWildcard())
             {
                 l.Add(e == _delegate ? this : new EndpointI(_instance, e));
+            }
+            return l;
+        }
+
+        public override List<IceInternal.EndpointI> expandHost(out IceInternal.EndpointI publish)
+        {
+            List<IceInternal.EndpointI> l = new List<IceInternal.EndpointI>();
+            foreach(IceInternal.EndpointI e in _delegate.expandHost(out publish))
+            {
+                l.Add(e == _delegate ? this : new EndpointI(_instance, e));
+            }
+            if(publish != null)
+            {
+                publish = publish == _delegate ? this : new EndpointI(_instance, publish);
             }
             return l;
         }

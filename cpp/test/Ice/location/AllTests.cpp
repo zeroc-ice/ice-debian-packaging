@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -637,7 +637,7 @@ allTests(const Ice::CommunicatorPtr& communicator, const string& ref)
     cout << "testing object migration... " << flush;
     hello = ICE_CHECKED_CAST(HelloPrx, communicator->stringToProxy("hello"));
     obj->migrateHello();
-    hello->ice_getConnection()->close(Ice::CloseGracefullyAndWait);
+    hello->ice_getConnection()->close(Ice::ICE_SCOPED_ENUM(ConnectionClose, GracefullyWithWait));
     hello->sayHello();
     obj->migrateHello();
     hello->sayHello();

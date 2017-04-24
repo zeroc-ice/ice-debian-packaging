@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -29,7 +29,7 @@ const IceSSL = Ice._ModuleRegistry.module("IceSSL");
 // We need to check for Edge browser as it might include Chrome in its user agent.
 //
 const IsChrome = navigator.userAgent.indexOf("Edge/") === -1 &&
-                 navigator.userAgent.indexOf("Chrome/") !== -1;
+               navigator.userAgent.indexOf("Chrome/") !== -1;
 
 const Debug = Ice.Debug;
 const ExUtil = Ice.ExUtil;
@@ -143,12 +143,15 @@ class WSTransceiver
         }
 
         //
-        // With Chrome calling close() while the websocket isn't connected yet
-        // doesn't abort the connection attempt, and might result in the connection
-        // being reused by a different web socket.
+        // With Chrome (in particular on macOS) calling close() while the websocket isn't
+        // connected yet doesn't abort the connection attempt, and might result in the
+        // connection being reused by a different web socket.
         //
-        // To workaround this problem, we always wait for the socket to be
-        // connected or closed before closing the socket.
+        // To workaround this problem, we always wait for the socket to be connected or
+        // closed before closing the socket.
+        //
+        // NOTE: when this workaround is no longer necessary, don't forget removing the
+        // StateClosePending state.
         //
         if(IsChrome && this._fd.readyState === WebSocket.CONNECTING)
         {

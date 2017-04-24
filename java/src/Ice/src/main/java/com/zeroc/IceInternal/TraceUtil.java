@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -174,7 +174,7 @@ public final class TraceUtil
                 toStringMode = stream.instance().toStringMode();
             }
 
-            com.zeroc.Ice.Identity identity = com.zeroc.Ice.Identity.ice_read(stream, null);
+            com.zeroc.Ice.Identity identity = com.zeroc.Ice.Identity.ice_read(stream);
             out.write("\nidentity = " + com.zeroc.Ice.Util.identityToString(identity, toStringMode));
 
             String[] facet = stream.readStringSeq();

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -107,7 +107,7 @@ class BatchOnewaysAMI
             batch.begin_ice_ping();
             batch2.begin_ice_ping();
             batch.end_ice_flushBatchRequests(batch.begin_ice_flushBatchRequests());
-            batch.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+            batch.ice_getConnection().close(Ice.ConnectionClose.GracefullyWithWait);
             batch.begin_ice_ping();
             batch2.begin_ice_ping();
 
@@ -115,7 +115,7 @@ class BatchOnewaysAMI
             batch2.ice_getConnection();
 
             batch.begin_ice_ping();
-            batch.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+            batch.ice_getConnection().close(Ice.ConnectionClose.GracefullyWithWait);
             batch.begin_ice_ping().throwLocalException();
             batch2.begin_ice_ping().throwLocalException();
         }

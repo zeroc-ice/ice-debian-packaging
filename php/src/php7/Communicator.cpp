@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -813,21 +813,29 @@ ZEND_METHOD(Ice_Communicator, setDefaultLocator)
 
 ZEND_METHOD(Ice_Communicator, flushBatchRequests)
 {
-    CommunicatorInfoIPtr _this = Wrapper<CommunicatorInfoIPtr>::value(getThis());
-    assert(_this);
-
-    if(ZEND_NUM_ARGS() != 8)
+    zval* compress;
+    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, const_cast<char*>("z"), &compress TSRMLS_CC) != SUCCESS)
     {
-        WRONG_PARAM_COUNT;
+        RETURN_NULL();
     }
+
+    if(Z_TYPE_P(compress) != IS_LONG)
+    {
+        invalidArgument("value for 'compress' argument must be an enumerator of CompressBatch" TSRMLS_CC);
+        RETURN_NULL();
+    }
+    Ice::CompressBatch cb = static_cast<Ice::CompressBatch>(Z_LVAL_P(compress));
+
+    CommunicatorInfoIPtr _this = Wrapper<CommunicatorInfoIPtr>::value(getThis() TSRMLS_CC);
+    assert(_this);
 
     try
     {
-        _this->getCommunicator()->flushBatchRequests();
+        _this->getCommunicator()->flushBatchRequests(cb);
     }
     catch(const IceUtil::Exception& ex)
     {
-        throwException(ex);
+        throwException(ex TSRMLS_CC);
         RETURN_NULL();
     }
 }
@@ -1093,50 +1101,80 @@ ZEND_FUNCTION(Ice_initialize)
     zval* zvinit = 0;
 
     //
-    // Accept the following invocations:
+    // The argument options are:
     //
-    // initialize(array, InitializationData)
-    // initialize(array)
-    // initialize(InitializationData)
     // initialize()
+    // initialize(args)
+    // initialize(initData)
+    // initialize(args, initData)
+    // initialize(initData, args)
     //
-    bool hasArgs = false;
-    if(ZEND_NUM_ARGS())
+
+    if(ZEND_NUM_ARGS() > 2)
     {
-        if(Z_TYPE(args[0]) == IS_ARRAY)
+        runtimeError("too many arguments to initialize");
+        RETURN_NULL();
+    }
+
+    if(ZEND_NUM_ARGS() > 0)
+    {
+        zval* arg = &args[0];
+        while(Z_TYPE_P(arg) == IS_REFERENCE)
         {
-            if(!extractStringArray(&args[0], seq))
-            {
-                RETURN_NULL();
-            }
-            zvargs = &args[0];
-            hasArgs = true;
-            if(ZEND_NUM_ARGS() > 1)
-            {
-                if(Z_TYPE(args[1]) != IS_OBJECT || Z_OBJCE(args[1]) != initClass)
-                {
-                    string s = zendTypeToString(Z_TYPE(args[1]));
-                    invalidArgument("expected InitializationData object but received %s", s.c_str());
-                    RETURN_NULL();
-                }
-                zvinit = &args[1];
-            }
+            arg = Z_REFVAL_P(arg);
         }
-        else if(Z_TYPE(args[0]) == IS_OBJECT && Z_OBJCE(args[0]) == initClass)
+
+        if(Z_TYPE_P(arg) == IS_ARRAY)
         {
-            if(ZEND_NUM_ARGS() > 1)
-            {
-                runtimeError("too many arguments");
-                RETURN_NULL();
-            }
-            zvinit = &args[0];
+            zvargs = arg;
+        }
+        else if(Z_TYPE_P(arg) == IS_OBJECT && Z_OBJCE_P(arg) == initClass)
+        {
+            zvinit = arg;
         }
         else
         {
-            string s = zendTypeToString(Z_TYPE(args[0]));
-            invalidArgument("unexpected argument type %s", s.c_str());
+            invalidArgument("initialize expects an argument list, an InitializationData object, or both");
             RETURN_NULL();
         }
+    }
+
+    if(ZEND_NUM_ARGS() > 1)
+    {
+        zval* arg = &args[1];
+        while(Z_TYPE_P(arg) == IS_REFERENCE)
+        {
+            arg = Z_REFVAL_P(arg);
+        }
+
+        if(Z_TYPE_P(arg) == IS_ARRAY)
+        {
+            if(zvargs)
+            {
+                invalidArgument("unexpected array argument to initialize");
+                RETURN_NULL();
+            }
+            zvargs = arg;
+        }
+        else if(Z_TYPE_P(arg) == IS_OBJECT && Z_OBJCE_P(arg) == initClass)
+        {
+            if(zvinit)
+            {
+                invalidArgument("unexpected InitializationData argument to initialize");
+                RETURN_NULL();
+            }
+            zvinit = arg;
+        }
+        else
+        {
+            invalidArgument("initialize expects an argument list, an InitializationData object, or both");
+            RETURN_NULL();
+        }
+    }
+
+    if(zvargs && !extractStringArray(zvargs, seq))
+    {
+        RETURN_NULL();
     }
 
     if(zvinit)
@@ -1172,13 +1210,16 @@ ZEND_FUNCTION(Ice_initialize)
     initData.compactIdResolver = new IdResolver();
     initData.valueFactoryManager = new ValueFactoryManager;
 
-    CommunicatorInfoIPtr info = initializeCommunicator(return_value, seq, hasArgs, initData);
+    CommunicatorInfoIPtr info = initializeCommunicator(return_value, seq, zvargs != 0, initData);
     if(!info)
     {
         RETURN_NULL();
     }
 
-    if(zvargs && Z_ISREF_P(zvargs))
+    //
+    // Replace the existing argument array with the filtered set.
+    //
+    if(zvargs)
     {
         zval_dtor(zvargs);
         if(!createStringArray(zvargs, seq))

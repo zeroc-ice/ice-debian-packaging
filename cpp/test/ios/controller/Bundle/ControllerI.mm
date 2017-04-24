@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -354,7 +354,6 @@ ControllerHelper::ControllerHelper(id<ViewController> controller, NSString* ipv4
     initData.properties = Ice::createProperties();
     initData.properties->setProperty("Ice.ThreadPool.Server.SizeMax", "10");
     initData.properties->setProperty("IceDiscovery.DomainId", "TestController");
-    initData.properties->setProperty("IceDiscovery.Interface", [ipv4 UTF8String]);
     initData.properties->setProperty("Ice.Default.Host", [ipv4 UTF8String]);
     initData.properties->setProperty("ControllerAdapter.Endpoints", "tcp");
     //initData.properties->setProperty("Ice.Trace.Network", "2");

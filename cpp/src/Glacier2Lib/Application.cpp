@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,7 +10,7 @@
 #include <Glacier2/Application.h>
 #include <Ice/Ice.h>
 #include <IceUtil/IceUtil.h>
-#include <IceUtil/ArgVector.h>
+#include <Ice/ArgVector.h>
 
 using namespace std;
 using namespace Ice;
@@ -104,7 +104,7 @@ Glacier2::Application::categoryForClient()
 }
 
 int
-Glacier2::Application::doMain(int argc, char* argv[], const Ice::InitializationData& initData)
+Glacier2::Application::doMain(int argc, char* argv[], const Ice::InitializationData& initData, int version)
 {
     // Set the default properties for all Glacier2 applications.
     initData.properties->setProperty("Ice.RetryIntervals", "-1");
@@ -122,14 +122,14 @@ Glacier2::Application::doMain(int argc, char* argv[], const Ice::InitializationD
         id.properties = id.properties->clone();
         Ice::StringSeq args = Ice::argsToStringSeq(argc, argv);
 
-        restart = doMain(args, id, ret);
+        restart = doMain(args, id, ret, version);
     }
     while(restart);
     return ret;
 }
 
 bool
-Glacier2::Application::doMain(Ice::StringSeq& args, const Ice::InitializationData& initData, int& status)
+Glacier2::Application::doMain(Ice::StringSeq& args, const Ice::InitializationData& initData, int& status, int version)
 {
     //
     // Reset internal state variables from Ice.Application. The
@@ -144,7 +144,7 @@ Glacier2::Application::doMain(Ice::StringSeq& args, const Ice::InitializationDat
 
     try
     {
-        _communicator = Ice::initialize(args, initData);
+        _communicator = Ice::initialize(args, initData, version);
         _router = ICE_UNCHECKED_CAST(Glacier2::RouterPrx, communicator()->getDefaultRouter());
 
         if(!_router)
@@ -158,7 +158,7 @@ Glacier2::Application::doMain(Ice::StringSeq& args, const Ice::InitializationDat
             //
             // The default is to destroy when a signal is received.
             //
-            if(_signalPolicy == Ice::HandleSignals)
+            if(_signalPolicy == ICE_ENUM(SignalPolicy, HandleSignals))
             {
                 destroyOnInterrupt();
             }
@@ -195,7 +195,7 @@ Glacier2::Application::doMain(Ice::StringSeq& args, const Ice::InitializationDat
                 {
                     Ice::ConnectionPtr connection = _router->ice_getCachedConnection();
                     assert(connection);
-                    connection->setACM(acmTimeout, IceUtil::None, Ice::HeartbeatAlways);
+                    connection->setACM(acmTimeout, IceUtil::None, ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
 #ifdef ICE_CPP11_MAPPING
                     auto app = this;
                     connection->setCloseCallback(
@@ -209,7 +209,7 @@ Glacier2::Application::doMain(Ice::StringSeq& args, const Ice::InitializationDat
                 }
 
                 _category = _router->getCategoryForClient();
-                IceUtilInternal::ArgVector a(args);
+                IceInternal::ArgVector a(args);
                 status = runWithSession(a.argc, a.argv);
             }
         }
@@ -288,7 +288,7 @@ Glacier2::Application::doMain(Ice::StringSeq& args, const Ice::InitializationDat
     // it would not make sense to release a held signal to run
     // shutdown or destroy.
     //
-    if(_signalPolicy == HandleSignals)
+    if(_signalPolicy == ICE_ENUM(SignalPolicy, HandleSignals))
     {
         ignoreInterrupt();
     }

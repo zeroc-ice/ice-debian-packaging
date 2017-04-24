@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -29,6 +29,7 @@ IcePy_extra_sources     := $(filter-out %Util.cpp %Ruby.cpp,\
 #
 $(foreach p,$(supported-platforms),$(eval $$p_targetdir[IcePy] := /$$p))
 $(firstword $(supported-platforms))_targetdir[IcePy] :=
+$(firstword $(supported-platforms))_installdir[IcePy] :=
 
 projects += $(project)
 srcs:: $(project)

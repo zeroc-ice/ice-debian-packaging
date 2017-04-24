@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -117,7 +117,7 @@ public final class Util
     public static Communicator
     initialize(StringSeqHolder args)
     {
-        return initialize(args, null);
+        return initialize(args, (InitializationData)null);
     }
 
     /**
@@ -167,6 +167,32 @@ public final class Util
         return result;
     }
 
+     /**
+     * Creates a communicator.
+     *
+     * @param args A command-line argument vector. Any Ice-related options
+     * in this vector are used to intialize the communicator.
+     * This method modifies the argument vector by removing any Ice-related options.
+     *
+     * @param configFile Path to a config file that sets the new communicator's default
+     * properties.
+     *
+     * @return The initialized communicator.
+     **/
+    public static Communicator
+    initialize(StringSeqHolder args, String configFile)
+    {
+        InitializationData initData = null;
+        if(configFile != null)
+        {
+            initData = new InitializationData();
+            initData.properties = Util.createProperties();
+            initData.properties.load(configFile);
+        }
+
+        return initialize(args, initData);
+    }
+
     /**
      * Creates a communicator.
      *
@@ -185,6 +211,26 @@ public final class Util
     {
         StringSeqHolder argsH = new StringSeqHolder(args);
         return initialize(argsH, initData);
+    }
+
+    /**
+     * Creates a communicator.
+     *
+     * @param args A command-line argument vector. Any Ice-related options
+     * in this vector are used to intialize the communicator.
+     *
+     * @param configFile Path to a config file that sets the new communicator's default
+     * properties.
+     *
+     * @return The initialized communicator.
+     *
+     * @see InitializationData
+     **/
+    public static Communicator
+    initialize(String[] args, String configFile)
+    {
+        StringSeqHolder argsH = new StringSeqHolder(args);
+        return initialize(argsH, configFile);
     }
 
     /**
@@ -211,6 +257,28 @@ public final class Util
         CommunicatorI result = new CommunicatorI(initData);
         result.finishSetup(new StringSeqHolder(new String[0]));
         return result;
+    }
+
+     /**
+     * Creates a communicator.
+     *
+     * @param configFile Path to a config file that sets the new communicator's default
+     * properties.
+     *
+     * @return The initialized communicator.
+     **/
+    public static Communicator
+    initialize(String configFile)
+    {
+        InitializationData initData = null;
+        if(configFile != null)
+        {
+            initData = new InitializationData();
+            initData.properties = Util.createProperties();
+            initData.properties.load(configFile);
+        }
+
+        return initialize(initData);
     }
 
     /**
@@ -500,7 +568,7 @@ public final class Util
     public static String
     stringVersion()
     {
-        return "3.7a4"; // "A.B.C", with A=major, B=minor, C=patch
+        return "3.7b0"; // "A.B.C", with A=major, B=minor, C=patch
     }
 
     /**
@@ -513,7 +581,7 @@ public final class Util
     public static int
     intVersion()
     {
-        return 30754; // AABBCC, with AA=major, BB=minor, CC=patch
+        return 30760; // AABBCC, with AA=major, BB=minor, CC=patch
     }
 
     /**

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -41,7 +41,7 @@ protected:
     static std::string fixId(const ContainedPtr&, int = 0, bool = false);
     static std::string getOptionalFormat(const TypePtr&);
     static std::string getStaticId(const TypePtr&);
-    static std::string typeToString(const TypePtr&, bool = false, bool = false);
+    static std::string typeToString(const TypePtr&, bool = false, bool = false, const StringList& = StringList());
     static bool isClassType(const TypePtr&);
     static bool isValueType(const TypePtr&);
 

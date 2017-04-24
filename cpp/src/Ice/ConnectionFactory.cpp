@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -25,6 +25,7 @@
 #include <Ice/LocalException.h>
 #include <Ice/Functional.h>
 #include <Ice/OutgoingAsync.h>
+#include <Ice/CommunicatorI.h>
 #include <IceUtil/Random.h>
 #include <iterator>
 
@@ -223,7 +224,8 @@ IceInternal::OutgoingConnectionFactory::waitUntilFinished()
 }
 
 void
-IceInternal::OutgoingConnectionFactory::create(const vector<EndpointIPtr>& endpts, bool hasMore,
+IceInternal::OutgoingConnectionFactory::create(const vector<EndpointIPtr>& endpts,
+                                               bool hasMore,
                                                Ice::EndpointSelectionType selType,
                                                const CreateConnectionCallbackPtr& callback)
 {
@@ -335,7 +337,8 @@ IceInternal::OutgoingConnectionFactory::removeAdapter(const ObjectAdapterPtr& ad
 }
 
 void
-IceInternal::OutgoingConnectionFactory::flushAsyncBatchRequests(const CommunicatorFlushBatchAsyncPtr& outAsync)
+IceInternal::OutgoingConnectionFactory::flushAsyncBatchRequests(const CommunicatorFlushBatchAsyncPtr& outAsync,
+                                                                Ice::CompressBatch compress)
 {
     list<ConnectionIPtr> c;
 
@@ -355,7 +358,7 @@ IceInternal::OutgoingConnectionFactory::flushAsyncBatchRequests(const Communicat
     {
         try
         {
-            outAsync->flushConnection(*p);
+            outAsync->flushConnection(*p, compress);
         }
         catch(const LocalException&)
         {
@@ -1252,10 +1255,25 @@ IceInternal::IncomingConnectionFactory::waitUntilFinished()
     }
 }
 
+bool
+IceInternal::IncomingConnectionFactory::isLocal(const EndpointIPtr& endpoint) const
+{
+    if(_publishedEndpoint && endpoint->equivalent(_publishedEndpoint))
+    {
+        return true;
+    }
+    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
+    return endpoint->equivalent(_endpoint);
+}
+
 EndpointIPtr
 IceInternal::IncomingConnectionFactory::endpoint() const
 {
-    // No mutex protection necessary, _endpoint is immutable.
+    if(_publishedEndpoint)
+    {
+        return _publishedEndpoint;
+    }
+    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
     return _endpoint;
 }
 
@@ -1276,7 +1294,8 @@ IceInternal::IncomingConnectionFactory::connections() const
 }
 
 void
-IceInternal::IncomingConnectionFactory::flushAsyncBatchRequests(const CommunicatorFlushBatchAsyncPtr& outAsync)
+IceInternal::IncomingConnectionFactory::flushAsyncBatchRequests(const CommunicatorFlushBatchAsyncPtr& outAsync,
+                                                                Ice::CompressBatch compress)
 {
     list<ConnectionIPtr> c = connections(); // connections() is synchronized, so no need to synchronize here.
 
@@ -1284,7 +1303,7 @@ IceInternal::IncomingConnectionFactory::flushAsyncBatchRequests(const Communicat
     {
         try
         {
-            outAsync->flushConnection(*p);
+            outAsync->flushConnection(*p, compress);
         }
         catch(const LocalException&)
         {
@@ -1557,10 +1576,12 @@ IceInternal::IncomingConnectionFactory::connectionStartFailed(const Ice::Connect
 //
 IceInternal::IncomingConnectionFactory::IncomingConnectionFactory(const InstancePtr& instance,
                                                                   const EndpointIPtr& endpoint,
+                                                                  const EndpointIPtr& publishedEndpoint,
                                                                   const ObjectAdapterIPtr& adapter) :
     _instance(instance),
     _monitor(new FactoryACMMonitor(instance, dynamic_cast<ObjectAdapterI*>(adapter.get())->getACM())),
     _endpoint(endpoint),
+    _publishedEndpoint(publishedEndpoint),
     _acceptorStarted(false),
     _acceptorStopped(false),
     _adapter(adapter),
@@ -1817,7 +1838,7 @@ IceInternal::IncomingConnectionFactory::closeAcceptor()
 
     //
     // If the acceptor hasn't been explicitly stopped (which is the case if the acceptor got closed
-    // because of an unexpected error), try to restart the acceptor in 5 seconds.
+    // because of an unexpected error), try to restart the acceptor in 1 second.
     //
     if(!_acceptorStopped && (_state == StateHolding || _state == StateActive))
     {

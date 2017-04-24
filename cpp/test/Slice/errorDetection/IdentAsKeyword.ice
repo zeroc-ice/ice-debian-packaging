@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -66,7 +66,7 @@ enum local { a, b };
 enum LOCAL { c, e };
 
 enum e1 { long, byte, foo };
-enum e2 { LONG, BYTE, bar };
+enum e2 { LONG, BYTE, bar }; // Ok as of 3.7
 
 interface i1 { long module(); };
 interface i2 { long mODule(); };

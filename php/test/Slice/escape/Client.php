@@ -1,7 +1,7 @@
 <?php
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -25,7 +25,6 @@ if($NS)
 {
     $code = <<<EOT
         abstract class and_echo extends _and\_echo {}
-        abstract class and_enddeclare extends _and\_enddeclare {}
 EOT;
     eval($code);
 }
@@ -43,21 +42,6 @@ function test($b)
 class echoI extends and_echo
 {
     public function _else($a, $b)
-    {
-    }
-}
-
-class enddeclareI extends and_enddeclare
-{
-    public function _else($a, $b)
-    {
-    }
-
-    public function _continue($a, $b)
-    {
-    }
-
-    public function _do()
     {
     }
 }
@@ -84,12 +68,9 @@ function allTests($communicator)
                eval("return and_functionPrxHelper::uncheckedCast(\$p);");
     $d = $NS ? eval("return _and\\diePrxHelper::uncheckedCast(\$p);") :
                eval("return and_diePrxHelper::uncheckedCast(\$p);");
-    $e = $NS ? eval("return _and\\echoPrxHelper::uncheckedCast(\$p);") :
-               eval("return and_echoPrxHelper::uncheckedCast(\$p);");
     $e1 = new echoI();
     $f = $NS ? eval("return _and\\enddeclarePrxHelper::uncheckedCast(\$p);") :
                eval("return and_enddeclarePrxHelper::uncheckedCast(\$p);");
-    $f1 = new enddeclareI();
     $g = $NS ? eval("return new _and\\_endif();") : eval("return new and_endif();");
     $h = $NS ? eval("return new _and\\_endwhile();") : eval("return new and_endwhile();");
     $i = $NS ? constant("_and\\_or") : constant("and_or");

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,8 +11,6 @@
 {
     var Ice = require("ice").Ice;
     var Test = require("Test").Test;
-
-    var Promise = Ice.Promise;
 
     var allTests = function(out, communicator)
     {
@@ -34,7 +32,7 @@
             }
         };
 
-        Promise.try(
+        Ice.Promise.try(
             function()
             {
                 out.write("testing stringToProxy... ");
@@ -54,19 +52,12 @@
                 out.writeLine("ok");
 
                 out.write("getting proxies for class hierarchy... ");
-                return Promise.all([initial.caop(), initial.cbop(),initial.ccop(), initial.cdop()]);
+                return Ice.Promise.all([initial.caop(), initial.cbop(),initial.ccop(), initial.cdop()]);
             }
         ).then(
             function(r)
             {
-                var r1 = r[0], 
-                    r2 = r[1],
-                    r3 = r[2], 
-                    r4 = r[3];
-                ca = r1;
-                cb = r2;
-                cc = r3;
-                cd = r4;
+                [ca, cb, cc, cd] = r;
 
                 test(ca !== cb);
                 test(ca !== cc);
@@ -77,17 +68,13 @@
                 out.writeLine("ok");
                 out.write("getting proxies for interface hierarchy... ");
 
-                return Promise.all([initial.iaop(), initial.ib1op(), initial.ib2op(), initial.icop()]);
+                return Ice.Promise.all([initial.iaop(), initial.ib1op(), initial.ib2op(), initial.icop()]);
             }
         ).then(
             function(r)
             {
-                var [r1, r2, r3, r4] = r;
-                ia = r1;
-                ib1 = r2;
+                [ia, ib1, ib2, ic] = r;
                 test(ib1.ice_instanceof(Test.MB.IB1Prx));
-                ib2 = r3;
-                ic = r4;
 
                 test(ia !== ib1);
                 test(ia !== ib2);
@@ -96,7 +83,7 @@
                 test(ib2 !== ic);
                 out.writeLine("ok");
                 out.write("invoking proxy operations on class hierarchy... ");
-                return Promise.all([
+                return Ice.Promise.all([
                     ca.caop(ca),  // r1
                     ca.caop(cb),  // r2
                     ca.caop(cc),  // r3
@@ -145,7 +132,7 @@
                 out.writeLine("ok");
                 out.write("ditto, but for interface hierarchy... ");
 
-                return Promise.all([
+                return Ice.Promise.all([
                     ia.iaop(ia),    // r1
                     ia.iaop(ib1),   // r2
                     ia.iaop(ib2),   // r3
@@ -226,7 +213,7 @@
                 out.writeLine("ok");
                 out.write("ditto, but for class implementing interfaces... ");
 
-                return Promise.all([
+                return Ice.Promise.all([
                     cd.caop(cd),    // r1
                     cd.cbop(cd),    // r2
                     cd.ccop(cd),    // r3
@@ -265,7 +252,7 @@
     var run = function(out, id)
     {
         var c = Ice.initialize(id);
-        return Promise.try(
+        return Ice.Promise.try(
             function()
             {
                 return allTests(out, c);

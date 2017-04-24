@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -72,6 +72,30 @@ public class Buffer
         {
             buf.clear();
         }
+    }
+
+    public void swap(Buffer buf)
+    {
+        final java.nio.ByteBuffer bb = buf.b;
+        final int size = buf._size;
+        final int capacity = buf._capacity;
+        final boolean direct = buf._direct;
+        final int shrinkCounter = buf._shrinkCounter;
+        final java.nio.ByteOrder order = buf._order;
+
+        buf.b = b;
+        buf._size = _size;
+        buf._capacity = _capacity;
+        buf._direct = _direct;
+        buf._shrinkCounter = _shrinkCounter;
+        buf._order = _order;
+
+        b = bb;
+        _size = size;
+        _capacity = capacity;
+        _direct = direct;
+        _shrinkCounter = shrinkCounter;
+        _order = order;
     }
 
     public int size()

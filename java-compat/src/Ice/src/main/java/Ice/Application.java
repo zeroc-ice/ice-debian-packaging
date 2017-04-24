@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -26,7 +26,7 @@ package Ice;
 public abstract class Application
 {
     /**
-     * Initializes an instance that calls {@link Communicator#shutdown} if
+     * Initializes an instance that calls {@link Communicator#destroy} if
      * a signal is received.
      **/
     public
@@ -439,12 +439,12 @@ public abstract class Application
      * Note that the hook must obey the rules for shutdown hooks; specifically,
      * it must not call <code>exit</code>.
      *
-     * @param newHook The thread to run on shutdown.
+     * @param newHook The Runnable to run on shutdown.
      *
      * @see java.lang.Runtime#addShutdownHook
      **/
     public static void
-    setInterruptHook(java.lang.Thread newHook) // Pun intended.
+    setInterruptHook(Runnable newHook)
     {
         if(_signalPolicy == SignalPolicy.HandleSignals)
         {
@@ -657,7 +657,7 @@ public abstract class Application
     // support code.
     static class CustomHook extends AppHook
     {
-        CustomHook(Thread hook)
+        CustomHook(Runnable hook)
         {
             _hook = hook;
         }
@@ -683,7 +683,7 @@ public abstract class Application
             }
         }
 
-        private Thread _hook;
+        private Runnable _hook;
     }
 
     protected static String _appName;

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -52,6 +52,7 @@ public class AllTests : TestCommon.AllTests
             try
             {
                 communicator.stringToProxy("object @ oa1").ice_ping();
+                test(false);
             }
             catch(Ice.NoEndpointException)
             {
@@ -62,6 +63,7 @@ public class AllTests : TestCommon.AllTests
             try
             {
                 communicator.stringToProxy("object @ oa1").ice_ping();
+                test(false);
             }
             catch(Ice.ObjectNotExistException)
             {
@@ -72,6 +74,7 @@ public class AllTests : TestCommon.AllTests
             try
             {
                 communicator.stringToProxy("object @ oa1").ice_ping();
+                test(false);
             }
             catch(Ice.NoEndpointException)
             {

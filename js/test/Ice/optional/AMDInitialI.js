@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -20,7 +20,7 @@
         }
     };
 
-    class AMDInitialI extends Test._InitialDisp
+    class AMDInitialI extends Test.Initial
     {
         shutdown(current)
         {
@@ -340,6 +340,16 @@
         supportsCsharpSerializable(current)
         {
             return Promise.resolve(false);
+        }
+
+        supportsCppStringView(current)
+        {
+            return false;
+        }
+
+        supportsNullOptional(current)
+        {
+            return Promise.resolve(true);
         }
     }
 

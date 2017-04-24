@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -788,7 +788,7 @@ SessionHelperI::connected(const Glacier2::RouterPrxPtr& router, const Glacier2::
             {
                 Ice::ConnectionPtr connection = _router->ice_getCachedConnection();
                 assert(connection);
-                connection->setACM(acmTimeout, IceUtil::None, Ice::HeartbeatAlways);
+                connection->setACM(acmTimeout, IceUtil::None, Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
 #ifdef ICE_CPP11_MAPPING
                 auto self = shared_from_this();
                 connection->setCloseCallback([self](Ice::ConnectionPtr)

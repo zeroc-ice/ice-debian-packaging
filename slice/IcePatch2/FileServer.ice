@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -81,7 +81,7 @@ interface FileServer
     /**
      *
      * Return file information for the specified partition.
-     * 
+     *
      * <p class="Deprecated"> This operation is deprecated and only present for
      * compatibility with old Ice clients (older than version 3.6).
      *
@@ -96,7 +96,7 @@ interface FileServer
     ["deprecate:getFileInfoSeq() is deprecated, use getLargeFileInfoSeq() instead.",
      "nonmutating", "cpp:const"] idempotent FileInfoSeq getFileInfoSeq(int partition)
         throws PartitionOutOfRangeException, FileSizeRangeException;
-        
+
     /**
      *
      * Returns file information for the specified partition.
@@ -156,10 +156,10 @@ interface FileServer
      *
      **/
     ["deprecate:getFileCompressed() is deprecated, use getLargeFileCompressed() instead.",
-     "amd", "nonmutating", "cpp:const", "cpp:array"] 
+     "amd", "nonmutating", "cpp:const", "cpp:array"]
     idempotent Ice::ByteSeq getFileCompressed(string path, int pos, int num)
         throws FileAccessException, FileSizeRangeException;
-        
+
     /**
      *
      * Read the specified file. This operation may only return fewer bytes than requested
@@ -177,7 +177,7 @@ interface FileServer
      * @throws FileAccessException If an error occurred while trying to read the file.
      *
      **/
-    ["amd", "nonmutating", "cpp:const", "cpp:array"] 
+    ["amd", "nonmutating", "cpp:const", "cpp:array"]
     idempotent Ice::ByteSeq getLargeFileCompressed(string path, long pos, int num)
         throws FileAccessException;
 };

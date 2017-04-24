@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -13,26 +13,26 @@ def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-class MyDerivedClassI(Test._MyDerivedClassDisp):
+class MyDerivedClassI(Test.MyDerivedClass):
     def __init__(self):
         self.lock = threading.Lock()
         self.opByteSOnewayCount = 0
 
     def ice_isA(self, id, current=None):
         test(current.mode == Ice.OperationMode.Nonmutating)
-        return Test._MyDerivedClassDisp.ice_isA(self, id, current)
+        return Test.MyDerivedClass.ice_isA(self, id, current)
 
     def ice_ping(self, current=None):
         test(current.mode == Ice.OperationMode.Nonmutating)
-        Test._MyDerivedClassDisp.ice_ping(self, current)
+        Test.MyDerivedClass.ice_ping(self, current)
 
     def ice_ids(self, current=None):
         test(current.mode == Ice.OperationMode.Nonmutating)
-        return Test._MyDerivedClassDisp.ice_ids(self, current)
+        return Test.MyDerivedClass.ice_ids(self, current)
 
     def ice_id(self, current=None):
         test(current.mode == Ice.OperationMode.Nonmutating)
-        return Test._MyDerivedClassDisp.ice_id(self, current)
+        return Test.MyDerivedClass.ice_id(self, current)
 
     def shutdown(self, current=None):
         current.adapter.getCommunicator().shutdown()

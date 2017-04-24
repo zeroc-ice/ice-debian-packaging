@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -170,7 +170,7 @@ public class AllTests
             test(connection == to.ice_getConnection());
             try
             {
-                to.sleep(250 * mult);
+                to.sleep(100 * mult);
             }
             catch(com.zeroc.Ice.InvocationTimeoutException ex)
             {
@@ -198,7 +198,7 @@ public class AllTests
             //
             TimeoutPrx to = timeout.ice_invocationTimeout(500 * mult);
             Callback cb = new Callback();
-            to.sleepAsync(250 * mult).whenComplete((result, ex) ->
+            to.sleepAsync(100 * mult).whenComplete((result, ex) ->
                 {
                     test(ex == null);
                     cb.called();
@@ -209,11 +209,10 @@ public class AllTests
             //
             // Backward compatible connection timeouts
             //
-            TimeoutPrx to = timeout.ice_invocationTimeout(-2).ice_timeout(100);
-            com.zeroc.Ice.Connection con = null;
+            TimeoutPrx to = timeout.ice_invocationTimeout(-2).ice_timeout(250);
+            com.zeroc.Ice.Connection con = to.ice_getConnection();
             try
             {
-                con = to.ice_getConnection();
                 to.sleep(750);
                 test(false);
             }
@@ -262,7 +261,7 @@ public class AllTests
             TimeoutPrx to = TimeoutPrx.checkedCast(obj.ice_timeout(100 * mult));
             com.zeroc.Ice.Connection connection = to.ice_getConnection();
             timeout.holdAdapter(500);
-            connection.close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+            connection.close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             try
             {
                 connection.getInfo(); // getInfo() doesn't throw in the closing state.

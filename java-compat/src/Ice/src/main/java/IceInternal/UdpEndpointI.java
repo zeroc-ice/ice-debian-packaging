@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -140,7 +140,16 @@ final class UdpEndpointI extends IPEndpointI
     @Override
     public Transceiver transceiver()
     {
-        return new UdpTransceiver(this, _instance, _host, _port, _mcastInterface, _connect);
+        java.net.InetSocketAddress addr =
+            Network.getAddressForServer(_host, _port, _instance.protocolSupport(), _instance.preferIPv6());
+        if(Util.isAndroid() && addr.getAddress().isMulticastAddress())
+        {
+            return new UdpMulticastServerTransceiver(this, _instance, addr, _mcastInterface);
+        }
+        else
+        {
+            return new UdpTransceiver(this, _instance, addr, _mcastInterface, _connect);
+        }
     }
 
     //
@@ -155,8 +164,30 @@ final class UdpEndpointI extends IPEndpointI
 
     public UdpEndpointI endpoint(UdpTransceiver transceiver)
     {
-        return new UdpEndpointI(_instance, _host, transceiver.effectivePort(), _sourceAddr, _mcastInterface,_mcastTtl,
-                                _connect, _connectionId, _compress);
+        int port = transceiver.effectivePort();
+        if(port == _port)
+        {
+            return this;
+        }
+        else
+        {
+            return new UdpEndpointI(_instance, _host, port, _sourceAddr, _mcastInterface, _mcastTtl, _connect,
+                                    _connectionId, _compress);
+        }
+    }
+
+    public UdpEndpointI endpoint(UdpMulticastServerTransceiver transceiver)
+    {
+        int port = transceiver.effectivePort();
+        if(port == _port)
+        {
+            return this;
+        }
+        else
+        {
+            return new UdpEndpointI(_instance, _host, port, _sourceAddr, _mcastInterface, _mcastTtl, _connect,
+                                    _connectionId, _compress);
+        }
     }
 
     @Override

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -245,6 +245,21 @@ public abstract class Reference implements Cloneable
         _hashInitialized = true;
 
         return _hashValue;
+    }
+
+    public java.lang.Boolean
+    getCompressOverride()
+    {
+        DefaultsAndOverrides defaultsAndOverrides = getInstance().defaultsAndOverrides();
+        if(defaultsAndOverrides.overrideCompress)
+        {
+            return Boolean.valueOf(defaultsAndOverrides.overrideCompressValue);
+        }
+        else if(_overrideCompress)
+        {
+            return Boolean.valueOf(_compress);
+        }
+        return null; // Null indicates that compress is not overriden.
     }
 
     //

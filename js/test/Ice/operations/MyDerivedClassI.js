@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -20,15 +20,16 @@
         }
     };
 
-    class MyDerivedClassI extends Test._MyDerivedClassDisp
+    class MyDerivedClassI extends Test.MyDerivedClass
     {
         //
         // Override the Object "pseudo" operations to verify the operation mode.
         //
-        constructor()
+        constructor(endpoints)
         {
             super();
             this._opByteSOnewayCount = 0;
+            this._endpoints = endpoints;
         }
 
         ice_isA(id, current)
@@ -96,13 +97,13 @@
 
         opByteS(p1, p2, current)
         {
-            var p3 = Ice.Buffer.createNative(p1.length);
+            var p3 = new Uint8Array(p1.length);
             for(let i = 0; i < p1.length; i++)
             {
                 p3[i] = p1[p1.length - (i + 1)];
             }
 
-            var r = Ice.Buffer.createNative(p1.length + p2.length);
+            var r = new Uint8Array(p1.length + p2.length);
             for(let i = 0; i < p1.length; ++i)
             {
                 r[i] = p1[i];
@@ -152,7 +153,7 @@
             var p3 = Test.MyClassPrx.uncheckedCast(
                 current.adapter.createProxy(Ice.stringToIdentity("noSuchIdentity")));
             var r = Test.MyClassPrx.uncheckedCast(current.adapter.createProxy(current.id));
-            return [r, p2, p3];
+            return [r.ice_endpoints(this._endpoints), p2, p3.ice_endpoints(this._endpoints)];
         }
 
         opMyEnum(p1, current)
@@ -481,6 +482,11 @@
                 Test.sw0, Test.sw1, Test.sw2, Test.sw3, Test.sw4, Test.sw5, Test.sw6, Test.sw7, Test.sw8, Test.sw9, Test.sw10,
                 Test.ss0, Test.ss1, Test.ss2, Test.ss3, Test.ss4, Test.ss5,
                 Test.su0, Test.su1, Test.su2];
+        }
+
+        opWStringLiterals(current)
+        {
+            return this.opStringLiterals(current);
         }
 
         opMStruct1(current)

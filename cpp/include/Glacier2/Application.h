@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -194,11 +194,11 @@ public:
 
 protected:
 
-    virtual int doMain(int, char*[], const Ice::InitializationData& initData);
+    virtual int doMain(int, char*[], const Ice::InitializationData& initData, int);
 
 private:
 
-    bool doMain(Ice::StringSeq&, const Ice::InitializationData&, int&);
+    bool doMain(Ice::StringSeq&, const Ice::InitializationData&, int&, int);
 
     /**
      * Run should not be overridden for Glacier2.Application. Instead

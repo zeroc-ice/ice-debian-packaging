@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -183,7 +183,7 @@ IceInternal::DynamicLibrary::loadEntryPoint(const string& entryPoint, bool useIc
 
 #ifdef __APPLE__
     //
-    // On OS X fallback to .so and .bundle extensions, if the default
+    // On macOS fallback to .so and .bundle extensions, if the default
     // .dylib fails.
     //
     if(!load(lib + ".dylib"))

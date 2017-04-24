@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -18,7 +18,7 @@ import com.zeroc.Ice.Current;
 
 import test.Ice.optional.Test.*;
 
-public final class InitialI implements _InitialDisp
+public final class InitialI implements Initial
 {
     @Override
     public void shutdown(Current current)

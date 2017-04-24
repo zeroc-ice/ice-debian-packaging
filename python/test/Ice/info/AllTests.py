@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -96,6 +96,12 @@ def allTests(communicator):
     test(udpEndpoint.datagram())
     test(udpEndpoint.port > 0)
 
+    endpoints = (endpoints[0], )
+    test(len(endpoints) == 1)
+    adapter.setPublishedEndpoints(endpoints)
+    publishedEndpoints = adapter.getPublishedEndpoints()
+    test(endpoints == publishedEndpoints)
+
     adapter.destroy()
 
     communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -h * -p 12020")
@@ -105,6 +111,7 @@ def allTests(communicator):
     endpoints = adapter.getEndpoints()
     test(len(endpoints) >= 1)
     publishedEndpoints = adapter.getPublishedEndpoints()
+
     test(len(publishedEndpoints) == 1)
 
     for i in range(0, len(endpoints)):

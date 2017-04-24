@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -795,22 +795,9 @@ proxyIceEndpoints(ProxyObject* self, PyObject* args)
     assert(self->proxy);
 
     Ice::EndpointSeq seq;
-    Py_ssize_t sz = PySequence_Fast_GET_SIZE(endpoints);
-    for(Py_ssize_t i = 0; i < sz; ++i)
+    if(!toEndpointSeq(endpoints, seq))
     {
-        PyObject* p = PySequence_Fast_GET_ITEM(endpoints, i);
-        PyTypeObject* type = &EndpointType; // Necessary to prevent GCC's strict-alias warnings.
-        if(!PyObject_IsInstance(p, reinterpret_cast<PyObject*>(type)))
-        {
-            PyErr_Format(PyExc_ValueError, STRCAST("expected element of type Ice.Endpoint"));
-            return 0;
-        }
-        Ice::EndpointPtr endp = getEndpoint(p);
-        if(!endp)
-        {
-            return 0;
-        }
-        seq.push_back(endp);
+        return 0;
     }
 
     Ice::ObjectPrx newProxy;
@@ -1019,8 +1006,8 @@ proxyIceGetEndpointSelection(ProxyObject* self)
     PyObject* cls = lookupType("Ice.EndpointSelectionType");
     assert(cls);
 
-    PyObjectHandle rnd = PyObject_GetAttrString(cls, STRCAST("Random"));
-    PyObjectHandle ord = PyObject_GetAttrString(cls, STRCAST("Ordered"));
+    PyObjectHandle rnd = getAttr(cls, "Random", false);
+    PyObjectHandle ord = getAttr(cls, "Ordered", false);
     assert(rnd.get());
     assert(ord.get());
 
@@ -1064,8 +1051,8 @@ proxyIceEndpointSelection(ProxyObject* self, PyObject* args)
     }
 
     Ice::EndpointSelectionType val;
-    PyObjectHandle rnd = PyObject_GetAttrString(cls, STRCAST("Random"));
-    PyObjectHandle ord = PyObject_GetAttrString(cls, STRCAST("Ordered"));
+    PyObjectHandle rnd = getAttr(cls, "Random", false);
+    PyObjectHandle ord = getAttr(cls, "Ordered", false);
     assert(rnd.get());
     assert(ord.get());
     if(rnd.get() == type)
@@ -2204,7 +2191,7 @@ AMI_Object_ice_flushBatchRequestsI::exception(const Ice::Exception& ex)
     }
     else
     {
-        PyObjectHandle method = PyObject_GetAttrString(_callback, STRCAST(methodName.c_str()));
+        PyObjectHandle method = getAttr(_callback, methodName, false);
         assert(method.get());
         PyObjectHandle exh = convertException(ex);
         assert(exh.get());
@@ -2226,7 +2213,7 @@ AMI_Object_ice_flushBatchRequestsI::sent(bool)
     const string methodName = "ice_sent";
     if(PyObject_HasAttrString(_callback, STRCAST(methodName.c_str())))
     {
-        PyObjectHandle method = PyObject_GetAttrString(_callback, STRCAST(methodName.c_str()));
+        PyObjectHandle method = getAttr(_callback, methodName, false);
         assert(method.get());
         PyObjectHandle args = PyTuple_New(0);
         PyObjectHandle tmp = PyObject_Call(method.get(), args.get(), 0);
@@ -2291,20 +2278,17 @@ checkedCastImpl(ProxyObject* p, const string& id, PyObject* facet, PyObject* ctx
     bool b = false;
     try
     {
-        AllowThreads allowThreads; // Release Python's global interpreter lock during remote invocations.
-        if(!ctx || ctx == Py_None)
+        Ice::Context c = ::Ice::noExplicitContext;
+        if(ctx && ctx != Py_None)
         {
-            b = target->ice_isA(id);
-        }
-        else
-        {
-            Ice::Context c;
             if(!dictionaryToContext(ctx, c))
             {
                 return 0;
             }
-            b = target->ice_isA(id, c);
         }
+
+        AllowThreads allowThreads; // Release Python's global interpreter lock during remote invocations.
+        b = target->ice_isA(id, c);
     }
     catch(const Ice::FacetNotExistException&)
     {

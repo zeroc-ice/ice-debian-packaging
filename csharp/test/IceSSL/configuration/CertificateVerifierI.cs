@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -16,9 +16,9 @@ public class CertificateVerifierI : IceSSL.CertificateVerifier
         reset();
     }
 
-    public bool verify(IceSSL.NativeConnectionInfo info)
+    public bool verify(IceSSL.ConnectionInfo info)
     {
-        _hadCert = info.nativeCerts != null;
+        _hadCert = info.certs != null;
         _invoked = true;
         return _returnValue;
     }

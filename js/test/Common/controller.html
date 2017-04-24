@@ -6,15 +6,16 @@
     <title>Test Suite | Ice for JavaScript</title>
     <link rel="icon" type="image/x-icon" href="/assets/favicon.ico"/>
     <link rel="stylesheet" type="text/css" href="/assets/common.css"/>
-    <script src="/assets/common.min.js"></script>
+    <script src="/assets/common.js"></script>
     {{#scripts}}
     <script src="{{.}}"></script>
     {{/scripts}}
     <script>
         $(document).foundation();
         $(document).ready(function() {
-            $("#console").height(300);
-            runController($("#console"), "{{{scripts}}}".split(","));
+            $("#clientConsole").height(300);
+            $("#serverConsole").height(100);
+            runController($("#clientConsole"), $("#serverConsole"), "{{{scripts}}}".split(","));
         });
     </script>
   </head>
@@ -31,7 +32,8 @@
     <section role="main" id="body">
         <div class="row">
             <div class="large-12 medium-12 columns">
-                <textarea id="console" class="disabled" height="300" readonly></textarea>
+                <textarea id="clientConsole" class="disabled" height="300" readonly></textarea>
+                <textarea id="serverConsole" class="disabled" height="100" readonly></textarea>
             </div>
         </div>
     </section>
@@ -40,7 +42,7 @@
             <h4><strong>ZeroC</strong></h4>
         </div>
         <div class="copyright">
-            <h6>Copyright &copy; 2003-2016 ZeroC, Inc. All rights reserved.</h6>
+            <h6>Copyright &copy; 2003-2017 ZeroC, Inc. All rights reserved.</h6>
         </div>
     </div>
   </body>

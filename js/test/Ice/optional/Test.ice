@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -189,7 +189,15 @@ class G
     G1 gg1;
 };
 
-class Initial
+class Recursive;
+sequence<Recursive> RecursiveSeq;
+
+class Recursive
+{
+    optional(0) RecursiveSeq value;
+};
+
+interface Initial
 {
     void shutdown();
 
@@ -298,11 +306,14 @@ class Initial
 
     bool supportsCsharpSerializable();
 
+    bool supportsCppStringView();
+
     bool supportsNullOptional();
 };
 
 interface Echo
 {
+    void setConnection();
     void startBatch();
     void flushBatch();
     void shutdown();

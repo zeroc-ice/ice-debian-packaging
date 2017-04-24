@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -16,6 +16,7 @@ import java.util.concurrent.CompletionException;
 
 import com.zeroc.Ice.InvocationFuture;
 import com.zeroc.Ice.Util;
+import com.zeroc.Ice.CompressBatch;
 
 import test.Ice.ami.Test.CloseMode;
 import test.Ice.ami.Test.TestIntfPrx;
@@ -348,7 +349,7 @@ public class AMI
                 test(p.opBatchCount() == 0);
                 TestIntfPrx b1 = p.ice_batchOneway();
                 b1.opBatch();
-                b1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                b1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
                 CompletableFuture<Void> r = b1.ice_flushBatchRequestsAsync();
                 Util.getInvocationFuture(r).whenSent((sentSynchronously, ex) ->
                     {
@@ -375,7 +376,8 @@ public class AMI
                         ice_batchOneway();
                     b1.opBatch();
                     b1.opBatch();
-                    CompletableFuture<Void> r = b1.ice_getConnection().flushBatchRequestsAsync();
+                    CompletableFuture<Void> r =
+                        b1.ice_getConnection().flushBatchRequestsAsync(CompressBatch.BasedOnProxy);
                     Util.getInvocationFuture(r).whenSent((sentSynchronously, ex) ->
                         {
                             test(ex == null);
@@ -396,8 +398,9 @@ public class AMI
                     TestIntfPrx b1 = TestIntfPrx.uncheckedCast(p.ice_getConnection().createProxy(p.ice_getIdentity())).
                         ice_batchOneway();
                     b1.opBatch();
-                    b1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
-                    CompletableFuture<Void> r = b1.ice_getConnection().flushBatchRequestsAsync();
+                    b1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
+                    CompletableFuture<Void> r =
+                        b1.ice_getConnection().flushBatchRequestsAsync(CompressBatch.BasedOnProxy);
                     Util.getInvocationFuture(r).whenSent((sentSynchronously, ex) ->
                         {
                             test(ex != null);
@@ -424,7 +427,7 @@ public class AMI
                         ice_batchOneway();
                     b1.opBatch();
                     b1.opBatch();
-                    CompletableFuture<Void> r = communicator.flushBatchRequestsAsync();
+                    CompletableFuture<Void> r = communicator.flushBatchRequestsAsync(CompressBatch.BasedOnProxy);
                     Util.getInvocationFuture(r).whenSent((sentSynchronously, ex) ->
                         {
                             test(ex == null);
@@ -445,8 +448,8 @@ public class AMI
                     TestIntfPrx b1 = TestIntfPrx.uncheckedCast(p.ice_getConnection().createProxy(p.ice_getIdentity())).
                         ice_batchOneway();
                     b1.opBatch();
-                    b1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
-                    CompletableFuture<Void> r = communicator.flushBatchRequestsAsync();
+                    b1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
+                    CompletableFuture<Void> r = communicator.flushBatchRequestsAsync(CompressBatch.BasedOnProxy);
                     Util.getInvocationFuture(r).whenSent((sentSynchronously, ex) ->
                         {
                             test(ex == null);
@@ -473,7 +476,7 @@ public class AMI
                     b1.opBatch();
                     b2.opBatch();
                     b2.opBatch();
-                    CompletableFuture<Void> r = communicator.flushBatchRequestsAsync();
+                    CompletableFuture<Void> r = communicator.flushBatchRequestsAsync(CompressBatch.BasedOnProxy);
                     Util.getInvocationFuture(r).whenSent((sentSynchronously, ex) ->
                         {
                             test(ex == null);
@@ -501,8 +504,8 @@ public class AMI
                     b2.ice_getConnection(); // Ensure connection is established.
                     b1.opBatch();
                     b2.opBatch();
-                    b1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
-                    CompletableFuture<Void> r = communicator.flushBatchRequestsAsync();
+                    b1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
+                    CompletableFuture<Void> r = communicator.flushBatchRequestsAsync(CompressBatch.BasedOnProxy);
                     Util.getInvocationFuture(r).whenSent((sentSynchronously, ex) ->
                         {
                             test(ex == null);
@@ -529,9 +532,9 @@ public class AMI
                     b2.ice_getConnection(); // Ensure connection is established.
                     b1.opBatch();
                     b2.opBatch();
-                    b1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
-                    b2.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
-                    CompletableFuture<Void> r = communicator.flushBatchRequestsAsync();
+                    b1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
+                    b2.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
+                    CompletableFuture<Void> r = communicator.flushBatchRequestsAsync(CompressBatch.BasedOnProxy);
                     Util.getInvocationFuture(r).whenSent((sentSynchronously, ex) ->
                         {
                             test(ex == null);
@@ -654,7 +657,8 @@ public class AMI
                     com.zeroc.Ice.Connection con = p.ice_getConnection();
                     TestIntfPrx p2 = p.ice_batchOneway();
                     p2.ice_ping();
-                    InvocationFuture<Void> r = Util.getInvocationFuture(con.flushBatchRequestsAsync());
+                    InvocationFuture<Void> r =
+                        Util.getInvocationFuture(con.flushBatchRequestsAsync(CompressBatch.BasedOnProxy));
                     test(r.getConnection() == con);
                     test(r.getCommunicator() == communicator);
                     test(r.getProxy() == null); // Expected
@@ -665,7 +669,7 @@ public class AMI
                     //
                     p2 = p.ice_batchOneway();
                     p2.ice_ping();
-                    r = Util.getInvocationFuture(communicator.flushBatchRequestsAsync());
+                    r = Util.getInvocationFuture(communicator.flushBatchRequestsAsync(CompressBatch.BasedOnProxy));
                     test(r.getConnection() == null); // Expected
                     test(r.getCommunicator() == communicator);
                     test(r.getProxy() == null); // Expected
@@ -755,32 +759,29 @@ public class AMI
         }
         out.println("ok");
 
-        if(p.ice_getConnection() != null)
+        if(p.ice_getConnection() != null && p.supportsAMD())
         {
             out.print("testing graceful close connection with wait... ");
             out.flush();
             {
                 //
-                // Local case: begin several requests, close the connection gracefully, and make sure it waits
-                // for the requests to complete.
+                // Local case: begin a request, close the connection gracefully, and make sure it waits
+                // for the request to complete.
                 //
-                java.util.List<CompletableFuture<Void>> results = new java.util.ArrayList<>();
-                for(int i = 0; i < 3; ++i)
+                com.zeroc.Ice.Connection con = p.ice_getConnection();
+                Callback cb = new Callback();
+                con.setCloseCallback(c -> cb.called());
+                CompletableFuture<Void> f = p.sleepAsync(100);
+                con.close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait); // Blocks until the request completes.
+                try
                 {
-                    results.add(p.sleepAsync(50));
+                    f.join(); // Should complete successfully.
                 }
-                p.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
-                for(CompletableFuture<Void> f : results)
+                catch(Throwable ex)
                 {
-                    try
-                    {
-                        f.join();
-                    }
-                    catch(Throwable ex)
-                    {
-                        test(false);
-                    }
+                    test(false);
                 }
+                cb.check();
             }
             {
                 //
@@ -804,7 +805,7 @@ public class AMI
                     {
                         results.add(Util.getInvocationFuture(p.opWithPayloadAsync(seq)));
                     }
-                    if(!Util.getInvocationFuture(p.closeAsync(CloseMode.CloseGracefullyAndWait)).isSent())
+                    if(!Util.getInvocationFuture(p.closeAsync(CloseMode.GracefullyWithWait)).isSent())
                     {
                         for(int i = 0; i < maxQueue; i++)
                         {
@@ -835,17 +836,15 @@ public class AMI
             out.flush();
             {
                 //
-                // Local case: start a lengthy operation and then close the connection gracefully on the client side
+                // Local case: start an operation and then close the connection gracefully on the client side
                 // without waiting for the pending invocation to complete. There will be no retry and we expect the
                 // invocation to fail with ConnectionManuallyClosedException.
                 //
-                // This test requires two threads in the server's thread pool: one will block in sleep() and the other
-                // will process the CloseConnection message.
-                //
-                p.ice_ping();
+                p = p.ice_connectionId("CloseGracefully"); // Start with a new connection.
                 com.zeroc.Ice.Connection con = p.ice_getConnection();
-                CompletableFuture<Void> f = p.sleepAsync(100);
-                con.close(com.zeroc.Ice.ConnectionClose.CloseGracefully);
+                CompletableFuture<Void> f = p.startDispatchAsync();
+                Util.getInvocationFuture(f).waitForSent(); // Ensure the request was sent before we close the connection
+                con.close(com.zeroc.Ice.ConnectionClose.Gracefully);
                 try
                 {
                     f.join();
@@ -860,23 +859,19 @@ public class AMI
                 {
                     test(false);
                 }
+                p.finishDispatch();
 
                 //
-                // Remote case: the server closes the connection gracefully. Our call to TestIntf::close()
-                // completes successfully and then the connection should be closed immediately afterward,
-                // despite the fact that there's a pending call to sleep(). The call to sleep() should be
-                // automatically retried and complete successfully.
+                // Remote case: the server closes the connection gracefully, which means the connection
+                // will not be closed until all pending dispatched requests have completed.
                 //
-                p.ice_ping();
                 con = p.ice_getConnection();
                 Callback cb = new Callback();
                 con.setCloseCallback(c -> cb.called());
                 f = p.sleepAsync(100);
-                p.close(CloseMode.CloseGracefully);
+                p.close(CloseMode.Gracefully); // Close is delayed until sleep completes.
                 cb.check();
                 f.join();
-                p.ice_ping();
-                test(p.ice_getConnection() != con);
             }
             out.println("ok");
 
@@ -884,13 +879,14 @@ public class AMI
             out.flush();
             {
                 //
-                // Local case: start a lengthy operation and then close the connection forcefully on the client side.
+                // Local case: start an operation and then close the connection forcefully on the client side.
                 // There will be no retry and we expect the invocation to fail with ConnectionManuallyClosedException.
                 //
                 p.ice_ping();
                 com.zeroc.Ice.Connection con = p.ice_getConnection();
-                CompletableFuture<Void> f = p.sleepAsync(100);
-                con.close(com.zeroc.Ice.ConnectionClose.CloseForcefully);
+                CompletableFuture<Void> f = p.startDispatchAsync();
+                Util.getInvocationFuture(f).waitForSent(); // Ensure the request was sent before we close the connection
+                con.close(com.zeroc.Ice.ConnectionClose.Forcefully);
                 try
                 {
                     f.join();
@@ -905,6 +901,7 @@ public class AMI
                 {
                     test(false);
                 }
+                p.finishDispatch();
 
                 //
                 // Remote case: the server closes the connection forcefully. This causes the request to fail
@@ -913,7 +910,7 @@ public class AMI
                 //
                 try
                 {
-                    p.close(CloseMode.CloseForcefully);
+                    p.close(CloseMode.Forcefully);
                     test(false);
                 }
                 catch(com.zeroc.Ice.ConnectionLostException ex)

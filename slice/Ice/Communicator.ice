@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -23,6 +23,7 @@
 #include <Ice/Current.ice>
 #include <Ice/Properties.ice>
 #include <Ice/FacetMap.ice>
+#include <Ice/Connection.ice>
 
 /**
  *
@@ -57,6 +58,19 @@ module Ice
 ["clr:implements:_System.IDisposable", "java:implements:java.lang.AutoCloseable", "php:internal"]
 local interface Communicator
 {
+
+#ifdef __SLICE2JAVA__
+    /**
+     *
+     * Destroy the communicator. This Java-only method overrides close in
+     * java.lang.AutoCloseable and does not throw any exception.
+     *
+     * @see #destroy
+     *
+     **/
+    void close();
+#endif
+
     /**
      *
      * Destroy the communicator. This operation calls {@link #shutdown}
@@ -493,8 +507,11 @@ local interface Communicator
      * for all connections associated with the communicator.
      * Any errors that occur while flushing a connection are ignored.
      *
+     * @param compress Specifies whether or not the queued batch requests
+     * should be compressed before being sent over the wire.
+     *
      **/
-    ["async-oneway"] void flushBatchRequests();
+    ["async-oneway"] void flushBatchRequests(CompressBatch compress);
 
     /**
      *

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -57,7 +57,7 @@ IceRuby_Connection_close(VALUE self, VALUE mode)
         if(callRuby(rb_obj_is_instance_of, mode, type) != Qtrue)
         {
             throw RubyException(rb_eTypeError,
-                "value for 'mode' argument must be an enumerator of Ice.ConnectionClose");
+                "value for 'mode' argument must be an enumerator of Ice::ConnectionClose");
         }
         volatile VALUE modeValue = callRuby(rb_funcall, mode, rb_intern("to_i"), 0);
         assert(TYPE(modeValue) == T_FIXNUM);
@@ -70,14 +70,23 @@ IceRuby_Connection_close(VALUE self, VALUE mode)
 
 extern "C"
 VALUE
-IceRuby_Connection_flushBatchRequests(VALUE self)
+IceRuby_Connection_flushBatchRequests(VALUE self, VALUE compress)
 {
     ICE_RUBY_TRY
     {
         Ice::ConnectionPtr* p = reinterpret_cast<Ice::ConnectionPtr*>(DATA_PTR(self));
         assert(p);
 
-        (*p)->flushBatchRequests();
+        volatile VALUE type = callRuby(rb_path2class, "Ice::CompressBatch");
+        if(callRuby(rb_obj_is_instance_of, compress, type) != Qtrue)
+        {
+            throw RubyException(rb_eTypeError,
+                "value for 'compress' argument must be an enumerator of Ice::CompressBatch");
+        }
+        volatile VALUE compressValue = callRuby(rb_funcall, compress, rb_intern("to_i"), 0);
+        assert(TYPE(compressValue) == T_FIXNUM);
+        Ice::CompressBatch cb = static_cast<Ice::CompressBatch>(FIX2LONG(compressValue));
+        (*p)->flushBatchRequests(cb);
     }
     ICE_RUBY_CATCH
     return Qnil;
@@ -376,7 +385,14 @@ IceRuby::createConnectionInfo(const Ice::ConnectionInfoPtr& p)
 
         IceSSL::ConnectionInfoPtr ssl = IceSSL::ConnectionInfoPtr::dynamicCast(p);
         rb_ivar_set(info, rb_intern("@cipher"), createString(ssl->cipher));
-        rb_ivar_set(info, rb_intern("@certs"), stringSeqToArray(ssl->certs));
+
+        Ice::StringSeq encoded;
+        for(vector<IceSSL::CertificatePtr>::const_iterator i = ssl->certs.begin(); i != ssl->certs.end(); ++i)
+        {
+            encoded.push_back((*i)->encode());
+        }
+
+        rb_ivar_set(info, rb_intern("@certs"), stringSeqToArray(encoded));
         rb_ivar_set(info, rb_intern("@verified"), ssl->verified ? Qtrue : Qfalse);
     }
     else if(Ice::IPConnectionInfoPtr::dynamicCast(p))
@@ -416,7 +432,7 @@ IceRuby::initConnection(VALUE iceModule)
     // Instance methods.
     //
     rb_define_method(_connectionClass, "close", CAST_METHOD(IceRuby_Connection_close), 1);
-    rb_define_method(_connectionClass, "flushBatchRequests", CAST_METHOD(IceRuby_Connection_flushBatchRequests), 0);
+    rb_define_method(_connectionClass, "flushBatchRequests", CAST_METHOD(IceRuby_Connection_flushBatchRequests), 1);
     rb_define_method(_connectionClass, "heartbeat", CAST_METHOD(IceRuby_Connection_heartbeat), 0);
     rb_define_method(_connectionClass, "setACM", CAST_METHOD(IceRuby_Connection_setACM), 3);
     rb_define_method(_connectionClass, "getACM", CAST_METHOD(IceRuby_Connection_getACM), 0);

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,7 +11,7 @@
 #include <Ice/LoggerI.h>
 #include <Ice/LoggerUtil.h>
 #include <IceUtil/CtrlCHandler.h>
-#include <IceUtil/ArgVector.h>
+#include <Ice/ArgVector.h>
 
 #ifdef _WIN32
 const DWORD SIGHUP = CTRL_LOGOFF_EVENT;
@@ -21,6 +21,7 @@ const DWORD SIGHUP = CTRL_LOGOFF_EVENT;
 
 using namespace std;
 using namespace Ice;
+using namespace IceInternal;
 using namespace IceUtil;
 using namespace IceUtilInternal;
 
@@ -36,7 +37,7 @@ bool Ice::Application::_interrupted = false;
 
 string Ice::Application::_appName;
 Ice::CommunicatorPtr Ice::Application::_communicator;
-Ice::SignalPolicy Ice::Application::_signalPolicy = Ice::HandleSignals;
+Ice::SignalPolicy Ice::Application::_signalPolicy = ICE_ENUM(SignalPolicy, HandleSignals);
 Ice::Application* Ice::Application::_application = 0;
 
 namespace
@@ -68,12 +69,8 @@ Ice::Application::~Application()
 }
 
 int
-Ice::Application::main(int argc, char* argv[], const char* configFile)
+Ice::Application::main(int argc, const char* const argv[], ICE_CONFIG_FILE_STRING configFile, int version)
 {
-    //
-    // We don't call the main below to avoid a deprecated warning
-    //
-
     _appName = "";
     if(argc > 0)
     {
@@ -86,7 +83,9 @@ Ice::Application::main(int argc, char* argv[], const char* configFile)
     }
 
     InitializationData initData;
+#ifndef ICE_CPP11_MAPPING
     if(configFile)
+#endif
     {
         try
         {
@@ -106,31 +105,29 @@ Ice::Application::main(int argc, char* argv[], const char* configFile)
             return EXIT_FAILURE;
         }
     }
-    return main(argc, argv, initData);
+    return main(argc, argv, initData, version);
 }
 
 #ifdef _WIN32
-
 int
-Ice::Application::main(int argc, wchar_t* argv[], const char* config)
-{
-    return main(argsToStringSeq(argc, argv), config);
-}
-
-int
-Ice::Application::main(int argc, wchar_t* argv[], const Ice::InitializationData& initData)
+Ice::Application::main(int argc, const wchar_t* const argv[], const Ice::InitializationData& initData, int version)
 {
     //
     // On Windows the given wchar_t* strings are UTF16 and therefore
-    // needs to be converted to native narow string encoding.
+    // needs to be converted to native narrow string encoding.
     //
-    return main(argsToStringSeq(argc, argv), initData);
+    return main(argsToStringSeq(argc, argv), initData, version);
 }
 
+int
+Ice::Application::main(int argc, const wchar_t* const argv[], ICE_CONFIG_FILE_STRING config, int version)
+{
+    return main(argsToStringSeq(argc, argv), config, version);
+}
 #endif
 
 int
-Ice::Application::main(int argc, char* argv[], const InitializationData& initializationData)
+Ice::Application::main(int argc, const char* const argv[], const InitializationData& initializationData, int version)
 {
     if(argc > 0 && argv[0] && ICE_DYNAMIC_CAST(LoggerI, getProcessLogger()))
     {
@@ -148,13 +145,15 @@ Ice::Application::main(int argc, char* argv[], const InitializationData& initial
     }
     int status;
 
+    ArgVector av(argc, argv); // copy args
+
     //
     // We parse the properties here to extract Ice.ProgramName.
     //
     InitializationData initData = initializationData;
     try
     {
-        initData.properties = createProperties(argc, argv, initData.properties);
+        initData.properties = createProperties(av.argc, av.argv, initData.properties);
     }
     catch(const std::exception& ex)
     {
@@ -177,7 +176,7 @@ Ice::Application::main(int argc, char* argv[], const InitializationData& initial
 
     _application = this;
 
-    if(_signalPolicy == HandleSignals)
+    if(_signalPolicy == ICE_ENUM(SignalPolicy, HandleSignals))
     {
         try
         {
@@ -188,7 +187,7 @@ Ice::Application::main(int argc, char* argv[], const InitializationData& initial
             CtrlCHandler ctrCHandler;
             _ctrlCHandler = &ctrCHandler;
 
-            status = doMain(argc, argv, initData);
+            status = doMain(av.argc, av.argv, initData, version);
 
             //
             // Set _ctrlCHandler to 0 only once communicator->destroy() has completed.
@@ -204,38 +203,24 @@ Ice::Application::main(int argc, char* argv[], const InitializationData& initial
     }
     else
     {
-        status = doMain(argc, argv, initData);
+        status = doMain(av.argc, av.argv, initData, version);
     }
 
     return status;
 }
 
 int
-Ice::Application::main(int argc, char* const argv[], const char* configFile)
-{
-    ArgVector av(argc, argv);
-    return main(av.argc, av.argv, configFile);
-}
-
-int
-Ice::Application::main(int argc, char* const argv[], const Ice::InitializationData& initData)
-{
-    ArgVector av(argc, argv);
-    return main(av.argc, av.argv, initData);
-}
-
-int
-Ice::Application::main(const StringSeq& args, const char* configFile)
+Ice::Application::main(const StringSeq& args, const InitializationData& initData, int version)
 {
     ArgVector av(args);
-    return main(av.argc, av.argv, configFile);
+    return main(av.argc, av.argv, initData, version);
 }
 
 int
-Ice::Application::main(const StringSeq& args, const InitializationData& initData)
+Ice::Application::main(const StringSeq& args, ICE_CONFIG_FILE_STRING configFile, int version)
 {
     ArgVector av(args);
-    return main(av.argc, av.argv, initData);
+    return main(av.argc, av.argv, configFile, version);
 }
 
 void
@@ -258,7 +243,7 @@ Ice::Application::communicator()
 void
 Ice::Application::destroyOnInterrupt()
 {
-    if(_signalPolicy == HandleSignals)
+    if(_signalPolicy == ICE_ENUM(SignalPolicy, HandleSignals))
     {
         if(_ctrlCHandler != 0)
         {
@@ -281,7 +266,7 @@ Ice::Application::destroyOnInterrupt()
 void
 Ice::Application::shutdownOnInterrupt()
 {
-    if(_signalPolicy == HandleSignals)
+    if(_signalPolicy == ICE_ENUM(SignalPolicy, HandleSignals))
     {
         if(_ctrlCHandler != 0)
         {
@@ -304,7 +289,7 @@ Ice::Application::shutdownOnInterrupt()
 void
 Ice::Application::ignoreInterrupt()
 {
-    if(_signalPolicy == HandleSignals)
+    if(_signalPolicy == ICE_ENUM(SignalPolicy, HandleSignals))
     {
         if(_ctrlCHandler != 0)
         {
@@ -327,7 +312,7 @@ Ice::Application::ignoreInterrupt()
 void
 Ice::Application::callbackOnInterrupt()
 {
-    if(_signalPolicy == HandleSignals)
+    if(_signalPolicy == ICE_ENUM(SignalPolicy, HandleSignals))
     {
         if(_ctrlCHandler != 0)
         {
@@ -350,7 +335,7 @@ Ice::Application::callbackOnInterrupt()
 void
 Ice::Application::holdInterrupt()
 {
-    if(_signalPolicy == HandleSignals)
+    if(_signalPolicy == ICE_ENUM(SignalPolicy, HandleSignals))
     {
         if(_ctrlCHandler != 0)
         {
@@ -374,7 +359,7 @@ Ice::Application::holdInterrupt()
 void
 Ice::Application::releaseInterrupt()
 {
-    if(_signalPolicy == HandleSignals)
+    if(_signalPolicy == ICE_ENUM(SignalPolicy, HandleSignals))
     {
         if(_ctrlCHandler != 0)
         {
@@ -410,7 +395,7 @@ Ice::Application::interrupted()
 }
 
 int
-Ice::Application::doMain(int argc, char* argv[], const InitializationData& initData)
+Ice::Application::doMain(int argc, char* argv[], const InitializationData& initData, int version)
 {
     int status;
 
@@ -431,13 +416,13 @@ Ice::Application::doMain(int argc, char* argv[], const InitializationData& initD
             setProcessLogger(ICE_MAKE_SHARED(LoggerI, initData.properties->getProperty("Ice.ProgramName"), "", convert));
         }
 
-        _communicator = initialize(argc, argv, initData);
+        _communicator = initialize(argc, argv, initData, version);
         _destroyed = false;
 
         //
         // The default is to destroy when a signal is received.
         //
-        if(_signalPolicy == HandleSignals)
+        if(_signalPolicy == ICE_ENUM(SignalPolicy, HandleSignals))
         {
             destroyOnInterrupt();
         }
@@ -474,7 +459,7 @@ Ice::Application::doMain(int argc, char* argv[], const InitializationData& initD
     // it would not make sense to release a held signal to run
     // shutdown or destroy.
     //
-    if(_signalPolicy == HandleSignals)
+    if(_signalPolicy == ICE_ENUM(SignalPolicy, HandleSignals))
     {
         ignoreInterrupt();
     }

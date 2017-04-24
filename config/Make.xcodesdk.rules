@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -82,7 +82,9 @@ $1[$2-$3]: $$($1_dependencies)
 	           -project "$1/$$(call $1_project,$2,$3)" \
 	           -configuration "$$(call $1_configuration,$2,$3)" \
 		   -scheme "$$(call $1_scheme,$2,$3)" \
-		   $(if $(V),,-quiet) SYMROOT=./build
+		   $(if $(ICE_BIN_DIST),ADDITIONAL_SDKS=$(libdir)/IceSDK/$2.sdk) \
+		   $(if $(V),,-quiet) SYMROOT=./build \
+		   clean build
 
 $1[$2-$3]_clean:
 	$(E) "Cleaning $1"

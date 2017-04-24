@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,6 +11,10 @@
 #include <IceSSL/IceSSL.h>
 #include <TestCommon.h>
 #include <Test.h>
+
+#if defined(ICE_USE_OPENSSL)
+#  include <IceSSL/OpenSSL.h>
+#endif
 
 DEFINE_TEST("client")
 
@@ -65,7 +69,9 @@ main(int argc, char* argv[])
     // don't set Ice.Plugin.IceSSL to ensure the plugin is registered without
     // the property setting.
     //
+#if !defined(ICE_USE_OPENSSL)
     Ice::registerIceSSL();
+#endif
 
     int status;
     Ice::CommunicatorPtr communicator;

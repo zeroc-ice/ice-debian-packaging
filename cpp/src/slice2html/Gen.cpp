@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -1956,7 +1956,7 @@ TOCGenerator::writeEntry(const ContainedPtr& c)
     EnumPtr en = EnumPtr::dynamicCast(c);
     if(en)
     {
-        EnumeratorList enumerators = en->getEnumerators();
+        EnumeratorList enumerators = en->enumerators();
         for(EnumeratorList::const_iterator i = enumerators.begin(); i != enumerators.end(); ++i)
         {
             cl.push_back(*i);
@@ -2944,7 +2944,7 @@ Slice::EnumGenerator::generate(const EnumPtr& e)
 
     printComment(e, e, deprecateReason);
 
-    EnumeratorList enumerators = e->getEnumerators();
+    EnumeratorList enumerators = e->enumerators();
     if(!enumerators.empty())
     {
         start("h2");

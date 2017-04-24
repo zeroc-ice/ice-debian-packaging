@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -29,7 +29,7 @@ class D extends B
 // on the server and pass an optional argument. This isn't necessary in other language
 // mappings where the public stream API is available.
 //
-class Initial2
+interface Initial2
 {
     void opClassAndUnknownOptional(A p, optional(1) Object o);
 

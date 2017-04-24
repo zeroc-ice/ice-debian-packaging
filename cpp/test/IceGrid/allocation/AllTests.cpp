@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -276,7 +276,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         communicator->stringToProxy(communicator->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
     test(registry);
     AdminSessionPrx session = registry->createAdminSession("foo", "bar");
-    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::HeartbeatAlways);
+    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
 
     AdminPrx admin = session->getAdmin();
     test(admin);
@@ -480,7 +480,6 @@ allTests(const Ice::CommunicatorPtr& communicator)
         session1->setAllocationTimeout(0);
         session2->setAllocationTimeout(0);
 
-
         try
         {
             obj = session1->allocateObjectByType("::Unknown");
@@ -595,11 +594,29 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
         session1->releaseObject(obj->ice_getIdentity());
 
+        admin->enableServer("ObjectAllocation", false);
+        try
+        {
+            while(true)
+            {
+                // The notification of the server being disabled is asynchronous and might
+                // not be visible to the allocation system immediately.
+                session1->allocateObjectByType("::Test");
+                session1->releaseObject(obj->ice_getIdentity());
+                IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(100));
+            }
+            test(false);
+        }
+        catch(const AllocationException&)
+        {
+        }
+        admin->enableServer("ObjectAllocation", true);
+
         cout << "ok" << endl;
 
         cout << "testing object allocation timeout... " << flush;
-
         session1->allocateObjectById(allocatable);
+
         IceUtil::Time time = IceUtil::Time::now();
         session2->setAllocationTimeout(500);
         try
@@ -816,6 +833,24 @@ allTests(const Ice::CommunicatorPtr& communicator)
         obj1 = session2->allocateObjectByType("::TestMultipleServer");
         session2->releaseObject(obj1->ice_getIdentity());
         session2->releaseObject(obj2->ice_getIdentity());
+
+        admin->enableServer("ServerAllocation", false);
+        try
+        {
+            while(true)
+            {
+                // The notification of the server being disabled is asynchronous and might
+                // not be visible to the allocation system immediately.
+                session1->allocateObjectByType("::TestServer1");
+                session1->releaseObject(allocatable3);
+                IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(100));
+            }
+            test(false);
+        }
+        catch(const AllocationException&)
+        {
+        }
+        admin->enableServer("ServerAllocation", true);
 
         cout << "ok" << endl;
 

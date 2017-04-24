@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -221,6 +221,16 @@ class InvocationFuture(Future):
         if self._asyncResult:
             self._asyncResult.cancel()
         return Future.cancel(self)
+
+    def add_done_callback_async(self, fn):
+        with self._condition:
+            if self._state == Future.StateRunning:
+                self._doneCallbacks.append(fn)
+                return
+        if self._asyncResult:
+            self._asyncResult.callLater(lambda: fn(self))
+        else:
+            fn(self)
 
     def is_sent(self):
         with self._condition:
@@ -590,21 +600,19 @@ def getSliceDir():
     if os.path.exists(dir):
         return os.path.normpath(dir)
 
-    iceVer = stringVersion()
-
     if sys.platform[:5] == "linux":
         #
-        # Check the default RPM location.
+        # Check the default Linux location.
         #
-        dir = os.path.join("/", "usr", "share", "Ice-" + iceVer, "slice")
+        dir = os.path.join("/", "usr", "share", "ice", "slice")
         if os.path.exists(dir):
             return dir
 
     elif sys.platform == "darwin":
         #
-        # Check the default OS X location.
+        # Check the default macOS homebrew location.
         #
-        dir = os.path.join("/", "Library", "Developer", "Ice-" + iceVer, "slice")
+        dir = os.path.join("/", "usr", "local", "share", "ice",  "slice")
         if os.path.exists(dir):
             return dir
 
@@ -821,12 +829,29 @@ properties: An instance of Ice.Properties. You can use the
 
 logger: An instance of Ice.Logger.
 
-threadHook: An object that implements ThreadNotification.
+threadStart: A callable that is invoked for each new Ice thread that is started.
+
+threadStop: A callable that is invoked when an Ice thread is stopped.
+
+dispatcher: A callable that is invoked when Ice needs to dispatch an activity. The callable
+    receives two arguments: a callable and an Ice.Connection object. The dispatcher must
+    eventually invoke the callable with no arguments.
+
+batchRequestInterceptor: A callable that will be invoked when a batch request is queued.
+    The callable receives three arguments: a BatchRequest object, an integer representing
+    the number of requests in the queue, and an integer representing the number of bytes
+    consumed by the requests in the queue. The interceptor must eventually invoke the
+    enqueue method on the BatchRequest object.
+
+valueFactoryManager: An object that implements ValueFactoryManager.
 '''
     def __init__(self):
         self.properties = None
         self.logger = None
-        self.threadHook = None
+        self.threadHook = None # Deprecated.
+        self.threadStart = None
+        self.threadStop = None
+        self.dispatcher = None
         self.batchRequestInterceptor = None
         self.valueFactoryManager = None
 
@@ -938,14 +963,14 @@ class CommunicatorI(Communicator):
     def getPluginManager(self):
         raise RuntimeError("operation `getPluginManager' not implemented")
 
-    def flushBatchRequests(self):
-        self._impl.flushBatchRequests()
+    def flushBatchRequests(self, compress):
+        self._impl.flushBatchRequests(compress)
 
-    def flushBatchRequestsAsync(self):
-        return self._impl.flushBatchRequestsAsync()
+    def flushBatchRequestsAsync(self, compress):
+        return self._impl.flushBatchRequestsAsync(compress)
 
-    def begin_flushBatchRequests(self, _ex=None, _sent=None):
-        return self._impl.begin_flushBatchRequests(_ex, _sent)
+    def begin_flushBatchRequests(self, compress, _ex=None, _sent=None):
+        return self._impl.begin_flushBatchRequests(compress, _ex, _sent)
 
     def end_flushBatchRequests(self, r):
         return self._impl.end_flushBatchRequests(r)
@@ -1115,14 +1140,17 @@ class ObjectAdapterI(ObjectAdapter):
     def getLocator(self):
         return self._impl.getLocator()
 
-    def refreshPublishedEndpoints(self):
-        self._impl.refreshPublishedEndpoints()
-
     def getEndpoints(self):
         return self._impl.getEndpoints()
 
+    def refreshPublishedEndpoints(self):
+        self._impl.refreshPublishedEndpoints()
+
     def getPublishedEndpoints(self):
         return self._impl.getPublishedEndpoints()
+
+    def setPublishedEndpoints(self, newEndpoints):
+        self._impl.setPublishedEndpoints(newEndpoints)
 
 #
 # Logger wrapper.
@@ -1460,7 +1488,8 @@ value is an integer representing the exit status.
         # Install our handler for the signals we are interested in. We assume main()
         # is called from the main thread.
         #
-        Application._ctrlCHandler = CtrlCHandler()
+        if Application._signalPolicy == Application.HandleSignals:
+            Application._ctrlCHandler = CtrlCHandler()
 
         try:
             Application._interrupted = False
@@ -1486,8 +1515,9 @@ value is an integer representing the exit status.
         # Set _ctrlCHandler to 0 only once communicator.destroy() has
         # completed.
         #
-        Application._ctrlCHandler.destroy()
-        Application._ctrlCHandler = None
+        if Application._signalPolicy == Application.HandleSignals:
+            Application._ctrlCHandler.destroy()
+            Application._ctrlCHandler = None
 
         return status
 

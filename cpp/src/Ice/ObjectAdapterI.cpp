@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,6 +9,7 @@
 
 #include <Ice/UUID.h>
 #include <Ice/ObjectAdapterI.h>
+#include <Ice/CommunicatorI.h>
 #include <Ice/ObjectAdapterFactory.h>
 #include <Ice/Instance.h>
 #include <Ice/Proxy.h>
@@ -62,6 +63,12 @@ inline void checkServant(const ObjectPtr& servant)
         throw IllegalServantException(__FILE__, __LINE__, "cannot add null servant to Object Adapter");
     }
 }
+
+inline EndpointIPtr toEndpointI(const EndpointPtr& endp)
+{
+    return ICE_DYNAMIC_CAST(EndpointI, endp);
+}
+
 }
 
 string
@@ -640,6 +647,24 @@ Ice::ObjectAdapterI::getLocator() const
     }
 }
 
+EndpointSeq
+Ice::ObjectAdapterI::getEndpoints() const
+{
+    IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
+
+    EndpointSeq endpoints;
+    transform(_incomingConnectionFactories.begin(), _incomingConnectionFactories.end(),
+            back_inserter(endpoints),
+#ifdef ICE_CPP11_MAPPING
+            [](const IncomingConnectionFactoryPtr& factory)
+            {
+                return factory->endpoint();
+            });
+#else
+            Ice::constMemFun(&IncomingConnectionFactory::endpoint));
+#endif
+    return endpoints;
+}
 
 void
 Ice::ObjectAdapterI::refreshPublishedEndpoints()
@@ -649,7 +674,6 @@ Ice::ObjectAdapterI::refreshPublishedEndpoints()
 
     {
         IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
-
         checkForDeactivation();
 
         oldPublishedEndpoints = _publishedEndpoints;
@@ -677,25 +701,6 @@ Ice::ObjectAdapterI::refreshPublishedEndpoints()
 }
 
 EndpointSeq
-Ice::ObjectAdapterI::getEndpoints() const
-{
-    IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
-
-    EndpointSeq endpoints;
-    transform(_incomingConnectionFactories.begin(), _incomingConnectionFactories.end(),
-            back_inserter(endpoints),
-#ifdef ICE_CPP11_MAPPING
-            [](const IncomingConnectionFactoryPtr& factory)
-            {
-                return factory->endpoint();
-            });
-#else
-            Ice::constMemFun(&IncomingConnectionFactory::endpoint));
-#endif
-    return endpoints;
-}
-
-EndpointSeq
 Ice::ObjectAdapterI::getPublishedEndpoints() const
 {
     IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
@@ -703,6 +708,42 @@ Ice::ObjectAdapterI::getPublishedEndpoints() const
     EndpointSeq endpoints;
     copy(_publishedEndpoints.begin(), _publishedEndpoints.end(), back_inserter(endpoints));
     return endpoints;
+}
+
+void
+Ice::ObjectAdapterI::setPublishedEndpoints(const EndpointSeq& newEndpoints)
+{
+    vector<EndpointIPtr> newPublishedEndpoints;
+    transform(newEndpoints.begin(), newEndpoints.end(), back_inserter(newPublishedEndpoints), toEndpointI);
+
+    LocatorInfoPtr locatorInfo;
+    vector<EndpointIPtr> oldPublishedEndpoints;
+    {
+        IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
+        checkForDeactivation();
+
+        oldPublishedEndpoints = _publishedEndpoints;
+        _publishedEndpoints = newPublishedEndpoints;
+
+        locatorInfo = _locatorInfo;
+    }
+
+    try
+    {
+        Ice::Identity dummy;
+        dummy.name = "dummy";
+        updateLocatorRegistry(locatorInfo, createDirectProxy(dummy));
+    }
+    catch(const Ice::LocalException&)
+    {
+        IceUtil::Monitor<IceUtil::RecMutex>::Lock sync(*this);
+
+        //
+        // Restore the old published endpoints.
+        //
+        _publishedEndpoints = oldPublishedEndpoints;
+        throw;
+    }
 }
 
 bool
@@ -746,7 +787,7 @@ Ice::ObjectAdapterI::isLocal(const ObjectPrxPtr& proxy) const
             for(vector<IncomingConnectionFactoryPtr>::const_iterator q = _incomingConnectionFactories.begin();
                 q != _incomingConnectionFactories.end(); ++q)
             {
-                if((*p)->equivalent((*q)->endpoint()))
+                if((*q)->isLocal(*p))
                 {
                     return true;
                 }
@@ -786,7 +827,7 @@ Ice::ObjectAdapterI::isLocal(const ObjectPrxPtr& proxy) const
 }
 
 void
-Ice::ObjectAdapterI::flushAsyncBatchRequests(const CommunicatorFlushBatchAsyncPtr& outAsync)
+Ice::ObjectAdapterI::flushAsyncBatchRequests(const CommunicatorFlushBatchAsyncPtr& outAsync, CompressBatch compress)
 {
     vector<IncomingConnectionFactoryPtr> f;
     {
@@ -796,7 +837,7 @@ Ice::ObjectAdapterI::flushAsyncBatchRequests(const CommunicatorFlushBatchAsyncPt
 
     for(vector<IncomingConnectionFactoryPtr>::const_iterator p = f.begin(); p != f.end(); ++p)
     {
-        (*p)->flushAsyncBatchRequests(outAsync);
+        (*p)->flushAsyncBatchRequests(outAsync, compress);
     }
 }
 
@@ -1061,11 +1102,19 @@ Ice::ObjectAdapterI::initialize(const RouterPrxPtr& router)
             vector<EndpointIPtr> endpoints = parseEndpoints(properties->getProperty(_name + ".Endpoints"), true);
             for(vector<EndpointIPtr>::iterator p = endpoints.begin(); p != endpoints.end(); ++p)
             {
-                IncomingConnectionFactoryPtr factory = ICE_MAKE_SHARED(IncomingConnectionFactory, _instance, *p, ICE_SHARED_FROM_THIS);
-                 factory->initialize();
-                _incomingConnectionFactories.push_back(factory);
+                EndpointIPtr publishedEndpoint;
+                vector<EndpointIPtr> expanded = (*p)->expandHost(publishedEndpoint);
+                for(vector<EndpointIPtr>::iterator q = expanded.begin(); q != expanded.end(); ++q)
+                {
+                    IncomingConnectionFactoryPtr factory = ICE_MAKE_SHARED(IncomingConnectionFactory,
+                                                                           _instance,
+                                                                           *q,
+                                                                           publishedEndpoint,
+                                                                           ICE_SHARED_FROM_THIS);
+                    factory->initialize();
+                    _incomingConnectionFactories.push_back(factory);
+                }
             }
-
             if(endpoints.empty())
             {
                 TraceLevelsPtr tl = _instance->traceLevels();
@@ -1281,8 +1330,19 @@ ObjectAdapterI::parsePublishedEndpoints()
         //
         for(unsigned int i = 0; i < _incomingConnectionFactories.size(); ++i)
         {
-            vector<EndpointIPtr> endps = _incomingConnectionFactories[i]->endpoint()->expand();
-            endpoints.insert(endpoints.end(), endps.begin(), endps.end());
+            vector<EndpointIPtr> endps = _incomingConnectionFactories[i]->endpoint()->expandIfWildcard();
+            for(vector<EndpointIPtr>::const_iterator p = endps.begin(); p != endps.end(); ++p)
+            {
+                //
+                // Check for duplicate endpoints, this might occur if an endpoint with a DNS name
+                // expands to multiple addresses. In this case, multiple incoming connection
+                // factories can point to the same published endpoint.
+                //
+                if(::find(endpoints.begin(), endpoints.end(), *p) == endpoints.end())
+                {
+                    endpoints.push_back(*p);
+                }
+            }
         }
     }
 

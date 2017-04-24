@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,7 +14,7 @@ import test.Ice.objects.Test.*;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CompletableFuture;
 
-public final class InitialI implements _InitialDisp
+public final class InitialI implements Initial
 {
     public InitialI(com.zeroc.Ice.ObjectAdapter adapter)
     {
@@ -103,6 +103,17 @@ public final class InitialI implements _InitialDisp
     public F getF(com.zeroc.Ice.Current current)
     {
         return _f;
+    }
+
+    @Override
+    public void setRecursive(Recursive r, com.zeroc.Ice.Current current)
+    {
+    }
+
+    @Override
+    public boolean supportsClassGraphDepthMax(com.zeroc.Ice.Current current)
+    {
+        return false;
     }
 
     @Override

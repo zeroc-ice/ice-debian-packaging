@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -51,7 +51,7 @@ dictionary<int, string> D;
 
 ["java:type:java.util.LinkedList<java.util.List<String>>"] sequence<StringSeq> StringSeqSeq;
 
-class TestIntf
+interface TestIntf
 {
     CSeq opCSeq(CSeq inSeq, out CSeq outSeq);
     CArray opCArray(CArray inSeq, out CArray outSeq);
@@ -77,8 +77,6 @@ class TestIntf
     DoubleBuffer opDoubleBufferSeq(DoubleBuffer inSeq, out DoubleBuffer outSeq);
 
     void shutdown();
-
-    ["java:type:java.util.ArrayList<C>"] CSeq seq;
 };
 
 };

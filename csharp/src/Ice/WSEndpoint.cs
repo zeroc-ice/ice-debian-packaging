@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -212,16 +212,36 @@ namespace IceInternal
 
         public WSEndpoint endpoint(EndpointI delEndp)
         {
-            return new WSEndpoint(_instance, delEndp, _resource);
+            if(delEndp == _delegate)
+            {
+                return this;
+            }
+            else
+            {
+                return new WSEndpoint(_instance, delEndp, _resource);
+            }
         }
 
-        public override List<EndpointI> expand()
+        public override List<EndpointI> expandIfWildcard()
         {
-            List<EndpointI> endps = _delegate.expand();
             List<EndpointI> l = new List<EndpointI>();
-            foreach(EndpointI e in endps)
+            foreach(EndpointI e in _delegate.expandIfWildcard())
             {
                 l.Add(e == _delegate ? this : new WSEndpoint(_instance, e, _resource));
+            }
+            return l;
+        }
+
+        public override List<EndpointI> expandHost(out EndpointI publish)
+        {
+            List<EndpointI> l = new List<EndpointI>();
+            foreach(EndpointI e in _delegate.expandHost(out publish))
+            {
+                l.Add(e == _delegate ? this : new WSEndpoint(_instance, e, _resource));
+            }
+            if(publish != null)
+            {
+                publish = publish == _delegate ? this : new WSEndpoint(_instance, publish, _resource);
             }
             return l;
         }
@@ -274,7 +294,7 @@ namespace IceInternal
 
         public override int CompareTo(EndpointI obj)
         {
-            if(!(obj is EndpointI))
+            if(!(obj is WSEndpoint))
             {
                 return type() < obj.type() ? -1 : 1;
             }

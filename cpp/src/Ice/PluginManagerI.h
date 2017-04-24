@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -40,7 +40,7 @@ private:
 
     friend class IceInternal::Instance;
 
-    void loadPlugins(int&, char*[]);
+    void loadPlugins(int&, const char*[]);
     void loadPlugin(const std::string&, const std::string&, StringSeq&);
 
     PluginPtr findPlugin(const std::string&) const;

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -208,7 +208,7 @@ public class GraphView extends JFrame implements MetricsFieldContext, Coordinato
         _coordinator = coordinator;
         setTitle(title);
 
-        _preferences = Preferences.userNodeForPackage(getClass());
+        _preferences = Coordinator.getPreferences().node("LiveDeployment");
 
         //
         // Don't destroy JavaFX when the frame is disposed.
@@ -315,15 +315,8 @@ public class GraphView extends JFrame implements MetricsFieldContext, Coordinato
                 @Override
                 public String getToolTipText(java.awt.event.MouseEvent e)
                 {
-                    if(convertColumnIndexToModel(columnAtPoint(e.getPoint())) == 6)
-                    {
-                        return _legendModel.getRows(new int[]{rowAtPoint(e.getPoint())})[0].cell.getField().
-                            getColumnToolTip();
-                    }
-                    else
-                    {
-                        return null;
-                    }
+                    return _legendModel.getRows(new int[]{rowAtPoint(e.getPoint())})[0].cell.getField().
+                        getColumnToolTip();
                 }
             };
 
@@ -385,38 +378,34 @@ public class GraphView extends JFrame implements MetricsFieldContext, Coordinato
                     //
                     // Remove series from the chart, in JavaFx thread.
                     //
-                    enqueueJFX(new Runnable()
-                        {
-                            @Override
-                            public void run()
-                            {
-                                for(MetricsRow row : rows)
-                                {
-                                    for(int i = 0; i < row.series.size(); ++i)
-                                    {
-                                        XYChart.Series<Number, Number> series = row.series.get(i);
-                                        String seriesClass = getSeriesClass(series);
-                                        if(seriesClass != null)
-                                        {
-                                            _styles.remove(seriesClass);
-                                        }
-                                        //
-                                        // Don't remove the XYChart.Series object here, to avoid the series
-                                        // style classes to be reasign by JavaFX.
-                                        //
-                                        // _chart.getData().remove(row.series);
-                                        try
-                                        {
-                                            series.getData().clear();
-                                        }
-                                        catch(NullPointerException ex)
-                                        {
-                                            // JavaFX bug
-                                        }
-                                    }
-                                }
-                            }
-                        });
+                    enqueueJFX(() ->
+                               {
+                                   for(MetricsRow row : rows)
+                                   {
+                                       for(int i = 0; i < row.series.size(); ++i)
+                                       {
+                                           XYChart.Series<Number, Number> series = row.series.get(i);
+                                           String seriesClass = getSeriesClass(series);
+                                           if(seriesClass != null)
+                                           {
+                                               _styles.remove(seriesClass);
+                                           }
+                                           //
+                                           // Don't remove the XYChart.Series object here, to avoid the series
+                                           // style classes to be reasign by JavaFX.
+                                           //
+                                           // _chart.getData().remove(row.series);
+                                           try
+                                           {
+                                               series.getData().clear();
+                                           }
+                                           catch(NullPointerException ex)
+                                           {
+                                               // JavaFX bug
+                                           }
+                                       }
+                                   }
+                               });
                 }
             };
         delete.setEnabled(false);
@@ -480,7 +469,7 @@ public class GraphView extends JFrame implements MetricsFieldContext, Coordinato
         //
         JComboBox<Double> scales = new JComboBox<>(_scales);
         scales.setRenderer(new DecimalRenderer(scales.getRenderer()));
-        _legendTable.getColumnModel().getColumn(7).setCellEditor(new DefaultCellEditor(scales));
+        _legendTable.getColumnModel().getColumn(ScaleColumnNumber).setCellEditor(new DefaultCellEditor(scales));
 
         //
         // Set default renderer and editor for Color.class column.
@@ -1767,6 +1756,9 @@ public class GraphView extends JFrame implements MetricsFieldContext, Coordinato
                                                   10000000.0d,
                                                   100000000.0d,
                                                   1000000000.0d};
+    //
+    // This s
+    private static final int ScaleColumnNumber = 6;
 
     private final java.util.concurrent.Semaphore _sem = new java.util.concurrent.Semaphore(0);
     private final java.util.concurrent.ExecutorService _queue = java.util.concurrent.Executors.newSingleThreadExecutor(

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -273,7 +273,7 @@ compile(const vector<string>& argv)
     for(vector<string>::size_type idx = 0; idx < args.size(); ++idx)
     {
         PreprocessorPtr icecpp = Preprocessor::create(argv[0], args[idx], cppArgs);
-        FILE* cppHandle = icecpp->preprocess(true);
+        FILE* cppHandle = icecpp->preprocess(true, "-D__SLICE2CONFLUENCE__");
 
         if(cppHandle == 0)
         {

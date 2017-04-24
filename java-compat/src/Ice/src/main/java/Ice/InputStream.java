@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -650,7 +650,7 @@ public class InputStream
             throw new Ice.UnmarshalOutOfBoundsException();
         }
 
-        EncodingVersion encoding = EncodingVersion.ice_read(this, null);
+        EncodingVersion encoding = EncodingVersion.ice_read(this);
         IceInternal.Protocol.checkSupportedEncoding(encoding); // Make sure the encoding is supported.
 
         if(encoding.equals(Ice.Util.Encoding_1_0))

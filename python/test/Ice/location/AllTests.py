@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -9,7 +9,7 @@
 
 import Ice, Test, sys
 
-class HelloI(Test._HelloDisp):
+class HelloI(Test.Hello):
     def sayHello(self, current=None):
         pass
 
@@ -200,7 +200,7 @@ def allTests(communicator, ref):
     sys.stdout.flush()
     hello = Test.HelloPrx.checkedCast(communicator.stringToProxy("hello"))
     obj.migrateHello()
-    hello.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
+    hello.ice_getConnection().close(Ice.ConnectionClose.GracefullyWithWait)
     hello.sayHello()
     obj.migrateHello()
     hello.sayHello()

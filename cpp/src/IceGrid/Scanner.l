@@ -2,7 +2,7 @@
 
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -24,6 +24,13 @@
 // Puts a pointer-difference into an int
 //
 #   pragma warning( 4 : 4244 )
+#endif
+
+#if defined(_MSC_VER) && defined(ICE_32)
+//
+// '<' : signed/unsigned mismatch
+//
+#   pragma warning( 4 : 4018 )
 #endif
 
 #if defined(__GNUC__)

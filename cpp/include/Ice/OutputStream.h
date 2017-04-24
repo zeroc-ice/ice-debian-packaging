@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -704,7 +704,7 @@ private:
 
     public:
 
-        Encaps() : format(DefaultFormat), encoder(0), previous(0)
+        Encaps() : format(ICE_ENUM(FormatType, DefaultFormat)), encoder(0), previous(0)
         {
             // Inlined for performance reasons.
         }

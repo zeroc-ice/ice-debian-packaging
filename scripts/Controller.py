@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -35,7 +35,7 @@ class ControllerDriver(Driver):
         print("Controller driver options:")
         print("--id=<identity>       The identify of the controller object.")
         print("--endpoints=<endpts>  The endpoints to listen on.")
-        print("--clean               Remove trust settings (OS X).")
+        print("--clean               Remove trust settings (macOS).")
 
     def __init__(self, options, *args, **kargs):
         Driver.__init__(self, options, *args, **kargs)
@@ -51,7 +51,7 @@ class ControllerDriver(Driver):
 
         if isinstance(platform, Darwin):
             #
-            # On OS X, we set the trust settings on the certificate to prevent
+            # On macOS, we set the trust settings on the certificate to prevent
             # the Web browsers from prompting the user about the untrusted
             # certificate. Some browsers such as Chrome don't provide the
             # option to set this trust settings.
@@ -82,7 +82,7 @@ class ControllerDriver(Driver):
         Ice.loadSlice(os.path.join(toplevel, "scripts", "Controller.ice"))
         import Test
 
-        class TestCaseI(Test.Common._TestCaseDisp):
+        class TestCaseI(Test.Common.TestCase):
             def __init__(self, driver, current):
                 self.driver = driver
                 self.current = current
@@ -130,7 +130,7 @@ class ControllerDriver(Driver):
                             self.current.config.parsedOptions.append(a)
                         setattr(self.current.config, a, v)
 
-        class ControllerI(Test.Common._ControllerDisp):
+        class ControllerI(Test.Common.Controller):
             def __init__(self, driver):
                 self.driver = driver
                 self.testcase = None

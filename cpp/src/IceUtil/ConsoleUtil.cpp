@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -19,7 +19,7 @@ namespace
 {
 
 IceUtil::Mutex* consoleMutex = 0;
-ConsoleUtilPtr consoleUtil = 0;
+ConsoleUtil* consoleUtil = 0;
 
 class Init
 {
@@ -28,11 +28,16 @@ public:
     Init()
     {
         consoleMutex = new IceUtil::Mutex;
-        consoleUtil = ICE_MAKE_SHARED(ConsoleUtil);
     }
 
     ~Init()
     {
+        //
+        // We leak consoleUtil object to ensure that is available
+        // during static destruction.
+        //
+        //delete consoleUtil;
+        //consoleUtil = 0;
         delete consoleMutex;
         consoleMutex = 0;
     }
@@ -42,10 +47,15 @@ Init init;
 
 }
 
-const ConsoleUtilPtr&
+const ConsoleUtil&
 IceUtilInternal::getConsoleUtil()
 {
-    return consoleUtil;
+    IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(consoleMutex);
+    if(consoleUtil == 0)
+    {
+        consoleUtil = new ConsoleUtil();
+    }
+    return *consoleUtil;
 }
 
 ConsoleOut IceUtilInternal::consoleOut;
@@ -67,7 +77,7 @@ ConsoleUtil::toConsoleEncoding(const string& message) const
 
         // Then from UTF-8 to console CP
         string consoleString;
-		_consoleConverter->fromUTF8(reinterpret_cast<const IceUtil::Byte* > (u8s.data()),
+        _consoleConverter->fromUTF8(reinterpret_cast<const IceUtil::Byte* > (u8s.data()),
                                     reinterpret_cast<const IceUtil::Byte*>(u8s.data() + u8s.size()),
                                     consoleString);
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -233,11 +233,7 @@ twoways(const Ice::CommunicatorPtr& communicator, const Test::MyClassPrxPtr& p)
     }
 
     {
-#ifdef ICE_CPP11_MAPPING
-        test(Test::MyClassPrx::ice_staticId() == Test::MyClassDisp::ice_staticId());
-#else
         test(Test::MyClassPrx::ice_staticId() == Test::MyClass::ice_staticId());
-#endif
         test(Ice::ObjectPrx::ice_staticId() == Ice::Object::ice_staticId());
     }
 

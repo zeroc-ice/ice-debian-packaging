@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -31,7 +31,7 @@ int
 main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
-    Ice::registerIceSSL();
+    Ice::registerIceSSL(false);
 #endif
     int status = EXIT_FAILURE;
     try
@@ -39,7 +39,7 @@ main(int argc, char* argv[])
         Ice::InitializationData initData = getTestInitData(argc, argv);
         initData.properties->setProperty("Ice.Warn.Dispatch", "0");
         initData.properties->setProperty("Ice.PrintStackTraces", "0");
-        Ice::CommunicatorHolder ich = Ice::initialize(argc, argv, initData);
+        Ice::CommunicatorHolder ich(argc, argv, initData);
         status = run(argc, argv, ich.communicator());
     }
     catch(const Ice::Exception& ex)

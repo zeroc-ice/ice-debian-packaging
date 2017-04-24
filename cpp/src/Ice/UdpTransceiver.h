@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -76,6 +76,12 @@ private:
 #ifdef ICE_OS_UWP
     void appendMessage(Windows::Networking::Sockets::DatagramSocketMessageReceivedEventArgs^);
     Windows::Networking::Sockets::DatagramSocketMessageReceivedEventArgs^ readMessage();
+
+    void connectCompleted(Windows::Foundation::IAsyncAction^, Windows::Foundation::AsyncStatus);
+    void getOutputStreamMcastCompleted(
+        Windows::Foundation::IAsyncOperation<Windows::Storage::Streams::IOutputStream^>^,
+        Windows::Foundation::AsyncStatus);
+    void getOutputStreamCompleted(concurrency::task<Windows::Storage::Streams::IOutputStream^>, Buffer&);
 #endif
 
     friend class UdpEndpointI;

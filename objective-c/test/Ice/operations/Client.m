@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -77,6 +77,10 @@ main(int argc, char* argv[])
 #endif
             communicator = [ICEUtil createCommunicator:&argc argv:argv initData:initData];
             status = run(communicator);
+
+            // Test multiple communicator destroy calls.
+            [communicator destroy];
+            [communicator destroy];
         }
         @catch(ICEException* ex)
         {

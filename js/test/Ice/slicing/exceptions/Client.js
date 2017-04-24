@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,13 +11,12 @@
 {
     var Ice = require("ice").Ice;
     var Test = require("Test").Test;
-    var Promise = Ice.Promise;
     var ArrayUtil = Ice.ArrayUtil;
 
     var allTests = function(out, communicator)
     {
         var failCB = function(){ test(false); };
-        var p = new Promise();
+        var p = new Ice.Promise();
         var test = function(b)
         {
             if(!b)
@@ -36,7 +35,7 @@
 
         var ref, base, prx;
 
-        Promise.try(() =>
+        Ice.Promise.try(() =>
             {
                 out.write("testing stringToProxy... ");
                 ref = "Test:default -p 12010 -t 10000";
@@ -257,7 +256,7 @@
 
     var run = function(out, id)
     {
-        return Promise.try(
+        return Ice.Promise.try(
             function()
             {
                 var c = Ice.initialize(id);

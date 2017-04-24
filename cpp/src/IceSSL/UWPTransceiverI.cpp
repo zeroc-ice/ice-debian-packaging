@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,12 +8,10 @@
 // **********************************************************************
 
 #include <IceSSL/Config.h>
-
-#ifdef ICE_OS_UWP
-
 #include <IceSSL/UWPTransceiverI.h>
 #include <IceSSL/Instance.h>
-#include <IceSSL/SSLEngine.h>
+#include <IceSSL/UWPEngine.h>
+#include <IceSSL/ConnectionInfo.h>
 #include <Ice/Logger.h>
 #include <ppltasks.h>
 
@@ -30,7 +28,7 @@ using namespace Windows::Security::Cryptography::Certificates;
 
 namespace
 {
-    
+
 std::string
 validationResultToString(ChainValidationResult result)
 {
@@ -104,13 +102,13 @@ validationResultToString(ChainValidationResult result)
 }
 
 IceInternal::NativeInfoPtr
-IceSSL::TransceiverI::getNativeInfo()
+UWP::TransceiverI::getNativeInfo()
 {
     return _delegate->getNativeInfo();
 }
 
 IceInternal::SocketOperation
-IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::Buffer& writeBuffer)
+UWP::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::Buffer& writeBuffer)
 {
     if(!_connected)
     {
@@ -143,7 +141,7 @@ IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::B
                 params->CurrentTimeValidationEnabled = true;
                 params->NetworkRetrievalEnabled = false;
                 params->RevocationCheckEnabled = false;
-                
+
                 //
                 // BUGFIX: It is currently not possible to set ExclusiveTrustRoots programatically
                 // it is causing a read access exception see:https://goo.gl/B6OaNx
@@ -163,11 +161,7 @@ IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::B
                 }
 
                 ChainValidationResult result = _chain->Validate();
-                //
-                // Ignore InvalidName errors here SSLEngine::verifyPeer already checks that
-                // using IceSSL.CheckCertName settings.
-                //
-                if(result != ChainValidationResult::InvalidName && result != ChainValidationResult::Success)
+                if(result != ChainValidationResult::Success)
                 {
                     if(_engine->getVerifyPeer() == 0)
                     {
@@ -198,7 +192,17 @@ IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::B
                 throw SecurityException(__FILE__, __LINE__, "IceSSL: certificate required");
             }
 
-            _engine->verifyPeer(_host, dynamic_pointer_cast<IceSSL::NativeConnectionInfo>(getInfo()), toString());
+            if(_chain)
+            {
+                auto certs = _chain->GetCertificates(true);
+                for(auto iter = certs->First(); iter->HasCurrent; iter->MoveNext())
+                {
+                    auto cert = UWP::Certificate::create(iter->Current);
+                    _certs.push_back(cert);
+                }
+            }
+
+            _engine->verifyPeer(_host, dynamic_pointer_cast<IceSSL::ConnectionInfo>(getInfo()), toString());
         }
         catch(Platform::Exception^ ex)
         {
@@ -211,31 +215,31 @@ IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::B
 }
 
 IceInternal::SocketOperation
-IceSSL::TransceiverI::closing(bool initiator, const Ice::LocalException& ex)
+UWP::TransceiverI::closing(bool initiator, const Ice::LocalException& ex)
 {
     return _delegate->closing(initiator, ex);
 }
 
 void
-IceSSL::TransceiverI::close()
+UWP::TransceiverI::close()
 {
     _delegate->close();
 }
 
 IceInternal::SocketOperation
-IceSSL::TransceiverI::write(IceInternal::Buffer& buf)
+UWP::TransceiverI::write(IceInternal::Buffer& buf)
 {
     return _delegate->write(buf);
 }
 
 IceInternal::SocketOperation
-IceSSL::TransceiverI::read(IceInternal::Buffer& buf)
+UWP::TransceiverI::read(IceInternal::Buffer& buf)
 {
     return _delegate->read(buf);
 }
 
 bool
-IceSSL::TransceiverI::startWrite(IceInternal::Buffer& buf)
+UWP::TransceiverI::startWrite(IceInternal::Buffer& buf)
 {
     if(_connected && !_upgraded)
     {
@@ -244,11 +248,17 @@ IceSSL::TransceiverI::startWrite(IceInternal::Buffer& buf)
 
         //
         // We ignore SSL Certificate errors at this point, the certificate chain will be validated
-        // when the chain is constructed in IceSSL::Transceiver::initialize
+        // when the chain is constructed in Transceiver::initialize
         //
         stream->Control->IgnorableServerCertificateErrors->Append(ChainValidationResult::Expired);
         stream->Control->IgnorableServerCertificateErrors->Append(ChainValidationResult::IncompleteChain);
-        stream->Control->IgnorableServerCertificateErrors->Append(ChainValidationResult::InvalidName);
+        //
+        // Check if we need to enable host name verification
+        //
+        if(!_engine->getCheckCertName() || _host.empty() || _engine->getVerifyPeer() == 0)
+        {
+            stream->Control->IgnorableServerCertificateErrors->Append(ChainValidationResult::InvalidName);
+        }
         stream->Control->IgnorableServerCertificateErrors->Append(ChainValidationResult::RevocationFailure);
         stream->Control->IgnorableServerCertificateErrors->Append(ChainValidationResult::RevocationInformationMissing);
         stream->Control->IgnorableServerCertificateErrors->Append(ChainValidationResult::Untrusted);
@@ -274,14 +284,30 @@ IceSSL::TransceiverI::startWrite(IceInternal::Buffer& buf)
 }
 
 void
-IceSSL::TransceiverI::finishWrite(IceInternal::Buffer& buf)
+UWP::TransceiverI::finishWrite(IceInternal::Buffer& buf)
 {
     if(_connected && !_upgraded)
     {
         IceInternal::AsyncInfo* asyncInfo = getNativeInfo()->getAsyncInfo(IceInternal::SocketOperationWrite);
         if(asyncInfo->count == SOCKET_ERROR)
         {
-            IceInternal::checkErrorCode(__FILE__, __LINE__, asyncInfo->error);
+            if(CERT_E_CN_NO_MATCH == asyncInfo->error)
+            {
+                ostringstream ostr;
+                ostr << "IceSSL: certificate validation failure: "
+                     << (IceInternal::isIpAddress(_host) ? "IP address mismatch" : "Hostname mismatch");
+                string msg = ostr.str();
+                if(_engine->securityTraceLevel() >= 1)
+                {
+                    _instance->logger()->trace(_instance->traceCategory(), msg);
+                }
+
+                throw SecurityException(__FILE__, __LINE__, msg);
+            }
+            else
+            {
+                IceInternal::checkErrorCode(__FILE__, __LINE__, asyncInfo->error);
+            }
         }
         return;
     }
@@ -289,73 +315,64 @@ IceSSL::TransceiverI::finishWrite(IceInternal::Buffer& buf)
 }
 
 void
-IceSSL::TransceiverI::startRead(IceInternal::Buffer& buf)
+UWP::TransceiverI::startRead(IceInternal::Buffer& buf)
 {
     _delegate->startRead(buf);
 }
 
 void
-IceSSL::TransceiverI::finishRead(IceInternal::Buffer& buf)
+UWP::TransceiverI::finishRead(IceInternal::Buffer& buf)
 {
     _delegate->finishRead(buf);
 }
 
 string
-IceSSL::TransceiverI::protocol() const
+UWP::TransceiverI::protocol() const
 {
     return _instance->protocol();
 }
 
 string
-IceSSL::TransceiverI::toString() const
+UWP::TransceiverI::toString() const
 {
     return _delegate->toString();
 }
 
 string
-IceSSL::TransceiverI::toDetailedString() const
+UWP::TransceiverI::toDetailedString() const
 {
     return toString();
 }
 
 Ice::ConnectionInfoPtr
-IceSSL::TransceiverI::getInfo() const
+UWP::TransceiverI::getInfo() const
 {
-    NativeConnectionInfoPtr info = ICE_MAKE_SHARED(NativeConnectionInfo);
-    StreamSocket^ stream = safe_cast<StreamSocket^>(_delegate->getNativeInfo()->fd());
-    if(_chain)
-    {
-        auto certs = _chain->GetCertificates(true);
-        for(auto iter = certs->First(); iter->HasCurrent; iter->MoveNext())
-        {
-            info->nativeCerts.push_back(ICE_MAKE_SHARED(Certificate, iter->Current));
-            info->certs.push_back(info->nativeCerts.back()->encode());
-        }
-    }
+    ConnectionInfoPtr info = ICE_MAKE_SHARED(ConnectionInfo);
     info->verified = _verified;
     info->adapterName = _adapterName;
     info->incoming = _incoming;
     info->underlying = _delegate->getInfo();
+    info->certs = _certs;
     return info;
 }
 
 void
-IceSSL::TransceiverI::checkSendSize(const IceInternal::Buffer&)
+UWP::TransceiverI::checkSendSize(const IceInternal::Buffer&)
 {
 }
 
 void
-IceSSL::TransceiverI::setBufferSize(int rcvSize, int sndSize)
+UWP::TransceiverI::setBufferSize(int rcvSize, int sndSize)
 {
     _delegate->setBufferSize(rcvSize, sndSize);
 }
 
-IceSSL::TransceiverI::TransceiverI(const InstancePtr& instance,
+UWP::TransceiverI::TransceiverI(const InstancePtr& instance,
                                    const IceInternal::TransceiverPtr& delegate,
                                    const string& hostOrAdapterName,
                                    bool incoming) :
     _instance(instance),
-    _engine(UWPEnginePtr::dynamicCast(instance->engine())),
+    _engine(UWP::SSLEnginePtr::dynamicCast(instance->engine())),
     _host(incoming ? "" : hostOrAdapterName),
     _adapterName(incoming ? hostOrAdapterName : ""),
     _incoming(incoming),
@@ -366,8 +383,6 @@ IceSSL::TransceiverI::TransceiverI(const InstancePtr& instance,
 {
 }
 
-IceSSL::TransceiverI::~TransceiverI()
+UWP::TransceiverI::~TransceiverI()
 {
 }
-
-#endif

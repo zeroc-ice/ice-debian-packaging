@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -190,9 +190,17 @@ allTests(const Ice::CommunicatorPtr& communicator)
         init.properties = Ice::createProperties();
         init.properties->setProperty("Ice.Admin.Endpoints", "tcp -h 127.0.0.1");
         init.properties->setProperty("Ice.Admin.InstanceName", "Test");
-        Ice::CommunicatorPtr com = Ice::initialize(init);
-        testFacets(com);
-        com->destroy();
+        Ice::CommunicatorHolder ich(init);
+        testFacets(ich.communicator());
+
+#ifdef ICE_CPP11_MAPPING
+        // Test move assignment on CommunicatorHolder
+        std::shared_ptr<Ice::Communicator> nullCommunicator;
+        Ice::CommunicatorHolder ich2(nullCommunicator);
+        ich2 = std::move(ich);
+        test(ich2.communicator());
+        test(!ich.communicator());
+#endif
     }
     {
         //

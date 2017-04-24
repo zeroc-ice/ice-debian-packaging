@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -63,7 +63,7 @@ public:
     response_SBaseAsObject(const ::Ice::ObjectPtr& o)
     {
         test(o);
-        test(o->ice_id() == "::Test::SBase");
+        test(o->ice_id(Ice::emptyCurrent) == "::Test::SBase");
         SBasePtr sb = ICE_DYNAMIC_CAST(SBase, o);
         test(sb);
         test(sb->sb == "SBase.sb");

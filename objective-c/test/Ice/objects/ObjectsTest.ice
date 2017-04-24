@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,7 +9,10 @@
 
 #pragma once
 
+[["suppress-warning:deprecated"]] // For classes with operations
+
 ["objc:prefix:TestObjects"]
+
 module Test
 {
 
@@ -74,16 +77,12 @@ class D
 {
     int i;
     string s;
-
-    bool checkValues();
 };
 
 class F
 {
     ["protected"] E e1;
     E e2;
-
-    bool checkValues();
 };
 
 interface I
@@ -179,6 +178,11 @@ dictionary<string, Object*> ObjectPrxDict;  // For Objective-C only
 dictionary<string, Base> BaseDict;          // For Objective-C only
 dictionary<string, Base*> BasePrxDict;      // For Objective-C only
 
+class Recursive
+{
+    Recursive v;
+};
+
 class Initial
 {
     void shutdown();
@@ -188,6 +192,9 @@ class Initial
     D getD();
     E getE();
     F getF();
+
+    void setRecursive(Recursive p);
+    bool supportsClassGraphDepthMax();
 
     ["marshaled-result"] B getMB();
     ["amd", "marshaled-result"] B getAMDMB();

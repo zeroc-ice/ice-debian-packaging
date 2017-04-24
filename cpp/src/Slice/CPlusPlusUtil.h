@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -43,7 +43,7 @@ std::string returnTypeToString(const TypePtr&, bool, const StringList& = StringL
 std::string inputTypeToString(const TypePtr&, bool, const StringList& = StringList(), int = 0);
 std::string outputTypeToString(const TypePtr&, bool, const StringList& = StringList(), int = 0);
 std::string operationModeToString(Operation::Mode, bool = false);
-std::string opFormatTypeToString(const OperationPtr&);
+std::string opFormatTypeToString(const OperationPtr&, bool);
 
 std::string fixKwd(const std::string&);
 

@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -11,7 +11,7 @@ import os, sys, traceback, time
 import Ice, Test, TestAMDI
 
 
-class TestActivationAMDI(Test._TestActivationDisp):
+class TestActivationAMDI(Test.TestActivation):
 
     def activateServantLocator(self, activate, current=None):
         if(activate):

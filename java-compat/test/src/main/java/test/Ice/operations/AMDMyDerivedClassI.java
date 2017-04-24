@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,7 +14,7 @@ import test.Ice.operations.AMD.Test.*;
 
 import java.util.*;
 
-public final class AMDMyDerivedClassI extends MyDerivedClass
+public final class AMDMyDerivedClassI extends _MyDerivedClassDisp
 {
     private static void
     test(boolean b)

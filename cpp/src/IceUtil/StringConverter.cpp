@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -444,7 +444,7 @@ IceUtil::UTF8ToNative(const string& str, const IceUtil::StringConverterPtr& conv
 
 #ifdef ICE_HAS_CODECVT_UTF8
 
-#if defined(_MSC_VER) && (_MSC_VER == 1900)
+#if defined(_MSC_VER) && (_MSC_VER >= 1900)
 //
 // Workaround for compiler bug - see http://stackoverflow.com/questions/32055357
 //

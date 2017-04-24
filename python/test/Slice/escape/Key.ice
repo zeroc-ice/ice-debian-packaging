@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -32,10 +32,11 @@ module and
     class for
     {
         int lambda;
-        void foo(exec* from, out int global);
+        exec* from;
+        int global;
     };
 
-    class if extends for implements exec, del
+    interface if extends exec, del
     {
     };
 
@@ -46,6 +47,7 @@ module and
     {
         int lambda;
     };
+
     exception not extends is
     {
         int or;
@@ -54,14 +56,15 @@ module and
 
     local interface print
     {
-            assert raise(continue else, for return, if try, del* while, exec* yield,
-                         for* lambda, if* or, int global)
-                        throws is;
+        assert raise(continue else, for return, if try, del* while, exec* yield,
+                     for* lambda, if* or, int global)
+                    throws is;
     };
 
     const int lambda = 0;
 
-    enum EnumNone {
+    enum EnumNone
+    {
         None
     };
 };

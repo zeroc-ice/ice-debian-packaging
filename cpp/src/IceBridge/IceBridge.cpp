@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -167,7 +167,7 @@ public:
                     // The incoming connection is already closed. There's no point in leaving the outgoing
                     // connection open.
                     //
-                    outgoing->close(CloseGracefully);
+                    outgoing->close(ICE_SCOPED_ENUM(ConnectionClose, Gracefully));
                 }
                 else
                 {
@@ -206,7 +206,7 @@ public:
             //
             if(_incoming)
             {
-                _incoming->close(CloseGracefully);
+                _incoming->close(ICE_SCOPED_ENUM(ConnectionClose, Gracefully));
             }
         }
     }
@@ -258,18 +258,19 @@ public:
             }
             catch(const Ice::CloseConnectionException&)
             {
-                toBeClosed->close(CloseGracefully);
+                toBeClosed->close(ICE_SCOPED_ENUM(ConnectionClose, Gracefully));
             }
             catch(const Ice::ConnectionManuallyClosedException& ex)
             {
                 //
                 // Connection was manually closed by the bridge.
                 //
-                toBeClosed->close(ex.graceful ? CloseGracefully : CloseForcefully);
+                toBeClosed->close(ex.graceful ? ICE_SCOPED_ENUM(ConnectionClose, Gracefully) :
+                                  ICE_SCOPED_ENUM(ConnectionClose, Forcefully));
             }
             catch(...)
             {
-                toBeClosed->close(CloseForcefully);
+                toBeClosed->close(ICE_SCOPED_ENUM(ConnectionClose, Forcefully));
             }
         }
 
@@ -422,8 +423,9 @@ class RouterI : public Router
 {
 public:
 
-    virtual ObjectPrx getClientProxy(const Current&) const
+    virtual ObjectPrx getClientProxy(IceUtil::Optional<bool>& hasRoutingTable, const Current&) const
     {
+        hasRoutingTable = false; // We don't maintain a routing table, no need to call addProxies on this impl.
         return 0;
     }
 
@@ -662,7 +664,7 @@ protected:
 
     virtual bool start(int, char*[], int&);
     virtual bool stop();
-    virtual CommunicatorPtr initializeCommunicator(int&, char*[], const InitializationData&);
+    virtual CommunicatorPtr initializeCommunicator(int&, char*[], const InitializationData&, int);
 
 private:
 
@@ -782,7 +784,8 @@ BridgeService::stop()
 }
 
 CommunicatorPtr
-BridgeService::initializeCommunicator(int& argc, char* argv[], const InitializationData& initializationData)
+BridgeService::initializeCommunicator(int& argc, char* argv[], const InitializationData& initializationData,
+                                      int version)
 {
     InitializationData initData = initializationData;
     initData.properties = createProperties(argc, argv, initializationData.properties);
@@ -799,7 +802,7 @@ BridgeService::initializeCommunicator(int& argc, char* argv[], const Initializat
         initData.properties->setProperty("Ice.RetryIntervals", "-1");
     }
 
-    return Service::initializeCommunicator(argc, argv, initData);
+    return Service::initializeCommunicator(argc, argv, initData, version);
 }
 
 void

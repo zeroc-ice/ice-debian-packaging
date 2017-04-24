@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -168,7 +168,7 @@ NetworkProxyPtr
 SOCKSNetworkProxy::resolveHost(ProtocolSupport protocol) const
 {
     assert(!_host.empty());
-    return new SOCKSNetworkProxy(getAddresses(_host, _port, protocol, Ice::Random, false, true)[0]);
+    return new SOCKSNetworkProxy(getAddresses(_host, _port, protocol, Ice::ICE_ENUM(EndpointSelectionType, Random), false, true)[0]);
 }
 
 Address
@@ -272,7 +272,7 @@ NetworkProxyPtr
 HTTPNetworkProxy::resolveHost(ProtocolSupport protocol) const
 {
     assert(!_host.empty());
-    return new HTTPNetworkProxy(getAddresses(_host, _port, protocol, Ice::Random, false, true)[0], protocol);
+    return new HTTPNetworkProxy(getAddresses(_host, _port, protocol, Ice::ICE_ENUM(EndpointSelectionType, Random), false, true)[0], protocol);
 }
 
 Address

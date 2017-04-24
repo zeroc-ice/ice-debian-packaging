@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,6 +9,7 @@
 
 #include <IceUtil/IceUtil.h>
 #include <Ice/Ice.h>
+#include <Ice/Network.h> // For getInterfacesForMulticast
 
 #include <IceDiscovery/PluginI.h>
 #include <IceDiscovery/LocatorI.h>
@@ -87,16 +88,33 @@ PluginI::initialize()
         }
         properties->setProperty("IceDiscovery.Multicast.Endpoints", os.str());
     }
+
+    string lookupEndpoints = properties->getProperty("IceDiscovery.Lookup");
+    if(lookupEndpoints.empty())
+    {
+        //
+        // If no lookup endpoints are specified, we get all the network interfaces and create
+        // an endpoint for each of them. We'll send UDP multicast packages on each interface.
+        //
+        IceInternal::ProtocolSupport protocol = ipv4 && !preferIPv6 ? IceInternal::EnableIPv4 : IceInternal::EnableIPv6;
+        vector<string> interfaces = IceInternal::getInterfacesForMulticast(intf, protocol);
+        ostringstream lookup;
+        for(vector<string>::const_iterator p = interfaces.begin(); p != interfaces.end(); ++p)
+        {
+            if(p != interfaces.begin())
+            {
+                lookup << ":";
+            }
+            lookup << "udp -h \"" << address << "\" -p " << port << " --interface \"" << *p << "\"";
+        }
+        lookupEndpoints = lookup.str();
+    }
+
     if(properties->getProperty("IceDiscovery.Reply.Endpoints").empty())
     {
-        ostringstream os;
-        os << "udp";
-        if(!intf.empty())
-        {
-            os << " -h \"" << intf << "\"";
-        }
-        properties->setProperty("IceDiscovery.Reply.Endpoints", os.str());
+        properties->setProperty("IceDiscovery.Reply.Endpoints", "udp -h " + (intf.empty() ? "*" : "\"" + intf + "\""));
     }
+
     if(properties->getProperty("IceDiscovery.Locator.Endpoints").empty())
     {
         properties->setProperty("IceDiscovery.Locator.AdapterId", Ice::generateUUID());
@@ -113,42 +131,8 @@ PluginI::initialize()
     Ice::LocatorRegistryPrxPtr locatorRegistryPrx =
         ICE_UNCHECKED_CAST(Ice::LocatorRegistryPrx, _locatorAdapter->addWithUUID(locatorRegistry));
 
-    string lookupEndpoints = properties->getProperty("IceDiscovery.Lookup");
-    if(lookupEndpoints.empty())
-    {
-        ostringstream os;
-        os << "udp -h \"" << address << "\" -p " << port;
-        if(!intf.empty())
-        {
-            os << " --interface \"" << intf << "\"";
-        }
-        lookupEndpoints = os.str();
-    }
-
     Ice::ObjectPrxPtr lookupPrx = _communicator->stringToProxy("IceDiscovery/Lookup -d:" + lookupEndpoints);
     lookupPrx = lookupPrx->ice_collocationOptimized(false); // No collocation optimization for the multicast proxy!
-    try
-    {
-        // Ensure we can establish a connection to the multicast proxy
-        // but don't block.
-#ifdef ICE_CPP11_MAPPING
-        lookupPrx->ice_getConnection();
-#else
-        Ice::AsyncResultPtr result = lookupPrx->begin_ice_getConnection();
-        if(result->sentSynchronously())
-        {
-            lookupPrx->end_ice_getConnection(result);
-        }
-#endif
-    }
-    catch(const Ice::LocalException& ex)
-    {
-        ostringstream os;
-        os << "IceDiscovery is unable to establish a multicast connection:\n";
-        os << "proxy = " << lookupPrx << '\n';
-        os << ex;
-        throw Ice::PluginInitializationException(__FILE__, __LINE__, os.str());
-    }
 
     //
     // Add lookup and lookup reply Ice objects
@@ -163,7 +147,9 @@ PluginI::initialize()
     // Setup locator on the communicator.
     //
     Ice::ObjectPrxPtr loc = _locatorAdapter->addWithUUID(ICE_MAKE_SHARED(LocatorI, _lookup, locatorRegistryPrx));
-    _communicator->setDefaultLocator(ICE_UNCHECKED_CAST(Ice::LocatorPrx, loc));
+    _defaultLocator = _communicator->getDefaultLocator();
+    _locator = ICE_UNCHECKED_CAST(Ice::LocatorPrx, loc);
+    _communicator->setDefaultLocator(_locator);
 
     _multicastAdapter->activate();
     _replyAdapter->activate();
@@ -177,4 +163,9 @@ PluginI::destroy()
     _replyAdapter->destroy();
     _locatorAdapter->destroy();
     _lookup->destroy();
+    // Restore original default locator proxy, if the user didn't change it in the meantime.
+    if(_communicator->getDefaultLocator() == _locator)
+    {
+        _communicator->setDefaultLocator(_defaultLocator);
+    }
 }

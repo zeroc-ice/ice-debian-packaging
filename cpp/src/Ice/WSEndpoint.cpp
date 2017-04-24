@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -228,16 +228,56 @@ IceInternal::WSEndpoint::acceptor(const string& adapterName) const
 WSEndpointPtr
 IceInternal::WSEndpoint::endpoint(const EndpointIPtr& delEndp) const
 {
-    return ICE_MAKE_SHARED(WSEndpoint, _instance, delEndp, _resource);
+    if(delEndp.get() == _delegate.get())
+    {
+        return ICE_DYNAMIC_CAST(WSEndpoint, ICE_SHARED_FROM_CONST_THIS(WSEndpoint));
+    }
+    else
+    {
+        return ICE_MAKE_SHARED(WSEndpoint, _instance, delEndp, _resource);
+    }
 }
 
 vector<EndpointIPtr>
-IceInternal::WSEndpoint::expand() const
+IceInternal::WSEndpoint::expandIfWildcard() const
 {
-    vector<EndpointIPtr> endps = _delegate->expand();
+    vector<EndpointIPtr> endps = _delegate->expandIfWildcard();
     for(vector<EndpointIPtr>::iterator p = endps.begin(); p != endps.end(); ++p)
     {
-        *p = p->get() == _delegate.get() ? ICE_SHARED_FROM_CONST_THIS(WSEndpoint) : ICE_MAKE_SHARED(WSEndpoint, _instance, *p, _resource);
+        if(p->get() == _delegate.get())
+        {
+            *p = ICE_SHARED_FROM_CONST_THIS(WSEndpoint);
+        }
+        else
+        {
+            *p = ICE_MAKE_SHARED(WSEndpoint, _instance, *p, _resource);
+        }
+    }
+    return endps;
+}
+
+vector<EndpointIPtr>
+IceInternal::WSEndpoint::expandHost(EndpointIPtr& publish) const
+{
+    vector<EndpointIPtr> endps = _delegate->expandHost(publish);
+    if(publish.get() == _delegate.get())
+    {
+        publish = ICE_SHARED_FROM_CONST_THIS(WSEndpoint);
+    }
+    else if(publish.get())
+    {
+        publish = ICE_MAKE_SHARED(WSEndpoint, _instance, publish, _resource);
+    }
+    for(vector<EndpointIPtr>::iterator p = endps.begin(); p != endps.end(); ++p)
+    {
+        if(p->get() == _delegate.get())
+        {
+            *p = ICE_SHARED_FROM_CONST_THIS(WSEndpoint);
+        }
+        else
+        {
+            *p = ICE_MAKE_SHARED(WSEndpoint, _instance, *p, _resource);
+        }
     }
     return endps;
 }

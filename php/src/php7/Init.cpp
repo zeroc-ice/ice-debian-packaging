@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -23,9 +23,13 @@ using namespace IcePHP;
 ZEND_DECLARE_MODULE_GLOBALS(ice)
 
 ZEND_BEGIN_ARG_INFO_EX(Ice_initialize_arginfo, 1, ZEND_RETURN_VALUE, static_cast<zend_ulong>(-1))
+    ZEND_ARG_PASS_INFO(1)
+    ZEND_ARG_PASS_INFO(1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(Ice_createProperties_arginfo, 1, ZEND_RETURN_VALUE, static_cast<zend_ulong>(-1))
+    ZEND_ARG_PASS_INFO(1)
+    ZEND_ARG_PASS_INFO(0)
 ZEND_END_ARG_INFO()
 
 #ifdef ICEPHP_USE_NAMESPACES

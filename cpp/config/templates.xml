@@ -1,7 +1,7 @@
 <!--
  **********************************************************************
 
- Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+ Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 
  This copy of Ice is licensed to you under the terms described in the
  ICE_LICENSE file included in this distribution.
@@ -59,7 +59,7 @@
       <parameter name="publish-endpoints" default="default"/>
       <parameter name="flush-timeout" default="1000"/>
 
-      <service name="${instance-name}" entry="IceStormService,37a4:createIceStorm">
+      <service name="${instance-name}" entry="IceStormService,37b0:createIceStorm">
 
         <adapter name="${service}.TopicManager"
                  id="${instance-name}.TopicManager"
@@ -108,7 +108,7 @@
       <parameter name="publish-replica-group"/>
       <parameter name="topic-manager-replica-group"/>
 
-      <service name="${instance-name}${node-id}" entry="IceStormService,37a4:createIceStorm">
+      <service name="${instance-name}${node-id}" entry="IceStormService,37b0:createIceStorm">
 
         <adapter name="${service}.TopicManager"
 		 id="${instance-name}${node-id}.TopicManager"

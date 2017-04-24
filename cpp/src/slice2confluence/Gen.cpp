@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -1017,7 +1017,8 @@ Slice::GeneratorBase::toString(const SyntaxTreeBasePtr& p, const ContainerPtr& c
         "string",
         "Object",
         "Object*",
-        "LocalObject"
+        "LocalObject",
+        "Value"
     };
 
     BuiltinPtr builtin = BuiltinPtr::dynamicCast(p);
@@ -1234,7 +1235,6 @@ Slice::GeneratorBase::getComment(const ContainedPtr& contained, const ContainerP
             static const string atLink = "{@link";
             string::size_type pos = s.find(atLink, i);
 
-            comment += Confluence::ConfluenceOutput::TEMP_ESCAPER_START;
             if(pos != i)
             {
                 comment += '{';
@@ -1248,6 +1248,7 @@ Slice::GeneratorBase::getComment(const ContainedPtr& contained, const ContainerP
             }
             string literal = s.substr(pos + atLink.size(), endpos - pos - atLink.size());
             size_t sz = 0;
+            comment += Confluence::ConfluenceOutput::TEMP_ESCAPER_START;
             comment += toString(toSliceID(literal, contained->file()), container, false, forIndex, summary ? &sz : 0);
             comment += Confluence::ConfluenceOutput::TEMP_ESCAPER_END;
             summarySize += sz;
@@ -2088,7 +2089,7 @@ TOCGenerator::writeEntry(const ContainedPtr& c)
     EnumPtr en = EnumPtr::dynamicCast(c);
     if(en)
     {
-        EnumeratorList enumerators = en->getEnumerators();
+        EnumeratorList enumerators = en->enumerators();
         for(EnumeratorList::const_iterator i = enumerators.begin(); i != enumerators.end(); ++i)
         {
             cl.push_back(*i);
@@ -3199,7 +3200,7 @@ Slice::EnumGenerator::generate(const EnumPtr& e)
 
     printComment(e, e->container(), deprecateReason, false);
 
-    EnumeratorList enumerators = e->getEnumerators();
+    EnumeratorList enumerators = e->enumerators();
 
     if(!enumerators.empty())
     {

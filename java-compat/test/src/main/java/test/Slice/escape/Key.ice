@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -36,10 +36,11 @@ interface default
 class else
 {
     int if;
-    void foo(default* equals, out int final);
+    default* equals;
+    int final;
 };
 
-class finalize extends else implements default, catch
+interface finalize extends default, catch
 {
 };
 sequence<assert> for;

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 import com.zeroc.IceInternal.IncomingConnectionFactory;
+import com.zeroc.IceInternal.EndpointI;
 
 public final class ObjectAdapterI implements ObjectAdapter
 {
@@ -611,6 +612,18 @@ public final class ObjectAdapterI implements ObjectAdapter
     }
 
     @Override
+    public synchronized Endpoint[]
+    getEndpoints()
+    {
+        List<Endpoint> endpoints = new ArrayList<>();
+        for(IncomingConnectionFactory factory : _incomingConnectionFactories)
+        {
+            endpoints.add(factory.endpoint());
+        }
+        return endpoints.toArray(new Endpoint[0]);
+    }
+
+    @Override
     public void
     refreshPublishedEndpoints()
     {
@@ -648,21 +661,49 @@ public final class ObjectAdapterI implements ObjectAdapter
 
     @Override
     public synchronized Endpoint[]
-    getEndpoints()
-    {
-        List<Endpoint> endpoints = new ArrayList<>();
-        for(IncomingConnectionFactory factory : _incomingConnectionFactories)
-        {
-            endpoints.add(factory.endpoint());
-        }
-        return endpoints.toArray(new Endpoint[0]);
-    }
-
-    @Override
-    public synchronized Endpoint[]
     getPublishedEndpoints()
     {
         return _publishedEndpoints.toArray(new Endpoint[0]);
+    }
+
+    @Override
+    public void
+    setPublishedEndpoints(Endpoint[] newEndpoints)
+    {
+        List<com.zeroc.IceInternal.EndpointI> newPublishedEndpoints = new ArrayList<>(newEndpoints.length);
+        for(Endpoint e: newEndpoints)
+        {
+            newPublishedEndpoints.add((com.zeroc.IceInternal.EndpointI)e);
+        }
+
+        com.zeroc.IceInternal.LocatorInfo locatorInfo = null;
+        List<com.zeroc.IceInternal.EndpointI> oldPublishedEndpoints;
+
+        synchronized(this)
+        {
+            checkForDeactivation();
+            oldPublishedEndpoints = _publishedEndpoints;
+            _publishedEndpoints = newPublishedEndpoints;
+            locatorInfo = _locatorInfo;
+        }
+
+        try
+        {
+            Identity dummy = new Identity();
+            dummy.name = "dummy";
+            updateLocatorRegistry(locatorInfo, createDirectProxy(dummy));
+        }
+        catch(LocalException ex)
+        {
+            synchronized(this)
+            {
+                //
+                // Restore the old published endpoints.
+                //
+                _publishedEndpoints = oldPublishedEndpoints;
+                throw ex;
+            }
+        }
     }
 
     public boolean
@@ -714,7 +755,7 @@ public final class ObjectAdapterI implements ObjectAdapter
                     }
                     for(IncomingConnectionFactory p : _incomingConnectionFactories)
                     {
-                        if(endpoint.equivalent(p.endpoint()))
+                        if(p.isLocal(endpoint))
                         {
                             return true;
                         }
@@ -746,7 +787,8 @@ public final class ObjectAdapterI implements ObjectAdapter
     }
 
     public void
-    flushAsyncBatchRequests(com.zeroc.IceInternal.CommunicatorFlushBatch outAsync)
+    flushAsyncBatchRequests(com.zeroc.Ice.CompressBatch compressBatch,
+                            com.zeroc.IceInternal.CommunicatorFlushBatch outAsync)
     {
         List<IncomingConnectionFactory> f;
         synchronized(this)
@@ -755,7 +797,7 @@ public final class ObjectAdapterI implements ObjectAdapter
         }
         for(IncomingConnectionFactory p : f)
         {
-            p.flushAsyncBatchRequests(outAsync);
+            p.flushAsyncBatchRequests(compressBatch, outAsync);
         }
     }
 
@@ -1034,14 +1076,21 @@ public final class ObjectAdapterI implements ObjectAdapter
                 // Parse the endpoints, but don't store them in the adapter. The connection
                 // factory might change it, for example, to fill in the real port number.
                 //
-                List<com.zeroc.IceInternal.EndpointI> endpoints =
-                    parseEndpoints(properties.getProperty(_name + ".Endpoints"), true);
-                for(com.zeroc.IceInternal.EndpointI endp : endpoints)
+                List<EndpointI> endpoints = parseEndpoints(properties.getProperty(_name + ".Endpoints"), true);
+                for(EndpointI endp : endpoints)
                 {
-                    IncomingConnectionFactory factory = new IncomingConnectionFactory(instance, endp, this);
-                    _incomingConnectionFactories.add(factory);
+                    EndpointI.ExpandHostResult result = endp.expandHost();
+                    for(EndpointI expanded : result.endpoints)
+                    {
+
+                        IncomingConnectionFactory factory = new IncomingConnectionFactory(instance,
+                                                                                          expanded,
+                                                                                          result.publish,
+                                                                                          this);
+                        _incomingConnectionFactories.add(factory);
+                    }
                 }
-                if(endpoints.size() == 0)
+                if(endpoints.isEmpty())
                 {
                     com.zeroc.IceInternal.TraceLevels tl = _instance.traceLevels();
                     if(tl.network >= 2)
@@ -1297,7 +1346,18 @@ public final class ObjectAdapterI implements ObjectAdapter
             //
             for(IncomingConnectionFactory factory : _incomingConnectionFactories)
             {
-                endpoints.addAll(factory.endpoint().expand());
+                for(EndpointI endpt : factory.endpoint().expandIfWildcard())
+                {
+                    //
+                    // Check for duplicate endpoints, this might occur if an endpoint with a DNS name
+                    // expands to multiple addresses. In this case, multiple incoming connection
+                    // factories can point to the same published endpoint.
+                    //
+                    if(!endpoints.contains(endpt))
+                    {
+                        endpoints.add(endpt);
+                    }
+                }
             }
         }
 

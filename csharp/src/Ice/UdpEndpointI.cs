@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -178,8 +178,16 @@ namespace IceInternal
 
         public UdpEndpointI endpoint(UdpTransceiver transceiver)
         {
-            return new UdpEndpointI(instance_, host_, transceiver.effectivePort(), sourceAddr_, _mcastInterface,
-                                    _mcastTtl, _connect, connectionId_, _compress);
+            int port = transceiver.effectivePort();
+            if(port == port_)
+            {
+                return this;
+            }
+            else
+            {
+                return new UdpEndpointI(instance_, host_, port, sourceAddr_, _mcastInterface, _mcastTtl, _connect,
+                                        connectionId_, _compress);
+            }
         }
 
         public override string options()

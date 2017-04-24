@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -61,7 +61,8 @@ public:
     virtual EndpointIPtr connectionId(const ::std::string&) const;
 
     virtual void connectors_async(Ice::EndpointSelectionType, const EndpointI_connectorsPtr&) const;
-    virtual std::vector<EndpointIPtr> expand() const;
+    virtual std::vector<EndpointIPtr> expandIfWildcard() const;
+    virtual std::vector<EndpointIPtr> expandHost(EndpointIPtr&) const;
     virtual bool equivalent(const EndpointIPtr&) const;
     virtual ::Ice::Int hash() const;
     virtual std::string options() const;

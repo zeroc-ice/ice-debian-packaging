@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -2172,10 +2172,9 @@ namespace Ice
                 _proxy = proxy;
             }
 
-            public override bool handleResponse(bool ok, OutgoingAsyncBase og)
+            public override void handleInvokeResponse(bool ok, OutgoingAsyncBase og)
             {
                 SetResult(((ProxyGetConnection)og).getConnection());
-                return false;
             }
 
             private ObjectPrx _proxy;
@@ -2690,21 +2689,22 @@ namespace Ice
             {
             }
 
-            public override bool handleSent(bool done, bool alreadySent)
+            public override void handleInvokeSent(bool sentSynchronously, bool done, bool alreadySent,
+                                                  OutgoingAsyncBase og)
             {
                 if(done)
                 {
-                    var result = new Object_Ice_invokeResult();
-                    result.returnValue = true;
-                    SetResult(result);
+                    SetResult(new Object_Ice_invokeResult(true, null));
                 }
-                return base.handleSent(false, alreadySent);
+                if(progress_ != null && !alreadySent)
+                {
+                    progress_.Report(sentSynchronously);
+                }
             }
 
-            public override bool handleResponse(bool ok, OutgoingAsyncBase og)
+            public override void handleInvokeResponse(bool ok, OutgoingAsyncBase og)
             {
                 SetResult(((InvokeOutgoingAsyncT)og).getResult(ok));
-                return false;
             }
         }
 

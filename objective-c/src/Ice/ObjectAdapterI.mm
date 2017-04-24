@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -789,24 +789,7 @@ typedef IceUtil::Handle<ServantLocatorWrapper> ServantLocatorWrapperPtr;
     return nil; // Keep the compiler happy.
 }
 
--(void) refreshPublishedEndpoints
-{
-    NSException* nsex = nil;
-    try
-    {
-        OBJECTADAPTER->refreshPublishedEndpoints();
-    }
-    catch(const std::exception& ex)
-    {
-        nsex = toObjCException(ex);
-    }
-    if(nsex != nil)
-    {
-        @throw nsex;
-    }
-}
-
--(ICEEndpointSeq*) getEndpoints
+-(ICEMutableEndpointSeq*) getEndpoints
 {
     NSException* nsex = nil;
     try
@@ -824,7 +807,24 @@ typedef IceUtil::Handle<ServantLocatorWrapper> ServantLocatorWrapperPtr;
     return nil;
 }
 
--(ICEEndpointSeq*) getPublishedEndpoints
+-(void) refreshPublishedEndpoints
+{
+    NSException* nsex = nil;
+    try
+    {
+        OBJECTADAPTER->refreshPublishedEndpoints();
+    }
+    catch(const std::exception& ex)
+    {
+        nsex = toObjCException(ex);
+    }
+    if(nsex != nil)
+    {
+        @throw nsex;
+    }
+}
+
+-(ICEMutableEndpointSeq*) getPublishedEndpoints
 {
     NSException* nsex = nil;
     try
@@ -841,5 +841,25 @@ typedef IceUtil::Handle<ServantLocatorWrapper> ServantLocatorWrapperPtr;
     }
     return nil;
 }
+
+-(void) setPublishedEndpoints:(ICEEndpointSeq*)newEndpoints
+{
+    NSException* nsex = nil;
+    try
+    {
+        Ice::EndpointSeq cxxNewEndpoints;
+        fromNSArray(newEndpoints, cxxNewEndpoints);
+        OBJECTADAPTER->setPublishedEndpoints(cxxNewEndpoints);
+    }
+    catch(const std::exception& ex)
+    {
+        nsex = toObjCException(ex);
+    }
+    if(nsex != nil)
+    {
+        @throw nsex;
+    }
+}
+
 
 @end

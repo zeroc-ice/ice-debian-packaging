@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -756,7 +756,8 @@ StopCommand::StopCommand(const ServerIPtr& server, const IceUtil::TimerPtr& time
 bool
 StopCommand::isStopped(ServerI::InternalServerState state)
 {
-    return state == ServerI::Inactive || state == ServerI::Patching || state == ServerI::Loading;
+    return state == ServerI::Inactive || state == ServerI::Patching || state == ServerI::Loading ||
+        state >= ServerI::Destroying;
 }
 
 bool
@@ -1975,7 +1976,7 @@ ServerI::terminated(const string& msg, int status)
     {
         try
         {
-            p->second->setDirectProxy(0);
+            p->second->setDirectProxy(0, Ice::emptyCurrent);
         }
         catch(const Ice::ObjectNotExistException&)
         {
@@ -2631,8 +2632,21 @@ ServerI::checkAndUpdateUser(const InternalServerDescriptorPtr& desc, bool /*upda
         //
         // Get the uid/gid associated with the given user.
         //
-        struct passwd* pw = getpwnam(user.c_str());
-        if(!pw)
+        struct passwd pwbuf;
+        vector<char> buffer(4096); // 4KB initial buffer size
+        struct passwd *pw;
+        int err = getpwnam_r(user.c_str(), &pwbuf, &buffer[0], buffer.size(), &pw);
+        while(err == ERANGE && buffer.size() < 1024 * 1024) // Limit buffer to 1MB
+        {
+            buffer.resize(buffer.size() * 2);
+        }
+        if(err != 0)
+        {
+            Ice::SyscallException ex(__FILE__, __LINE__);
+            ex.error = err;
+            throw ex;
+        }
+        else if(pw == 0)
         {
             throw "unknown user account `" + user + "'";
         }

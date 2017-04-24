@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -24,7 +24,7 @@ DEFINE_TEST("client")
 int main(int argc, char** argv)
 {
 #ifdef ICE_STATIC_LIBS
-    Ice::registerIceSSL();
+    Ice::registerIceSSL(false);
 #endif
     cout << "testing proxy hash algorithm collisions... " << flush;
     map<Ice::Int, Ice::ObjectPrxPtr> seenProxy;
@@ -36,14 +36,10 @@ int main(int argc, char** argv)
 
     Ice::InitializationData id;
     id.properties = Ice::createProperties(argc, argv);
-#if !defined(ICE_OS_UWP) && TARGET_OS_IPHONE==0
-    //
-    // In Ice for UWP IceSSL is part of Ice core.
-    //
     id.properties->setProperty("Ice.Plugin.IceSSL", "IceSSL:createIceSSL");
     id.properties->setProperty("IceSSL.Keychain", "client.keychain");
     id.properties->setProperty("IceSSL.KeychainPassword", "password");
-#endif
+
     Ice::CommunicatorPtr communicator = Ice::initialize(id);
     for(i = 0; proxyCollisions < maxCollisions && i < maxIterations; ++i)
     {

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -371,12 +371,12 @@ class Buffer
         s = decodeURIComponent(escape(s));
         return s;
     }
-    
+
     get position()
     {
         return this._position;
     }
-    
+
     set position(value)
     {
         if(value >= 0 && value <= this._limit)
@@ -384,12 +384,12 @@ class Buffer
             this._position = value;
         }
     }
-    
+
     get limit()
     {
         return this._limit;
     }
-    
+
     set limit(value)
     {
         if(value <= this.capacity)
@@ -401,30 +401,15 @@ class Buffer
             }
         }
     }
-    
+
     get capacity()
     {
         return this.b === null ? 0 : this.b.byteLength;
     }
-    
+
     get remaining()
     {
         return this._limit - this._position;
-    }
-    
-    //
-    // Create a native buffer from an array of bytes.
-    //
-    static createNative(data)
-    {
-        if(data === undefined)
-        {
-            return new Uint8Array(0);
-        }
-        else
-        {
-            return new Uint8Array(data);
-        }
     }
 }
 

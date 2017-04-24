@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -12,7 +12,7 @@
 #include <IceUtil/Thread.h>
 #include <IceUtil/Monitor.h>
 #include <IceUtil/Mutex.h>
-#include <IceUtil/ArgVector.h>
+#include <Ice/ArgVector.h>
 #include <IceUtil/FileUtil.h>
 #include <Ice/ConsoleUtil.h>
 #include <Ice/StringConverter.h>
@@ -332,7 +332,7 @@ public:
         // Don't need to use a wide string converter as the wide string is passed
         // to Windows API.
         //
-        wstring msg = stringToWstring(message, _stringConverter);
+        const wstring msg = stringToWstring(message, _stringConverter);
         const wchar_t* messages[1];
         messages[0] = msg.c_str();
         //
@@ -537,13 +537,15 @@ Ice::Service::interrupt()
 }
 
 int
-Ice::Service::main(int& argc, char* argv[], const InitializationData& initializationData)
+Ice::Service::main(int argc, const char* const argv[], const InitializationData& initializationData, int version)
 {
     _name = "";
     if(argc > 0)
     {
         _name = argv[0];
     }
+
+    IceInternal::ArgVector av(argc, argv); // copy args
 
     //
     // We parse the properties here to extract Ice.ProgramName and
@@ -552,7 +554,7 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
     InitializationData initData = initializationData;
     try
     {
-        initData.properties = createProperties(argc, argv, initData.properties);
+        initData.properties = createProperties(av.argc, av.argv, initData.properties);
     }
     catch(const Ice::Exception& ex)
     {
@@ -570,17 +572,17 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
     string eventLogSource;
     int idx = 1;
     const StringConverterPtr stringConverter = getProcessStringConverter();
-    while(idx < argc)
+    while(idx < av.argc)
     {
-        if(strcmp(argv[idx], "--service") == 0)
+        if(strcmp(av.argv[idx], "--service") == 0)
         {
-            if(idx + 1 >= argc)
+            if(idx + 1 >= av.argc)
             {
-                error("service name argument expected for `" + string(argv[idx]) + "'");
+                error("service name argument expected for `" + string(av.argv[idx]) + "'");
                 return EXIT_FAILURE;
             }
 
-            name = argv[idx + 1];
+            name = av.argv[idx + 1];
 
             //
             // If the process logger is the default logger then we use
@@ -594,11 +596,11 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
                 setProcessLogger(_logger);
             }
 
-            for(int i = idx; i + 2 < argc; ++i)
+            for(int i = idx; i + 2 < av.argc; ++i)
             {
-                argv[i] = argv[i + 2];
+                av.argv[i] = av.argv[i + 2];
             }
-            argc -= 2;
+            av.argc -= 2;
         }
         else
         {
@@ -620,59 +622,59 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
     bool changeDirectory = true;
     string pidFile;
     int idx = 1;
-    while(idx < argc)
+    while(idx < av.argc)
     {
-        if(strcmp(argv[idx], "--daemon") == 0)
+        if(strcmp(av.argv[idx], "--daemon") == 0)
         {
-            for(int i = idx; i + 1 < argc; ++i)
+            for(int i = idx; i + 1 < av.argc; ++i)
             {
-                argv[i] = argv[i + 1];
+                av.argv[i] = av.argv[i + 1];
             }
-            argc -= 1;
+            av.argc -= 1;
 
             daemonize = true;
         }
-        else if(strcmp(argv[idx], "--noclose") == 0)
+        else if(strcmp(av.argv[idx], "--noclose") == 0)
         {
-            for(int i = idx; i + 1 < argc; ++i)
+            for(int i = idx; i + 1 < av.argc; ++i)
             {
-                argv[i] = argv[i + 1];
+                av.argv[i] = av.argv[i + 1];
             }
-            argc -= 1;
+            av.argc -= 1;
 
             closeFiles = false;
         }
-        else if(strcmp(argv[idx], "--nochdir") == 0)
+        else if(strcmp(av.argv[idx], "--nochdir") == 0)
         {
-            for(int i = idx; i + 1 < argc; ++i)
+            for(int i = idx; i + 1 < av.argc; ++i)
             {
-                argv[i] = argv[i + 1];
+                av.argv[i] = av.argv[i + 1];
             }
-            argc -= 1;
+            av.argc -= 1;
 
             changeDirectory = false;
         }
-        else if(strcmp(argv[idx], "--pidfile") == 0)
+        else if(strcmp(av.argv[idx], "--pidfile") == 0)
         {
-            if(idx + 1 < argc)
+            if(idx + 1 < av.argc)
             {
-                pidFile = argv[idx + 1];
+                pidFile = av.argv[idx + 1];
             }
             else
             {
-                if(argv[0])
+                if(av.argv[0])
                 {
-                    consoleErr << argv[0] << ": ";
+                    consoleErr << av.argv[0] << ": ";
                 }
                 consoleErr << "--pidfile must be followed by an argument" << endl;
                 return EXIT_FAILURE;
             }
 
-            for(int i = idx; i + 2 < argc; ++i)
+            for(int i = idx; i + 2 < av.argc; ++i)
             {
-                argv[i] = argv[i + 2];
+                av.argv[i] = av.argv[i + 2];
             }
-            argc -= 2;
+            av.argc -= 2;
         }
         else
         {
@@ -682,9 +684,9 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
 
     if(!closeFiles && !daemonize)
     {
-        if(argv[0])
+        if(av.argv[0])
         {
-            consoleErr << argv[0] << ": ";
+            consoleErr << av.argv[0] << ": ";
         }
         consoleErr << "--noclose must be used with --daemon" << endl;
         return EXIT_FAILURE;
@@ -692,9 +694,9 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
 
     if(pidFile.size() > 0 && !daemonize)
     {
-        if(argv[0])
+        if(av.argv[0])
         {
-            consoleErr << argv[0] << ": ";
+            consoleErr << av.argv[0] << ": ";
         }
         consoleErr << "--pidfile <file> must be used with --daemon" << endl;
         return EXIT_FAILURE;
@@ -725,40 +727,22 @@ Ice::Service::main(int& argc, char* argv[], const InitializationData& initializa
         }
     }
 
-    return run(argc, argv, initData);
-}
-
-int
-Ice::Service::main(int argc, char* const argv[], const InitializationData& initializationData)
-{
-    IceUtilInternal::ArgVector av(argc, argv);
-    return main(av.argc, av.argv, initializationData);
+    return run(av.argc, av.argv, initData, version);
 }
 
 #ifdef _WIN32
-
 int
-Ice::Service::main(int& argc, wchar_t* argv[], const InitializationData& initializationData)
+Ice::Service::main(int argc, const wchar_t* const argv[], const InitializationData& initializationData, int version)
 {
-
-#   ifdef __MINGW32__ // COMPILER FIX
-    //
-    // MinGW doesn't see the main overload if we don't create the temp args object here.
-    //
-    Ice::StringSeq args = Ice::argsToStringSeq(argc, argv);
-    return main(args, initializationData);
-#   else
-    return main(Ice::argsToStringSeq(argc, argv), initializationData);
-#   endif
+    return main(Ice::argsToStringSeq(argc, argv), initializationData, version);
 }
-
 #endif
 
 int
-Ice::Service::main(StringSeq& args, const InitializationData& initData)
+Ice::Service::main(const StringSeq& args, const InitializationData& initData, int version)
 {
-    IceUtilInternal::ArgVector av(args);
-    return main(av.argc, av.argv, initData);
+    IceInternal::ArgVector av(args);
+    return main(av.argc, av.argv, initData, version);
 }
 
 Ice::CommunicatorPtr
@@ -793,23 +777,25 @@ Ice::Service::checkSystem() const
 
 #ifdef _WIN32
 int
-Ice::Service::run(int& argc, wchar_t* argv[], const InitializationData& initData)
+Ice::Service::run(int argc, const wchar_t* const argv[], const InitializationData& initData, int version)
 {
     StringSeq args = Ice::argsToStringSeq(argc, argv);
-    IceUtilInternal::ArgVector av(args);
-    return run(av.argc, av.argv, initData);
+    IceInternal::ArgVector av(args);
+    return run(av.argc, av.argv, initData, version);
 }
 #endif
 
 int
-Ice::Service::run(int& argc, char* argv[], const InitializationData& initData)
+Ice::Service::run(int argc, const char* const argv[], const InitializationData& initData, int version)
 {
+    IceInternal::ArgVector av(argc, argv); // copy args
+
     if(_service)
     {
 #ifdef _WIN32
-        return runService(argc, argv, initData);
+        return runService(av.argc, av.argv, initData);
 #else
-        return runDaemon(argc, argv, initData);
+        return runDaemon(av.argc, av.argv, initData, version);
 #endif
     }
 
@@ -830,7 +816,7 @@ Ice::Service::run(int& argc, char* argv[], const InitializationData& initData)
         //
         // Initialize the communicator.
         //
-        _communicator = initializeCommunicator(argc, argv, initData);
+        _communicator = initializeCommunicator(av.argc, av.argv, initData, version);
 
         //
         // Use the configured logger.
@@ -845,7 +831,7 @@ Ice::Service::run(int& argc, char* argv[], const InitializationData& initData)
         //
         // Start the service.
         //
-        if(start(argc, argv, status))
+        if(start(av.argc, av.argv, status))
         {
             //
             // Wait for service shutdown.
@@ -953,9 +939,9 @@ Ice::Service::stop()
 }
 
 Ice::CommunicatorPtr
-Ice::Service::initializeCommunicator(int& argc, char* argv[], const InitializationData& initData)
+Ice::Service::initializeCommunicator(int& argc, char* argv[], const InitializationData& initData, int version)
 {
-    return Ice::initialize(argc, argv, initData);
+    return Ice::initialize(argc, argv, initData, version);
 }
 
 void
@@ -1067,7 +1053,7 @@ Ice::Service::disableInterrupt()
 #ifdef _WIN32
 
 int
-Ice::Service::runService(int argc, char* argv[], const InitializationData& initData)
+Ice::Service::runService(int argc, const char* const argv[], const InitializationData& initData)
 {
     assert(_service);
 
@@ -1098,11 +1084,10 @@ Ice::Service::runService(int argc, char* argv[], const InitializationData& initD
     // Don't need to use a wide string converter as the wide string is passed
     // to Windows API.
     //
+    const wstring serviceName = stringToWstring(_name, getProcessStringConverter());
     SERVICE_TABLE_ENTRYW ste[] =
     {
-        { const_cast<wchar_t*>(
-            stringToWstring(_name, getProcessStringConverter()).c_str()),
-            Ice_Service_ServiceMain },
+        { const_cast<wchar_t*>(serviceName.c_str()), Ice_Service_ServiceMain },
         { 0, 0 },
     };
 
@@ -1256,7 +1241,7 @@ Ice::Service::showServiceStatus(const string& msg, SERVICE_STATUS& status)
 }
 
 void
-Ice::Service::serviceMain(int argc, wchar_t* argv[])
+Ice::Service::serviceMain(int argc, const wchar_t* const argv[])
 {
     _ctrlCHandler = new IceUtil::CtrlCHandler;
 
@@ -1280,24 +1265,40 @@ Ice::Service::serviceMain(int argc, wchar_t* argv[])
     serviceStatusManager->startUpdate(SERVICE_START_PENDING);
 
     //
-    // Merge the executable's arguments with the service's arguments.
-    //
-    const StringConverterPtr converter(getProcessStringConverter());
-
-    //
     // Don't need to pass a wide string converter in the bellow argv conversions
     // as argv come from Windows API.
     //
+    const IceUtil::StringConverterPtr converter(IceUtil::getProcessStringConverter());
+
+    //
+    // Merge the executable's arguments with the service's arguments.
+    //
     char** args = new char*[_serviceArgs.size() + argc];
-    args[0] = const_cast<char*>(wstringToString(argv[0], converter).c_str());
+
+    //
+    // First argument is argv[0] the serviceName
+    //
+    const string serviceName = wstringToString(argv[0], converter);
+    args[0] = const_cast<char*>(serviceName.c_str());
+
     int i = 1;
     for(vector<string>::iterator p = _serviceArgs.begin(); p != _serviceArgs.end(); ++p)
     {
         args[i++] = const_cast<char*>(p->c_str());
     }
+
+    //
+    // Convert wide string wchar_t** argv to a sequence of narrow strings and merge
+    // the converted sequence into the args array.
+    //
+    vector<string> executableArgs;
     for(int j = 1; j < argc; ++j)
     {
-        args[i++] = const_cast<char*>(wstringToString(argv[j], converter).c_str());
+        executableArgs.push_back(IceUtil::wstringToString(argv[j], converter));
+    }
+    for(vector<string>::iterator p = executableArgs.begin(); p != executableArgs.end(); ++p)
+    {
+         args[i++] = const_cast<char*>(p->c_str());
     }
     argc += static_cast<int>(_serviceArgs.size());
 
@@ -1306,7 +1307,7 @@ Ice::Service::serviceMain(int argc, wchar_t* argv[])
     //
     try
     {
-        _communicator = initializeCommunicator(argc, args, _initData);
+        _communicator = initializeCommunicator(argc, args, _initData, ICE_INT_VERSION);
     }
     catch(const Ice::Exception& ex)
     {
@@ -1504,7 +1505,7 @@ ServiceStatusManager::run()
 #else
 
 int
-Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initData)
+Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initData, int version)
 {
     assert(_service);
 
@@ -1702,7 +1703,7 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
         //
         // Initialize the communicator.
         //
-        _communicator = initializeCommunicator(argc, argv, initData);
+        _communicator = initializeCommunicator(argc, argv, initData, version);
 
         if(_closeFiles)
         {

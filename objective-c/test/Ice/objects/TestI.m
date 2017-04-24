@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -50,10 +50,7 @@
 {
     return [super init:1 s:@"hello"];
 }
--(BOOL) checkValues:(ICECurrent*)current
-{
-    return i == 1 && [s isEqualToString:@"hello"];
-}
+
 @end
 
 @implementation TestObjectsFI
@@ -193,6 +190,15 @@
 -(TestObjectsF*) getF:(ICECurrent*)current
 {
     return _f;
+}
+
+-(void) setRecursive:(TestObjectsRecursive*)recursive current:(ICECurrent*)current
+{
+}
+
+-(BOOL) supportsClassGraphDepthMax:(ICECurrent*)current
+{
+    return YES;
 }
 
 -(TestObjectsB*) getMB:(ICECurrent*)current

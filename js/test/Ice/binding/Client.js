@@ -1,25 +1,28 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
+/* global
+    isSafari : false,
+    isWorker : false
+*/
+
 (function(module, require, exports)
 {
     var Ice = require("ice").Ice;
     var Test = require("Test").Test;
-
-    var Promise = Ice.Promise;
     var ArrayUtil = Ice.ArrayUtil;
 
     var forEach = function(array, fn)
     {
         if(array.length === 0)
         {
-            return Promise.resolve();
+            return Ice.Promise.resolve();
         }
         var p = null;
         array.forEach(e => p = p ? p.then(fn(e)) : fn(e));
@@ -37,7 +40,7 @@
     {
         var initialize = function()
         {
-            return Promise.try(
+            return Ice.Promise.try(
                 function()
                 {
                     if(communicator)
@@ -62,7 +65,7 @@
             var endpoints = [];
             var p = null;
 
-            return Promise.all(adapters.map(function(adapter){ return adapter.getTestIntf(); })).then(
+            return Ice.Promise.all(adapters.map(function(adapter){ return adapter.getTestIntf(); })).then(
                 function(results)
                 {
                     results.forEach(
@@ -115,7 +118,7 @@
 
         var ref, adapter, test1, test2, test3, conn1, conn2, conn3, adapters, names, prx;
 
-        Promise.try(
+        Ice.Promise.try(
             function()
             {
                 return initialize();
@@ -146,14 +149,14 @@
             function(r)
             {
                 [test1, test2] = r;
-                return Promise.all([test1.ice_getConnection(), test2.ice_getConnection()]);
+                return Ice.Promise.all([test1.ice_getConnection(), test2.ice_getConnection()]);
             }
         ).then(
             function(r)
             {
                 [conn1, conn2] = r;
                 test(conn1 === conn2);
-                return Promise.all([test1.ice_ping(), test2.ice_ping()]);
+                return Ice.Promise.all([test1.ice_ping(), test2.ice_ping()]);
             }
         ).then(
             function(r)
@@ -165,14 +168,14 @@
             function()
             {
                 test3 = Test.TestIntfPrx.uncheckedCast(test1);
-                return Promise.all([test3.ice_getConnection(), test1.ice_getConnection()]);
+                return Ice.Promise.all([test3.ice_getConnection(), test1.ice_getConnection()]);
             }
         ).then(
             function(r)
             {
                 [conn3, conn1] = r;
                 test(conn3 === conn1);
-                return Promise.all([test3.ice_getConnection(), test2.ice_getConnection()]);
+                return Ice.Promise.all([test3.ice_getConnection(), test2.ice_getConnection()]);
             }
         ).then(
             function(r)
@@ -188,7 +191,7 @@
             },
             function(ex)
             {
-                test(isConnectionFailed(ex))
+                test(isConnectionFailed(ex));
                 out.writeLine("ok");
                 return initialize();
             }
@@ -197,7 +200,7 @@
             {
                 out.write("testing binding with multiple endpoints... ");
 
-                return Promise.all([
+                return Ice.Promise.all([
                     com.createObjectAdapter("Adapter11", "default"),
                     com.createObjectAdapter("Adapter12", "default"),
                     com.createObjectAdapter("Adapter13", "default")]);
@@ -232,14 +235,14 @@
                         function(obj)
                         {
                             test3 = obj;
-                            return Promise.all([test1.ice_getConnection(), test2.ice_getConnection()]);
+                            return Ice.Promise.all([test1.ice_getConnection(), test2.ice_getConnection()]);
                         }
                     ).then(
                         function(r)
                         {
                             let [r1, r2] = r;
                             test(r1[0] === r2[0]);
-                            return Promise.all([test2.ice_getConnection(), test3.ice_getConnection()]);
+                            return Ice.Promise.all([test2.ice_getConnection(), test3.ice_getConnection()]);
                         }
                     ).then(
                         function(r)
@@ -260,7 +263,7 @@
                     ).then(
                         function(conn)
                         {
-                            return conn.close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                            return conn.close(Ice.ConnectionClose.GracefullyWithWait);
                         }
                     ).then(
                         function()
@@ -281,7 +284,7 @@
                 // Ensure that the proxy correctly caches the connection (we
                 // always send the request over the same connection.)
                 //
-                return Promise.all(adapters.map(function(adapter)
+                return Ice.Promise.all(adapters.map(function(adapter)
                                                 {
                                                     return adapter.getTestIntf().then(
                                                         function(p)
@@ -330,7 +333,7 @@
         ).then(
             function()
             {
-                return Promise.all(adapters.map(function(adapter)
+                return Ice.Promise.all(adapters.map(function(adapter)
                                                 {
                                                     return adapter.getTestIntf().then(
                                                         function(p)
@@ -339,7 +342,7 @@
                                                         }).then(
                                                             function(c)
                                                             {
-                                                                return c.close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                                                                return c.close(Ice.ConnectionClose.GracefullyWithWait);
                                                             }
                                                         );
                                                 }));
@@ -422,7 +425,7 @@
                     ).then(
                         function(conn)
                         {
-                            return conn.close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                            return conn.close(Ice.ConnectionClose.GracefullyWithWait);
                         }
                     ).then(
                         function()
@@ -482,7 +485,7 @@
                 out.write("testing binding with multiple random endpoints... ");
                 names = ["AdapterRandom11", "AdapterRandom12", "AdapterRandom13", "AdapterRandom14", "AdapterRandom15"];
 
-                return Promise.all(
+                return Ice.Promise.all(
                     names.map(function(name)
                               {
                                   return com.createObjectAdapter(name, "default");
@@ -498,7 +501,7 @@
 
                         var f1 = function(count, adapterCount, proxies)
                         {
-                            var p1 = count === 10 ? com.deactivateObjectAdapter(adapters[2]) : Promise.resolve();
+                            var p1 = count === 10 ? com.deactivateObjectAdapter(adapters[2]) : Ice.Promise.resolve();
                             return p1.then(
                                 function()
                                 {
@@ -575,7 +578,7 @@
                                                 });
                                             test(connections.length <= adapters.length);
 
-                                            return Promise.all(adapters.map(
+                                            return Ice.Promise.all(adapters.map(
                                                 function(adapter)
                                                 {
                                                     return adapter.getTestIntf().then(
@@ -585,7 +588,7 @@
                                                         }).then(
                                                             function(c)
                                                             {
-                                                                return c.close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                                                                return c.close(Ice.ConnectionClose.GracefullyWithWait);
                                                             },
                                                             function(ex)
                                                             {
@@ -623,7 +626,7 @@
             {
                 out.write("testing random endpoint selection... ");
                 names = ["Adapter21", "Adapter22", "Adapter23"];
-                return Promise.all(names.map(function(name) { return com.createObjectAdapter(name, "default"); }));
+                return Ice.Promise.all(names.map(function(name) { return com.createObjectAdapter(name, "default"); }));
             }
         ).then(
             function(r)
@@ -651,7 +654,7 @@
                             }
                             return prx.ice_getConnection();
                         }
-                    ).then(conn => conn.close(Ice.ConnectionClose.CloseGracefullyAndWait)
+                    ).then(conn => conn.close(Ice.ConnectionClose.GracefullyWithWait)
                     ).then(() => names.length > 0 ? f1() : prx);
                 };
 
@@ -678,7 +681,7 @@
                     ).then(
                         function(conn)
                         {
-                            return conn.close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                            return conn.close(Ice.ConnectionClose.GracefullyWithWait);
                         }
                     ).then(
                         function()
@@ -716,7 +719,7 @@
             {
                 out.write("testing ordered endpoint selection... ");
                 names = ["Adapter31", "Adapter32", "Adapter33"];
-                return Promise.all(names.map(function(name) { return com.createObjectAdapter(name, "default"); }));
+                return Ice.Promise.all(names.map(function(name) { return com.createObjectAdapter(name, "default"); }));
             }
         ).then(
             function(r)
@@ -848,7 +851,7 @@
                             test2 = Test.TestIntfPrx.uncheckedCast(obj.ice_connectionCached(false));
                             test(!test1.ice_isConnectionCached());
                             test(!test2.ice_isConnectionCached());
-                            return Promise.all([test1.ice_getConnection(),
+                            return Ice.Promise.all([test1.ice_getConnection(),
                                                test2.ice_getConnection()]);
                         }
                     ).then(
@@ -867,9 +870,9 @@
                     ).then(
                         function()
                         {
-                            var test3 = Test.TestIntfPrx.uncheckedCast(test1);
-                            return Promise.all([test3.ice_getConnection(),
-                                               test1.ice_getConnection()]);
+                            let test3 = Test.TestIntfPrx.uncheckedCast(test1);
+                            return Ice.Promise.all([test3.ice_getConnection(),
+                                                    test1.ice_getConnection()]);
                         }
                     ).then(
                         function()
@@ -878,7 +881,7 @@
                         },
                         function(ex)
                         {
-                            test(isConnectionFailed(ex))
+                            test(isConnectionFailed(ex));
                         });
                 };
                 return f1();
@@ -894,7 +897,7 @@
             {
                 out.write("testing per request binding with multiple endpoints... ");
                 names = ["Adapter51", "Adapter52", "Adapter53"];
-                return Promise.all(names.map(function(name) { return com.createObjectAdapter(name, "default"); }));
+                return Ice.Promise.all(names.map(function(name) { return com.createObjectAdapter(name, "default"); }));
             }
         ).then(
             function(r)
@@ -986,7 +989,7 @@
                 }
                 out.write("testing per request binding and ordered endpoint selection... ");
                 names = ["Adapter61", "Adapter62", "Adapter63"];
-                return Promise.all(names.map(function(name) { return com.createObjectAdapter(name, "default"); })).then(
+                return Ice.Promise.all(names.map(function(name) { return com.createObjectAdapter(name, "default"); })).then(
                     function(a)
                     {
                         adapters = a;
@@ -1045,7 +1048,7 @@
                     },
                     function(ex)
                     {
-                        test(isConnectionFailed(ex))
+                        test(isConnectionFailed(ex));
                         return prx.ice_getEndpoints();
                     }
                 ).then(
@@ -1123,26 +1126,31 @@
         return p;
     };
 
-    if(typeof(navigator) !== 'undefined' && isWorker() && isSafari())
+    exports._test = function(out, id)
     {
-        //
-        // BUGFIX:
-        //
-        // With Safari 9.1 and WebWorkers, this test hangs in communicator destruction. The
-        // web socket send() method never returns for the sending of close connection message.
-        //
-        // With Chrome on Windows the Webworker is unexpectelly terminated.
-        //
-        exports._test = function(out, id)
-        {
-            out.writeLine("Test not supported with Safari web workers.");   
-        };
-    }
-    else
-    {
-        exports._test = run;
-        exports._runServer = true;
-    }
+        return Ice.Promise.try(() =>
+            {
+                if(typeof(navigator) !== 'undefined' && isSafari() && isWorker())
+                {
+                    var communicator = Ice.initialize(id);
+                    //
+                    // BUGFIX:
+                    //
+                    // With Safari 9.1 and WebWorkers, this test hangs in communicator destruction. The
+                    // web socket send() method never returns for the sending of close connection message.
+                    //
+                    out.writeLine("Test not supported with Safari web workers.");
+                    return Test.RemoteCommunicatorPrx.uncheckedCast(
+                                    communicator.stringToProxy("communicator:default -p 12010")).shutdown().finally(
+                        () => communicator.destroy());
+                }
+                else
+                {
+                    return allTests(out, id);
+                }
+            });
+    };
+    exports._runServer = true;
 }
 (typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? module : undefined,
  typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice._require,

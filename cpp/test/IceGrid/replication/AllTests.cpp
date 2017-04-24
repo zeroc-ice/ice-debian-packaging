@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -254,7 +254,7 @@ allTests(const Ice::CommunicatorPtr& comm)
 
     AdminSessionPrx session = registry->createAdminSession("foo", "bar");
 
-    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::HeartbeatAlways);
+    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
 
     AdminPrx admin = session->getAdmin();
     test(admin);
@@ -827,6 +827,12 @@ allTests(const Ice::CommunicatorPtr& comm)
 
         try
         {
+            //
+            // On slow environments, it can take a bit for the node to
+            // re-establish the connection so we ping it twice. The
+            // second should succeed.
+            //
+            slave1Admin->pingNode("Node1");
             test(slave1Admin->pingNode("Node1")); // Node should be re-connected.
         }
         catch(const NodeNotExistException&)
@@ -844,11 +850,6 @@ allTests(const Ice::CommunicatorPtr& comm)
 
         try
         {
-            //
-            // On slow environments, it can take a bit for the node to
-            // re-establish the connection so we ping it twice. The
-            // second should succeed.
-            //
             slave2Admin->pingNode("Node1");
             test(slave2Admin->pingNode("Node1")); // Node should be re-connected even if the master is down.
         }
@@ -865,6 +866,7 @@ allTests(const Ice::CommunicatorPtr& comm)
 
         try
         {
+            masterAdmin->pingNode("Node1");
             test(masterAdmin->pingNode("Node1")); // Node should be re-connected.
         }
         catch(const NodeNotExistException&)
@@ -877,6 +879,7 @@ allTests(const Ice::CommunicatorPtr& comm)
 
         try
         {
+            slave1Admin->pingNode("Node1");
             test(slave1Admin->pingNode("Node1")); // Node should be re-connected.
         }
         catch(const NodeNotExistException&)
@@ -886,6 +889,7 @@ allTests(const Ice::CommunicatorPtr& comm)
 
         try
         {
+            masterAdmin->pingNode("Node1");
             test(masterAdmin->pingNode("Node1"));
         }
         catch(const NodeNotExistException&)
@@ -895,6 +899,7 @@ allTests(const Ice::CommunicatorPtr& comm)
 
         try
         {
+            slave2Admin->pingNode("Node1");
             test(slave2Admin->pingNode("Node1"));
         }
         catch(const NodeNotExistException&)
@@ -908,6 +913,7 @@ allTests(const Ice::CommunicatorPtr& comm)
         slave2Admin = createAdminSession(slave2Locator, "Slave2");
         try
         {
+            slave2Admin->pingNode("Node1");
             test(slave2Admin->pingNode("Node1"));
         }
         catch(const NodeNotExistException&)

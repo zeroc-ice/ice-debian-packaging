@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,7 +9,10 @@
 
 /* global
     self : false,
-    runTest : false
+    runTest : false,
+    _server : false,
+    _serveramd : false,
+    _test : false
 */
 var process = { argv : [] };
 
@@ -38,8 +41,8 @@ self.onmessage = function(e)
         {
             constructor(out)
             {
-                super()
-                this._out = out
+                super();
+                this._out = out;
             }
 
             write(message, indent)
@@ -52,14 +55,17 @@ self.onmessage = function(e)
             }
         }
 
-        let promise
+        let promise;
         let initData = new Ice.InitializationData();
-        initData.logger = new Logger(out);
         initData.properties = Ice.createProperties(e.data.args);
+        initData.logger = new Logger(out);
         process.argv = e.data.args;
-        if(e.data.exe === "ClientBidir")
+        if(e.data.exe === "Server" || e.data.exe === "ServerAMD")
         {
-            promise = _testBidir(out, initData);
+            let ready = new Ice.Promise();
+            let test = e.data.exe === "Server" ? _server : _serveramd;
+            promise = test(out, initData, ready);
+            ready.then(() => self.postMessage({type:"ready"}));
         }
         else
         {

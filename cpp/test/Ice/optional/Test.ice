@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -196,15 +196,16 @@ class G
 class Recursive;
 sequence<Recursive> RecursiveSeq;
 
-class Recursive {
+class Recursive
+{
     optional(0) RecursiveSeq value;
 };
 
-class Initial
+interface Initial
 {
     void shutdown();
 
-    Object pingPong(Object o);
+    ["marshaled-result"] Object pingPong(Object o);
 
     void opOptionalException(optional(1) int a, optional(2) string b, optional(3) OneOptional o)
         throws OptionalException;

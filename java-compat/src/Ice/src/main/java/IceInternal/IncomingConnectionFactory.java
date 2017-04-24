@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -141,7 +141,7 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
                     //
                     for(Ice.ConnectionI c : connections)
                     {
-                        c.close(Ice.ConnectionClose.CloseForcefully);
+                        c.close(Ice.ConnectionClose.Forcefully);
                     }
                     throw e;
                 }
@@ -169,11 +169,30 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
         }
     }
 
+    public boolean
+    isLocal(EndpointI endpoint)
+    {
+        if(_publishedEndpoint != null && endpoint.equivalent(_publishedEndpoint))
+        {
+            return true;
+        }
+        synchronized(this)
+        {
+            return endpoint.equivalent(_endpoint);
+        }
+    }
+
     public EndpointI
     endpoint()
     {
-        // No mutex protection necessary, _endpoint is immutable.
-        return _endpoint;
+        if(_publishedEndpoint != null)
+        {
+            return _publishedEndpoint;
+        }
+        synchronized(this)
+        {
+            return _endpoint;
+        }
     }
 
     public synchronized java.util.LinkedList<Ice.ConnectionI>
@@ -196,13 +215,13 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
     }
 
     public void
-    flushAsyncBatchRequests(CommunicatorFlushBatch outAsync)
+    flushAsyncBatchRequests(Ice.CompressBatch compressBatch, CommunicatorFlushBatch outAsync)
     {
         for(Ice.ConnectionI c : connections()) // connections() is synchronized, no need to synchronize here.
         {
             try
             {
-                outAsync.flushConnection(c);
+                outAsync.flushConnection(c, compressBatch);
             }
             catch(Ice.LocalException ex)
             {
@@ -420,10 +439,11 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
     }
 
     public
-    IncomingConnectionFactory(Instance instance, EndpointI endpoint, Ice.ObjectAdapterI adapter)
+    IncomingConnectionFactory(Instance instance, EndpointI endpoint, EndpointI publish, Ice.ObjectAdapterI adapter)
     {
         _instance = instance;
         _endpoint = endpoint;
+        _publishedEndpoint = publish;
         _adapter = adapter;
         _warn = _instance.initializationData().properties.getPropertyAsInt("Ice.Warn.Connections") > 0 ? true : false;
         _state = StateHolding;
@@ -718,6 +738,7 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
     private Acceptor _acceptor;
     private Transceiver _transceiver;
     private EndpointI _endpoint;
+    private final EndpointI _publishedEndpoint;
 
     private Ice.ObjectAdapterI _adapter;
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -184,8 +184,17 @@ final class EndpointI extends IceInternal.EndpointI
     }
 
     @Override
-    public java.util.List<IceInternal.EndpointI> expand()
+    public java.util.List<IceInternal.EndpointI> expandIfWildcard()
     {
+        java.util.List<IceInternal.EndpointI> endps = new java.util.ArrayList<IceInternal.EndpointI>();
+        endps.add(this);
+        return endps;
+    }
+
+    @Override
+    public java.util.List<IceInternal.EndpointI> expandHost(Ice.Holder<IceInternal.EndpointI> publish)
+    {
+        publish.value = null;
         java.util.List<IceInternal.EndpointI> endps = new java.util.ArrayList<IceInternal.EndpointI>();
         endps.add(this);
         return endps;

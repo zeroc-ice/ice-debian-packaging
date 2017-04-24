@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,8 +10,10 @@
 
  /* global
     _test : false,
-    _testBidir : false,
+    _runServer : false,
+    _server: false,
     Test : false,
+    WorkerGlobalScope: false
 */
 
 var process = { argv : [] };
@@ -108,7 +110,6 @@ function runTest(testsuite, language, host, protocol, testcases, out)
     var communicator;
     var id = new Ice.InitializationData();
     var port = protocol == "ws" ? 15002 : 15003;
-    var serverTestCase;
     id.logger = Logger;
     id.properties = Ice.createProperties();
     id.properties.setProperty("Ice.Default.Host", host);
@@ -119,7 +120,7 @@ function runTest(testsuite, language, host, protocol, testcases, out)
     return Ice.Promise.try(
         function()
         {
-            if(typeof(_runServer) === "undefined" && typeof(_testBidir) === "undefined")
+            if(typeof(_runServer) === "undefined")
             {
                 return _test(out, id);
             }
@@ -132,28 +133,30 @@ function runTest(testsuite, language, host, protocol, testcases, out)
                 testcases = [ { name: "client/server" } ];
             }
 
-            run = function(testcase, client)
+            var run = function(testcase, client)
             {
                 if(testcase.langs && testcase.langs.indexOf(language) == -1)
                 {
                     return;
                 }
 
-                if(typeof(_testBidir) !== "undefined" && client == _testBidir)
+                var runTestCase;
+                out.writeLine("[ running " + testcase.name + " test]");
+                if(language === "js")
                 {
-                    out.writeLine("[ running bidir " + testcase.name + " test]");
-                    runTestCase = function() { return controller.runTestCase("cpp", "Ice/echo", "server", language); };
+                    runTestCase = function() { return controller.runTestCase("cpp", "Ice/echo", "server", ""); };
                 }
                 else
                 {
-                    out.writeLine("[ running " + testcase.name + " test]");
-                    runTestCase = function() { return controller.runTestCase("js", testsuite, testcase.name, language) };
+                    runTestCase = function() { return controller.runTestCase("js", testsuite, testcase.name, language); };
                 }
                 out.write("starting server side... ");
+                var serverTestCase;
+                var server;
                 return runTestCase().then(
                     function(proxy)
                     {
-                        proxy = controller.ice_getCachedConnection().createProxy(proxy.ice_getIdentity())
+                        proxy = controller.ice_getCachedConnection().createProxy(proxy.ice_getIdentity());
                         serverTestCase = Test.Common.TestCasePrx.uncheckedCast(proxy);
                         var config = new Test.Common.Config();
                         config.protocol = protocol;
@@ -162,14 +165,37 @@ function runTest(testsuite, language, host, protocol, testcases, out)
                 ).then(
                     function()
                     {
-                        out.writeLine("ok")
+                        out.writeLine("ok");
+                        process.argv = testcase.args;
+                        if(language === "js")
+                        {
+                            var initData = id.clone();
+                            if(testcase.args !== undefined)
+                            {
+                                initData.properties = Ice.createProperties(testcase.args, id.properties);
+                            }
+                            var ready = new Ice.Promise();
+                            server = _server(out, initData.clone(), ready);
+                            return ready;
+                        }
+                    }
+                ).then(
+                    function()
+                    {
                         var initData = id.clone();
                         if(testcase.args !== undefined)
                         {
                             initData.properties = Ice.createProperties(testcase.args, id.properties);
-                            process.argv=testcase.args
                         }
                         return client(out, initData);
+                    }
+                ).then(
+                    function()
+                    {
+                        if(server)
+                        {
+                            return server; // Wait for server to terminate
+                        }
                     }
                 ).then(
                     function()
@@ -180,7 +206,7 @@ function runTest(testsuite, language, host, protocol, testcases, out)
                     function(ex)
                     {
                         out.writeLine("failed! (" + ex + ")");
-                        throw ex
+                        throw ex;
                     }
                 ).finally(
                     function()
@@ -189,24 +215,13 @@ function runTest(testsuite, language, host, protocol, testcases, out)
                         {
                             return serverTestCase.destroy();
                         }
-                    }
-                );
-            }
+                    });
+            };
 
             var p = Ice.Promise.resolve();
-            if(typeof(_runServer) !== "undefined")
-            {
-                testcases.forEach(function(testcase) {
-                    p = p.then(function() { return run(testcase, _test); })
-                });
-            }
-            if(typeof(_testBidir) !== "undefined" && language === "cpp")
-            {
-                testcases.forEach(function(testcase) {
-                    options = typeof(_runEchoServerOptions) !== "undefined" ? _runEchoServerOptions : []
-                    p = p.then(function() { return run(testcase, _testBidir); })
-                });
-            }
+            testcases.forEach(function(testcase) {
+                p = p.then(function() { return run(testcase, _test); });
+            });
             return p;
         }
     ).finally(

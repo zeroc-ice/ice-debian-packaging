@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -160,8 +160,8 @@ CodeVisitor::visitClassDecl(const ClassDeclPtr& p)
 
         string type = getTypeVar(p);
         _out << sp << nl << "global " << type << ';';
-        
-        bool isInterface = p->isInterface();    
+
+        bool isInterface = p->isInterface();
         if(!p->isLocal() && (isInterface || p->definition()->allOperations().size() > 0))
         {
             _out << nl << "global " << type << "Prx;";
@@ -432,8 +432,8 @@ CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
     //
     const bool preserved = p->hasMetaData("preserve-slice") || p->inheritsMetaData("preserve-slice");
     _out << sp << nl << type << " = IcePHP_defineClass('" << scoped << "', '" << escapeName(abs) << "', "
-        << p->compactId() << ", " << (preserved ? "true" : "false") << ", " 
-        << (isInterface ? "true" : "false") << ", ";
+         << p->compactId() << ", " << (preserved ? "true" : "false") << ", "
+         << (isInterface ? "true" : "false") << ", ";
     if(!base || (isInterface && !p->isLocal()))
     {
         _out << "$Ice__t_Value";
@@ -578,7 +578,7 @@ CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
                         if((*t)->optional())
                         {
                             _out << ", " << (*t)->tag();
-                        } 
+                        }
                         _out << ')';
                         ++count;
                     }
@@ -763,7 +763,7 @@ CodeVisitor::visitExceptionStart(const ExceptionPtr& p)
     }
     else
     {
-         _out << getTypeVar(base);
+        _out << getTypeVar(base);
     }
     _out << ", ";
     //
@@ -946,48 +946,41 @@ CodeVisitor::visitDictionary(const DictionaryPtr& p)
     TypePtr keyType = p->keyType();
     BuiltinPtr b = BuiltinPtr::dynamicCast(keyType);
 
-	const UnitPtr unit = p->unit();
-	const DefinitionContextPtr dc = unit->findDefinitionContext(p->file());
-	assert(dc);
-	bool emitWarnings = !dc->suppressWarning("invalid-metadata");
+    const UnitPtr unit = p->unit();
+    const DefinitionContextPtr dc = unit->findDefinitionContext(p->file());
+    assert(dc);
     if(b)
     {
         switch(b->kind())
         {
-        case Slice::Builtin::KindBool:
-        case Slice::Builtin::KindByte:
-        case Slice::Builtin::KindShort:
-        case Slice::Builtin::KindInt:
-        case Slice::Builtin::KindLong:
-        case Slice::Builtin::KindString:
-            //
-            // These types are acceptable as dictionary keys.
-            //
-            break;
+            case Slice::Builtin::KindBool:
+            case Slice::Builtin::KindByte:
+            case Slice::Builtin::KindShort:
+            case Slice::Builtin::KindInt:
+            case Slice::Builtin::KindLong:
+            case Slice::Builtin::KindString:
+                //
+                // These types are acceptable as dictionary keys.
+                //
+                break;
 
-        case Slice::Builtin::KindFloat:
-        case Slice::Builtin::KindDouble:
-        {
-            if(emitWarnings)
+            case Slice::Builtin::KindFloat:
+            case Slice::Builtin::KindDouble:
             {
-                emitWarning(p->file(), p->line(), "dictionary key type not supported in PHP");
+                dc->warning(InvalidMetaData, p->file(), p->line(), "dictionary key type not supported in PHP");
+                break;
             }
-            break;
-        }
 
-        case Slice::Builtin::KindObject:
-        case Slice::Builtin::KindObjectProxy:
-        case Slice::Builtin::KindLocalObject:
-        case Slice::Builtin::KindValue:
-            assert(false);
+            case Slice::Builtin::KindObject:
+            case Slice::Builtin::KindObjectProxy:
+            case Slice::Builtin::KindLocalObject:
+            case Slice::Builtin::KindValue:
+                assert(false);
         }
     }
     else if(!EnumPtr::dynamicCast(keyType))
     {
-        if(emitWarnings)
-        {
-            emitWarning(p->file(), p->line(), "dictionary key type not supported in PHP");
-        }
+        dc->warning(InvalidMetaData, p->file(), p->line(), "dictionary key type not supported in PHP");
     }
 
     string type = getTypeVar(p);
@@ -1028,7 +1021,7 @@ CodeVisitor::visitEnum(const EnumPtr& p)
     string name = getName(p);
     string type = getTypeVar(p);
     string abs = getAbsolute(p, _ns);
-    EnumeratorList enums = p->getEnumerators();
+    EnumeratorList enums = p->enumerators();
 
     startNamespace(p);
 
@@ -1278,7 +1271,7 @@ CodeVisitor::writeDefaultValue(const DataMemberPtr& m)
     EnumPtr en = EnumPtr::dynamicCast(p);
     if(en)
     {
-        EnumeratorList enums = en->getEnumerators();
+        EnumeratorList enums = en->enumerators();
         _out << getAbsolute(en, _ns) << "::" << fixIdent(enums.front()->name());
         return;
     }
@@ -1331,66 +1324,54 @@ CodeVisitor::writeConstantValue(const TypePtr& type, const SyntaxTreeBasePtr& va
         {
             switch(b->kind())
             {
-            case Slice::Builtin::KindBool:
-            case Slice::Builtin::KindByte:
-            case Slice::Builtin::KindShort:
-            case Slice::Builtin::KindInt:
-            case Slice::Builtin::KindFloat:
-            case Slice::Builtin::KindDouble:
-            {
-                _out << value;
-                break;
-            }
-            case Slice::Builtin::KindLong:
-            {
-                IceUtil::Int64 l;
-                IceUtilInternal::stringToInt64(value, l);
-                //
-                // The platform's 'long' type may not be 64 bits, so we store 64-bit
-                // values as a string.
-                //
-                if(sizeof(IceUtil::Int64) > sizeof(long) && (l < LONG_MIN || l > LONG_MAX))
-                {
-                    _out << "'" << value << "'";
-                }
-                else
+                case Slice::Builtin::KindBool:
+                case Slice::Builtin::KindByte:
+                case Slice::Builtin::KindShort:
+                case Slice::Builtin::KindInt:
+                case Slice::Builtin::KindFloat:
+                case Slice::Builtin::KindDouble:
                 {
                     _out << value;
+                    break;
                 }
-                break;
-            }
-            case Slice::Builtin::KindString:
-            {
-                // PHP 7.x also supports an EC6UCN-like notation, see:
-                // https://wiki.php.net/rfc/unicode_escape
-                //
-                _out << "\"" << toStringLiteral(value, "\f\n\r\t\v\x1b", "$", Octal, 0) << "\"";
-                break;
-            }
-            case Slice::Builtin::KindObject:
-            case Slice::Builtin::KindObjectProxy:
-            case Slice::Builtin::KindLocalObject:
-            case Slice::Builtin::KindValue:
-                assert(false);
+                case Slice::Builtin::KindLong:
+                {
+                    IceUtil::Int64 l;
+                    IceUtilInternal::stringToInt64(value, l);
+                    //
+                    // The platform's 'long' type may not be 64 bits, so we store 64-bit
+                    // values as a string.
+                    //
+                    if(sizeof(IceUtil::Int64) > sizeof(long) && (l < LONG_MIN || l > LONG_MAX))
+                    {
+                        _out << "'" << value << "'";
+                    }
+                    else
+                    {
+                        _out << value;
+                    }
+                    break;
+                }
+                case Slice::Builtin::KindString:
+                {
+                    // PHP 7.x also supports an EC6UCN-like notation, see:
+                    // https://wiki.php.net/rfc/unicode_escape
+                    //
+                    _out << "\"" << toStringLiteral(value, "\f\n\r\t\v\x1b", "$", Octal, 0) << "\"";
+                    break;
+                }
+                case Slice::Builtin::KindObject:
+                case Slice::Builtin::KindObjectProxy:
+                case Slice::Builtin::KindLocalObject:
+                case Slice::Builtin::KindValue:
+                    assert(false);
             }
         }
         else if(en)
         {
-            string val = value;
-            string::size_type colon = val.rfind(':');
-            if(colon != string::npos)
-            {
-                val = val.substr(colon + 1);
-            }
-            Slice::EnumeratorList l = en->getEnumerators();
-            for(Slice::EnumeratorList::iterator q = l.begin(); q != l.end(); ++q)
-            {
-                if((*q)->name() == val)
-                {
-                    _out << getAbsolute(en, _ns) << "::" << fixIdent(val);
-                    break;
-                }
-            }
+            EnumeratorPtr lte = EnumeratorPtr::dynamicCast(valueType);
+            assert(lte);
+            _out << getAbsolute(en, _ns) << "::" << fixIdent(lte->name());
         }
         else
         {
@@ -1417,7 +1398,7 @@ CodeVisitor::writeConstructorParams(const MemberInfoList& members)
         }
         else if(member->optional())
         {
-            _out << "Ice_Unset";
+            _out << (_ns ? scopedToName("::Ice::None", _ns) : "Ice_Unset");
         }
         else
         {
@@ -1521,22 +1502,40 @@ generate(const UnitPtr& un, bool all, bool checksum, bool ns, const vector<strin
             {
                 out << "namespace"; // Global namespace.
                 out << sb;
-            }
-            for(ChecksumMap::const_iterator p = checksums.begin(); p != checksums.end(); ++p)
-            {
-                out << nl << "$Ice_sliceChecksums[\"" << p->first << "\"] = \"";
-                ostringstream str;
-                str.flags(ios_base::hex);
-                str.fill('0');
-                for(vector<unsigned char>::const_iterator q = p->second.begin(); q != p->second.end(); ++q)
+                out << "new Ice\\SliceChecksumInit(array(";
+                for(ChecksumMap::const_iterator p = checksums.begin(); p != checksums.end();)
                 {
-                    str << static_cast<int>(*q);
+                    out << nl << "\"" << p->first << "\" => \"";
+                    ostringstream str;
+                    str.flags(ios_base::hex);
+                    str.fill('0');
+                    for(vector<unsigned char>::const_iterator q = p->second.begin(); q != p->second.end(); ++q)
+                    {
+                        str << static_cast<int>(*q);
+                    }
+                    out << str.str() << "\"";
+                    if(++p != checksums.end())
+                    {
+                        out << ",";
+                    }
                 }
-                out << str.str() << "\";";
-            }
-            if(ns)
-            {
+                out << "));";
                 out << eb;
+            }
+            else
+            {
+                for(ChecksumMap::const_iterator p = checksums.begin(); p != checksums.end(); ++p)
+                {
+                    out << nl << "$Ice_sliceChecksums[\"" << p->first << "\"] = \"";
+                    ostringstream str;
+                    str.flags(ios_base::hex);
+                    str.fill('0');
+                    for(vector<unsigned char>::const_iterator q = p->second.begin(); q != p->second.end(); ++q)
+                    {
+                        str << static_cast<int>(*q);
+                    }
+                    out << str.str() << "\";";
+                }
             }
         }
     }
@@ -1548,14 +1547,14 @@ static void
 printHeader(IceUtilInternal::Output& out)
 {
     static const char* header =
-"// **********************************************************************\n"
-"//\n"
-"// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.\n"
-"//\n"
-"// This copy of Ice is licensed to you under the terms described in the\n"
-"// ICE_LICENSE file included in this distribution.\n"
-"//\n"
-"// **********************************************************************\n"
+        "// **********************************************************************\n"
+        "//\n"
+        "// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.\n"
+        "//\n"
+        "// This copy of Ice is licensed to you under the terms described in the\n"
+        "// ICE_LICENSE file included in this distribution.\n"
+        "//\n"
+        "// **********************************************************************\n"
         ;
 
     out << header;
@@ -1604,26 +1603,26 @@ usage(const string& n)
     consoleErr << "Usage: " << n << " [options] slice-files...\n";
     consoleErr <<
         "Options:\n"
-        "-h, --help           Show this message.\n"
-        "-v, --version        Display the Ice version.\n"
-        "--validate           Validate command line options.\n"
-        "-DNAME               Define NAME as 1.\n"
-        "-DNAME=DEF           Define NAME as DEF.\n"
-        "-UNAME               Remove any definition for NAME.\n"
-        "-IDIR                Put DIR in the include file search path.\n"
-        "-E                   Print preprocessor output on stdout.\n"
-        "--output-dir DIR     Create files in the directory DIR.\n"
-        "--depend             Generate Makefile dependencies.\n"
-        "--depend-xml         Generate dependencies in XML format.\n"
-        "--depend-file FILE   Write dependencies to FILE instead of standard output.\n"
-        "-d, --debug          Print debug messages.\n"
-        "--all                Generate code for Slice definitions in included files.\n"
-        "--checksum           Generate checksums for Slice definitions.\n"
-        "--no-namespace       Do not use PHP namespaces (deprecated).\n"
-        "--ice                Allow reserved Ice prefix in Slice identifiers\n"
-        "                     deprecated: use instead [[\"ice-prefix\"]] metadata.\n"
-        "--underscore         Allow underscores in Slice identifiers\n"
-        "                     deprecated: use instead [[\"underscore\"]] metadata.\n"
+        "-h, --help               Show this message.\n"
+        "-v, --version            Display the Ice version.\n"
+        "-DNAME                   Define NAME as 1.\n"
+        "-DNAME=DEF               Define NAME as DEF.\n"
+        "-UNAME                   Remove any definition for NAME.\n"
+        "-IDIR                    Put DIR in the include file search path.\n"
+        "-E                       Print preprocessor output on stdout.\n"
+        "--output-dir DIR         Create files in the directory DIR.\n"
+        "-d, --debug              Print debug messages.\n"
+        "--depend                 Generate Makefile dependencies.\n"
+        "--depend-xml             Generate dependencies in XML format.\n"
+        "--depend-file FILE       Write dependencies to FILE instead of standard output.\n"
+        "--validate               Validate command line options.\n"
+        "--all                    Generate code for Slice definitions in included files.\n"
+        "--no-namespace           Do not use PHP namespaces (deprecated).\n"
+        "--checksum               Generate checksums for Slice definitions.\n"
+        "--ice                    Allow reserved Ice prefix in Slice identifiers\n"
+        "                         deprecated: use instead [[\"ice-prefix\"]] metadata.\n"
+        "--underscore             Allow underscores in Slice identifiers\n"
+        "                         deprecated: use instead [[\"underscore\"]] metadata.\n"
         ;
 }
 

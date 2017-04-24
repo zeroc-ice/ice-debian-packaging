@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -128,7 +128,7 @@ def allTests(communicator):
     to = Test.TimeoutPrx.uncheckedCast(obj.ice_invocationTimeout(500))
     test(connection == to.ice_getConnection())
     try:
-        to.sleep(250)
+        to.sleep(100)
     except Ice.InvocationTimeoutException:
         test(False)
     test(connection == to.ice_getConnection())
@@ -146,7 +146,7 @@ def allTests(communicator):
     # #
     # to = Test.TimeoutPrx.uncheckedCast(obj.ice_invocationTimeout(500))
     # cb = new Callback()
-    # to.begin_sleep(250, newCallback_Timeout_sleep(cb, &Callback.response, &Callback.exception))
+    # to.begin_sleep(100, newCallback_Timeout_sleep(cb, &Callback.response, &Callback.exception))
     # cb.check()
     print("ok")
 
@@ -155,7 +155,7 @@ def allTests(communicator):
     to = Test.TimeoutPrx.checkedCast(obj.ice_timeout(100))
     connection = to.ice_getConnection()
     timeout.holdAdapter(500)
-    connection.close(Ice.ConnectionClose.CloseGracefullyAndWait)
+    connection.close(Ice.ConnectionClose.GracefullyWithWait)
     try:
         connection.getInfo(); # getInfo() doesn't throw in the closing state.
     except Ice.LocalException:
@@ -179,10 +179,10 @@ def allTests(communicator):
     #
     initData = Ice.InitializationData()
     initData.properties = communicator.getProperties().clone()
-    initData.properties.setProperty("Ice.Override.Timeout", "100")
+    initData.properties.setProperty("Ice.Override.Timeout", "250")
     comm = Ice.initialize(initData)
     to = Test.TimeoutPrx.checkedCast(comm.stringToProxy(sref))
-    timeout.holdAdapter(500)
+    timeout.holdAdapter(700)
     try:
         to.sendData(seq)
         test(False)

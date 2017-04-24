@@ -1,14 +1,14 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#ifndef ICE_SSL_ENDPOINT_I_H
-#define ICE_SSL_ENDPOINT_I_H
+#ifndef ICESSL_ENDPOINT_I_H
+#define ICESSL_ENDPOINT_I_H
 
 #include <Ice/EndpointI.h>
 #include <Ice/IPEndpointI.h>
@@ -47,8 +47,8 @@ public:
     virtual IceInternal::TransceiverPtr transceiver() const;
     virtual void connectors_async(Ice::EndpointSelectionType, const IceInternal::EndpointI_connectorsPtr&) const;
     virtual IceInternal::AcceptorPtr acceptor(const std::string&) const;
-
-    virtual std::vector<IceInternal::EndpointIPtr> expand() const;
+    virtual std::vector<IceInternal::EndpointIPtr> expandIfWildcard() const;
+    virtual std::vector<IceInternal::EndpointIPtr> expandHost(IceInternal::EndpointIPtr&) const;
     virtual bool equivalent(const IceInternal::EndpointIPtr&) const;
     virtual ::Ice::Int hash() const;
     virtual std::string options() const;

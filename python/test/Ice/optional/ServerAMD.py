@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -14,7 +14,7 @@ import Ice
 Ice.loadSlice('TestAMD.ice')
 import Test
 
-class InitialI(Test._InitialDisp):
+class InitialI(Test.Initial):
 
     def shutdown(self, current=None):
         current.adapter.getCommunicator().shutdown()

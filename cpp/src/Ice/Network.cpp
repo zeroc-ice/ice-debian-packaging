@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -128,7 +128,7 @@ struct RandomNumberGenerator : public std::unary_function<ptrdiff_t, ptrdiff_t>
 void
 sortAddresses(vector<Address>& addrs, ProtocolSupport protocol, Ice::EndpointSelectionType selType, bool preferIPv6)
 {
-    if(selType == Ice::Random)
+    if(selType == Ice::ICE_ENUM(EndpointSelectionType, Random))
     {
         RandomNumberGenerator rng;
         random_shuffle(addrs.begin(), addrs.end(), rng);
@@ -854,18 +854,30 @@ IceInternal::NativeInfo::queueAction(SocketOperation op, IAsyncAction^ action, b
         action->Completed = ref new AsyncActionCompletedHandler(
             [=] (IAsyncAction^ info, Windows::Foundation::AsyncStatus status)
             {
-                if(status != Windows::Foundation::AsyncStatus::Completed)
-                {
-                    asyncInfo->count = SOCKET_ERROR;
-                    asyncInfo->error = info->ErrorCode.Value;
-                }
-                else
-                {
-                    asyncInfo->count = 0;
-                }
-                completed(op);
+                //
+                // COMPILERFIX with VC141 using operator!= and operator== inside 
+                // a lambda callback triggers a compiler bug, we move the code to
+                // a seperate private method to workaround the issue.
+                //
+                this->queueActionCompleted(op, asyncInfo, info, status);
             });
     }
+}
+
+void
+IceInternal::NativeInfo::queueActionCompleted(SocketOperation op, AsyncInfo* asyncInfo, IAsyncAction^ info,
+                                              Windows::Foundation::AsyncStatus status)
+{
+    if(status != Windows::Foundation::AsyncStatus::Completed)
+    {
+        asyncInfo->count = SOCKET_ERROR;
+        asyncInfo->error = info->ErrorCode.Value;
+    }
+    else
+    {
+        asyncInfo->count = 0;
+    }
+    completed(op);
 }
 
 void
@@ -883,20 +895,33 @@ IceInternal::NativeInfo::queueOperation(SocketOperation op, IAsyncOperation<unsi
             info->completedHandler = ref new AsyncOperationCompletedHandler<unsigned int>(
                 [=] (IAsyncOperation<unsigned int>^ operation, Windows::Foundation::AsyncStatus status)
                 {
-                    if(status != Windows::Foundation::AsyncStatus::Completed)
-                    {
-                        info->count = SOCKET_ERROR;
-                        info->error = operation->ErrorCode.Value;
-                    }
-                    else
-                    {
-                        info->count = static_cast<int>(operation->GetResults());
-                    }
-                    completed(op);
+                    //
+                    // COMPILERFIX with VC141 using operator!= and operator== inside 
+                    // a lambda callback triggers a compiler bug, we move the code to
+                    // a seperate private method to workaround the issue.
+                    //
+                    this->queueOperationCompleted(op, info, operation, status);   
                 });
         }
         operation->Completed = info->completedHandler;
     }
+}
+
+void
+IceInternal::NativeInfo::queueOperationCompleted(SocketOperation op, AsyncInfo* info,
+                                                 IAsyncOperation<unsigned int>^ operation,
+                                                 Windows::Foundation::AsyncStatus status)
+{
+    if(status != Windows::Foundation::AsyncStatus::Completed)
+    {
+        info->count = SOCKET_ERROR;
+        info->error = operation->ErrorCode.Value;
+    }
+    else
+    {
+        info->count = static_cast<int>(operation->GetResults());
+    }
+    completed(op);
 }
 
 void
@@ -1107,7 +1132,7 @@ IceInternal::getAddresses(const string& host, int port, ProtocolSupport protocol
 
     // In theory, getaddrinfo should only return EAI_NONAME if
     // AI_NUMERICHOST is specified and the host name is not a IP
-    // address. However on some platforms (e.g. OS X 10.4.x)
+    // address. However on some platforms (e.g. macOS 10.4.x)
     // EAI_NODATA is also returned so we also check for it.
 #  ifdef EAI_NODATA
     if(!canBlock && (rs == EAI_NONAME || rs == EAI_NODATA))
@@ -1216,7 +1241,7 @@ IceInternal::getAddressForServer(const string& host, int port, ProtocolSupport p
 #endif
         return addr;
     }
-    vector<Address> addrs = getAddresses(host, port, protocol, Ice::Ordered, preferIPv6, canBlock);
+    vector<Address> addrs = getAddresses(host, port, protocol, Ice::ICE_ENUM(EndpointSelectionType, Ordered), preferIPv6, canBlock);
     return addrs.empty() ? Address() : addrs[0];
 }
 
@@ -1664,9 +1689,8 @@ IceInternal::getHostsForEndpointExpand(const string& host, ProtocolSupport proto
 }
 
 vector<string>
-IceInternal::getInterfacesForMulticast(const string& intf, const Address& mcastAddr)
+IceInternal::getInterfacesForMulticast(const string& intf, ProtocolSupport protocolSupport)
 {
-    ProtocolSupport protocolSupport = getProtocolSupport(mcastAddr);
     vector<string> interfaces = getHostsForEndpointExpand(intf, protocolSupport, true);
     if(interfaces.empty())
     {
@@ -1700,9 +1724,8 @@ IceInternal::getHostsForEndpointExpand(const string& host, ProtocolSupport proto
 }
 
 vector<string>
-IceInternal::getInterfacesForMulticast(const string& intf, const Address& mcastAddr)
+IceInternal::getInterfacesForMulticast(const string& intf, ProtocolSupport protocolSupport)
 {
-    ProtocolSupport protocolSupport = getProtocolSupport(mcastAddr);
     vector<string> interfaces;
     bool ipv4Wildcard = false;
     if(isWildcard(intf, protocolSupport, ipv4Wildcard))
@@ -2069,7 +2092,7 @@ IceInternal::getRecvBufferSize(SOCKET fd)
 void
 IceInternal::setMcastGroup(SOCKET fd, const Address& group, const string& intf)
 {
-    vector<string> interfaces = getInterfacesForMulticast(intf, group);
+    vector<string> interfaces = getInterfacesForMulticast(intf, getProtocolSupport(group));
     set<int> indexes;
     for(vector<string>::const_iterator p = interfaces.begin(); p != interfaces.end(); ++p)
     {
@@ -2366,7 +2389,8 @@ IceInternal::doBind(SOCKET fd, const Address& addr, const string&)
 Address
 IceInternal::getNumericAddress(const std::string& address)
 {
-    vector<Address> addrs = getAddresses(address, 0, EnableBoth, Ice::Ordered, false, false);
+    vector<Address> addrs = getAddresses(address, 0, EnableBoth, Ice::ICE_ENUM(EndpointSelectionType, Ordered), false,
+                                         false);
     if(addrs.empty())
     {
         return Address();
@@ -3056,3 +3080,19 @@ IceInternal::doFinishConnectAsync(SOCKET fd, AsyncInfo& info)
     }
 }
 #endif
+
+
+bool
+IceInternal::isIpAddress(const string& name)
+{
+#ifdef ICE_OS_UWP
+     HostName^ hostname = ref new HostName(ref new String(stringToWstring(name,
+                                                          getProcessStringConverter()).c_str()));
+     return hostname->Type == HostNameType::Ipv4 || hostname->Type == HostNameType::Ipv6;
+#else
+    in_addr addr;
+    in6_addr addr6;
+
+    return inet_pton(AF_INET, name.c_str(), &addr) > 0 || inet_pton(AF_INET6, name.c_str(), &addr6) > 0;
+#endif
+}

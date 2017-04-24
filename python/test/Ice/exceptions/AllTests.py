@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -13,7 +13,7 @@ def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-class EmptyI(Test._EmptyDisp):
+class EmptyI(Test.Empty):
     pass
 
 class ServantLocatorI(Ice.ServantLocator):
@@ -482,6 +482,8 @@ def allTests(communicator):
             thrower.throwMemoryLimitException(bytearray(20 * 1024)) # 20KB
             test(False)
         except Ice.ConnectionLostException:
+            pass
+        except Ice.UnknownLocalException:
             pass
         except:
             test(False)

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -71,7 +71,7 @@ public abstract class ProxyOutgoingAsyncBaseI<T> extends OutgoingAsyncBaseI<T> i
             case ReplyStatus.replyFacetNotExist:
             case ReplyStatus.replyOperationNotExist:
             {
-                com.zeroc.Ice.Identity id = com.zeroc.Ice.Identity.ice_read(is, null);
+                com.zeroc.Ice.Identity id = com.zeroc.Ice.Identity.ice_read(is);
 
                 //
                 // For compatibility with the old FacetPath.
@@ -246,14 +246,8 @@ public abstract class ProxyOutgoingAsyncBaseI<T> extends OutgoingAsyncBaseI<T> i
             if(timeout > 0)
             {
                 _timerFuture = _instance.timer().schedule(
-                    new Runnable()
-                    {
-                        @Override
-                        public void run()
-                        {
-                            cancel(new com.zeroc.Ice.ConnectionTimeoutException());
-                        }
-                    }, timeout, java.util.concurrent.TimeUnit.MILLISECONDS);
+                    () -> { cancel(new com.zeroc.Ice.ConnectionTimeoutException()); },
+                    timeout, java.util.concurrent.TimeUnit.MILLISECONDS);
             }
         }
         super.cancelable(handler);
@@ -314,14 +308,8 @@ public abstract class ProxyOutgoingAsyncBaseI<T> extends OutgoingAsyncBaseI<T> i
                 if(invocationTimeout > 0)
                 {
                     _timerFuture = _instance.timer().schedule(
-                        new Runnable()
-                        {
-                            @Override
-                            public void run()
-                            {
-                                cancel(new com.zeroc.Ice.InvocationTimeoutException());
-                            }
-                        }, invocationTimeout, java.util.concurrent.TimeUnit.MILLISECONDS);
+                        () -> { cancel(new com.zeroc.Ice.InvocationTimeoutException()); },
+                        invocationTimeout, java.util.concurrent.TimeUnit.MILLISECONDS);
                 }
             }
             else // If not called from the user thread, it's called from the retry queue

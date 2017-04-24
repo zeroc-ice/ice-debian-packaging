@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -51,7 +51,7 @@ private:
     // or an empty string if no global metadata was found.
     //
     std::string getHeaderExt(const std::string& file, const UnitPtr& unit);
-    
+
     //
     // Returns the source extension defined in the global metadata for a given file,
     // or an empty string if no global metadata was found.

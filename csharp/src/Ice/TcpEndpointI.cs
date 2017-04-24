@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -127,8 +127,15 @@ namespace IceInternal
 
         public TcpEndpointI endpoint(TcpAcceptor acceptor)
         {
-            return new TcpEndpointI(instance_, host_, acceptor.effectivePort(), sourceAddr_, _timeout, connectionId_,
-                                    _compress);
+            int port = acceptor.effectivePort();
+            if(port == port_)
+            {
+                return this;
+            }
+            else
+            {
+                return new TcpEndpointI(instance_, host_, port, sourceAddr_, _timeout, connectionId_, _compress);
+            }
         }
 
         public override string options()

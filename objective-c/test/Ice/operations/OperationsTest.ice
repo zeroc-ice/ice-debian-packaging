@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -22,7 +22,7 @@ enum MyEnum
     enum3
 };
 
-class MyClass;
+interface MyClass;
 
 struct AnotherStruct
 {
@@ -115,7 +115,7 @@ class A // Used Objective-C test only.
 
 sequence<A> AS; // Used by Objective-C test only.
 
-class MyClass
+interface MyClass
 {
      void shutdown();
 
@@ -319,7 +319,7 @@ class MyClass1
     string myClass1; // Same name as the enclosing class
 };
 
-class MyDerivedClass extends MyClass
+interface MyDerivedClass extends MyClass
 {
     void opDerived();
     MyClass1 opMyClass1(MyClass1 c);
@@ -394,5 +394,20 @@ const string ss5 = "\\u0041\\";  /* \u0041\ */
 const string su0 = "ĨŸÿĀἀ𐆔𐅪𐆘🍀🍁🍂🍃";
 const string su1 = "\u0128\u0178\u00FF\u0100\u1F00\U00010194\U0001016A\U00010198\U0001F340\U0001F341\U0001F342\U0001F343";
 const string su2 = "\U00000128\U00000178\U000000FF\U00000100\U00001F00\U00010194\U0001016A\U00010198\U0001F340\U0001F341\U0001F342\U0001F343";
+
+};
+
+module Test2
+{
+
+/**
+ *
+ * Makes sure that proxy operations are correctly generated when extending an interface from
+ * a different module (ICE-7639).
+ *
+ **/
+interface MyDerivedClass extends Test::MyClass
+{
+};
 
 };

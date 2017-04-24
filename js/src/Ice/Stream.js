@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -1252,7 +1252,7 @@ class InputStream
     {
         if(this._encapsStack !== null)
         {
-            Debug.assert(this._encapsStack.next);
+            Debug.assert(this._encapsStack.next === null);
             this._encapsStack.next = this._encapsCache;
             this._encapsCache = this._encapsStack;
             this._encapsCache.reset();
@@ -1840,7 +1840,7 @@ class InputStream
         //
         this._encapsStack.decoder.readValue.call(
             this._encapsStack.decoder,
-            obj =>
+            cb === null ? null : obj =>
             {
                 if(obj !== null && !(obj instanceof T))
                 {

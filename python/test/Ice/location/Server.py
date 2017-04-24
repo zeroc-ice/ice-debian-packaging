@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -19,7 +19,7 @@ if not slice_dir:
 Ice.loadSlice("'-I" + slice_dir + "' Test.ice")
 import Test
 
-class ServerLocatorRegistry(Test._TestLocatorRegistryDisp):
+class ServerLocatorRegistry(Test.TestLocatorRegistry):
     def __init__(self):
         self._adapters = {}
         self._objects = {}
@@ -56,7 +56,7 @@ class ServerLocatorRegistry(Test._TestLocatorRegistryDisp):
             raise Ice.ObjectNotFoundException()
         return self._objects[id]
 
-class ServerLocator(Test._TestLocatorDisp):
+class ServerLocator(Test.TestLocator):
 
     def __init__(self, registry, registryPrx):
         self._registry = registry
@@ -77,7 +77,7 @@ class ServerLocator(Test._TestLocatorDisp):
     def getRequestCount(self, current=None):
         return self._requestCount
 
-class ServerManagerI(Test._ServerManagerDisp):
+class ServerManagerI(Test.ServerManager):
     def __init__(self, registry, initData):
         self._registry = registry
         self._communicators = []
@@ -121,11 +121,11 @@ class ServerManagerI(Test._ServerManagerDisp):
             i.destroy()
         current.adapter.getCommunicator().shutdown()
 
-class HelloI(Test._HelloDisp):
+class HelloI(Test.Hello):
     def sayHello(self, current=None):
         pass
 
-class TestI(Test._TestIntfDisp):
+class TestI(Test.TestIntf):
     def __init__(self, adapter, adapter2, registry):
         self._adapter1 = adapter
         self._adapter2 = adapter2

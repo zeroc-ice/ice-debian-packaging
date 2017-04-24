@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -22,6 +22,30 @@
 ["objc:prefix:ICE"]
 module Ice
 {
+
+/**
+ * The batch compression option when flushing queued batch requests.
+ *
+ **/
+["cpp:scoped", "objc:scoped"]
+local enum CompressBatch
+{
+    /**
+     * Compress the batch requests.
+     **/
+    Yes,
+
+    /**
+     * Don't compress the batch requests.
+     **/
+    No,
+
+    /**
+     * Compress the batch requests if at least one request was
+     * made on a compressed proxy.
+     **/
+    BasedOnProxy
+};
 
 /**
  *
@@ -106,7 +130,6 @@ local interface HeartbeatCallback
     void heartbeat(Connection con);
 };
 
-["cpp:unscoped"]
 local enum ACMClose
 {
     CloseOff,
@@ -116,7 +139,6 @@ local enum ACMClose
     CloseOnIdleForceful
 };
 
-["cpp:unscoped"]
 local enum ACMHeartbeat
 {
     HeartbeatOff,
@@ -135,22 +157,23 @@ local struct ACM
 /**
  * Determines the behavior when manually closing a connection.
  **/
-["cpp:unscoped"]
+["cpp:scoped", "objc:scoped"]
 local enum ConnectionClose
 {
     /**
      * Close the connection immediately without sending a close connection protocol message to the peer
      * and waiting for the peer to acknowledge it.
      **/
-    CloseForcefully,
+    Forcefully,
     /**
-     * Close the connection by notifying the peer but do not wait for pending invocations to complete.
+     * Close the connection by notifying the peer but do not wait for pending outgoing invocations to complete.
+     * On the server side, the connection will not be closed until all incoming invocations have completed.
      **/
-    CloseGracefully,
+    Gracefully,
     /**
      * Wait for all pending invocations to complete before closing the connection.
      **/
-    CloseGracefullyAndWait
+    GracefullyWithWait
 };
 
 /**
@@ -238,8 +261,11 @@ local interface Connection
      * This means all batch requests invoked on fixed proxies
      * associated with the connection.
      *
+     * @param compress Specifies whether or not the queued batch requests
+     * should be compressed before being sent over the wire.
+     *
      **/
-    ["async-oneway"] void flushBatchRequests();
+    ["async-oneway"] void flushBatchRequests(CompressBatch compress);
 
     /**
      *

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -51,6 +51,17 @@ const toString = function(key, object, objectTable, ident)
     return s;
 };
 
+class ServantError extends Error
+{
+    constructor(cause)
+    {
+        super();
+        this.cause = cause;
+    }
+}
+
+Ice.ServantError = ServantError;
+
 //
 // Ice.Exception
 //
@@ -99,7 +110,7 @@ class Exception extends Error
         this._inToStringAlready = false;
         return s;
     }
-    
+
     static captureStackTrace(object)
     {
         const stack = new Error().stack;
@@ -112,7 +123,7 @@ class Exception extends Error
             Object.defineProperty(object, "stack", {
                 get: function()
                     {
-                        return stack; 
+                        return stack;
                     }
             });
         }
