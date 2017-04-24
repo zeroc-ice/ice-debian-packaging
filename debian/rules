@@ -30,7 +30,10 @@ export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
 			  -PjgoodiesFormsVersion=debian \
 			  -PiceBuilderVersion=debian
 
-export ENABLE_DBGSYM	= auto
+#
+# This is required to enable dbgsym packages in Ubuntu
+#
+export DH_BUILD_DDEBS	= 1
 
 #
 # These files are not installed with any debian package.
