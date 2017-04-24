@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -16,3 +16,4 @@ $(project)_scheme  		= $(if $(filter cpp11-xcodesdk,$2),C++11 Test Controller,C+
 $(project)_configuration 	= $(if $(filter $(OPTIMIZE),yes),Release,Debug)
 
 projects += $(project)
+tests:: $(project)

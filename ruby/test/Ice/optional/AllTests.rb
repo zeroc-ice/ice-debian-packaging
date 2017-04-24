@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -72,6 +72,7 @@ def allTests(communicator)
 
     test(mo1.bos == Ice::Unset)
 
+    ss = Test::SmallStruct.new()
     fs = Test::FixedStruct.new(78)
     vs = Test::VarStruct.new("hello")
     mo1 = Test::MultiOptional.new(15, true, 19, 78, 99, 5.5, 1.0, "test", Test::MyEnum::MyEnumMember, \
@@ -116,6 +117,14 @@ def allTests(communicator)
     test(mo1.ioopd[5] == communicator.stringToProxy("test"))
 
     test(mo1.bos == [false, true, false])
+
+    #
+    # Test generated struct and classes compare with Ice::Unset
+    #
+    test(ss != Ice::Unset)
+    test(fs != Ice::Unset)
+    test(vs != Ice::Unset)
+    test(mo1 != Ice::Unset)
 
     puts "ok"
 
@@ -518,6 +527,10 @@ def allTests(communicator)
 
     p2, p3 = initial.opOneOptional(Ice::Unset)
     test(p2 == Ice::Unset && p3 == Ice::Unset)
+    if initial.supportsNullOptional() then
+        p2, p3 = initial.opOneOptional(nil)
+        test(p2 == nil && p3 == nil)
+    end
     p1 = Test::OneOptional.new(58)
     p2, p3 = initial.opOneOptional(p1)
     test(p2.a == p1.a && p3.a == p1.a)

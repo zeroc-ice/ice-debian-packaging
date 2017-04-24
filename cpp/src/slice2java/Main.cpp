@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -63,30 +63,30 @@ usage(const string& n)
     consoleErr << "Usage: " << n << " [options] slice-files...\n";
     consoleErr <<
         "Options:\n"
-        "-h, --help              Show this message.\n"
-        "-v, --version           Display the Ice version.\n"
-        "--validate              Validate command line options.\n"
-        "-DNAME                  Define NAME as 1.\n"
-        "-DNAME=DEF              Define NAME as DEF.\n"
-        "-UNAME                  Remove any definition for NAME.\n"
-        "-IDIR                   Put DIR in the include file search path.\n"
-        "-E                      Print preprocessor output on stdout.\n"
-        "--output-dir DIR        Create files in the directory DIR.\n"
-        "--tie                   Generate tie classes.\n"
-        "--impl                  Generate sample implementations.\n"
-        "--impl-tie              Generate sample tie implementations.\n"
-        "--depend                Generate Makefile dependencies.\n"
-        "--depend-xml            Generate dependencies in XML format.\n"
-        "--depend-file FILE      Write dependencies to FILE instead of standard output.\n"
-        "--list-generated        Emit list of generated files in XML format.\n"
-        "-d, --debug             Print debug messages.\n"
-        "--checksum CLASS        Generate checksums for Slice definitions into CLASS.\n"
-        "--meta META             Define global metadata directive META.\n"
-        "--compat                Use the backward-compatible language mapping.\n"
-        "--ice                   Allow reserved Ice prefix in Slice identifiers\n"
-        "                        deprecated: use instead [[\"ice-prefix\"]] metadata.\n"
-        "--underscore            Allow underscores in Slice identifiers\n"
-        "                        deprecated: use instead [[\"underscore\"]] metadata.\n"
+        "-h, --help               Show this message.\n"
+        "-v, --version            Display the Ice version.\n"
+        "-DNAME                   Define NAME as 1.\n"
+        "-DNAME=DEF               Define NAME as DEF.\n"
+        "-UNAME                   Remove any definition for NAME.\n"
+        "-IDIR                    Put DIR in the include file search path.\n"
+        "-E                       Print preprocessor output on stdout.\n"
+        "--output-dir DIR         Create files in the directory DIR.\n"
+        "-d, --debug              Print debug messages.\n"
+        "--depend                 Generate Makefile dependencies.\n"
+        "--depend-xml             Generate dependencies in XML format.\n"
+        "--depend-file FILE       Write dependencies to FILE instead of standard output.\n"
+        "--validate               Validate command line options.\n"
+        "--compat                 Generate code for the Java Compat mapping.\n"
+        "--tie                    Generate tie classes. (Java Compat Only)\n"
+        "--impl                   Generate sample implementations.\n"
+        "--impl-tie               Generate sample tie implementations. (Java Compat Only)\n"
+        "--checksum CLASS         Generate checksums for Slice definitions into CLASS.\n"
+        "--meta META              Define global metadata directive META.\n"
+        "--list-generated         Emit list of generated files in XML format.\n"
+        "--ice                    Allow reserved Ice prefix in Slice identifiers\n"
+        "                         deprecated: use instead [[\"ice-prefix\"]] metadata.\n"
+        "--underscore             Allow underscores in Slice identifiers\n"
+        "                         deprecated: use instead [[\"underscore\"]] metadata.\n"
         ;
 }
 
@@ -309,6 +309,7 @@ compile(const vector<string>& argv)
 
             if(cppHandle == 0)
             {
+                FileTracker::instance()->error();
                 status = EXIT_FAILURE;
                 break;
             }
@@ -336,6 +337,7 @@ compile(const vector<string>& argv)
                 if(!icecpp->close())
                 {
                     p->destroy();
+                    FileTracker::instance()->error();
                     return EXIT_FAILURE;
                 }
 
@@ -379,10 +381,6 @@ compile(const vector<string>& argv)
                             ChecksumMap m = createChecksums(p);
                             copy(m.begin(), m.end(), inserter(checksums, checksums.begin()));
                         }
-                        if(listGenerated)
-                        {
-                            FileTracker::instance()->setOutput(os.str(), false);
-                        }
                     }
                     catch(const Slice::FileException& ex)
                     {
@@ -393,6 +391,7 @@ compile(const vector<string>& argv)
                         p->destroy();
                         consoleErr << argv[0] << ": error: " << ex.reason() << endl;
                         status = EXIT_FAILURE;
+                        FileTracker::instance()->error();
                         break;
                     }
                 }
@@ -441,7 +440,7 @@ compile(const vector<string>& argv)
         }
     }
 
-    if(listGenerated && status == EXIT_SUCCESS)
+    if(listGenerated)
     {
         FileTracker::instance()->dumpxml();
     }

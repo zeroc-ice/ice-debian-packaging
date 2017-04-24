@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.zeroc.Ice.Instrumentation.ThreadState;
 
-public final class Instance implements com.zeroc.Ice.ClassResolver
+public final class Instance implements java.util.function.Function<String, Class<?>>
 {
     static private class ThreadObserverHelper
     {
@@ -697,12 +697,13 @@ public final class Instance implements com.zeroc.Ice.ClassResolver
     }
 
     public void
-    setThreadHook(com.zeroc.Ice.ThreadNotification threadHook)
+    setThreadHooks(Runnable threadStart, Runnable threadStop)
     {
         //
         // No locking, as it can only be called during plug-in loading
         //
-        _initData.threadHook = threadHook;
+        _initData.threadStart = threadStart;
+        _initData.threadStop = threadStop;
     }
 
     public Class<?>
@@ -717,24 +718,11 @@ public final class Instance implements com.zeroc.Ice.ClassResolver
         return _initData.classLoader;
     }
 
-    static private String[] _iceTypeIdPrefixes =
-    {
-        "::Glacier2::",
-        "::Ice::",
-        "::IceBox::",
-        "::IceDiscovery::",
-        "::IceGrid::",
-        "::IceLocatorDiscovery::",
-        "::IceMX::",
-        "::IcePatch2::",
-        "::IceStorm::"
-    };
-
     //
-    // From com.zeroc.Ice.ClassResolver.
+    // For the "class resolver".
     //
-    public Class<?> resolveClass(String typeId)
-        throws LinkageError
+    @Override
+    public Class<?> apply(String typeId)
     {
         Class<?> c = null;
 
@@ -799,21 +787,6 @@ public final class Instance implements com.zeroc.Ice.ClassResolver
             if(pkg.length() > 0)
             {
                 c = getConcreteClass(pkg + "." + className);
-            }
-        }
-
-        //
-        // See if the type ID is one of the Ice modules.
-        //
-        if(c == null)
-        {
-            String pkg = null;
-            for(int i = 0; i < _iceTypeIdPrefixes.length && c == null; ++i)
-            {
-                if(typeId.startsWith(_iceTypeIdPrefixes[i]))
-                {
-                    c = getConcreteClass("com.zeroc." + className);
-                }
             }
         }
 

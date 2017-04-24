@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -52,6 +52,7 @@ task testSliceTask {
                                                          'Ice/optional/*.ice',
                                                          'Ice/stream/*.ice',
                                                          'Ice/enums/*.ice',
+                                                         'Glacier2/application/*.ice',
                                                          'Glacier2/router/*.ice',
                                                          'Glacier2/sessionHelper/*.ice',
                                                          'IceDiscovery/simple/*.ice',
@@ -76,6 +77,11 @@ task testSliceTask {
                 args = "--checksum test.Ice.checksum.server.Test.SliceChecksums"
                 files = fileTree(dir: testDir, includes:['Ice/checksum/TestServer.ice',
                                                      'Ice/checksum/TypesServer.ice'])
+            }
+            set5 {
+                args = "--impl"
+                files = fileTree(dir: testDir, includes:['Ice/impl/Test.ice',
+                                                         'Ice/impl/TestAMD.ice'])
             }
         }
     }

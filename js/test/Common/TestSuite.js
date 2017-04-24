@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -20,6 +20,9 @@
 $(document).foundation();
 $(document).ready(
     function() {
+
+        var worker;
+
         $("#console").height(120);
 
         var out =
@@ -136,7 +139,7 @@ $(document).ready(
                 setRunning(true);
                 if($("#worker").is(":checked"))
                 {
-                    var worker = new Worker("/test/Common/Worker.js");
+                    worker = new Worker("/test/Common/Worker.js");
                     worker.onmessage = function(e)
                     {
                         if(e.data.type == "Write")

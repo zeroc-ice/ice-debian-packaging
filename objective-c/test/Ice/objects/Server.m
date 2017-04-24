@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -81,6 +81,7 @@ main(int argc, char* argv[])
         {
             ICEInitializationData* initData = [ICEInitializationData initializationData];
             initData.properties = defaultServerProperties(&argc, argv);
+            [initData.properties setProperty:@"Ice.Warn.Dispatch" value:@"0"];
 #if TARGET_OS_IPHONE
             initData.prefixTable_ = [NSDictionary dictionaryWithObjectsAndKeys:
                                       @"TestObjects", @"::Test",

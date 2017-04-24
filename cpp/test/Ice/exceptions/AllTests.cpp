@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -988,32 +988,42 @@ allTests(const Ice::CommunicatorPtr& communicator)
         catch(const Ice::ConnectionLostException&)
         {
         }
+        catch(const Ice::UnknownLocalException&)
+        {
+            // Expected with JS bidir server
+        }
         catch(const Ice::LocalException& ex)
         {
             cerr << ex << endl;
             test(false);
         }
 
-        ThrowerPrxPtr thrower2 =
-            ICE_UNCHECKED_CAST(ThrowerPrx, communicator->stringToProxy("thrower:" + getTestEndpoint(communicator, 1)));
         try
         {
-            thrower2->throwMemoryLimitException(Ice::ByteSeq(2 * 1024 * 1024)); // 2MB (no limits)
+            ThrowerPrxPtr thrower2 =
+                ICE_UNCHECKED_CAST(ThrowerPrx, communicator->stringToProxy("thrower:" + getTestEndpoint(communicator, 1)));
+            try
+            {
+                thrower2->throwMemoryLimitException(Ice::ByteSeq(2 * 1024 * 1024)); // 2MB (no limits)
+            }
+            catch(const Ice::MemoryLimitException&)
+            {
+            }
+            ThrowerPrxPtr thrower3 =
+                ICE_UNCHECKED_CAST(ThrowerPrx, communicator->stringToProxy("thrower:" + getTestEndpoint(communicator, 2)));
+            try
+            {
+                thrower3->throwMemoryLimitException(Ice::ByteSeq(1024)); // 1KB limit
+                test(false);
+            }
+            catch(const Ice::ConnectionLostException&)
+            {
+            }
         }
-        catch(const Ice::MemoryLimitException&)
+        catch(const Ice::ConnectionRefusedException&)
         {
+            // Expected with JS bidir server
         }
-        ThrowerPrxPtr thrower3 =
-            ICE_UNCHECKED_CAST(ThrowerPrx, communicator->stringToProxy("thrower:" + getTestEndpoint(communicator, 2)));
-        try
-        {
-            thrower3->throwMemoryLimitException(Ice::ByteSeq(1024)); // 1KB limit
-            test(false);
-        }
-        catch(const Ice::ConnectionLostException&)
-        {
-        }
-
         cout << "ok" << endl;
     }
 

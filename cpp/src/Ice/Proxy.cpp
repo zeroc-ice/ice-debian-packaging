@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,6 +14,7 @@
 #include <Ice/ObjectAdapterFactory.h>
 #include <Ice/OutgoingAsync.h>
 #include <Ice/Reference.h>
+#include <Ice/CollocatedRequestHandler.h>
 #include <Ice/EndpointI.h>
 #include <Ice/Instance.h>
 #include <Ice/RouterInfo.h>
@@ -35,6 +36,24 @@ const Context noExplicitContext;
 
 }
 
+#if defined(_MSC_VER) && (_MSC_VER == 1500)
+//
+// COMPILERFIX VC90 get confused with namespaces and complains that
+// ::Ice::noExplicitContext isn't defined in IceProxy namespace.
+//
+namespace IceProxy
+{
+
+namespace Ice
+{
+
+const Context noExplicitContext;
+
+}
+
+}
+#endif
+
 namespace
 {
 
@@ -46,6 +65,93 @@ const string ice_invoke_name = "ice_invoke";
 const string ice_getConnection_name = "ice_getConnection";
 const string ice_flushBatchRequests_name = "ice_flushBatchRequests";
 
+}
+
+ProxyFlushBatchAsync::ProxyFlushBatchAsync(const ObjectPrxPtr& proxy) : ProxyOutgoingAsyncBase(proxy)
+{
+}
+
+AsyncStatus
+ProxyFlushBatchAsync::invokeRemote(const ConnectionIPtr& connection, bool compress, bool)
+{
+    if(_batchRequestNum == 0)
+    {
+        if(sent())
+        {
+            return static_cast<AsyncStatus>(AsyncStatusSent | AsyncStatusInvokeSentCallback);
+        }
+        else
+        {
+            return AsyncStatusSent;
+        }
+    }
+    _cachedConnection = connection;
+    return connection->sendAsyncRequest(ICE_SHARED_FROM_THIS, compress, false, _batchRequestNum);
+}
+
+AsyncStatus
+ProxyFlushBatchAsync::invokeCollocated(CollocatedRequestHandler* handler)
+{
+    if(_batchRequestNum == 0)
+    {
+        if(sent())
+        {
+            return static_cast<AsyncStatus>(AsyncStatusSent | AsyncStatusInvokeSentCallback);
+        }
+        else
+        {
+            return AsyncStatusSent;
+        }
+    }
+    return handler->invokeAsyncRequest(this, _batchRequestNum, false);
+}
+
+void
+ProxyFlushBatchAsync::invoke(const string& operation)
+{
+    checkSupportedProtocol(getCompatibleProtocol(_proxy->_getReference()->getProtocol()));
+    _observer.attach(_proxy, operation, ::Ice::noExplicitContext);
+    bool compress; // Ignore for proxy flushBatchRequests
+    _batchRequestNum = _proxy->_getBatchRequestQueue()->swap(&_os, compress);
+    invokeImpl(true); // userThread = true
+}
+
+ProxyGetConnection::ProxyGetConnection(const ObjectPrxPtr& prx) : ProxyOutgoingAsyncBase(prx)
+{
+}
+
+AsyncStatus
+ProxyGetConnection::invokeRemote(const ConnectionIPtr& connection, bool, bool)
+{
+    _cachedConnection = connection;
+    if(responseImpl(true))
+    {
+        invokeResponseAsync();
+    }
+    return AsyncStatusSent;
+}
+
+AsyncStatus
+ProxyGetConnection::invokeCollocated(CollocatedRequestHandler*)
+{
+    if(responseImpl(true))
+    {
+        invokeResponseAsync();
+    }
+    return AsyncStatusSent;
+}
+
+Ice::ConnectionPtr
+ProxyGetConnection::getConnection() const
+{
+    return _cachedConnection;
+}
+
+void
+ProxyGetConnection::invoke(const string& operation)
+{
+    _observer.attach(_proxy, operation, ::Ice::noExplicitContext);
+    invokeImpl(true); // userThread = true
 }
 
 #ifdef ICE_CPP11_MAPPING // C++11 mapping
@@ -73,7 +179,7 @@ Ice::ObjectPrx::_iceI_isA(const shared_ptr<IceInternal::OutgoingAsyncT<bool>>& o
                           const Context& ctx)
 {
     _checkTwowayOnly(ice_isA_name);
-    outAsync->invoke(ice_isA_name, OperationMode::Nonmutating, DefaultFormat, ctx,
+    outAsync->invoke(ice_isA_name, OperationMode::Nonmutating, ICE_ENUM(FormatType, DefaultFormat), ctx,
                      [&](Ice::OutputStream* os)
                      {
                          os->write(typeId, false);
@@ -84,14 +190,14 @@ Ice::ObjectPrx::_iceI_isA(const shared_ptr<IceInternal::OutgoingAsyncT<bool>>& o
 void
 Ice::ObjectPrx::_iceI_ping(const shared_ptr<IceInternal::OutgoingAsyncT<void>>& outAsync, const Context& ctx)
 {
-    outAsync->invoke(ice_ping_name, OperationMode::Nonmutating, DefaultFormat, ctx, nullptr, nullptr);
+    outAsync->invoke(ice_ping_name, OperationMode::Nonmutating, ICE_ENUM(FormatType, DefaultFormat), ctx, nullptr, nullptr);
 }
 
 void
 Ice::ObjectPrx::_iceI_ids(const shared_ptr<IceInternal::OutgoingAsyncT<vector<string>>>& outAsync, const Context& ctx)
 {
     _checkTwowayOnly(ice_ids_name);
-    outAsync->invoke(ice_ids_name, OperationMode::Nonmutating, DefaultFormat, ctx, nullptr, nullptr,
+    outAsync->invoke(ice_ids_name, OperationMode::Nonmutating, ICE_ENUM(FormatType, DefaultFormat), ctx, nullptr, nullptr,
                      [](Ice::InputStream* stream)
                      {
                          vector<string> v;
@@ -104,7 +210,7 @@ void
 Ice::ObjectPrx::_iceI_id(const shared_ptr<IceInternal::OutgoingAsyncT<string>>& outAsync, const Context& ctx)
 {
     _checkTwowayOnly(ice_id_name);
-    outAsync->invoke(ice_id_name, OperationMode::Nonmutating, DefaultFormat, ctx, nullptr, nullptr,
+    outAsync->invoke(ice_id_name, OperationMode::Nonmutating, ICE_ENUM(FormatType, DefaultFormat), ctx, nullptr, nullptr,
                      [](Ice::InputStream* stream)
                      {
                          string v;
@@ -204,7 +310,7 @@ IceProxy::Ice::Object::_iceI_begin_ice_isA(const string& typeId,
     try
     {
         result->prepare(ice_isA_name, Nonmutating, ctx);
-        ::Ice::OutputStream* ostr = result->startWriteParams(DefaultFormat);
+        ::Ice::OutputStream* ostr = result->startWriteParams(ICE_ENUM(FormatType, DefaultFormat));
         ostr->write(typeId, false);
         result->endWriteParams();
         result->invoke(ice_isA_name);

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -55,7 +55,7 @@ public:
                                       const Ice::Current&) const;
 
     virtual void findAdapterById_async(const Ice::AMD_Locator_findAdapterByIdPtr&, const ::std::string&, 
-                                       const Ice::Current& = Ice::noExplicitCurrent) const;
+                                       const Ice::Current&) const;
 
     virtual Ice::LocatorRegistryPrx getRegistry(const Ice::Current&) const;
     virtual RegistryPrx getLocalRegistry(const Ice::Current&) const;

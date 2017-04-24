@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -20,7 +20,7 @@ interface i3 extends i2 {};             // error
 
 local interface i4 extends i2 {};       // OK
 
-class c1 implements i1 {};              // OK
+class c1 implements i1 {};              // Warning
 
 class c2 implements i2 {};              // error
 

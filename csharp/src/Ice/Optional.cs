@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -185,52 +185,6 @@ namespace Ice
 
         private T _value;
         private bool _isSet;
-    }
-
-    /// <summary>
-    /// Handles callbacks for an optional object parameter.
-    /// </summary>
-    public class OptionalPatcher<T> where T : Ice.Value
-    {
-        /// <summary>
-        /// Instantiates the class with the given optional.
-        /// </summary>
-        /// <param name="type">The Slice type ID corresponding to the formal type.</param>
-        public OptionalPatcher(string type)
-        {
-            _type = type;
-        }
-
-        /// <summary>
-        /// Sets the Ice object of the optional to the passed instance.
-        /// </summary>
-        /// <param name="v">The new object for the optional.</param>
-        public void patch(Ice.Value v)
-        {
-            if(v == null || typeof(T).IsAssignableFrom(v.GetType()))
-            {
-                //
-                // The line below must assign to the Value property. We could also
-                // have written it this way:
-                //
-                // this.opt = (T)v;
-                //
-                // However, when v is null, the optional might be cleared, which
-                // is not the result we want.
-                //
-                value = new Optional<T>((T)v);
-            }
-            else
-            {
-                IceInternal.Ex.throwUOE(_type, v.ice_id());
-            }
-        }
-
-        /// <summary>
-        /// The target optional.
-        /// </summary>
-        public Optional<T> value = new Optional<T>();
-        private string _type;
     }
 
     /// <summary>

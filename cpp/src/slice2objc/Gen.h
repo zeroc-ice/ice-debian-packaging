@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -131,7 +131,7 @@ private:
         enum Escape { NoEscape, WithEscape };
         enum ContainerType { LocalException, Other };
 
-        void writeConstantValue(IceUtilInternal::Output&, const TypePtr&, const std::string&) const;
+        void writeConstantValue(IceUtilInternal::Output&, const TypePtr&, const SyntaxTreeBasePtr&, const std::string&) const;
         void writeInit(const ContainedPtr&, const DataMemberList&, const DataMemberList&, const DataMemberList&, bool,
                        int, ContainerType) const;
         void writeFactory(const ContainedPtr&, const DataMemberList&, int, ContainerType) const;

@@ -1,17 +1,21 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
+/* global
+    isSafari : false,
+    isWorker : false
+*/
+
 (function(module, require, exports)
 {
     var Ice = require("ice").Ice;
     var Test = require("Test").Test;
-    var Promise = Ice.Promise;
 
     function allTests(communicator, out)
     {
@@ -22,6 +26,7 @@
             {
                 try
                 {
+                    console.log(new Error().stack);
                     throw new Error("test failed");
                 }
                 catch(err)
@@ -59,7 +64,7 @@
         var b1 = null;
         var b2 = null;
 
-        Promise.try(() =>
+        Ice.Promise.try(() =>
             {
                 out.write("testing batch requests with proxy... ");
                 return p.opBatchCount().then(count =>
@@ -111,7 +116,7 @@
                         //
                         test(batchCount === 0);
                         b1.opBatch();
-                        b1.ice_getCachedConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                        b1.ice_getCachedConnection().close(Ice.ConnectionClose.GracefullyWithWait);
                         return communicator.flushBatchRequests().then(() => p.opBatchCount());
                     }
                 ).then(batchCount =>
@@ -156,7 +161,7 @@
                                 b2 = prx;
                                 b1.opBatch();
                                 b2.opBatch();
-                                b1.ice_getCachedConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                                b1.ice_getCachedConnection().close(Ice.ConnectionClose.GracefullyWithWait);
                                 return communicator.flushBatchRequests();
                             }
                         ).then(() => p.waitForBatch(1)
@@ -181,8 +186,8 @@
                                 b2 = prx;
                                 b1.opBatch();
                                 b2.opBatch();
-                                b1.ice_getCachedConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
-                                b2.ice_getCachedConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                                b1.ice_getCachedConnection().close(Ice.ConnectionClose.GracefullyWithWait);
+                                b2.ice_getCachedConnection().close(Ice.ConnectionClose.GracefullyWithWait);
                                 return communicator.flushBatchRequests();
                             }
                         ).then(() => p.opBatchCount());
@@ -205,7 +210,7 @@
                     {
                         var r1 = p.op();
                         var r2 = null;
-                        var seq = Ice.Buffer.createNative(new Array(100000));
+                        var seq = new Uint8Array(100000);
 
                         while((r2 = p.opWithPayload(seq)).sentSynchronously());
                         test(r1.sentSynchronously() && r1.isSent() && !r1.isCompleted() ||
@@ -279,7 +284,7 @@
                 ).then(() => testController.holdAdapter()
                 ).then(() =>
                     {
-                        var seq = Ice.Buffer.createNative(new Array(100000));
+                        var seq = new Uint8Array(new Array(100000));
                         while((r = p.opWithPayload(seq)).sentSynchronously());
                         test(!r.isSent());
 
@@ -340,7 +345,7 @@
     exports._test = function(out, id)
     {
         var communicator = Ice.initialize(id);
-        return Promise.try(() =>
+        return Ice.Promise.try(() =>
             {
                 if(typeof(navigator) !== 'undefined' && isSafari() && isWorker())
                 {

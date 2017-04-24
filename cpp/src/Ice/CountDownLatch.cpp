@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -115,7 +115,7 @@ IceUtilInternal::CountDownLatch::countDown()
     }
 #if defined(__APPLE__)
     //
-    // On OS X we do the broadcast with the mutex held. This seems to
+    // On macOS we do the broadcast with the mutex held. This seems to
     // be necessary to prevent the broadcast call to hang (spinning in
     // an infinite loop).
     //

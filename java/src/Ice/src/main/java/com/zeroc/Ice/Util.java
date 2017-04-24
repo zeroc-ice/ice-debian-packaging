@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -128,11 +128,11 @@ public final class Util
      * @param args A command-line argument vector. Any Ice-related options
      * in this vector are used to initialize the communicator.
      *
-     * @return The new communicator and a filtered argument vector.
+     * @return The new communicator.
      **/
     public static Communicator initialize(String[] args)
     {
-        return initialize(args, null, null);
+        return initialize(args, (InitializationData)null, null);
     }
 
     /**
@@ -144,11 +144,11 @@ public final class Util
      * @param remainingArgs If non null, the given list will contain on
      * return the command-line arguments that were not used to set properties.
      *
-     * @return The new communicator and a filtered argument vector.
+     * @return The new communicator.
      **/
     public static Communicator initialize(String[] args, java.util.List<String> remainingArgs)
     {
-        return initialize(args, null, remainingArgs);
+        return initialize(args, (InitializationData)null, remainingArgs);
     }
 
     /**
@@ -156,7 +156,7 @@ public final class Util
      *
      * @param initData Additional initialization data.
      *
-     * @return The new communicator and a filtered argument vector.
+     * @return The new communicator.
      **/
     public static Communicator initialize(InitializationData initData)
     {
@@ -171,11 +171,27 @@ public final class Util
      *
      * @param initData Additional initialization data.
      *
-     * @return The new communicator and a filtered argument vector.
+     * @return The new communicator.
      **/
     public static Communicator initialize(String[] args, InitializationData initData)
     {
         return initialize(args, initData, null);
+    }
+
+    /**
+     * Creates a communicator.
+     *
+     * @param args A command-line argument vector. Any Ice-related options
+     * in this vector are used to initialize the communicator.
+     *
+     * @param configFile Path to a config file that sets the new communicator's default
+     * properties.
+     *
+     * @return The new communicator.
+     **/
+    public static Communicator initialize(String[] args, String configFile)
+    {
+        return initialize(args, configFile, null);
     }
 
     /**
@@ -190,7 +206,7 @@ public final class Util
      * @param remainingArgs If non null, the given list will contain on
      * return the command-line arguments that were not used to set properties.
      *
-     * @return The new communicator and a filtered argument vector.
+     * @return The new communicator.
      *
      * @see InitializationData
      **/
@@ -217,6 +233,35 @@ public final class Util
         CommunicatorI communicator = new CommunicatorI(initData);
         communicator.finishSetup(args != null ? args : new String[0], remainingArgs);
         return communicator;
+    }
+
+    /**
+     * Creates a communicator.
+     *
+     * @param args A command-line argument vector. Any Ice-related options
+     * in this vector are used to initialize the communicator.
+     *
+     * @param configFile Path to a config file that sets the new communicator's default
+     * properties.
+     *
+     * @param remainingArgs If non null, the given list will contain on
+     * return the command-line arguments that were not used to set properties.
+     *
+     * @return The new communicator.
+     **/
+    public static Communicator initialize(String[] args,
+                                          String configFile,
+                                          java.util.List<String> remainingArgs)
+    {
+        InitializationData initData = null;
+        if(configFile != null)
+        {
+            initData = new InitializationData();
+            initData.properties = Util.createProperties();
+            initData.properties.load(configFile);
+        }
+
+        return initialize(args, initData, remainingArgs);
     }
 
     /**
@@ -489,7 +534,7 @@ public final class Util
      **/
     public static String stringVersion()
     {
-        return "3.7a4"; // "A.B.C", with A=major, B=minor, C=patch
+        return "3.7b0"; // "A.B.C", with A=major, B=minor, C=patch
     }
 
     /**
@@ -501,7 +546,7 @@ public final class Util
      **/
     public static int intVersion()
     {
-        return 30754; // AABBCC, with AA=major, BB=minor, CC=patch
+        return 30760; // AABBCC, with AA=major, BB=minor, CC=patch
     }
 
     /**
@@ -603,6 +648,15 @@ public final class Util
         }
 
         StringBuilder buf = new StringBuilder(id.length());
+        String pkg = null;
+        for(int i = 0; i < _iceTypeIdPrefixes.length; ++i)
+        {
+            if(id.startsWith(_iceTypeIdPrefixes[i]))
+            {
+                buf.append("com.zeroc");
+                break;
+            }
+        }
 
         int start = 2;
         boolean done = false;
@@ -723,4 +777,17 @@ public final class Util
 
     private static java.lang.Object _processLoggerMutex = new java.lang.Object();
     private static Logger _processLogger = null;
+
+    static private String[] _iceTypeIdPrefixes =
+    {
+        "::Glacier2::",
+        "::Ice::",
+        "::IceBox::",
+        "::IceDiscovery::",
+        "::IceGrid::",
+        "::IceLocatorDiscovery::",
+        "::IceMX::",
+        "::IcePatch2::",
+        "::IceStorm::"
+    };
 }

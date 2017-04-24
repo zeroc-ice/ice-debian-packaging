@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -256,6 +256,16 @@ protected:
 #else
     SOCKET _newFd;
 #endif
+
+private:
+
+#if defined(ICE_OS_UWP)
+    void queueActionCompleted(SocketOperation, AsyncInfo* asyncInfo, Windows::Foundation::IAsyncAction^,
+                              Windows::Foundation::AsyncStatus);
+    void queueOperationCompleted(SocketOperation, AsyncInfo* asyncInfo,
+                                 Windows::Foundation::IAsyncOperation<unsigned int>^,
+                                 Windows::Foundation::AsyncStatus);
+#endif
 };
 typedef IceUtil::Handle<NativeInfo> NativeInfoPtr;
 
@@ -284,7 +294,7 @@ ICE_API std::string addressesToString(const Address&, const Address&, bool);
 ICE_API bool isAddressValid(const Address&);
 
 ICE_API std::vector<std::string> getHostsForEndpointExpand(const std::string&, ProtocolSupport, bool);
-ICE_API std::vector<std::string> getInterfacesForMulticast(const std::string&, const Address&);
+ICE_API std::vector<std::string> getInterfacesForMulticast(const std::string&, ProtocolSupport);
 
 ICE_API std::string inetAddrToString(const Address&);
 ICE_API int getPort(const Address&);
@@ -368,6 +378,9 @@ ICE_API void runSync(Windows::Foundation::IAsyncAction^ action);
 ICE_API void doConnectAsync(SOCKET, const Address&, const Address&, AsyncInfo&);
 ICE_API void doFinishConnectAsync(SOCKET, AsyncInfo&);
 #endif
+
+ICE_API bool isIpAddress(const std::string&);
+
 }
 
 #endif

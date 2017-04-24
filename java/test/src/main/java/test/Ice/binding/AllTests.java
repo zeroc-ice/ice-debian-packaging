@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -133,7 +133,7 @@ public class AllTests
                 test(test2.ice_getConnection() == test3.ice_getConnection());
 
                 names.remove(test1.getAdapterName());
-                test1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                test1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             }
 
             //
@@ -155,7 +155,7 @@ public class AllTests
 
                 for(RemoteObjectAdapterPrx p : adapters)
                 {
-                    p.getTestIntf().ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                    p.getTestIntf().ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
                 }
             }
 
@@ -180,7 +180,7 @@ public class AllTests
                 test(test2.ice_getConnection() == test3.ice_getConnection());
 
                 names.remove(test1.getAdapterName());
-                test1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                test1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             }
 
             //
@@ -211,20 +211,11 @@ public class AllTests
                 System.getProperty("os.name").startsWith("Windows") ||
                 System.getProperty("java.vendor").toLowerCase().indexOf("android") >= 0;
 
-            int count;
-            if(shortenTest)
-            {
-                count = 20;
-            }
-            else
-            {
-                count = 60;
-            }
-
+            int count = 20;
             int adapterCount = adapters.length;
             while(--count > 0)
             {
-                TestIntfPrx[] proxies;
+                TestIntfPrx[] proxies = new TestIntfPrx[10];
                 if(shortenTest)
                 {
                     if(count == 1)
@@ -232,16 +223,14 @@ public class AllTests
                         rcom.deactivateObjectAdapter(adapters[4]);
                         --adapterCount;
                     }
-                    proxies = new TestIntfPrx[10];
                 }
                 else
                 {
-                    if(count < 60 && count % 10 == 0)
+                    if(count < 20 && count % 4 == 0)
                     {
-                        rcom.deactivateObjectAdapter(adapters[count / 10 - 1]);
+                        rcom.deactivateObjectAdapter(adapters[count / 4 - 1]);
                         --adapterCount;
                     }
-                    proxies = new TestIntfPrx[40];
                 }
 
                 int i;
@@ -288,7 +277,7 @@ public class AllTests
                 {
                     try
                     {
-                        a.getTestIntf().ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                        a.getTestIntf().ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
                     }
                     catch(com.zeroc.Ice.LocalException ex)
                     {
@@ -329,7 +318,7 @@ public class AllTests
                 test(test2.ice_getConnection() == test3.ice_getConnection());
 
                 names.remove(getAdapterNameWithAMI(test1));
-                test1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                test1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             }
 
             //
@@ -351,7 +340,7 @@ public class AllTests
 
                 for(RemoteObjectAdapterPrx p : adapters)
                 {
-                    p.getTestIntf().ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                    p.getTestIntf().ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
                 }
             }
 
@@ -376,7 +365,7 @@ public class AllTests
                 test(test2.ice_getConnection() == test3.ice_getConnection());
 
                 names.remove(getAdapterNameWithAMI(test1));
-                test1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                test1.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             }
 
             //
@@ -409,7 +398,7 @@ public class AllTests
             while(!names.isEmpty())
             {
                 names.remove(test.getAdapterName());
-                test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             }
 
             test = test.ice_endpointSelection(EndpointSelectionType.Random);
@@ -421,7 +410,7 @@ public class AllTests
             while(!names.isEmpty())
             {
                 names.remove(test.getAdapterName());
-                test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             }
 
             deactivate(rcom, adapters);
@@ -485,11 +474,11 @@ public class AllTests
             adapters.add(rcom.createObjectAdapter("Adapter36", endpoints[2].toString()));
             for(i = 0; i < nRetry && test.getAdapterName().equals("Adapter36"); i++);
             test(i == nRetry);
-            test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+            test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             adapters.add(rcom.createObjectAdapter("Adapter35", endpoints[1].toString()));
             for(i = 0; i < nRetry && test.getAdapterName().equals("Adapter35"); i++);
             test(i == nRetry);
-            test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+            test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             adapters.add(rcom.createObjectAdapter("Adapter34", endpoints[0].toString()));
             for(i = 0; i < nRetry && test.getAdapterName().equals("Adapter34"); i++);
             test(i == nRetry);
@@ -786,7 +775,7 @@ public class AllTests
                 for(i = 0; i < 5; i++)
                 {
                     test(test.getAdapterName().equals("Adapter82"));
-                    test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                    test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
                 }
 
                 TestIntfPrx testSecure = test.ice_secure(true);
@@ -802,7 +791,7 @@ public class AllTests
                 for(i = 0; i < 5; i++)
                 {
                     test(test.getAdapterName().equals("Adapter81"));
-                    test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                    test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
                 }
 
                 rcom.createObjectAdapter("Adapter83", (test.ice_getEndpoints()[1]).toString()); // Reactive tcp OA.
@@ -810,7 +799,7 @@ public class AllTests
                 for(i = 0; i < 5; i++)
                 {
                     test(test.getAdapterName().equals("Adapter83"));
-                    test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+                    test.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
                 }
 
                 rcom.deactivateObjectAdapter(adapters.get(0));
@@ -1005,7 +994,7 @@ public class AllTests
                 // Close the connection now to free a FD (it could be done after the sleep but
                 // there could be race condiutation since the connection might not be closed
                 // immediately due to threading).
-                test.ice_connectionId("0").ice_getConnection().close(ConnectionClose.CloseGracefullyAndWait);
+                test.ice_connectionId("0").ice_getConnection().close(ConnectionClose.GracefullyWithWait);
 
                 //
                 // The server closed the acceptor, wait one second and retry after freeing a FD.

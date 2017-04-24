@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -206,7 +206,7 @@ public class AllTests
                 {
                     result.waitForSent();
                     holdSerialized.ice_ping(); // Ensure everything's dispatched
-                    holdSerialized.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait);
+                    holdSerialized.ice_getConnection().close(Ice.ConnectionClose.GracefullyWithWait);
                 }
             }
             result.waitForCompleted();

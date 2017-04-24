@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -24,7 +24,7 @@ class IceStorm(ProcessFromBinDir, Server):
 
     def setup(self, current):
         # Create the database directory
-        self.dbdir = os.path.join(current.testcase.getPath(), "{0}-{1}.db".format(self.instanceName, self.replica))
+        self.dbdir = os.path.join(current.testsuite.getPath(), "{0}-{1}.db".format(self.instanceName, self.replica))
         if os.path.exists(self.dbdir):
             shutil.rmtree(self.dbdir)
         os.mkdir(self.dbdir)

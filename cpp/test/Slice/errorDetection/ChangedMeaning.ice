@@ -1,13 +1,13 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-
+[["suppress-warning:deprecated"]] // for classes with operations
 
 module Test
 {
@@ -107,7 +107,7 @@ module B
 
     const color fc = blue;
 
-    interface blue {};          // Changed meaning
+    interface blue {};          // OK as of Ice 3.7 (enumerators are in their enum's namespace)
 
 };
 
@@ -184,7 +184,7 @@ const ::Test::M1::M2::C MyConstant2 = Test::M1::M2::C2; // OK
 const Test::M1::M2::C MyConstant3 = ::Test::M1::M2::C2; // OK
 const ::Test::M1::M2::C MyConstant4 = ::Test::M1::M2::C2; // OK
 
-class smnpTest1Class
+interface smnpTest1Class
 {
     M1::smnpStruct smnpTest1Op1() throws M1::smnpException; // OK
 };

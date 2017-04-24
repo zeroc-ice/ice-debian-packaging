@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -797,22 +797,8 @@ public class CommunicatorObserverI implements com.zeroc.Ice.Instrumentation.Comm
         }
         else
         {
-            _connections.setUpdater(new Runnable() {
-                    @Override
-                    public void
-                    run()
-                    {
-                        updater.updateConnectionObservers();
-                    }
-                });
-            _threads.setUpdater(new Runnable() {
-                    @Override
-                    public void
-                    run()
-                    {
-                        updater.updateThreadObservers();
-                    }
-                });
+            _connections.setUpdater(() -> { updater.updateConnectionObservers(); });
+            _threads.setUpdater(() -> { updater.updateThreadObservers(); });
         }
 
         if(_delegate != null)

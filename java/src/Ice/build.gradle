@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -22,7 +22,7 @@ slice {
             files = [file("$sliceDir/Ice/BuiltinSequences.ice")]
         }
         nostream {
-            files = fileTree(dir: "$sliceDir", includes:['Ice/*.ice', 'IceSSL/*.ice'],
+            files = fileTree(dir: "$sliceDir", includes:['Ice/*.ice'],
                 excludes:['Ice/*F.ice', 'Ice/BuiltinSequences.ice'])
         }
     }

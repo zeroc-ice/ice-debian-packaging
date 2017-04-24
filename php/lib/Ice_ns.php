@@ -1,7 +1,7 @@
 <?php
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -167,7 +167,25 @@ namespace Ice
         const SlicedFormat = 2;
     }
 
-    $Ice_sliceChecksums = array();
+    class SliceChecksumInit
+    {
+        public function __construct($checksums)
+        {
+            SliceChecksumInit::$_checksums = array_merge(SliceChecksumInit::$_checksums, $checksums);
+        }
+        
+        public static function checksums()
+        {
+            return SliceChecksumInit::$_checksums;;
+        }
+        
+        private static $_checksums = array();
+    };
+
+    function sliceChecksums()
+    {
+        return SliceChecksumInit::checksums();
+    }
 }
 
 namespace

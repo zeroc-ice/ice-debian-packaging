@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -589,8 +589,8 @@ public final class ReferenceFactory
         com.zeroc.Ice.EncodingVersion encoding;
         if(!s.getEncoding().equals(com.zeroc.Ice.Util.Encoding_1_0))
         {
-            protocol = com.zeroc.Ice.ProtocolVersion.ice_read(s, null);
-            encoding = com.zeroc.Ice.EncodingVersion.ice_read(s, null);
+            protocol = com.zeroc.Ice.ProtocolVersion.ice_read(s);
+            encoding = com.zeroc.Ice.EncodingVersion.ice_read(s);
         }
         else
         {

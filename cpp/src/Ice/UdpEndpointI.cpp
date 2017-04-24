@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -140,7 +140,8 @@ IceInternal::UdpEndpointI::datagram() const
 TransceiverPtr
 IceInternal::UdpEndpointI::transceiver() const
 {
-    return new UdpTransceiver(ICE_DYNAMIC_CAST(UdpEndpointI, ICE_SHARED_FROM_CONST_THIS(UdpEndpointI)), _instance, _host, _port, _mcastInterface, _connect);
+    return new UdpTransceiver(ICE_DYNAMIC_CAST(UdpEndpointI, ICE_SHARED_FROM_CONST_THIS(UdpEndpointI)), _instance,
+                              _host, _port, _mcastInterface, _connect);
 }
 
 AcceptorPtr
@@ -152,8 +153,16 @@ IceInternal::UdpEndpointI::acceptor(const string&) const
 UdpEndpointIPtr
 IceInternal::UdpEndpointI::endpoint(const UdpTransceiverPtr& transceiver) const
 {
-    return ICE_MAKE_SHARED(UdpEndpointI, _instance, _host, transceiver->effectivePort(), _sourceAddr, _mcastInterface,
-                           _mcastTtl, _connect, _connectionId, _compress);
+    int port = transceiver->effectivePort();
+    if(port == _port)
+    {
+        return ICE_DYNAMIC_CAST(UdpEndpointI, ICE_SHARED_FROM_CONST_THIS(UdpEndpointI));
+    }
+    else
+    {
+        return ICE_MAKE_SHARED(UdpEndpointI, _instance, _host, port, _sourceAddr, _mcastInterface,_mcastTtl, _connect,
+                               _connectionId, _compress);
+    }
 }
 
 void

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -218,7 +218,7 @@ public final class ObjectAdapterFactory
     }
 
     public void
-    flushAsyncBatchRequests(CommunicatorFlushBatch outAsync)
+    flushAsyncBatchRequests(Ice.CompressBatch compressBatch, CommunicatorFlushBatch outAsync)
     {
         java.util.List<Ice.ObjectAdapterI> adapters;
         synchronized(this)
@@ -228,7 +228,7 @@ public final class ObjectAdapterFactory
 
         for(Ice.ObjectAdapterI adapter : adapters)
         {
-            adapter.flushAsyncBatchRequests(outAsync);
+            adapter.flushAsyncBatchRequests(compressBatch, outAsync);
         }
     }
 

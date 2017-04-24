@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -415,6 +415,15 @@ private:
     }
     @throw nsex;
     return nil; // Keep the compiler happy.
+}
+
++(id<ICECommunicator>) createCommunicator:(int*)argc argv:(char*[])argv configFile:(NSString*)configFile
+{
+    ICEInitializationData* initData = [ICEInitializationData initializationData];
+    initData.properties = [ICEUtil createProperties];
+    [initData.properties load:configFile];
+
+    return [self createCommunicator:argc argv:argv initData:initData];
 }
 
 +(id<ICEInputStream>) createInputStream:(id<ICECommunicator>)c data:(NSData*)data

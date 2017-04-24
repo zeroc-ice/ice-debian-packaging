@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -18,9 +18,9 @@ project = $(patsubst $(lang_srcdir)/%,%,$(if $1,$1,$(currentdir)))
 #
 # The platforms, configs and languages to build.
 #
-platforms 		= $(if $(filter all,$(PLATFORMS)),$(supported-platforms),$(PLATFORMS))
-configs 		= $(if $(filter all,$(CONFIGS)),$(supported-configs),$(CONFIGS))
-languages 		= $(if $(filter all,$(or $(LANGUAGES),all)),$(supported-languages),$(LANGUAGES))
+platforms 		= $(filter-out $(SKIP),$(if $(filter all,$(PLATFORMS)),$(supported-platforms),$(PLATFORMS)))
+configs 		= $(filter-out $(SKIP),$(if $(filter all,$(CONFIGS)),$(supported-configs),$(CONFIGS)))
+languages 		= $(filter-out $(SKIP),$(if $(filter all,$(or $(LANGUAGES),all)),$(supported-languages),$(LANGUAGES)))
 build-platform		:= $(or $(build-platform),$(firstword $(supported-platforms)))
 
 #
@@ -100,11 +100,16 @@ $(addprefix $3/,$(call source-to-object,$4)): $(addprefix $2/,$(call generated-t
 					      $(foreach d,$5,$($d_targets))
 endif
 
+# Add a dedependency on generated headers from dependencies. This will only work if dependency
+# Makefile.mk are loaded before this component Makefile.mk.
+$(addprefix $3/,$(call source-to-object,$4)): | $(foreach d,$5,$($($d_component)_generated_headers))
+
 .PRECIOUS: $3/%.d
 
 ifeq ($(filter %clean print,$(MAKECMDGOALS)),)
     # Include the dependencies
     -include $(addprefix $3/,$(call source-to-dependency,$4))
+    -include $(addprefix $3/,$(call source-to-dependency,$(call generated-to-source,$4,$7)))
 endif
 
 ifneq ($(filter %.ice $2/%.$7,$4),)
@@ -189,8 +194,11 @@ endef
 define make-flex
 $1/%.cpp: $1/%.l
 	@$(RM) $$@
-	echo '#include <IceUtil/ScannerConfig.h>' >> $$@
-	flex -t $2 $$< >> $$@
+	flex $2 -o $$@ $$<
+	@$(MV) $$@ $$@.tail
+	@echo '#include <IceUtil/ScannerConfig.h>' >> $$@
+	@cat $$@.tail >> $$@
+	@$(RM) $$@.tail
 endef
 
 
@@ -326,6 +334,7 @@ get-program-targets = $2/$1$(EXE_EXT)
 #
 define create-component-with-config-targets
 
+$5_component 	:= $2
 $5_platform 	:= $3
 $5_config 	:= $4
 $2_components	:= $5
@@ -349,7 +358,7 @@ $5_soversion	:= $$(call var-value,soversion,$1,$2,$3,$4)
 #
 # Transform the dependencies to [platform-configuration] specific dependencies.
 #
-$5_dependencies := $$(call var-compound,dependencies,$1,$2,$3,$4,make-deps)
+$5_dependencies := $$(call var-rcompound,dependencies,$1,$2,$3,$4,make-deps)
 $5_libs		:= $$(call var-compound,libs,$1,$2,$3,$4,make-unique)
 $5_system_libs	:= $$(call var-compound,system_libs,$1,$2,$3,$4)
 
@@ -532,7 +541,7 @@ $2_sliceflags :=
 endif
 
 $2_install_platforms	:= $$(or $$($2_install_platforms),$$($1_install_platforms),$$($2_platforms))
-$2_install_configs	:= $$(or $$($2_install_configs),$$($1_install_configs),$$($2_configs) $$($2_always_enable_configs))
+$2_install_configs	:= $$(or $$($2_install_configs),$$($1_install_configs),$$($2_configs))
 
 #
 # The source directory can be set at the component or project level.
@@ -804,10 +813,16 @@ $1_targetdir	:= $(call bindir,$1)
 #
 # Only build the translator with the static configuration
 #
-$1_configs	:= static
-$1_platforms    := $(build-platform)
-$(notdir $1)_always_enable_configs := static
-$(notdir $1)_always_enable_platforms := $(build-platform)
+$1_configs		:= static
+
+# Make sure the static/$(build-platform) are always enabled, the native translators
+# are required to build the sources for foreign architectures
+$(notdir $1)_always_enable_configs 	:= static
+$(notdir $1)_always_enable_platforms 	:= $(build-platform)
+
+# However, don't always install the translator for the $(build-platforms) if it's
+# not explicitly listed in $(PLATFORMS)
+$1_install_platforms	:= $(call component-platforms,$1,$(notdir $1))
 
 #
 # Defines the target extension and path of the slice translator
@@ -815,7 +830,7 @@ $(notdir $1)_always_enable_platforms := $(build-platform)
 # on the translator for slice files.
 #
 $(notdir $1)_targetext	:= $$(or $$($(notdir $1)_targetext),$(patsubst slice2%,%,$(or $2,$(notdir $1))))
-$(notdir $1)_path 	= $$($(notdir $1)[$$(firstword $$(supported-platforms))-static]_targetdir)/$(notdir $1)
+$(notdir $1)_path 	= $$($(notdir $1)[$(build-platform)-static]_targetdir)/$(notdir $1)
 
 projects 	+= $(project)
 endef
@@ -877,9 +892,8 @@ mappingdir  	= $(patsubst $(lang_srcdir)/%,%,$(if $(filter-out ../%,$1),$2,$(top
 # $(call subconfigs,$1=config)
 subconfigs = $(subst -,$(space),$1)
 
-# $(call var-names,$1=varname,$2=project,$3=component,$4=platform,$5=config)
-var-names = $(if $3,$3[$4-$5]_$1 $3[$4]_$1 $(foreach c,$(call subconfigs,$5),$3[$c]_$1) $3_$1) \
-	    $2[$4-$5]_$1 $2[$4]_$1 $(foreach c,$(call subconfigs,$5),$2[$c]_$1) $2_$1
+# $(call var-names,$1=varname,$2=project-or-comp,$3=platform,$4=config)
+var-names  = $(if $2,$2[$3-$4]_$1 $2[$3]_$1 $(foreach c,$(call subconfigs,$4),$2[$c]_$1) $2_$1)
 
 #
 # $(call var-value,$1=varname,$2=project,$3=component,$4=platform,$5=config,$6=fn)
@@ -891,14 +905,18 @@ var-names = $(if $3,$3[$4-$5]_$1 $3[$4]_$1 $(foreach c,$(call subconfigs,$5),$3[
 #
 var-valu1 = $(if $(and $1,$(filter undefined,$(origin $(firstword $1)))),$(call var-valu1,$(wordlist 2,$(words $1),$1)),$($(firstword $1)))
 var-valu2 = $6
-var-value = $(call $(or $6,var-valu2),$1,$3,$4,$5,$3[$4-$5],$(call var-valu1,$(var-names)))
+var-value-names = $(call var-names,$1,$3,$4,$5) $(call var-names,$1,$2,$4,$5) $1
+var-value = $(call $(or $6,var-valu2),$1,$3,$4,$5,$3[$4-$5],$(call var-valu1,$(var-value-names)))
 
 #
 # $(call var-compound,$1=varname,$2=project,$3=component,$4=platform,$5=config,$6=fn)
 # Returns the combination of all the values for the given variable name defined at the
-# project/component /platform/configuration level.
+# project/component/platform/configuration level.
 #
-var-compound 	= $(call $(or $6,var-valu2),$1,$3,$4,$5,$3[$4-$5],$(strip $(foreach v,$(var-names),$($v))))
+var-comp-names  = $1 $(call var-names,$1,$2,$4,$5) $(call var-names,$1,$3,$4,$5)
+var-rcomp-names = $(call var-names,$1,$3,$4,$5) $(call var-names,$1,$2,$4,$5) $1
+var-compound 	= $(call $(or $6,var-valu2),$1,$3,$4,$5,$3[$4-$5],$(strip $(foreach v,$(var-comp-names),$($v))))
+var-rcompound 	= $(call $(or $6,var-valu2),$1,$3,$4,$5,$3[$4-$5],$(strip $(foreach v,$(var-rcomp-names),$($v))))
 
 #
 # Return the given value after applying platform/configuration customization.

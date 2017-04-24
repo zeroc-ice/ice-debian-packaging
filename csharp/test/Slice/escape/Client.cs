@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -37,14 +37,6 @@ public class Client
         }
     }
 
-    public sealed class delegateI : @abstract.delegateDisp_
-    {
-        public override void foo(@abstract.casePrx @else, out int @event, Ice.Current current)
-        {
-            @event = 0;
-        }
-    }
-
     public sealed class explicitI : @abstract.explicitDisp_
     {
         public override Task<int>
@@ -57,17 +49,12 @@ public class Client
         {
             test(current.operation == "default");
         }
-
-        public override void foo(@abstract.casePrx @else, out int @event, Ice.Current current)
-        {
-            @event = 0;
-        }
     }
 
     public sealed class implicitI : @abstract.@implicit
     {
         public @abstract.@as @in(@abstract.@break @internal, @abstract.@delegate @is, @abstract.@explicit @lock,
-                                 @abstract.casePrx @namespace, @abstract.decimalPrx @new, @abstract.delegatePrx @null,
+                                 @abstract.casePrx @namespace, @abstract.decimalPrx @new, @abstract.@delegate @null,
                                  @abstract.explicitPrx @operator, int @override, int @params, int @private)
         {
             return @abstract.@as.@base;
@@ -115,10 +102,8 @@ public class Client
         test(d1 == null);
         @abstract.@delegate e = new @abstract.@delegate();
         test(e != null);
-        @abstract.@delegatePrx e1 = null;
+        @abstract.@delegate e1 = null;
         test(e1 == null);
-        @abstract.@explicit f = new @abstract.@explicit();
-        test(f != null);
         @abstract.@explicitPrx f1 = null;
         if(f1 != null)
         {

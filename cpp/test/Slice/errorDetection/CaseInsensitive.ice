@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -190,11 +190,7 @@ enum en1 { red };
 enum eN1 { lilac };
 enum m1 { green };
 enum M1 { blue };
-
-enum en2 { yellow, en1 };
-enum en3 { EN1 };
-enum en4 { amber, m1 };
-enum en5 { M1 };
+enum en2 { yellow, en1, EN1};
 
 module xxx
 {

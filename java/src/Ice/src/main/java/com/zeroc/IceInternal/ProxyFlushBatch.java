@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -15,7 +15,8 @@ public class ProxyFlushBatch extends ProxyOutgoingAsyncBaseI<Void>
     {
         super(prx, "ice_flushBatchRequests");
         _observer = ObserverHelper.get(prx, "ice_flushBatchRequests");
-        _batchRequestNum = prx._getBatchRequestQueue().swap(_os);
+        BatchRequestQueue.SwapResult r = prx._getBatchRequestQueue().swap(_os);
+        _batchRequestNum = r != null ? r.batchRequestNum : 0;
     }
 
     @Override

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -46,8 +46,8 @@ protected:
     void writeMarshaledResultType(::IceUtilInternal::Output&, const OperationPtr&, const std::string&,
                                   const DocCommentPtr&);
 
-    void allocatePatcher(::IceUtilInternal::Output&, const TypePtr&, const std::string&, const std::string&);
-    std::string getPatcher(const TypePtr&, const std::string&, const std::string&, bool);
+    void allocatePatcher(::IceUtilInternal::Output&, const TypePtr&, const std::string&, const std::string&, bool);
+    std::string getPatcher(const TypePtr&, const std::string&, const std::string&);
 
     std::string getFutureType(const OperationPtr&, const std::string&);
     std::string getFutureImplType(const OperationPtr&, const std::string&);

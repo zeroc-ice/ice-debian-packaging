@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -805,7 +805,7 @@ Confluence::ConfluenceOutput::getMarkerLimits(const string& str)
         }
         else
         {
-            consoleErr << "getEscaperLimits FOUND START OF ESCAPE MARKER WITH NO MATCHING END IN STRING:"
+            consoleErr << "getMarkerLimits FOUND START OF ESCAPE MARKER WITH NO MATCHING END IN STRING:"
                        << endl << str.substr(start) << endl;
             break;
         }

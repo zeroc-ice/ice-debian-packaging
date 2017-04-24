@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -13,7 +13,7 @@ def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-class EmptyI(Test._EmptyDisp):
+class EmptyI(Test.Empty):
     pass
 
 def allTests(communicator):

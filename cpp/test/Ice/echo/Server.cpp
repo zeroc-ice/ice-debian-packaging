@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -23,6 +23,11 @@ public:
     EchoI(const BlobjectIPtr& blob) :
         _blob(blob)
     {
+    }
+
+    virtual void setConnection(const Ice::Current& current)
+    {
+        _blob->setConnection(current.con);
     }
 
     virtual void startBatch(const Ice::Current&)

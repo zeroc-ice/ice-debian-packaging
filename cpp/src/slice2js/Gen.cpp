@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -159,9 +159,13 @@ Slice::JsVisitor::getValue(const string& scope, const TypePtr& type)
             case Builtin::KindByte:
             case Builtin::KindShort:
             case Builtin::KindInt:
-            case Builtin::KindLong:
             {
                 return "0";
+                break;
+            }
+            case Builtin::KindLong:
+            {
+                return "new Ice.Long(0, 0)";
                 break;
             }
             case Builtin::KindFloat:
@@ -185,7 +189,7 @@ Slice::JsVisitor::getValue(const string& scope, const TypePtr& type)
     EnumPtr en = EnumPtr::dynamicCast(type);
     if(en)
     {
-        return getReference(scope, en->scoped()) + '.' + fixId((*en->getEnumerators().begin())->name());
+        return getReference(scope, en->scoped()) + '.' + fixId((*en->enumerators().begin())->name());
     }
 
     StructPtr st = StructPtr::dynamicCast(type);
@@ -238,17 +242,9 @@ Slice::JsVisitor::writeConstantValue(const string& scope, const TypePtr& type, c
         }
         else if((ep = EnumPtr::dynamicCast(type)))
         {
-            string::size_type colon = value.rfind(':');
-            string enumerator;
-            if(colon != string::npos)
-            {
-                enumerator = fixId(value.substr(colon + 1));
-            }
-            else
-            {
-                enumerator = fixId(value);
-            }
-            os << getReference(scope, ep->scoped()) << '.' << enumerator;
+            EnumeratorPtr lte = EnumeratorPtr::dynamicCast(valueType);
+            assert(lte);
+            os << getReference(scope, ep->scoped()) << '.' << fixId(lte->name());
         }
         else
         {
@@ -463,7 +459,7 @@ Slice::Gen::printHeader()
     static const char* header =
 "// **********************************************************************\n"
 "//\n"
-"// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.\n"
+"// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.\n"
 "//\n"
 "// This copy of Ice is licensed to you under the terms described in the\n"
 "// ICE_LICENSE file included in this distribution.\n"
@@ -1089,10 +1085,10 @@ Slice::Gen::TypesVisitor::visitClassDefStart(const ClassDefPtr& p)
     {
         _out << sp;
         writeDocComment(p, getDeprecateReason(p, 0, "type"));
-        _out << nl << localScope << "._" << p->name() << "Disp" << " = class extends ";
+        _out << nl << localScope << "." << (p->isInterface() ? p->name() :  p->name() + "Disp") << " = class extends ";
         if(hasBaseClass)
         {
-            _out << getLocalScope(base->scope())  << "._" << base->name() << "Disp";
+            _out << getLocalScope(base->scope())  << "." << base->name() << "Disp";
         }
         else
         {
@@ -1112,7 +1108,8 @@ Slice::Gen::TypesVisitor::visitClassDefStart(const ClassDefPtr& p)
                 ClassDefPtr base = *q;
                 if(base->isInterface())
                 {
-                    _out << nl << getLocalScope(base->scope()) << "._" << base->name()<< "Disp" ;
+                    _out << nl << getLocalScope(base->scope()) << "." << 
+                        (base->isInterface() ? base->name() : base->name() + "Disp");
                     if(++q != bases.end())
                     {
                         _out << ", ";
@@ -1180,7 +1177,7 @@ Slice::Gen::TypesVisitor::visitClassDefStart(const ClassDefPtr& p)
         }
 
         _out << sp << nl << "Slice.defineOperations("
-             << localScope << "._" << p->name() << "Disp, "
+             << localScope << "." << (p->isInterface() ? p->name() : p->name() + "Disp") << ", "
              << proxyType << ", "
              << "iceC_" << getLocalScope(scoped, "_") << "_ids, "
              << scopedPos;
@@ -1723,7 +1720,7 @@ Slice::Gen::TypesVisitor::visitEnum(const EnumPtr& p)
     _out.inc();
     _out << nl;
 
-    const EnumeratorList enumerators = p->getEnumerators();
+    const EnumeratorList enumerators = p->enumerators();
     int i = 0;
     for(EnumeratorList::const_iterator en = enumerators.begin(); en != enumerators.end(); ++en)
     {

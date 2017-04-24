@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -35,8 +35,8 @@ coreandstub_components	= IceUtil \
 			  IceBox \
 			  IcePatch2
 
-# Add the Bluetooth transport for Debian/Ubuntu
-ifneq ($(filter debian ubuntu,$(linux_id)),)
+# Add the Bluetooth transport for Debian/Ubuntu/Yocto
+ifneq ($(filter debian ubuntu yocto,$(linux_id)),)
 coreandstub_components	+= IceXML IceBT
 endif
 
@@ -51,8 +51,8 @@ shared_excludes         = IceUtil Slice
 # Build only few components with the static configuration (core and stubs)
 #
 static_components       = $(coreandstub_components)
-static_projects         = test/%
-static_excludes         = test/Ice/library
+static_projects         = test/Common test/Ice/% test/IceSSL/% test/IceDiscovery/simple test/IceGrid/simple
+static_excludes         = test/Ice/library test/Ice/plugin
 
 #
 # Components and projects which are built with C++11
@@ -128,8 +128,8 @@ define create-cpp-test-project
 $1_srcext		:= cpp
 $1_dependencies 	:= $$(or $$($1_dependencies),TestCommon Ice)
 
-# Also link with IceSSL and IceBT (Debian/Ubuntu) when compiling the project with the static configuration
-$1[static]_dependencies	:= IceSSL $(if $(filter debian ubuntu,$(linux_id)),IceBT)
+# Also link with IceSSL and IceBT (Debian/Ubuntu/Yocto) when compiling the project with the static configuration
+$1[static]_dependencies	:= IceSSL $(if $(filter debian ubuntu yocto,$(linux_id)),IceBT)
 
 # Dependencies and target dirs for Xcode SDK test projects
 $1[xcodesdk]_dependencies 			:= IceSSL

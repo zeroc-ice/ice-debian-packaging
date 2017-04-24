@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -58,7 +58,7 @@ SessionManager::findAllQueryObjects(bool cached)
             {
                 try
                 {
-                    connection->close(Ice::CloseGracefullyAndWait);
+                    connection->close(Ice::ICE_SCOPED_ENUM(ConnectionClose, GracefullyWithWait));
                 }
                 catch(const Ice::LocalException&)
                 {

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -336,6 +336,12 @@ namespace IceInternal
             return _batchAutoFlushSize;
         }
 
+        public int classGraphDepthMax()
+        {
+            // No mutex lock, immutable.
+            return _classGraphDepthMax;
+        }
+
         public Ice.ToStringMode
         toStringMode()
         {
@@ -655,12 +661,13 @@ namespace IceInternal
         }
 
         public void
-        setThreadHook(Ice.ThreadNotification threadHook)
+        setThreadHook(System.Action threadStart, System.Action threadStop)
         {
             //
             // No locking, as it can only be called during plug-in loading
             //
-            _initData.threadHook = threadHook;
+            _initData.threadStart = threadStart;
+            _initData.threadStop = threadStop;
         }
 
         public Type resolveClass(string id)
@@ -856,6 +863,19 @@ namespace IceInternal
                     }
                 }
 
+                {
+                    const int defaultValue = 100;
+                    var num = _initData.properties.getPropertyAsIntWithDefault("Ice.ClassGraphDepthMax", defaultValue);
+                    if(num < 1 || num > 0x7fffffff)
+                    {
+                        _classGraphDepthMax = 0x7fffffff;
+                    }
+                    else
+                    {
+                        _classGraphDepthMax = num;
+                    }
+                }
+
                 string toStringModeStr = _initData.properties.getPropertyWithDefault("Ice.ToStringMode", "Unicode");
                 if(toStringModeStr == "Unicode")
                 {
@@ -929,6 +949,22 @@ namespace IceInternal
                 _objectAdapterFactory = new ObjectAdapterFactory(this, communicator);
 
                 _retryQueue = new RetryQueue(this);
+
+                if(_initData.properties.getPropertyAsIntWithDefault("Ice.PreloadAssemblies", 0) > 0)
+                {
+                    AssemblyUtil.preloadAssemblies();
+                }
+
+#pragma warning disable 618
+                if(_initData.threadStart == null && _initData.threadHook != null)
+                {
+                    _initData.threadStart = _initData.threadHook.start;
+                }
+                if(_initData.threadStop == null && _initData.threadHook != null)
+                {
+                    _initData.threadStop = _initData.threadHook.stop;
+                }
+#pragma warning restore 618
             }
             catch(Ice.LocalException)
             {
@@ -1543,6 +1579,7 @@ namespace IceInternal
         private DefaultsAndOverrides _defaultsAndOverrides; // Immutable, not reset by destroy().
         private int _messageSizeMax; // Immutable, not reset by destroy().
         private int _batchAutoFlushSize; // Immutable, not reset by destroy().
+        private int _classGraphDepthMax; // Immutable, not reset by destroy().
         private Ice.ToStringMode _toStringMode; // Immutable, not reset by destroy().
         private int _cacheMessageBuffers; // Immutable, not reset by destroy().
         private ACMConfig _clientACM; // Immutable, not reset by destroy().

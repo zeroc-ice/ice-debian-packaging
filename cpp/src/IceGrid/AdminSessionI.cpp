@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -499,7 +499,7 @@ AdminSessionFactory::AdminSessionFactory(const SessionServantManagerPtr& servant
                                          const RegistryIPtr& registry) :
     _servantManager(servantManager),
     _database(database),
-    _timeout(registry->getSessionTimeout()),
+    _timeout(registry->getSessionTimeout(Ice::emptyCurrent)),
     _reaper(reaper),
     _registry(registry),
     _filters(false)

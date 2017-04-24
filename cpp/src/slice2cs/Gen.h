@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -27,9 +27,8 @@ protected:
 
     void writeMarshalUnmarshalParams(const ParamDeclList&, const OperationPtr&, bool, bool = false,
                                      bool = false, const std::string& = "");
-    void writePostUnmarshalParams(const ParamDeclList&, const OperationPtr&);
     void writeMarshalDataMember(const DataMemberPtr&, const std::string&, bool = false);
-    void writeUnmarshalDataMember(const DataMemberPtr&, const std::string&, bool, int&, bool = false);
+    void writeUnmarshalDataMember(const DataMemberPtr&, const std::string&, bool = false);
 
     virtual void writeInheritedOperations(const ClassDefPtr&);
     virtual void writeDispatch(const ClassDefPtr&);

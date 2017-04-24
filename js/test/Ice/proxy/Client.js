@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -12,7 +12,6 @@
     var Ice = require("ice").Ice;
     var IceSSL = require("ice").IceSSL;
     var Test = require("Test").Test;
-    var Promise = Ice.Promise;
 
     function allTests(communicator, out)
     {
@@ -33,18 +32,18 @@
             }
         };
 
-        var ref, base, prx, cl, derived, cl10, cl20, cl13, port;
+        var ref, base, prx, cl, derived, cl10, cl20, cl13, port, b1, b2, str, str2;
 
         var defaultProtocol = communicator.getProperties().getPropertyWithDefault("Ice.Default.Protocol", "tcp");
 
-        return Promise.try(() =>
+        return Ice.Promise.try(() =>
             {
                 out.write("testing stringToProxy... ");
                 ref = "test:default -p 12010";
                 base = communicator.stringToProxy(ref);
                 test(base !== null);
 
-                var b1 = communicator.stringToProxy("test");
+                b1 = communicator.stringToProxy("test");
                 test(b1.ice_getIdentity().name === "test" && b1.ice_getIdentity().category.length === 0 &&
                     b1.ice_getAdapterId().length === 0 && b1.ice_getFacet().length === 0);
                 b1 = communicator.stringToProxy("test ");
@@ -408,7 +407,7 @@
                 test(id.equals(id2));
 
                 idStr = Ice.identityToString(id, Ice.ToStringMode.Compat);
-                test(idStr === "greek \\360\\220\\205\\252/banana \\016-\\360\\237\\215\\214\\342\\202\\254\\302\\242$")
+                test(idStr === "greek \\360\\220\\205\\252/banana \\016-\\360\\237\\215\\214\\342\\202\\254\\302\\242$");
                 id2 = Ice.stringToIdentity(idStr);
                 test(id.equals(id2));
 
@@ -698,8 +697,9 @@
                 test(compObj.ice_connectionId("id1").ice_getConnectionId() === "id1");
                 test(compObj.ice_connectionId("id2").ice_getConnectionId() === "id2");
 
-                test(compObj.ice_compress(true).equals(compObj.ice_compress(true)));
-                test(!compObj.ice_compress(false).equals(compObj.ice_compress(true)));
+                // Proxy doesn't support ice_compress
+                //test(compObj.ice_compress(true).equals(compObj.ice_compress(true)));
+                //test(!compObj.ice_compress(false).equals(compObj.ice_compress(true)));
 
                 test(compObj.ice_timeout(20).equals(compObj.ice_timeout(20)));
                 test(!compObj.ice_timeout(10).equals(compObj.ice_timeout(20)));
@@ -1138,7 +1138,7 @@
     var run = function(out, id)
     {
         var communicator = Ice.initialize(id);
-        return Promise.try(() => allTests(communicator, out)).finally(() => communicator.destroy());
+        return Ice.Promise.try(() => allTests(communicator, out)).finally(() => communicator.destroy());
     };
     exports._test = run;
     exports._runServer = true;

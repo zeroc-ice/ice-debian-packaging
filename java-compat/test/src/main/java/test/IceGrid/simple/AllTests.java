@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -91,11 +91,6 @@ public class AllTests
             initData.properties.setProperty("Ice.Default.Locator", "");
             initData.properties.setProperty("Ice.Plugin.IceLocatorDiscovery",
                                             "IceLocatorDiscovery:IceLocatorDiscovery.PluginFactory");
-            if(System.getProperty("os.name").contains("OS X") &&
-               initData.properties.getPropertyAsInt("Ice.PreferIPv6Address") > 0)
-            {
-                initData.properties.setProperty("IceLocatorDiscovery.Interface", "::1");
-            }
             initData.properties.setProperty("IceLocatorDiscovery.Port", Integer.toString(app.getTestPort(99)));
             initData.properties.setProperty("AdapterForDiscoveryTest.AdapterId", "discoveryAdapter");
             initData.properties.setProperty("AdapterForDiscoveryTest.Endpoints", "default");

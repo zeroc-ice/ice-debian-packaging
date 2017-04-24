@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -122,6 +122,12 @@ public class AllTests
             test(udpEndpoint.host.equals(defaultHost));
             test(udpEndpoint.datagram());
             test(udpEndpoint.port > 0);
+
+            endpoints = new Ice.Endpoint[]{endpoints[0]};
+            test(endpoints.length == 1);
+            adapter.setPublishedEndpoints(endpoints);
+            publishedEndpoints = adapter.getPublishedEndpoints();
+            test(java.util.Arrays.equals(endpoints, publishedEndpoints));
 
             adapter.destroy();
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -155,24 +155,45 @@ public final class ConnectionI extends IceInternal.EventHandler
     }
 
     @Override
-    synchronized public void close(ConnectionClose mode)
+    public void close(final ConnectionClose mode)
     {
         if(Thread.interrupted())
         {
             throw new Ice.OperationInterruptedException();
         }
 
-        if(mode == ConnectionClose.CloseForcefully)
+        if(_instance.queueRequests())
+        {
+            _instance.getQueueExecutor().executeNoThrow(new Callable<Void>()
+            {
+                @Override
+                public Void call()
+                    throws Exception
+                {
+                    closeImpl(mode);
+                    return null;
+                }
+            });
+        }
+        else
+        {
+            closeImpl(mode);
+        }
+    }
+
+    private synchronized void closeImpl(ConnectionClose mode)
+    {
+        if(mode == ConnectionClose.Forcefully)
         {
             setState(StateClosed, new ConnectionManuallyClosedException(false));
         }
-        else if(mode == ConnectionClose.CloseGracefully)
+        else if(mode == ConnectionClose.Gracefully)
         {
             setState(StateClosing, new ConnectionManuallyClosedException(true));
         }
         else
         {
-            assert(mode == ConnectionClose.CloseGracefullyAndWait);
+            assert(mode == ConnectionClose.GracefullyWithWait);
 
             //
             // Wait until all outstanding requests have been completed.
@@ -296,7 +317,7 @@ public final class ConnectionI extends IceInternal.EventHandler
         {
             if(acm.heartbeat != ACMHeartbeat.HeartbeatOnInvocation || _dispatchCount > 0)
             {
-                heartbeat();
+                sendHeartbeatNow();
             }
         }
 
@@ -420,58 +441,62 @@ public final class ConnectionI extends IceInternal.EventHandler
     }
 
     @Override
-    public void flushBatchRequests()
+    public void flushBatchRequests(Ice.CompressBatch compressBatch)
     {
-        end_flushBatchRequests(begin_flushBatchRequests());
+        end_flushBatchRequests(begin_flushBatchRequests(compressBatch));
     }
 
     private static final String _flushBatchRequests_name = "flushBatchRequests";
 
     @Override
-    public Ice.AsyncResult begin_flushBatchRequests()
+    public Ice.AsyncResult begin_flushBatchRequests(Ice.CompressBatch compressBatch)
     {
-        return begin_flushBatchRequestsInternal(null);
+        return begin_flushBatchRequestsInternal(compressBatch, null);
     }
 
     @Override
-    public Ice.AsyncResult begin_flushBatchRequests(Callback cb)
+    public Ice.AsyncResult begin_flushBatchRequests(Ice.CompressBatch compressBatch, Callback cb)
     {
-        return begin_flushBatchRequestsInternal(cb);
+        return begin_flushBatchRequestsInternal(compressBatch, cb);
     }
 
     @Override
-    public Ice.AsyncResult begin_flushBatchRequests(Callback_Connection_flushBatchRequests cb)
+    public Ice.AsyncResult begin_flushBatchRequests(Ice.CompressBatch compressBatch,
+                                                    Callback_Connection_flushBatchRequests cb)
     {
-        return begin_flushBatchRequestsInternal(cb);
+        return begin_flushBatchRequestsInternal(compressBatch, cb);
     }
 
     @Override
-    public AsyncResult begin_flushBatchRequests(IceInternal.Functional_VoidCallback responseCb,
-            IceInternal.Functional_GenericCallback1<Ice.Exception> exceptionCb,
-            IceInternal.Functional_BoolCallback sentCb)
+    public AsyncResult begin_flushBatchRequests(Ice.CompressBatch compressBatch,
+                                                IceInternal.Functional_VoidCallback responseCb,
+                                                IceInternal.Functional_GenericCallback1<Ice.Exception> exceptionCb,
+                                                IceInternal.Functional_BoolCallback sentCb)
     {
-        return begin_flushBatchRequestsInternal(new IceInternal.Functional_CallbackBase(false, exceptionCb, sentCb)
-        {
-            @Override
-            public final void _iceCompleted(AsyncResult result)
-            {
-                try
-                {
-                    result.getConnection().end_flushBatchRequests(result);
-                }
-                catch(Exception ex)
-                {
-                    _exceptionCb.apply(ex);
-                }
-            }
-        });
+        return begin_flushBatchRequestsInternal(compressBatch,
+                                                new IceInternal.Functional_CallbackBase(false, exceptionCb, sentCb)
+                                                {
+                                                    @Override
+                                                    public final void _iceCompleted(AsyncResult result)
+                                                    {
+                                                        try
+                                                        {
+                                                            result.getConnection().end_flushBatchRequests(result);
+                                                        }
+                                                        catch(Exception ex)
+                                                        {
+                                                            _exceptionCb.apply(ex);
+                                                        }
+                                                    }
+                                                });
     }
 
-    private Ice.AsyncResult begin_flushBatchRequestsInternal(IceInternal.CallbackBase cb)
+    private Ice.AsyncResult begin_flushBatchRequestsInternal(Ice.CompressBatch compressBatch,
+                                                             IceInternal.CallbackBase cb)
     {
         IceInternal.ConnectionFlushBatch result =
             new IceInternal.ConnectionFlushBatch(this, _communicator, _instance, _flushBatchRequests_name, cb);
-        result.invoke();
+        result.invoke(compressBatch);
         return result;
     }
 
@@ -778,69 +803,135 @@ public final class ConnectionI extends IceInternal.EventHandler
     }
 
     @Override
-    synchronized public void sendResponse(int requestId, OutputStream os, byte compressFlag, boolean amd)
+    public void sendResponse(int requestId, final OutputStream os, final byte compressFlag, boolean amd)
     {
-        assert (_state > StateNotValidated);
+        boolean queueResponse = false;
 
-        try
+        synchronized(this)
         {
-            if(--_dispatchCount == 0)
+            assert (_state > StateNotValidated);
+
+            try
             {
-                if(_state == StateFinished)
+                if(--_dispatchCount == 0)
                 {
-                    reap();
+                    if(_state == StateFinished)
+                    {
+                        reap();
+                    }
+                    notifyAll();
                 }
-                notifyAll();
+
+                if(_state >= StateClosed)
+                {
+                    assert (_exception != null);
+                    throw (Ice.LocalException) _exception.fillInStackTrace();
+                }
+
+                //
+                // We may be executing on the "main thread" (e.g., in Android together with a custom dispatcher)
+                // and therefore we have to defer network calls to a separate thread.
+                //
+                if(_instance.queueRequests())
+                {
+                    queueResponse = true;
+                }
+                else
+                {
+                    sendMessage(new OutgoingMessage(os, compressFlag != 0, true));
+
+                    if(_state == StateClosing && _dispatchCount == 0)
+                    {
+                        initiateShutdown();
+                    }
+                }
             }
-
-            if(_state >= StateClosed)
+            catch(LocalException ex)
             {
-                assert (_exception != null);
-                throw (Ice.LocalException) _exception.fillInStackTrace();
-            }
-
-            sendMessage(new OutgoingMessage(os, compressFlag != 0, true));
-
-            if(_state == StateClosing && _dispatchCount == 0)
-            {
-                initiateShutdown();
+                setState(StateClosed, ex);
             }
         }
-        catch(LocalException ex)
+
+        if(queueResponse)
         {
-            setState(StateClosed, ex);
+            _instance.getQueueExecutor().executeNoThrow(new Callable<Void>()
+            {
+                @Override
+                public Void call()
+                    throws Exception
+                {
+                    synchronized(ConnectionI.this)
+                    {
+                        try
+                        {
+                            sendMessage(new OutgoingMessage(os, compressFlag != 0, true));
+
+                            if(_state == StateClosing && _dispatchCount == 0)
+                            {
+                                initiateShutdown();
+                            }
+                        }
+                        catch(Ice.LocalException ex)
+                        {
+                            setState(StateClosed, ex);
+                        }
+                    }
+                    return null;
+                }
+            });
         }
     }
 
     @Override
-    synchronized public void sendNoResponse()
+    public void sendNoResponse()
     {
-        assert (_state > StateNotValidated);
-        try
+        boolean shutdown = false;
+
+        synchronized(this)
         {
-            if(--_dispatchCount == 0)
+            assert (_state > StateNotValidated);
+            try
             {
-                if(_state == StateFinished)
+                if(--_dispatchCount == 0)
                 {
-                    reap();
+                    if(_state == StateFinished)
+                    {
+                        reap();
+                    }
+                    notifyAll();
                 }
-                notifyAll();
-            }
 
-            if(_state >= StateClosed)
-            {
-                assert (_exception != null);
-                throw (Ice.LocalException) _exception.fillInStackTrace();
-            }
+                if(_state >= StateClosed)
+                {
+                    assert (_exception != null);
+                    throw (Ice.LocalException) _exception.fillInStackTrace();
+                }
 
-            if(_state == StateClosing && _dispatchCount == 0)
+                if(_state == StateClosing && _dispatchCount == 0)
+                {
+                    //
+                    // We may be executing on the "main thread" (e.g., in Android together with a custom dispatcher)
+                    // and therefore we have to defer network calls to a separate thread.
+                    //
+                    if(_instance.queueRequests())
+                    {
+                        shutdown = true;
+                    }
+                    else
+                    {
+                        initiateShutdown();
+                    }
+                }
+            }
+            catch(LocalException ex)
             {
-                initiateShutdown();
+                setState(StateClosed, ex);
             }
         }
-        catch(LocalException ex)
+
+        if(shutdown)
         {
-            setState(StateClosed, ex);
+            queueShutdown(false);
         }
     }
 
@@ -1309,7 +1400,7 @@ public final class ConnectionI extends IceInternal.EventHandler
         //
         if(dispatchedCount > 0)
         {
-            boolean queueShutdown = false;
+            boolean shutdown = false;
 
             synchronized(this)
             {
@@ -1330,7 +1421,7 @@ public final class ConnectionI extends IceInternal.EventHandler
                             // We can't call initiateShutdown() from this thread in certain
                             // situations (such as in Android).
                             //
-                            queueShutdown = true;
+                            shutdown = true;
                         }
                         else
                         {
@@ -1348,35 +1439,16 @@ public final class ConnectionI extends IceInternal.EventHandler
                     {
                         reap();
                     }
-                    if(!queueShutdown)
+                    if(!shutdown)
                     {
                         notifyAll();
                     }
                 }
             }
 
-            if(queueShutdown)
+            if(shutdown)
             {
-                _instance.getQueueExecutor().executeNoThrow(new Callable<Void>()
-                {
-                    @Override
-                    public Void call() throws Exception
-                    {
-                        synchronized(ConnectionI.this)
-                        {
-                            try
-                            {
-                                initiateShutdown();
-                            }
-                            catch(Ice.LocalException ex)
-                            {
-                                setState(StateClosed, ex);
-                            }
-                            ConnectionI.this.notifyAll();
-                        }
-                        return null;
-                    }
-                });
+                queueShutdown(true);
             }
         }
     }
@@ -1485,8 +1557,9 @@ public final class ConnectionI extends IceInternal.EventHandler
         {
             if(_instance.queueRequests())
             {
-                // The connectStartFailed method might try to connect with another
-                // connector.
+                //
+                // The connectionStartFailed method might try to connect with another connector.
+                //
                 _instance.getQueueExecutor().executeNoThrow(new Callable<Void>()
                 {
                     @Override
@@ -2059,9 +2132,41 @@ public final class ConnectionI extends IceInternal.EventHandler
         }
     }
 
+    private void queueShutdown(final boolean notify)
+    {
+        //
+        // Must be called without synchronization!
+        //
+        _instance.getQueueExecutor().executeNoThrow(new Callable<Void>()
+        {
+            @Override
+            public Void call()
+                throws Exception
+            {
+                synchronized(ConnectionI.this)
+                {
+                    try
+                    {
+                        initiateShutdown();
+                    }
+                    catch(Ice.LocalException ex)
+                    {
+                        setState(StateClosed, ex);
+                    }
+
+                    if(notify)
+                    {
+                        ConnectionI.this.notifyAll();
+                    }
+                }
+                return null;
+            }
+        });
+    }
+
     private void sendHeartbeatNow()
     {
-        assert (_state == StateActive);
+        assert(_state == StateActive);
 
         if(!_endpoint.datagram())
         {
@@ -2718,7 +2823,9 @@ public final class ConnectionI extends IceInternal.EventHandler
             //
             // Suppress AssertionError and OutOfMemoryError, rethrow everything else.
             //
-            if(!(t instanceof java.lang.AssertionError || t instanceof java.lang.OutOfMemoryError))
+            if(!(t instanceof java.lang.AssertionError ||
+                 t instanceof java.lang.OutOfMemoryError ||
+                 t instanceof java.lang.StackOverflowError))
             {
                 throw (java.lang.Error)t;
             }
@@ -2743,7 +2850,9 @@ public final class ConnectionI extends IceInternal.EventHandler
             //
             // Suppress AssertionError and OutOfMemoryError, rethrow everything else.
             //
-            if(!(ex instanceof java.lang.AssertionError || ex instanceof java.lang.OutOfMemoryError))
+            if(!(ex instanceof java.lang.AssertionError ||
+                 ex instanceof java.lang.OutOfMemoryError ||
+                 ex instanceof java.lang.StackOverflowError))
             {
                 throw ex;
             }

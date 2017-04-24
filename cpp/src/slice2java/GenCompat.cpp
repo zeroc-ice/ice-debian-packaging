@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -175,10 +175,13 @@ writeParamList(Output& out, vector<string> params, bool end = true, bool newLine
         out << (*i);
         if(++i != params.end() || !end)
         {
-            out << ", ";
             if(newLine)
             {
-                out << nl;
+                out << "," << nl;
+            }
+            else
+            {
+                out << ", ";
             }
         }
     }
@@ -391,7 +394,7 @@ Slice::JavaCompatVisitor::getAsyncCallbackInterface(const OperationPtr& op, cons
     else
     {
         ClassDefPtr cl = ClassDefPtr::dynamicCast(op->container());
-        return "_Callback_" + cl->name() + "_" + op->name();
+        return getPackage(cl) + "._Callback_" + cl->name() + "_" + op->name();
     }
 }
 
@@ -464,7 +467,7 @@ Slice::JavaCompatVisitor::getAsyncCallbackBaseClass(const OperationPtr& op, bool
         {
             os << "IceInternal.TwowayCallback implements ";
         }
-        os << "_Callback_" << cl->name() << "_" << op->name();
+        os << getPackage(cl) << "._Callback_" << cl->name() << "_" << op->name();
         return os.str();
     }
 }
@@ -1406,7 +1409,7 @@ Slice::JavaCompatVisitor::writeDispatchAndMarshalling(Output& out, const ClassDe
             {
                 out << nl << "inS.writeEmptyParams();";
             }
-            out << nl << "return false;";
+            out << nl << "return true;";
 
             out << eb;
         }
@@ -1498,7 +1501,7 @@ Slice::JavaCompatVisitor::writeDispatchAndMarshalling(Output& out, const ClassDe
                 out << ", ";
             }
             out << "current);";
-            out << nl << "return true;";
+            out << nl << "return false;";
 
             out << eb;
         }
@@ -1764,7 +1767,6 @@ Slice::JavaCompatVisitor::writeConstantValue(Output& out, const TypePtr& type, c
     else
     {
         BuiltinPtr bp;
-        EnumPtr ep;
         if((bp = BuiltinPtr::dynamicCast(type)))
         {
             switch(bp->kind())
@@ -1809,15 +1811,11 @@ Slice::JavaCompatVisitor::writeConstantValue(Output& out, const TypePtr& type, c
             }
 
         }
-        else if((ep = EnumPtr::dynamicCast(type)))
+        else if(EnumPtr::dynamicCast(type))
         {
-            string val = value;
-            string::size_type pos = val.rfind(':');
-            if(pos != string::npos)
-            {
-                val.erase(0, pos + 1);
-            }
-            out << getAbsolute(ep, package) << '.' << fixKwd(val);
+            EnumeratorPtr lte = EnumeratorPtr::dynamicCast(valueType);
+            assert(lte);
+            out << getAbsolute(lte, package);
         }
         else
         {
@@ -1860,7 +1858,7 @@ Slice::JavaCompatVisitor::writeDataMemberInitializers(Output& out, const DataMem
             EnumPtr en = EnumPtr::dynamicCast(t);
             if(en)
             {
-                string firstEnum = fixKwd(en->getEnumerators().front()->name());
+                string firstEnum = fixKwd(en->enumerators().front()->name());
                 out << nl << "this." << fixKwd((*p)->name()) << " = " << getAbsolute(en, package) << '.' << firstEnum << ';';
             }
 
@@ -1988,7 +1986,6 @@ Slice::JavaCompatVisitor::writeDocCommentOp(Output& out, const OperationPtr& p)
         return;
     }
 
-
     out << sp << nl << "/**";
 
     //
@@ -1997,7 +1994,11 @@ Slice::JavaCompatVisitor::writeDocCommentOp(Output& out, const OperationPtr& p)
     bool done = false;
     for(StringList::const_iterator i = lines.begin(); i != lines.end() && !done; ++i)
     {
-        if((*i)[0] == '@')
+        if((*i).empty())
+        {
+            out << nl << " *";
+        }
+        else if((*i)[0] == '@')
         {
             done = true;
         }
@@ -2017,7 +2018,7 @@ Slice::JavaCompatVisitor::writeDocCommentOp(Output& out, const OperationPtr& p)
 
 void
 Slice::JavaCompatVisitor::writeDocCommentAsync(Output& out, const OperationPtr& p, ParamDir paramType,
-                                         const string& extraParam)
+                                               const string& extraParam)
 {
     ContainerPtr container = p->container();
     ClassDefPtr contained = ClassDefPtr::dynamicCast(container);
@@ -2054,13 +2055,17 @@ Slice::JavaCompatVisitor::writeDocCommentAsync(Output& out, const OperationPtr& 
             }
             else
             {
-                if((*i)[0] == '@')
+                if((*i).empty())
+                {
+                    out << nl << " *";
+                }
+                else if((*i)[0] == '@')
                 {
                     doneReturn = true;
                 }
                 else
                 {
-                    out << nl << " * " << *i;
+                    out << nl << *i;
                 }
             }
         }
@@ -2073,7 +2078,11 @@ Slice::JavaCompatVisitor::writeDocCommentAsync(Output& out, const OperationPtr& 
         bool done = false;
         for(StringList::const_iterator i = lines.begin(); i != lines.end() && !done; ++i)
         {
-            if((*i)[0] == '@')
+            if((*i).empty())
+            {
+                out << nl << " *";
+            }
+            else if((*i)[0] == '@')
             {
                 done = true;
             }
@@ -2128,7 +2137,11 @@ Slice::JavaCompatVisitor::writeDocCommentAMI(Output& out, const OperationPtr& p,
     bool done = false;
     for(StringList::const_iterator i = lines.begin(); i != lines.end() && !done; ++i)
     {
-        if((*i)[0] == '@')
+        if((*i).empty())
+        {
+            out << nl << " *";
+        }
+        else if((*i)[0] == '@')
         {
             done = true;
         }
@@ -2199,7 +2212,14 @@ Slice::JavaCompatVisitor::writeDocCommentAMI(Output& out, const OperationPtr& p,
 
             if(found)
             {
-                out << nl << " * " << *i;
+                if((*i).empty())
+                {
+                    out << nl << " *";
+                }
+                else
+                {
+                    out << nl << " * " << *i;
+                }
             }
         }
     }
@@ -2255,7 +2275,7 @@ Slice::JavaCompatVisitor::writeDocCommentParam(Output& out, const OperationPtr& 
                 {
                     out << nl << " * " << line;
                     StringList::const_iterator j;
-                    if (i == lines.end())
+                    if(i == lines.end())
                     {
                         break;
                     }
@@ -2265,7 +2285,15 @@ Slice::JavaCompatVisitor::writeDocCommentParam(Output& out, const OperationPtr& 
                         if((*j)[0] != '@')
                         {
                             i = j;
-                            out << nl << " * " << *j++;
+                            if((*j).empty())
+                            {
+                                out << nl << " *";
+                            }
+                            else
+                            {
+                                out << nl << " * " << *j;
+                            }
+                            j++;
                         }
                         else
                         {
@@ -2278,7 +2306,7 @@ Slice::JavaCompatVisitor::writeDocCommentParam(Output& out, const OperationPtr& 
     }
 }
 
-Slice::GenCompat::GenCompat(const string& /*name*/, const string& base, const vector<string>& includePaths, 
+Slice::GenCompat::GenCompat(const string& /*name*/, const string& base, const vector<string>& includePaths,
                             const string& dir, bool tie) :
     _base(base),
     _includePaths(includePaths),
@@ -2773,7 +2801,7 @@ Slice::GenCompat::TypesVisitor::visitClassDefStart(const ClassDefPtr& p)
                 {
                     out << "public abstract ";
                 }
-                out << nl << "Ice.AsyncResult begin_" << opname;
+                out << "Ice.AsyncResult begin_" << opname;
                 writeParamList(out, getParamsAsyncLambda(op, package, false, true));
                 out << ';';
 
@@ -2845,7 +2873,8 @@ Slice::GenCompat::TypesVisitor::visitClassDefStart(const ClassDefPtr& p)
                     if(!(*d)->optional())
                     {
                         string memberName = fixKwd((*d)->name());
-                        string memberType = typeToString((*d)->type(), TypeModeMember, package, (*d)->getMetaData());
+                        string memberType = typeToString((*d)->type(), TypeModeMember, package, (*d)->getMetaData(),
+                                                         true, false, p->isLocal());
                         paramDecl.push_back(memberType + " " + memberName);
                     }
                 }
@@ -2897,7 +2926,8 @@ Slice::GenCompat::TypesVisitor::visitClassDefStart(const ClassDefPtr& p)
             for(DataMemberList::const_iterator d = allDataMembers.begin(); d != allDataMembers.end(); ++d)
             {
                 string memberName = fixKwd((*d)->name());
-                string memberType = typeToString((*d)->type(), TypeModeMember, package, (*d)->getMetaData());
+                string memberType = typeToString((*d)->type(), TypeModeMember, package, (*d)->getMetaData(), true,
+                                                 false, p->isLocal());
                 paramDecl.push_back(memberType + " " + memberName);
             }
             out << paramDecl << epar;
@@ -3015,16 +3045,12 @@ Slice::GenCompat::TypesVisitor::visitClassDefEnd(const ClassDefPtr& p)
         const UnitPtr unit = p->unit();
         const DefinitionContextPtr dc = unit->findDefinitionContext(p->file());
         assert(dc);
-        bool emitWarnings = !dc->suppressWarning("invalid-metadata");
         string::size_type pos = serialVersionUID.rfind(":") + 1;
         if(pos == string::npos)
         {
-            if(emitWarnings)
-            {
-                ostringstream os;
-                os << "ignoring invalid serialVersionUID for class `" << p->scoped() << "'; generating default value";
-                emitWarning("", "", os.str());
-            }
+            ostringstream os;
+            os << "ignoring invalid serialVersionUID for class `" << p->scoped() << "'; generating default value";
+            dc->warning(InvalidMetaData, "", "", os.str());
             out << computeSerialVersionUUID(p);
         }
         else
@@ -3035,13 +3061,10 @@ Slice::GenCompat::TypesVisitor::visitClassDefEnd(const ClassDefPtr& p)
             {
                 if(!stringToInt64(serialVersionUID, v)) // conversion error
                 {
-                    if(emitWarnings)
-                    {
-                        ostringstream os;
-                        os << "ignoring invalid serialVersionUID for class `" << p->scoped()
-                           << "'; generating default value";
-                        emitWarning("", "", os.str());
-                    }
+                    ostringstream os;
+                    os << "ignoring invalid serialVersionUID for class `" << p->scoped()
+                       << "'; generating default value";
+                    dc->warning(InvalidMetaData, "", "", os.str());
                     out << computeSerialVersionUUID(p);
                 }
             }
@@ -3445,16 +3468,12 @@ Slice::GenCompat::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
         const UnitPtr unit = p->unit();
         const DefinitionContextPtr dc = unit->findDefinitionContext(p->file());
         assert(dc);
-        bool emitWarnings = !dc->suppressWarning("invalid-metadata");
         string::size_type pos = serialVersionUID.rfind(":") + 1;
         if(pos == string::npos)
         {
-            if(emitWarnings)
-            {
-                ostringstream os;
-                os << "ignoring invalid serialVersionUID for exception `" << p->scoped() << "'; generating default value";
-                emitWarning("", "", os.str());
-            }
+            ostringstream os;
+            os << "ignoring invalid serialVersionUID for exception `" << p->scoped() << "'; generating default value";
+            dc->warning(InvalidMetaData, "", "", os.str());
             out << computeSerialVersionUUID(p);
         }
         else
@@ -3465,13 +3484,10 @@ Slice::GenCompat::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
             {
                 if(!stringToInt64(serialVersionUID, v)) // conversion error
                 {
-                    if(emitWarnings)
-                    {
-                        ostringstream os;
-                        os << "ignoring invalid serialVersionUID for exception `" << p->scoped()
-                           << "'; generating default value";
-                        emitWarning("", "", os.str());
-                    }
+                    ostringstream os;
+                    os << "ignoring invalid serialVersionUID for exception `" << p->scoped()
+                       << "'; generating default value";
+                    dc->warning(InvalidMetaData, "", "", os.str());
                     out << computeSerialVersionUUID(p);
                 }
             }
@@ -3751,17 +3767,14 @@ Slice::GenCompat::TypesVisitor::visitStructEnd(const StructPtr& p)
         out << eb;
         out << eb;
 
-        out << sp << nl << "static public " << name << nl << "ice_read(Ice.InputStream istr, " << name << " v)";
+        out << sp << nl << "static public " << name << nl << "ice_read(Ice.InputStream istr)";
         out << sb;
-        out << nl << "if(v == null)";
-        out << sb;
-        out << nl << " v = new " << name << "();";
-        out << eb;
+        out << nl << name << " v = new " << name << "();";
         out << nl << "v.ice_readMembers(istr);";
         out << nl << "return v;";
         out << eb;
 
-        out << nl << nl << "private static final " << name << " _nullMarshalValue = new " << name << "();";
+        out << sp << nl << "private static final " << name << " _nullMarshalValue = new " << name << "();";
     }
 
     out << sp << nl << "public static final long serialVersionUID = ";
@@ -3771,16 +3784,12 @@ Slice::GenCompat::TypesVisitor::visitStructEnd(const StructPtr& p)
         const UnitPtr unit = p->unit();
         const DefinitionContextPtr dc = unit->findDefinitionContext(p->file());
         assert(dc);
-        bool emitWarnings = !dc->suppressWarning("invalid-metadata");
         string::size_type pos = serialVersionUID.rfind(":") + 1;
         if(pos == string::npos)
         {
-            if(emitWarnings)
-            {
-                ostringstream os;
-                os << "ignoring invalid serialVersionUID for struct `" << p->scoped() << "'; generating default value";
-                emitWarning("", "", os.str());
-            }
+            ostringstream os;
+            os << "ignoring invalid serialVersionUID for struct `" << p->scoped() << "'; generating default value";
+            dc->warning(InvalidMetaData, "", "", os.str());
             out << computeSerialVersionUUID(p);
         }
         else
@@ -3791,13 +3800,10 @@ Slice::GenCompat::TypesVisitor::visitStructEnd(const StructPtr& p)
             {
                 if(!stringToInt64(serialVersionUID, v)) // conversion error
                 {
-                    if(emitWarnings)
-                    {
-                        ostringstream os;
-                        os << "ignoring invalid serialVersionUID for struct `" << p->scoped()
-                           << "'; generating default value";
-                        emitWarning("", "", os.str());
-                    }
+                    ostringstream os;
+                    os << "ignoring invalid serialVersionUID for struct `" << p->scoped()
+                       << "'; generating default value";
+                    dc->warning(InvalidMetaData, "", "", os.str());
                     out << computeSerialVersionUUID(p);
                 }
             }
@@ -3818,11 +3824,30 @@ void
 Slice::GenCompat::TypesVisitor::visitDataMember(const DataMemberPtr& p)
 {
     string name = fixKwd(p->name());
-    ContainerPtr container = p->container();
-    ContainedPtr contained = ContainedPtr::dynamicCast(container);
+    const ContainerPtr container = p->container();
+    const ClassDefPtr cls = ClassDefPtr::dynamicCast(container);
+    const StructPtr st = StructPtr::dynamicCast(container);
+    const ExceptionPtr ex = ExceptionPtr::dynamicCast(container);
+    const ContainedPtr contained = ContainedPtr::dynamicCast(container);
     StringList metaData = p->getMetaData();
     TypePtr type = p->type();
-    string s = typeToString(type, TypeModeMember, getPackage(contained), metaData);
+
+    bool local;
+    if(cls)
+    {
+        local = cls->isLocal();
+    }
+    else if(st)
+    {
+        local = st->isLocal();
+    }
+    else
+    {
+        assert(ex);
+        local = ex->isLocal();
+    }
+
+    string s = typeToString(type, TypeModeMember, getPackage(contained), metaData, true, false, local);
     Output& out = output();
     const bool optional = p->optional();
     const bool getSet = p->hasMetaData(_getSetMetaData) || contained->hasMetaData(_getSetMetaData);
@@ -4079,7 +4104,7 @@ Slice::GenCompat::TypesVisitor::visitEnum(const EnumPtr& p)
 {
     string name = fixKwd(p->name());
     string absolute = getAbsolute(p);
-    EnumeratorList enumerators = p->getEnumerators();
+    EnumeratorList enumerators = p->enumerators();
 
     open(absolute, p->file());
 
@@ -4102,7 +4127,7 @@ Slice::GenCompat::TypesVisitor::visitEnum(const EnumPtr& p)
         {
             out << ',';
         }
-        out << nl;
+        out << sp;
         writeDocComment(out, *en, getDeprecateReason(*en, 0, "enumerator"));
         out << nl << fixKwd((*en)->name()) << '(' << (*en)->value() << ')';
     }
@@ -5257,10 +5282,9 @@ Slice::GenCompat::HelperVisitor::writeOperation(const ClassDefPtr& p, const stri
 
             const string baseClass = getAsyncCallbackBaseClass(op, true);
             out << nl << "return _iceI_begin_" << op->name();
-            writeParamList(out, params, false, false);
-            out << nl
-                << (throws.empty() ? "new " + baseClass + "(responseCb, exceptionCb, sentCb)" :
-                                     "new " + baseClass + "(responseCb, userExceptionCb, exceptionCb, sentCb)");
+            writeParamList(out, params, false);
+            out << (throws.empty() ? "new " + baseClass + "(responseCb, exceptionCb, sentCb)" :
+                    "new " + baseClass + "(responseCb, userExceptionCb, exceptionCb, sentCb)");
             out.inc();
             out << sb;
             out << nl << "public final void _iceCompleted(Ice.AsyncResult result)";
@@ -5856,16 +5880,12 @@ Slice::GenCompat::DispatcherVisitor::visitClassDefStart(const ClassDefPtr& p)
             const UnitPtr unit = p->unit();
             const DefinitionContextPtr dc = unit->findDefinitionContext(p->file());
             assert(dc);
-            bool emitWarnings = !dc->suppressWarning("invalid-metadata");
             string::size_type pos = serialVersionUID.rfind(":") + 1;
             if(pos == string::npos)
             {
-                if(emitWarnings)
-                {
-                    ostringstream os;
-                    os << "ignoring invalid serialVersionUID for class `" << p->scoped() << "'; generating default value";
-                    emitWarning("", "", os.str());
-                }
+                ostringstream os;
+                os << "ignoring invalid serialVersionUID for class `" << p->scoped() << "'; generating default value";
+                dc->warning(InvalidMetaData, "", "", os.str());
                 out << computeSerialVersionUUID(p);
             }
             else
@@ -5876,13 +5896,10 @@ Slice::GenCompat::DispatcherVisitor::visitClassDefStart(const ClassDefPtr& p)
                 {
                     if(!stringToInt64(serialVersionUID, v)) // conversion error
                     {
-                        if(emitWarnings)
-                        {
-                            ostringstream os;
-                            os << "ignoring invalid serialVersionUID for class `" << p->scoped()
-                               << "'; generating default value";
-                            emitWarning("", "", os.str());
-                        }
+                        ostringstream os;
+                        os << "ignoring invalid serialVersionUID for class `" << p->scoped()
+                           << "'; generating default value";
+                        dc->warning(InvalidMetaData, "", "", os.str());
                         out << computeSerialVersionUUID(p);
                     }
                 }
@@ -5975,7 +5992,7 @@ Slice::GenCompat::BaseImplVisitor::writeDecl(Output& out, const string& package,
             EnumPtr en = EnumPtr::dynamicCast(type);
             if(en)
             {
-                EnumeratorList enumerators = en->getEnumerators();
+                EnumeratorList enumerators = en->enumerators();
                 out << " = " << getAbsolute(en, package) << '.' << fixKwd(enumerators.front()->name());
             }
             else

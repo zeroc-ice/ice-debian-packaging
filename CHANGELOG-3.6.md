@@ -8,9 +8,12 @@ We recommend that you use the release notes as a guide for migrating your
 applications to this release, and the manual for complete details on a
 particular aspect of Ice.
 
-- [Changes in Ice 3.6.4](#changes-in-ice-364)
+- [Changes in Ice 3.6.4 (Pre-Release Snapshot)](#changes-in-ice-364-pre-release-snapshot)
   - [General Changes](#general-changes)
   - [C++ Changes](#c-changes)
+  - [Java Changes](#java-changes)
+  - [JavaScript Changes](#javascript-changes)
+  - [C# Changes](#c-changes-2)
 - [Changes in Ice 3.6.3](#changes-in-ice-363)
   - [General Changes](#general-changes)
   - [C++ Changes](#c-changes)
@@ -40,9 +43,9 @@ particular aspect of Ice.
   - [Python Changes](#python-changes-2)
   - [Ruby Changes](#ruby-changes-1)
 
-# Changes in Ice 3.6.4
+# Changes in Ice 3.6.4 (Pre-Release Snapshot)
 
-These are the changes since Ice 3.6.4.
+These are the changes since Ice 3.6.3 included in this pre-release.
 
 ## General Changes
 
@@ -63,6 +66,12 @@ These are the changes since Ice 3.6.4.
 - Fixed bug which would cause an IceUtil::NullHandleException to be raised when
   using a proxy configured with ice_invocationTimeout(-2) with collocated calls.
 
+## Java Changes
+
+- Fixed generated code bug which would cause a build failure if an interface
+  inherited from an interface from another module and if this interface had
+  operations returning multiple values.
+
 ## JavaScript Changes
 
 - Fixed a bug in Ice.Long toNumber implementation where negative integers
@@ -74,7 +83,7 @@ These are the changes since Ice 3.6.4.
 with a element of type Object* items where unmarshal in reverse order.
 
 - Fixed a bug where metadata was not correctly ignored and can result in bogus
-code being generated if applying invalid metadata directives. 
+code being generated if applying invalid metadata directives.
 
 # Changes in Ice 3.6.3
 
@@ -184,7 +193,7 @@ These are the changes since Ice 3.6.1.
 - Fixed potential deadlock that could occur when using collocation optimization
   and serialized server thread pools.
 
-- Fixed IceSSL bug that would only show up with WSS servers running on OS X
+- Fixed IceSSL bug that would only show up with WSS servers running on macOS
   and Linux. The WSS server could stop reading requests if the client sent
   multiple requests within the same SSL record.
 
@@ -202,7 +211,7 @@ These are the changes since Ice 3.6.1.
 - Fixed an IceGridGUI bug where metrics attributes for Glacier2 and IceStorm
   were not displayed.
 
-- Fixed an IceGridGUI bug where the GUI started minimized in OS X.
+- Fixed an IceGridGUI bug where the GUI started minimized in macOS.
 
 ## Python Changes
 
@@ -265,7 +274,7 @@ These are the changes since Ice 3.6.0.
   time. Your application will need to link with the plug-in's dynamic library
   if it uses the register function.
 
-- C++ source builds in Windows now use third-party packages from Nuget
+- C++ source builds in Windows now use third-party packages from NuGet
   (https://www.nuget.org).
 
 - Windows C++ builds now install the required third-party dependencies to the
@@ -285,7 +294,7 @@ These are the changes since Ice 3.6.0.
 
 ## PHP Changes
 
-- Update PHP builds for Linux and OS X to use php-config from PATH. It is no
+- Update PHP builds for Linux and macOS to use php-config from PATH. It is no
   longer necessary to set PHP_HOME.
 
 # Changes in Ice 3.6.0
@@ -350,7 +359,7 @@ These are the changes since Ice 3.5.1.
   member should always be `true` since servers always reject invalid client
   certificates.
 
-- The Ice distribution now supports the Objective-C mapping on OS X.
+- The Ice distribution now supports the Objective-C mapping on macOS.
 
 - The Glacier2 `SessionHelper` class now creates the callback object adapter
   automatically unless the application calls
@@ -654,11 +663,11 @@ These are the changes since Ice 3.5.1.
 
 - Significant changes to the IceSSL plug-in:
 
-    - Now uses the native SecureTransport API on OS X
+    - Now uses the native SecureTransport API on macOS
     - Now uses the native SChannel API on Windows
     - OpenSSL is only used in IceSSL on Linux
 
-- Added support for the `IceSSL.FindCert` property on Windows and OS X.
+- Added support for the `IceSSL.FindCert` property on Windows and macOS.
 
 - Added the new metadata tag `cpp:view-type:Type`, where `Type` is a type that
   can safely provide a "view" into the Ice unmarshaling buffer and thereby avoid

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -17,7 +17,7 @@
 #   pragma warning(disable:4512) //  ... assignment operator could not be generated
 
 #   if _MSC_VER >= 1900
-#       pragma warning(disable:4275) // non dll-interface class ... used as base for dll-interface class ...
+#      pragma warning(disable:4275) // non dll-interface class ... used as base for dll-interface class ...
 #   endif
 
 #elif defined(__clang__)

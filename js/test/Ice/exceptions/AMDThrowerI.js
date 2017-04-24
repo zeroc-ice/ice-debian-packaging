@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,7 +11,6 @@
 {
     var Ice = require("ice").Ice;
     var Test = require("Test").Test;
-    var Class = Ice.Class;
 
     var test = function(b)
     {
@@ -21,7 +20,7 @@
         }
     };
 
-    class AMDThrowerI extends Test._ThrowerDisp
+    class AMDThrowerI extends Test.Thrower
     {
         shutdown(current)
         {
@@ -141,7 +140,7 @@
 
         throwMemoryLimitException(seq, current)
         {
-            return Promise.resolve(Ice.Buffer.createNative(1024 * 20)); // 20KB is over the configured 10KB message size max.
+            return Promise.resolve(new Uint8Array(1024 * 20)); // 20KB is over the configured 10KB message size max.
         }
 
         throwAfterResponse(current)

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -359,11 +359,11 @@ class Instance
             const toStringModeStr = this._initData.properties.getPropertyWithDefault("Ice.ToStringMode", "Unicode");
             if(toStringModeStr === "ASCII")
             {
-                _toStringMode = Ice.ToStringMode.ASCII;
+                this._toStringMode = Ice.ToStringMode.ASCII;
             }
             else if(toStringModeStr === "Compat")
             {
-                _toStringMode = Ice.ToStringMode.Compat;
+                this._toStringMode = Ice.ToStringMode.Compat;
             }
             else if(toStringModeStr !== "Unicode")
             {

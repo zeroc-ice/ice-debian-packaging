@@ -1,14 +1,14 @@
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup Condition="'$(Configuration)' == ''">
-      <Configuration>Debug</Configuration>
+      <Configuration>Release</Configuration>
     </PropertyGroup>
 
     <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
 
     <Import Project="$(MSBuildThisFileDirectory)\..\..\config\Ice.common.targets" />
 
-    <Target Name="TestNugetRestore" DependsOnTargets="GetNuget" Condition="'$(UseBinDist)' == 'yes'">
-      <Exec Command="$(NugetExe) restore $(MSBuildThisFileDirectory)ice.test.sln"/>
+    <Target Name="TestNuGetRestore" DependsOnTargets="GetNuGet" Condition="'$(ICE_BIN_DIST)' == 'all'">
+      <Exec Command="$(NuGetExe) restore $(MSBuildThisFileDirectory)ice.test.sln"/>
     </Target>
 
     <ItemGroup>
@@ -21,20 +21,20 @@
         </TestSoution>
     </ItemGroup>
 
-    <Target Name="BuildDist" Condition="'$(UseBinDist)' != 'yes'">
+    <Target Name="BuildDist" Condition="'$(ICE_BIN_DIST)' != 'all'">
         <MSBuild Projects="@(DistSolution)"
                  BuildInParallel="true"
                  Properties="%(Properties)"/>
     </Target>
 
-    <Target Name="CleanDist" Condition="'$(UseBinDist)' != 'yes'">
+    <Target Name="CleanDist" Condition="'$(ICE_BIN_DIST)' != 'all'">
         <MSBuild Projects="@(DistSolution)"
                  BuildInParallel="true"
                  Properties="%(Properties)"
                  Targets="Clean" />
     </Target>
 
-    <Target Name="Build" DependsOnTargets="TestNugetRestore;BuildDist">
+    <Target Name="Build" DependsOnTargets="TestNuGetRestore;BuildDist">
         <MSBuild Projects="@(TestSoution)"
                  BuildInParallel="true"
                  Properties="%(Properties)" />
@@ -46,7 +46,7 @@
 
     <Import Project="$(MSBuildThisFileDirectory)ice.common.targets" />
 
-    <Target Name="NugetPack" DependsOnTargets="BuildDist">
+    <Target Name="NuGetPack" DependsOnTargets="BuildDist">
         <RemoveDir Directories="zeroc.ice.net" />
         <MSBuild Projects="ice.nuget.targets"
                  Properties="PackageDirectory=zeroc.ice.net"/>
@@ -66,13 +66,13 @@
                                    Replacements="$(PublicKeyToken);..\lib"/>
 
         <!-- Copy bzip2 native dll next to iceboxnet.exe -->
-        <Copy SourceFiles="$(MSBuildThisFileDirectory)..\..\cpp\msbuild\packages\bzip2.v140.1.0.6.4\build\native\bin\x64\Release\bzip2.dll"
+        <Copy SourceFiles="$(MSBuildThisFileDirectory)..\..\cpp\msbuild\packages\bzip2.v140.1.0.6.6\build\native\bin\x64\Release\bzip2.dll"
               DestinationFiles="$(MSBuildThisFileDirectory)zeroc.ice.net\tools\bzip2.dll" />
 
         <Copy SourceFiles="zeroc.ice.net.props"
               DestinationFiles="zeroc.ice.net\build\zeroc.ice.net.props" />
 
-        <Exec Command="$(NugetExe) pack -NoPackageAnalysis -NonInteractive"
+        <Exec Command="$(NuGetExe) pack -NoPackageAnalysis -NonInteractive"
               WorkingDirectory="zeroc.ice.net"/>
     </Target>
 </Project>

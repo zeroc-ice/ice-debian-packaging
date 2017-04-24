@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -163,23 +163,24 @@ namespace Ice
             return _instance.pluginManager();
         }
 
-        public void flushBatchRequests()
+        public void flushBatchRequests(Ice.CompressBatch compressBatch)
         {
-            flushBatchRequestsAsync().Wait();
+            flushBatchRequestsAsync(compressBatch).Wait();
         }
 
-        public Task flushBatchRequestsAsync(IProgress<bool> progress = null,
+        public Task flushBatchRequestsAsync(Ice.CompressBatch compressBatch,
+                                            IProgress<bool> progress = null,
                                             CancellationToken cancel = new CancellationToken())
         {
             var completed = new FlushBatchTaskCompletionCallback(progress, cancel);
             var outgoing = new CommunicatorFlushBatchAsync(_instance, completed);
-            outgoing.invoke(_flushBatchRequests_name);
+            outgoing.invoke(_flushBatchRequests_name, compressBatch);
             return completed.Task;
         }
 
-        public AsyncResult begin_flushBatchRequests()
+        public AsyncResult begin_flushBatchRequests(Ice.CompressBatch compressBatch)
         {
-            return begin_flushBatchRequests(null, null);
+            return begin_flushBatchRequests(compressBatch, null, null);
         }
 
         private const string _flushBatchRequests_name = "flushBatchRequests";
@@ -214,11 +215,15 @@ namespace Ice
             }
         };
 
-        public AsyncResult begin_flushBatchRequests(AsyncCallback cb, object cookie)
+        public AsyncResult begin_flushBatchRequests(Ice.CompressBatch compressBatch, AsyncCallback cb, object cookie)
         {
-            var result = new CommunicatorFlushBatchCompletionCallback(this, _instance, _flushBatchRequests_name, cookie, cb);
+            var result = new CommunicatorFlushBatchCompletionCallback(this,
+                                                                      _instance,
+                                                                      _flushBatchRequests_name,
+                                                                      cookie,
+                                                                      cb);
             var outgoing = new CommunicatorFlushBatchAsync(_instance, result);
-            outgoing.invoke(_flushBatchRequests_name);
+            outgoing.invoke(_flushBatchRequests_name, compressBatch);
             return result;
         }
 

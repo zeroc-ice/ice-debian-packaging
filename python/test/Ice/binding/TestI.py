@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -9,7 +9,7 @@
 
 import Ice, Test
 
-class RemoteCommunicatorI(Test._RemoteCommunicatorDisp):
+class RemoteCommunicatorI(Test.RemoteCommunicator):
 
     def __init__(self):
         self._nextPort = 10001
@@ -32,7 +32,7 @@ class RemoteCommunicatorI(Test._RemoteCommunicatorDisp):
     def shutdown(self, current=None):
         current.adapter.getCommunicator().shutdown()
 
-class RemoteObjectAdapterI(Test._RemoteObjectAdapterDisp):
+class RemoteObjectAdapterI(Test.RemoteObjectAdapter):
     def __init__(self, adapter):
         self._adapter = adapter
         self._testIntf = Test.TestIntfPrx.uncheckedCast(self._adapter.add(TestI(), Ice.stringToIdentity("test")))
@@ -47,6 +47,6 @@ class RemoteObjectAdapterI(Test._RemoteObjectAdapterDisp):
         except Ice.ObjectAdapterDeactivatedException:
             pass
 
-class TestI(Test._TestIntfDisp):
+class TestI(Test.TestIntf):
     def getAdapterName(self, current=None):
         return current.adapter.getName()

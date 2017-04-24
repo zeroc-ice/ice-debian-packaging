@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -458,13 +458,14 @@ class LocalDriver(Driver):
             if self.allCross and cross == current.testcase.getMapping():
                 continue
 
-            # If the given mapping doesn't support server-side, skip this mapping.
-            if cross and cross != cross.getServerMapping():
-                continue
-
-            # Skip if the mapping doesn't provide the test case.
+            # Skip if the mapping doesn't provide the test case
             server = current.testcase.getServerTestCase(cross)
             if not server:
+                continue
+
+            if cross and server.getMapping() != cross:
+                if not self.allCross:
+                    current.writeln("skipped, no server available for `{0}' mapping".format(cross))
                 continue
 
             current.writeln("[ running {0} test ]".format(current.testcase))

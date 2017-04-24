@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -53,10 +53,10 @@ public class Server extends test.Util.Application
     static public class RouterI implements com.zeroc.Ice.Router
     {
         @Override
-        public com.zeroc.Ice.ObjectPrx getClientProxy(com.zeroc.Ice.Current current)
+        public com.zeroc.Ice.Router.GetClientProxyResult getClientProxy(com.zeroc.Ice.Current current)
         {
             _controller.checkCallPause(current);
-            return null;
+            return new com.zeroc.Ice.Router.GetClientProxyResult(null, java.util.Optional.of(true));
         }
 
         @Override

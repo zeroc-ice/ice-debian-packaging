@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -116,7 +116,7 @@ allTests(const CommunicatorPtr& communicator)
         {
             test(seq.size() > 16384);
         }
-        obj->ice_getConnection()->close(CloseGracefullyAndWait);
+        obj->ice_getConnection()->close(ICE_SCOPED_ENUM(ConnectionClose, GracefullyWithWait));
         communicator->getProperties()->setProperty("Ice.UDP.SndSize", "64000");
         seq.resize(50000);
         try
@@ -134,20 +134,19 @@ allTests(const CommunicatorPtr& communicator)
 
     cout << "ok" << endl;
 
-    string endpoint;
+    ostringstream endpoint;
     if(communicator->getProperties()->getProperty("Ice.IPv6") == "1")
     {
+        endpoint << "udp -h \"ff15::1:1\" -p " << getTestPort(communicator->getProperties(), 10);
 #ifdef __APPLE__
-        endpoint = "udp -h \"ff15::1:1\" -p 12020 --interface \"::1\"";
-#else
-        endpoint = "udp -h \"ff15::1:1\" -p 12020";
+        endpoint << " --interface \"::1\"";
 #endif
     }
     else
     {
-        endpoint = "udp -h 239.255.1.1 -p 12020";
+        endpoint << "udp -h 239.255.1.1 -p " << getTestPort(communicator->getProperties(), 10);
     }
-    base = communicator->stringToProxy("test -d:" + endpoint);
+    base = communicator->stringToProxy("test -d:" + endpoint.str());
     TestIntfPrxPtr objMcast = ICE_UNCHECKED_CAST(TestIntfPrx, base);
 #if (!defined(__APPLE__) || (defined(__APPLE__) && !TARGET_OS_IPHONE))
     cout << "testing udp multicast... " << flush;
@@ -201,7 +200,7 @@ allTests(const CommunicatorPtr& communicator)
 
     //
     // Sending the replies back on the multicast UDP connection doesn't work for most
-    // platform (it works for OS X Leopard but not Snow Leopard, doesn't work on SLES,
+    // platform (it works for macOS Leopard but not Snow Leopard, doesn't work on SLES,
     // Windows...). For Windows, see UdpTransceiver constructor for the details. So
     // we don't run this test.
     //

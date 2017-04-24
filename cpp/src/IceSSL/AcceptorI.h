@@ -1,14 +1,14 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
-#ifndef ICE_SSL_ACCEPTOR_I_H
-#define ICE_SSL_ACCEPTOR_I_H
+#ifndef ICESSL_ACCEPTOR_I_H
+#define ICESSL_ACCEPTOR_I_H
 
 #include <Ice/TransceiverF.h>
 #include <Ice/Acceptor.h>
@@ -54,4 +54,4 @@ private:
 
 }
 
-#endif
+#endif // IceSSL namespace end

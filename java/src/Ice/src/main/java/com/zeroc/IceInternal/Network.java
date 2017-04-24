@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -298,12 +298,34 @@ public final class Network
     }
 
     public static void
+    setMcastGroup(java.net.MulticastSocket fd, java.net.InetSocketAddress group, String intf)
+    {
+        try
+        {
+            java.util.Set<java.net.NetworkInterface> interfaces = new java.util.HashSet<>();
+            for(String address : getInterfacesForMulticast(intf, getProtocolSupport(group)))
+            {
+                java.net.NetworkInterface intf2 = getInterface(address);
+                if(!interfaces.contains(intf2))
+                {
+                    interfaces.add(intf2);
+                    fd.joinGroup(group, intf2);
+                }
+            }
+        }
+        catch(Exception ex)
+        {
+            throw new com.zeroc.Ice.SocketException(ex);
+        }
+    }
+
+    public static void
     setMcastGroup(java.nio.channels.DatagramChannel fd, java.net.InetSocketAddress group, String intf)
     {
         try
         {
             java.util.Set<java.net.NetworkInterface> interfaces = new java.util.HashSet<>();
-            for(String address : getInterfacesForMulticast(intf, group))
+            for(String address : getInterfacesForMulticast(intf, getProtocolSupport(group)))
             {
                 java.net.NetworkInterface intf2 = getInterface(address);
                 if(!interfaces.contains(intf2))
@@ -1059,10 +1081,9 @@ public final class Network
         return hosts;
     }
 
-    public static java.util.ArrayList<String>
-    getInterfacesForMulticast(String intf, java.net.InetSocketAddress mcastAddr)
+    public static java.util.List<String>
+    getInterfacesForMulticast(String intf, int protocolSupport)
     {
-        int protocolSupport = getProtocolSupport(mcastAddr);
         java.util.ArrayList<String> interfaces = new java.util.ArrayList<>();
         if(isWildcard(intf))
         {

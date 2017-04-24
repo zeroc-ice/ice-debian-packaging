@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -127,7 +127,7 @@ namespace IceInternal
 
         public static bool notConnected(SocketException ex)
         {
-            // BUGFIX: SocketError.InvalidArgument because shutdown() under OS X returns EINVAL
+            // BUGFIX: SocketError.InvalidArgument because shutdown() under macOS returns EINVAL
             // if the server side is gone.
             // BUGFIX: shutdown() under Vista might return SocketError.ConnectionReset
             SocketError error = socketErrorCode(ex);
@@ -457,7 +457,7 @@ namespace IceInternal
             try
             {
                 var indexes = new HashSet<int>();
-                foreach(string intf in getInterfacesForMulticast(iface, group))
+                foreach(string intf in getInterfacesForMulticast(iface, getProtocolSupport(group)))
                 {
                     int index = getInterfaceIndex(intf, group.AddressFamily);
                     if(!indexes.Contains(index))
@@ -685,6 +685,11 @@ namespace IceInternal
             // after the asynchronous connect. Seems like a bug in .NET.
             //
             setBlock(fd, fd.Blocking);
+        }
+
+        public static int getProtocolSupport(IPAddress addr)
+        {
+            return addr.AddressFamily == AddressFamily.InterNetwork ? EnableIPv4 : EnableIPv6;
         }
 
         public static EndPoint getAddressForServer(string host, int port, int protocol, bool preferIPv6)
@@ -951,11 +956,10 @@ namespace IceInternal
             return hosts;
         }
 
-        public static List<string> getInterfacesForMulticast(string intf, IPAddress group)
+        public static List<string> getInterfacesForMulticast(string intf, int protocol)
         {
             List<string> interfaces = new List<string>();
             bool ipv4Wildcard = false;
-            int protocol = group.AddressFamily == AddressFamily.InterNetwork ? EnableIPv4 : EnableIPv6;
             if(isWildcard(intf, out ipv4Wildcard))
             {
                 IPAddress[] addrs = getLocalAddresses(ipv4Wildcard ? EnableIPv4 : protocol, true);

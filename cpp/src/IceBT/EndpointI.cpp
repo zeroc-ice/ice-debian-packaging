@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -185,7 +185,18 @@ IceBT::EndpointI::acceptor(const string& adapterName) const
 }
 
 vector<IceInternal::EndpointIPtr>
-IceBT::EndpointI::expand() const
+IceBT::EndpointI::expandIfWildcard() const
+{
+    //
+    // Nothing to do here.
+    //
+    vector<IceInternal::EndpointIPtr> endps;
+    endps.push_back(ICE_SHARED_FROM_CONST_THIS(EndpointI));
+    return endps;
+}
+
+vector<IceInternal::EndpointIPtr>
+IceBT::EndpointI::expandHost(IceInternal::EndpointIPtr&) const
 {
     //
     // Nothing to do here.

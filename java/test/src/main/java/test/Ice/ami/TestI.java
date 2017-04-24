@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -12,6 +12,9 @@ package test.Ice.ami;
 import test.Ice.ami.Test.CloseMode;
 import test.Ice.ami.Test.TestIntf;
 import test.Ice.ami.Test.TestIntfException;
+
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 
 public class TestI implements TestIntf
 {
@@ -53,6 +56,12 @@ public class TestI implements TestIntf
     public synchronized int opBatchCount(com.zeroc.Ice.Current current)
     {
         return _batchCount;
+    }
+
+    @Override
+    public boolean supportsAMD(com.zeroc.Ice.Current current)
+    {
+        return true;
     }
 
     @Override
@@ -143,11 +152,39 @@ public class TestI implements TestIntf
     }
 
     @Override
-    public void
+    public synchronized CompletionStage<Void>
+    startDispatchAsync(com.zeroc.Ice.Current current)
+    {
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        _pending.add(f);
+        return f;
+    }
+
+    @Override
+    public synchronized void
+    finishDispatch(com.zeroc.Ice.Current current)
+    {
+        for(CompletableFuture<Void> f : _pending)
+        {
+            f.complete(null);
+        }
+        _pending.clear();
+    }
+
+    @Override
+    public synchronized void
     shutdown(com.zeroc.Ice.Current current)
     {
+        //
+        // Just in case a request arrived late.
+        //
+        for(CompletableFuture<Void> f : _pending)
+        {
+            f.complete(null);
+        }
         current.adapter.getCommunicator().shutdown();
     }
 
     private int _batchCount;
+    private java.util.List<CompletableFuture<Void>> _pending = new java.util.LinkedList<>();
 }

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -71,7 +71,7 @@ protected:
     bool startImpl(int, char*[], int&);
     virtual void waitForShutdown();
     virtual bool stop();
-    virtual CommunicatorPtr initializeCommunicator(int&, char*[], const InitializationData&);
+    virtual CommunicatorPtr initializeCommunicator(int&, char*[], const InitializationData&, int);
 
 private:
 
@@ -167,16 +167,12 @@ NodeService::~NodeService()
 {
 }
 
-
 bool
 NodeService::shutdown()
 {
-    assert(_activator);
+    assert(_activator && _sessions.get());
     _activator->shutdown();
-    if(_sessions.get())
-    {
-        _sessions->terminate(); // Unblock the main thread if it's blocked on waitForCreate()
-    }
+    _sessions->terminate(); // Unblock the main thread if it's blocked on waitForCreate()
     return true;
 }
 
@@ -669,7 +665,6 @@ NodeService::stop()
         {
             assert(false);
         }
-        _activator = 0;
     }
 
     if(_timer)
@@ -759,7 +754,8 @@ NodeService::stop()
 
 CommunicatorPtr
 NodeService::initializeCommunicator(int& argc, char* argv[],
-                                    const InitializationData& initializationData)
+                                    const InitializationData& initializationData,
+                                    int version)
 {
     InitializationData initData = initializationData;
     initData.properties = createProperties(argc, argv, initData.properties);
@@ -787,7 +783,7 @@ NodeService::initializeCommunicator(int& argc, char* argv[],
     //
     initData.properties->setProperty("Ice.ACM.Close", "3");
 
-    return Service::initializeCommunicator(argc, argv, initData);
+    return Service::initializeCommunicator(argc, argv, initData, version);
 }
 
 void
@@ -799,7 +795,7 @@ NodeService::usage(const string& appName)
         "-v, --version        Display the Ice version.\n"
         "--nowarn             Don't print any security warnings.\n"
         "--readonly           Start the collocated master registry in read-only mode.\n"
-        "--initdb-from-replica=<replica>\n"
+        "--initdb-from-replica <replica>\n"
         "                     Initialize the collocated registry database from the\n"
         "                     given replica.\n"
         "--deploy DESCRIPTOR [TARGET1 [TARGET2 ...]]\n"

@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -69,15 +69,17 @@ class IceGridNode(ProcessFromBinDir, Server):
 
     def setup(self, current):
         # Create the database directory
-        self.dbdir = os.path.join(current.testcase.getPath(), "node-{0}".format(self.name))
+        self.dbdir = os.path.join(current.testsuite.getPath(), "node-{0}".format(self.name))
         if os.path.exists(self.dbdir):
             shutil.rmtree(self.dbdir)
         os.mkdir(self.dbdir)
 
     def teardown(self, current, success):
         # Remove the database directory tree
-        if success:
+        try:
             shutil.rmtree(self.dbdir)
+        except:
+            pass
 
     def getProps(self, current):
         props = {
@@ -121,17 +123,21 @@ class IceGridRegistry(ProcessFromBinDir, Server):
 
     def setup(self, current):
         # Create the database directory
-        self.dbdir = os.path.join(current.testcase.getPath(), "registry-{0}".format(self.name))
+        self.dbdir = os.path.join(current.testsuite.getPath(), "registry-{0}".format(self.name))
         if os.path.exists(self.dbdir):
             shutil.rmtree(self.dbdir)
         os.mkdir(self.dbdir)
 
     def teardown(self, current, success):
         # Remove the database directory tree
-        if success:
+        try:
             shutil.rmtree(self.dbdir)
+        except:
+            pass
 
     def getProps(self, current):
+        # NOTE: we use the loopback interface for multicast with IPv6 to prevent failures
+        # on some machines which don't really have an IPv6 interface configured.
         props = {
             'IceGrid.InstanceName' : 'TestIceGrid',
             'IceGrid.Registry.PermissionsVerifier' : 'TestIceGrid/NullPermissionsVerifier',
@@ -141,7 +147,6 @@ class IceGridRegistry(ProcessFromBinDir, Server):
             'IceGrid.Registry.Server.Endpoints' : 'default',
             'IceGrid.Registry.Internal.Endpoints' : 'default',
             'IceGrid.Registry.Client.Endpoints' : self.getEndpoints(current),
-            'IceGrid.Registry.Discovery.Interface' : '"::1"' if current.config.ipv6 and isinstance(platform, Darwin) else '',
             'IceGrid.Registry.Discovery.Port' : current.driver.getTestPort(99),
             'IceGrid.Registry.SessionManager.Endpoints' : 'default',
             'IceGrid.Registry.AdminSessionManager.Endpoints' : 'default',

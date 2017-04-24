@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -235,6 +235,25 @@ namespace IceInternal
                 hashInitialized_ = true;
                 return hashValue_;
             }
+        }
+
+        public bool getCompressOverride(out bool compress)
+        {
+            DefaultsAndOverrides defaultsAndOverrides = getInstance().defaultsAndOverrides();
+            if(defaultsAndOverrides.overrideCompress)
+            {
+                compress = defaultsAndOverrides.overrideCompressValue;
+            }
+            else if(overrideCompress_)
+            {
+                compress = compress_;
+            }
+            else
+            {
+                compress = false;
+                return false;
+            }
+            return true;
         }
 
         public abstract bool isIndirect();
@@ -709,7 +728,7 @@ namespace IceInternal
 
             _fixedConnection.throwException(); // Throw in case our connection is already destroyed.
 
-            bool compress;
+            bool compress = false;
             if(defaultsAndOverrides.overrideCompress)
             {
                 compress = defaultsAndOverrides.overrideCompressValue;
@@ -717,10 +736,6 @@ namespace IceInternal
             else if(overrideCompress_)
             {
                 compress = compress_;
-            }
-            else
-            {
-                compress = _fixedConnection.endpoint().compress();
             }
 
             return proxy.iceSetRequestHandler(new ConnectionRequestHandler(this, _fixedConnection, compress));

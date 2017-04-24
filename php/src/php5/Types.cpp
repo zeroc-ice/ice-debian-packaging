@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -4089,9 +4089,10 @@ IcePHP::typesInit(INIT_FUNC_ARGS)
     exceptionInfoClassEntry = zend_register_internal_class(&ce TSRMLS_CC);
     memcpy(&_exceptionInfoHandlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 
-    REGISTER_STRING_CONSTANT("Ice_Unset", const_cast<char*>(_unsetGUID.c_str()), CONST_CS|CONST_PERSISTENT);
 #ifdef ICEPHP_USE_NAMESPACES
-    REGISTER_NS_STRING_CONSTANT("Ice", "Unset", const_cast<char*>(_unsetGUID.c_str()), CONST_CS|CONST_PERSISTENT);
+    REGISTER_NS_STRING_CONSTANT("Ice", "None", const_cast<char*>(_unsetGUID.c_str()), CONST_CS|CONST_PERSISTENT);
+#else
+    REGISTER_STRING_CONSTANT("Ice_Unset", const_cast<char*>(_unsetGUID.c_str()), CONST_CS|CONST_PERSISTENT);
 #endif
 
     return true;

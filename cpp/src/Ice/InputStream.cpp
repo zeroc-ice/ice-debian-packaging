@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -167,6 +167,7 @@ Ice::InputStream::initialize(Instance* instance, const EncodingVersion& encoding
     _collectObjects = _instance->collectObjects();
 #endif
     _traceSlicing = _instance->traceLevels()->slicing > 0;
+    _classGraphDepthMax = _instance->classGraphDepthMax();
 }
 
 void
@@ -179,6 +180,7 @@ Ice::InputStream::initialize(const EncodingVersion& encoding)
     _collectObjects = false;
 #endif
     _traceSlicing = false;
+    _classGraphDepthMax = 0x7fffffff;
     _closure = 0;
     _sliceValues = true;
     _startSeq = -1;
@@ -241,6 +243,19 @@ Ice::InputStream::setTraceSlicing(bool b)
     _traceSlicing = b;
 }
 
+void
+Ice::InputStream::setClassGraphDepthMax(size_t classGraphDepthMax)
+{
+    if(classGraphDepthMax < 1)
+    {
+        _classGraphDepthMax = 0x7fffffff;
+    }
+    else
+    {
+        _classGraphDepthMax = classGraphDepthMax;
+    }
+}
+
 void*
 Ice::InputStream::getClosure() const
 {
@@ -266,6 +281,7 @@ Ice::InputStream::swap(InputStream& other)
     std::swap(_collectObjects, other._collectObjects);
 #endif
     std::swap(_traceSlicing, other._traceSlicing);
+    std::swap(_classGraphDepthMax, other._classGraphDepthMax);
     std::swap(_closure, other._closure);
     std::swap(_sliceValues, other._sliceValues);
 
@@ -1485,52 +1501,52 @@ Ice::InputStream::skipOptional(OptionalFormat type)
 {
     switch(type)
     {
-    case Ice::OptionalFormatF1:
-    {
-        skip(1);
-        break;
-    }
-    case Ice::OptionalFormatF2:
-    {
-        skip(2);
-        break;
-    }
-    case Ice::OptionalFormatF4:
-    {
-        skip(4);
-        break;
-    }
-    case Ice::OptionalFormatF8:
-    {
-        skip(8);
-        break;
-    }
-    case Ice::OptionalFormatSize:
-    {
-        skipSize();
-        break;
-    }
-    case Ice::OptionalFormatVSize:
-    {
-        skip(readSize());
-        break;
-    }
-    case Ice::OptionalFormatFSize:
-    {
-        Int sz;
-        read(sz);
-        if(sz < 0)
+        case ICE_SCOPED_ENUM(OptionalFormat, F1):
         {
-            throw UnmarshalOutOfBoundsException(__FILE__, __LINE__);
+            skip(1);
+            break;
         }
-        skip(sz);
-        break;
-    }
-    case Ice::OptionalFormatClass:
-    {
-        read(0, 0);
-        break;
-    }
+        case ICE_SCOPED_ENUM(OptionalFormat, F2):
+        {
+            skip(2);
+            break;
+        }
+        case ICE_SCOPED_ENUM(OptionalFormat, F4):
+        {
+            skip(4);
+            break;
+        }
+        case ICE_SCOPED_ENUM(OptionalFormat, F8):
+        {
+            skip(8);
+            break;
+        }
+        case ICE_SCOPED_ENUM(OptionalFormat, Size):
+        {
+            skipSize();
+            break;
+        }
+        case ICE_SCOPED_ENUM(OptionalFormat, VSize):
+        {
+            skip(readSize());
+            break;
+        }
+        case ICE_SCOPED_ENUM(OptionalFormat, FSize):
+        {
+            Int sz;
+            read(sz);
+            if(sz < 0)
+            {
+                throw UnmarshalOutOfBoundsException(__FILE__, __LINE__);
+            }
+            skip(sz);
+            break;
+        }
+        case ICE_SCOPED_ENUM(OptionalFormat, Class):
+        {
+            read(0, 0);
+            break;
+        }
     }
 }
 
@@ -1740,11 +1756,11 @@ Ice::InputStream::initEncaps()
         ValueFactoryManagerPtr vfm = valueFactoryManager();
         if(_currentEncaps->encoding == Encoding_1_0)
         {
-            _currentEncaps->decoder = new EncapsDecoder10(this, _currentEncaps, _sliceValues, vfm);
+            _currentEncaps->decoder = new EncapsDecoder10(this, _currentEncaps, _sliceValues, _classGraphDepthMax, vfm);
         }
         else
         {
-            _currentEncaps->decoder = new EncapsDecoder11(this, _currentEncaps, _sliceValues, vfm);
+            _currentEncaps->decoder = new EncapsDecoder11(this, _currentEncaps, _sliceValues, _classGraphDepthMax, vfm);
         }
     }
 }
@@ -1884,6 +1900,7 @@ Ice::InputStream::EncapsDecoder::addPatchEntry(Int index, PatchFunc patchFunc, v
     PatchEntry e;
     e.patchFunc = patchFunc;
     e.patchAddr = patchAddr;
+    e.classGraphDepth = _classGraphDepth;
     q->second.push_back(e);
 }
 
@@ -2230,6 +2247,30 @@ Ice::InputStream::EncapsDecoder10::readInstance()
         //
         skipSlice();
         startSlice(); // Read next Slice header for next iteration.
+    }
+
+    //
+    // Compute the biggest class graph depth of this object. To compute this,
+    // we get the class graph depth of each ancestor from the patch map and
+    // keep the biggest one.
+    //
+    _classGraphDepth = 0;
+    PatchMap::iterator patchPos = _patchMap.find(index);
+    if(patchPos != _patchMap.end())
+    {
+        assert(patchPos->second.size() > 0);
+        for(PatchList::iterator k = patchPos->second.begin(); k != patchPos->second.end(); ++k)
+        {
+            if(k->classGraphDepth > _classGraphDepth)
+            {
+                _classGraphDepth = k->classGraphDepth;
+            }
+        }
+    }
+
+    if(++_classGraphDepth > _classGraphDepthMax)
+    {
+        throw MarshalException(__FILE__, __LINE__, "maximum class graph depth reached");
     }
 
     //
@@ -2668,10 +2709,17 @@ Ice::InputStream::EncapsDecoder11::readInstance(Int index, PatchFunc patchFunc, 
         startSlice(); // Read next Slice header for next iteration.
     }
 
+    if(++_classGraphDepth > _classGraphDepthMax)
+    {
+        throw MarshalException(__FILE__, __LINE__, "maximum class graph depth reached");
+    }
+
     //
     // Unmarshal the object.
     //
     unmarshal(index, v);
+
+    --_classGraphDepth;
 
     if(!_current && !_patchMap.empty())
     {

@@ -1,11 +1,13 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
+
+#pragma once
 
 module abstract
 {
@@ -33,10 +35,11 @@ interface decimal
 class delegate
 {
     int if;
-    void foo(case* else, out int event);
+    case* else;
+    int event;
 };
 
-class explicit extends delegate implements decimal, case
+interface explicit extends decimal, case
 {
 };
 
@@ -113,7 +116,7 @@ exception BaseMethods
 
 local interface implicit
 {
-    as in(break internal, delegate is, explicit lock, case* namespace, decimal* new, delegate* null,
+    as in(break internal, delegate is, explicit lock, case* namespace, decimal* new, delegate null,
           explicit* operator, int override, int params, int private)
         throws fixed, foreach;
 };

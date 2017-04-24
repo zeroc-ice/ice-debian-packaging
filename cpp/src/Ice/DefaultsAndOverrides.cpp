@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -112,11 +112,11 @@ IceInternal::DefaultsAndOverrides::DefaultsAndOverrides(const PropertiesPtr& pro
     value = properties->getPropertyWithDefault("Ice.Default.EndpointSelection", "Random");
     if(value == "Random")
     {
-        defaultEndpointSelection = Random;
+        defaultEndpointSelection = ICE_ENUM(EndpointSelectionType, Random);
     }
     else if(value == "Ordered")
     {
-        defaultEndpointSelection = Ordered;
+        defaultEndpointSelection = ICE_ENUM(EndpointSelectionType, Ordered);
     }
     else
     {
@@ -163,5 +163,6 @@ IceInternal::DefaultsAndOverrides::DefaultsAndOverrides(const PropertiesPtr& pro
     checkSupportedEncoding(defaultEncoding);
 
     bool slicedFormat = properties->getPropertyAsIntWithDefault("Ice.Default.SlicedFormat", 0) > 0;
-    const_cast<FormatType&>(defaultFormat) = slicedFormat ? SlicedFormat : CompactFormat;
+    const_cast<FormatType&>(defaultFormat) = slicedFormat ?
+        ICE_ENUM(FormatType, SlicedFormat) : ICE_ENUM(FormatType, CompactFormat);
 }

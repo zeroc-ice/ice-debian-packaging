@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -33,11 +33,10 @@ const StringUtil = Ice.StringUtil;
 
 class IncomingAsync
 {
-    constructor(instance, connection, adapter, response, compress, requestId)
+    constructor(instance, connection, adapter, response, requestId)
     {
         this._instance = instance;
         this._response = response;
-        this._compress = compress;
         this._connection = connection;
         this._format = Ice.FormatType.DefaultFormat;
 
@@ -151,22 +150,7 @@ class IncomingAsync
         this._instance.initializationData().logger.warning(s.join(""));
     }
 
-    servantLocatorFinished()
-    {
-        Debug.assert(this._locator !== null && this._servant !== null);
-        try
-        {
-            this._locator.finished(this._current, this._servant, this._cookie.value);
-            return true;
-        }
-        catch(ex)
-        {
-            this.handleException(ex);
-        }
-        return false;
-    }
-
-    handleException(ex)
+    handleException(ex, amd)
     {
         Debug.assert(this._connection !== null);
 
@@ -230,7 +214,7 @@ class IncomingAsync
 
                 this._os.writeString(ex.operation);
 
-                this._connection.sendResponse(this._os, this._compress);
+                this._connection.sendResponse(this._os);
             }
             else
             {
@@ -251,7 +235,7 @@ class IncomingAsync
                 this._os.writeInt(this._current.requestId);
                 this._os.writeByte(Protocol.replyUnknownLocalException);
                 this._os.writeString(ex.unknown);
-                this._connection.sendResponse(this._os, this._compress);
+                this._connection.sendResponse(this._os);
             }
             else
             {
@@ -272,7 +256,7 @@ class IncomingAsync
                 this._os.writeInt(this._current.requestId);
                 this._os.writeByte(Protocol.replyUnknownUserException);
                 this._os.writeString(ex.unknown);
-                this._connection.sendResponse(this._os, this._compress);
+                this._connection.sendResponse(this._os);
             }
             else
             {
@@ -293,7 +277,7 @@ class IncomingAsync
                 this._os.writeInt(this._current.requestId);
                 this._os.writeByte(Protocol.replyUnknownException);
                 this._os.writeString(ex.unknown);
-                this._connection.sendResponse(this._os, this._compress);
+                this._connection.sendResponse(this._os);
             }
             else
             {
@@ -321,7 +305,7 @@ class IncomingAsync
                     s.push(ex.stack);
                 }
                 this._os.writeString(s.join(""));
-                this._connection.sendResponse(this._os, this._compress);
+                this._connection.sendResponse(this._os);
             }
             else
             {
@@ -339,7 +323,7 @@ class IncomingAsync
                 this._os.startEncapsulation(this._current.encoding, this._format);
                 this._os.writeUserException(ex);
                 this._os.endEncapsulation();
-                this._connection.sendResponse(this._os, this._compress);
+                this._connection.sendResponse(this._os);
             }
             else
             {
@@ -361,11 +345,16 @@ class IncomingAsync
                 this._os.writeByte(Protocol.replyUnknownException);
                 //this._os.writeString(ex.toString());
                 this._os.writeString(ex.toString() + (ex.stack ? "\n" + ex.stack : ""));
-                this._connection.sendResponse(this._os, this._compress);
+                this._connection.sendResponse(this._os);
             }
             else
             {
                 this._connection.sendNoResponse();
+            }
+
+            if(!amd)
+            {
+                throw new Ice.ServantError(ex);
             }
         }
 
@@ -432,7 +421,7 @@ class IncomingAsync
                     catch(ex)
                     {
                         this.skipReadParams(); // Required for batch requests.
-                        this.handleException(ex);
+                        this.handleException(ex, false);
                         return;
                     }
                 }
@@ -458,7 +447,7 @@ class IncomingAsync
             catch(ex)
             {
                 this.skipReadParams(); // Required for batch requests.
-                this.handleException(ex);
+                this.handleException(ex, false);
                 return;
             }
         }
@@ -469,16 +458,16 @@ class IncomingAsync
             let promise = this._servant._iceDispatch(this, this._current);
             if(promise !== null)
             {
-                promise.then(() => this.response(), (ex) => this.exception(ex));
+                promise.then(() => this.completed(null, true), (ex) => this.completed(ex, true));
                 return;
             }
 
             Debug.assert(!this._response || this._os !== null);
-            this.response();
+            this.completed(null, false);
         }
         catch(ex)
         {
-            this.exception(ex);
+            this.completed(ex, false);
         }
     }
 
@@ -513,20 +502,33 @@ class IncomingAsync
         this._current.encoding = this._is.skipEncapsulation();
     }
 
-    response()
+    completed(exc, amd)
     {
         try
         {
-            if(this._locator !== null && !this.servantLocatorFinished())
+            if(this._locator !== null && !this.servantLocatorFinished(amd))
             {
-                return;
+                Debug.assert(this._locator !== null && this._servant !== null);
+                try
+                {
+                    this._locator.finished(this._current, this._servant, this._cookie.value);
+                }
+                catch(ex)
+                {
+                    this.handleException(ex, amd);
+                    return;
+                }
             }
 
             Debug.assert(this._connection !== null);
 
-            if(this._response)
+            if(exc !== null)
             {
-                this._connection.sendResponse(this._os, this._compress);
+                this.handleException(exc, amd);
+            }
+            else if(this._response)
+            {
+                this._connection.sendResponse(this._os);
             }
             else
             {
@@ -535,26 +537,18 @@ class IncomingAsync
         }
         catch(ex)
         {
-            this._connection.invokeException(ex, 1);
+            if(ex instanceof Ice.LocalException)
+            {
+                this._connection.invokeException(ex, 1);
+            }
+            else
+            {
+                throw ex;
+            }
         }
         this._connection = null;
     }
 
-    exception(exc)
-    {
-        try
-        {
-            if(this._locator !== null && !this.servantLocatorFinished())
-            {
-                return;
-            }
-            this.handleException(exc);
-        }
-        catch(ex)
-        {
-            this._connection.invokeException(ex, 1);
-        }
-    }
 }
 
 Ice.IncomingAsync = IncomingAsync;

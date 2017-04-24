@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -189,7 +189,7 @@ class Callback(CallbackBase):
             test(False)
         self.called()
 
-class RelayI(Test._RelayDisp):
+class RelayI(Test.Relay):
     def knownPreservedAsBase(self, current=None):
         ex = Test.KnownPreservedDerived()
         ex.b = "base"

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -13,7 +13,6 @@
     var Test = require("Test").Test;
     var ClientPrivate = require("ClientPrivate").Test;
 
-    var Promise = Ice.Promise;
     var ArrayUtil = Ice.ArrayUtil;
 
     var allTests = function(out, communicator, Test)
@@ -39,7 +38,7 @@
             }
         };
 
-        Promise.try(() =>
+        Ice.Promise.try(() =>
             {
                 out.write("testing stringToProxy... ");
                 ref = "initial:default -p 12010";
@@ -125,7 +124,7 @@
                 mo1.i = Test.MyEnum.MyEnumMember;
                 mo1.j = communicator.stringToProxy("test");
                 mo1.k = mo1;
-                mo1.bs = Ice.Buffer.createNative([5]);
+                mo1.bs = new Uint8Array([5]);
                 mo1.ss = ["test", "test2"];
                 mo1.iid = new Map();
                 mo1.iid.set(4, 3);
@@ -320,6 +319,15 @@
             }
         ).then(() =>
             {
+                var recursive1 = [new Test.Recursive()];
+                var recursive2 = [new Test.Recursive()];
+                recursive1[0].value = recursive2;
+                var outer = new Test.Recursive();
+                outer.value = recursive1;
+                initial.pingPong(outer);
+            }
+        ).then(() =>
+            {
                 var g = new Test.G();
                 g.gg1Opt = new Test.G1("gg1Opt");
                 g.gg2 = new Test.G2(new Ice.Long(0, 10));
@@ -345,7 +353,7 @@
                 out.write("testing marshaling of large containers with fixed size elements... ");
                 var mc = new Test.MultiOptional();
 
-                mc.bs = Ice.Buffer.createNative(new Array(1000));
+                mc.bs = new Uint8Array(1000);
                 mc.shs = new Array(300);
 
                 var i;
@@ -616,6 +624,22 @@
                 var [p1, p2] = r;
                 test(p1 === undefined);
                 test(p2 === undefined);
+                return initial.supportsNullOptional();
+            }
+        ).then(r =>
+            {
+                if(r)
+                {
+                    return initial.opOneOptional(null).then(r =>
+                    {
+                        var [p1, p2] = r;
+                        test(p1 === null);
+                        test(p2 === null);
+                    });
+                }
+            }
+        ).then(() =>
+            {
                 return initial.opOneOptional(new Test.OneOptional(58));
             }
         ).then(r =>
@@ -647,7 +671,7 @@
                 test(p2 === undefined);
                 var data = [];
                 for(var i = 0; i < 100; ++i){ data[i] = 56; }
-                return initial.opByteSeq(Ice.Buffer.createNative(data));
+                return initial.opByteSeq(new Uint8Array(data));
             }
         ).then(r =>
             {
@@ -1066,7 +1090,7 @@
     var run = function(out, id)
     {
         var c = Ice.initialize(id);
-        return Promise.try(() => allTests(out, c, Test)).finally(() => c.destroy());
+        return Ice.Promise.try(() => allTests(out, c, Test)).finally(() => c.destroy());
     };
     exports._clientAllTests = allTests;
     exports._test = run;

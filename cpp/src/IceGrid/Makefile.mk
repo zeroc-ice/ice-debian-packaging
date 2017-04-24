@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -22,7 +22,6 @@ local_registry_srcs 	= Internal.ice \
 			  PlatformInfo.cpp \
 			  SessionManager.cpp \
 			  TraceLevels.cpp \
-			  IceLocatorDiscovery.cpp \
 			  AdminCallbackRouter.cpp \
 			  AdapterCache.cpp \
 			  AdminI.cpp \
@@ -70,17 +69,18 @@ $(project)_generated_includedir := $(project)/generated/IceGrid
 $(project)_dependencies 	:= IceGrid Glacier2 Ice
 $(project)_targetdir		:= $(bindir)
 
-icegridnode_sources	 	:= $(addprefix $(currentdir)/,$(local_node_srcs) $(local_registry_srcs) IceGridNode.cpp)
+icegridnode_sources	 	:= $(addprefix $(currentdir)/,$(local_node_srcs) $(local_registry_srcs) IceGridNode.cpp) \
+                                   $(slicedir)/IceLocatorDiscovery/IceLocatorDiscovery.ice
 icegridnode_dependencies 	:= IceBox IceStormService IceStorm IceXML IceSSL IcePatch2 IceDB
 icegridnode_cppflags		:= $(if $(lmdb_includedir),-I$(lmdb_includedir))
 
-icegridregistry_sources	 	:= $(addprefix $(currentdir)/,$(local_registry_srcs) IceGridRegistry.cpp)
+icegridregistry_sources	 	:= $(addprefix $(currentdir)/,$(local_registry_srcs) IceGridRegistry.cpp) \
+				   $(slicedir)/IceLocatorDiscovery/IceLocatorDiscovery.ice
 icegridregistry_dependencies 	:= IceBox IceStormService IceStorm IceXML IceSSL IcePatch2 IceDB $(local_dependencies)
 icegridregistry_cppflags	:= $(if $(lmdb_includedir),-I$(lmdb_includedir))
 
-icegridadmin_dependencies 	:= IcePatch2 IceBox IceXML
-icegridadmin_sources	 	:= $(slicedir)/IceLocatorDiscovery/IceLocatorDiscovery.ice \
-				   $(addprefix $(currentdir)/,$(local_admin_srcs))
+icegridadmin_dependencies 	:= IcePatch2 IceBox IceXML IceLocatorDiscovery
+icegridadmin_sources	 	:= $(addprefix $(currentdir)/,$(local_admin_srcs))
 
 
 projects += $(project)

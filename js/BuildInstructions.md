@@ -9,7 +9,7 @@ supported platforms.
 To build Ice for JavaScript you must have the following:
 
 - The `slice2js` compiler from Ice for C++. If you have not built Ice for C++
-  in this source distribution, refer to [C++ build instructions](../cpp/BuildInstructions.md).
+  in this source distribution, refer to the [C++ build instructions](../cpp/BuildInstructions.md).
 - Node.js 4.6 or later
 
 ## Building the JavaScript libraries and NodeJS packages
@@ -46,12 +46,12 @@ This requires that you build the Java test controller from the Java subdirectory
 and test servers from C++, C# or Java. Follow the instructions from the
 corresponding language mapping to build the tests and the server controller.
 
-In OS X the first time you run the script, you will be prompted for your
+In macOS the first time you run the script, you will be prompted for your
 password. This is necessary to configure the trust setting for the HTTP
 server certificate, which will enable you to connect to the HTTP server
 with SSL via your web browser.
 
-The test page (http://127.0.0.1:8080) will be opened using the system default
+The test page (http://127.0.0.1:8080) will be opened using the system's default
 browser.
 
 ### Browser Information
@@ -62,7 +62,7 @@ The browser-based tests allow you to choose whether to run the tests over
 non-secure WebSocket (WS) or secure WebSocket (WSS) connections. This
 distribution includes a self-signed certificate used for securing WSS
 connections, located in `certs/cacert.pem`. If you select WSS, the page
-will automatically reload if necessary to connect to the HTTPS port 9090.
+will automatically reload if necessary to connect to HTTPS port 9090.
 To successfully run the tests over WSS, additional action may be necessary
 depending on the browser you're using:
 
@@ -123,14 +123,14 @@ Next go to _Settings -> Security -> Install from storage_, and choose
 
 ## Installing a Source Build
 
-After a successful build, you can generate a npm package by running the
+After a successful build, you can generate an npm package by running the
 following command:
 
     > npm pack
 
-This will generate the file `ice-3.7a4.tgz`, which can be installed by running:
+This will generate the file `ice-3.7b0.tgz`, which can be installed by running:
 
-    > npm install <path_to_file>/ice-3.7a4.tgz
+    > npm install <path_to_file>/ice-3.7b0.tgz
 
 To use Ice for JavaScript with a browser, copy the appropriate JavaScript
 library files located in the `lib` directory to your web server.

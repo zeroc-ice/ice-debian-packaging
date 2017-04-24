@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -231,7 +231,7 @@ public:
     {
         try
         {
-            _observer->begin_updateServer(_node->getName(),
+            _observer->begin_updateServer(_node->getName(Ice::emptyCurrent),
                                           _info,
                                           newCallback(static_cast<NodeI::Update*>(this), &NodeI::Update::completed));
         }
@@ -261,7 +261,7 @@ public:
     {
         try
         {
-            _observer->begin_updateAdapter(_node->getName(),
+            _observer->begin_updateAdapter(_node->getName(Ice::emptyCurrent),
                                            _info,
                                            newCallback(static_cast<NodeI::Update*>(this), &NodeI::Update::completed));
         }
@@ -971,6 +971,7 @@ NodeI::observerUpdateServer(const ServerDynamicInfo& info)
         if(sent.find(p->second) == sent.end())
         {
             queueUpdate(p->second, new UpdateServer(this, p->second, info));
+            sent.insert(p->second);
         }
     }
 }
@@ -1001,6 +1002,7 @@ NodeI::observerUpdateAdapter(const AdapterDynamicInfo& info)
         if(sent.find(p->second) == sent.end())
         {
             queueUpdate(p->second, new UpdateAdapter(this, p->second, info));
+            sent.insert(p->second);
         }
     }
 }

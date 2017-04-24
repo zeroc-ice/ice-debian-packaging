@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -31,7 +31,7 @@ var babel       = require("gulp-babel"),
 var sliceDir   = path.resolve(__dirname, '..', 'slice');
 
 var iceBinDist = (process.env.ICE_BIN_DIST || "").split(" ");
-var useBinDist = iceBinDist.find(function(variable) {return variable == "js" || variable == "all" }) !== undefined;
+var useBinDist = iceBinDist.find(function(v) { return v == "js" || v == "all"; }) !== undefined;
 
 function parseArg(argv, key)
 {
@@ -42,7 +42,7 @@ function parseArg(argv, key)
         {
             return argv[i + 1];
         }
-        else if(e.indexOf(key + "=") == 0)
+        else if(e.indexOf(key + "=") === 0)
         {
             return e.substr(key.length + 1);
         }
@@ -55,15 +55,15 @@ var configuration = parseArg(process.argv, "--cppConfiguration") || process.env.
 function slice2js(options) {
     var defaults = {};
     var opts = options || {};
-    if(process.platform == "win32" && !opts.exe)
+    if(!useBinDist && process.platform == "win32" && !opts.exe)
     {
-        if(!platform || (platform != "Win32" && platform != "x64"))
+        if(!platform || (platform.toLowerCase() != "win32" && platform.toLowerCase() != "x64"))
         {
             console.log("Error: CPP_PLATFORM environment variable must be set to `Win32' or `x64', in order to locate slice2js.exe");
             process.exit(1);
         }
 
-        if(!configuration || (configuration != "Debug" && configuration != "Release"))
+        if(!configuration || (configuration.toLowerCase() != "debug" && configuration.toLowerCase() != "release"))
         {
             console.log("Error: CPP_CONFIGURATION environment variable must be set to `Debug' or `Release', in order to locate slice2js.exe");
             process.exit(1);
@@ -108,7 +108,9 @@ var tests = [
     "test/Ice/slicing/objects",
     "test/Ice/timeout",
     "test/Ice/number",
-    "test/Glacier2/router"
+    "test/Glacier2/router",
+    "test/Slice/escape",
+    "test/Slice/macros"
 ];
 
 var common = {
@@ -155,9 +157,8 @@ gulp.task("common:slice:clean", [],
 gulp.task("common:js", ["bower"],
     function(){
         return gulp.src(common.scripts)
-            .pipe(newer("assets/common.min.js"))
-            .pipe(concat("common.min.js"))
-            //.pipe(uglify()) // TODO: uglify doesn't support es6
+            .pipe(newer("assets/common.js"))
+            .pipe(concat("common.js"))
             .pipe(gulp.dest("assets"))
             .pipe(gzip())
             .pipe(gulp.dest("assets"));
@@ -183,7 +184,7 @@ gulp.task("common:js-babel", [],
 
 gulp.task("common:clean", [],
     function(){
-        del(["assets/common.css", "assets/common.min.js"]);
+        del(["assets/common.css", "assets/common.js"]);
     });
 
 gulp.task("import:slice2js", [],
@@ -281,7 +282,6 @@ var libs = ["Ice", "Glacier2", "IceStorm", "IceGrid"];
 
 function generateTask(name){ return name.toLowerCase() + ":generate"; }
 function libTask(name){ return name.toLowerCase() + ":lib"; }
-function minLibTask(name){ return libTask(name) + "-min"; }
 function babelTask(name){ return name.toLowerCase() + ":babel"; }
 function babelLibTask(name){ return libTask(name) + "-babel";}
 function babelMinLibTask(name){ return libTask(name) + "-babel-min"; }
@@ -380,19 +380,6 @@ libs.forEach(
                     .pipe(gulp.dest("lib"));
             });
 
-        gulp.task(minLibTask(lib), [libTask(lib)],
-            function(){
-                return gulp.src(libFile(lib))
-                    .pipe(newer(libFileMin(lib)))
-                    .pipe(sourcemaps.init({loadMaps:true}))
-                    //.pipe(uglify({compress:false})) // TODO: uglify doesn't support ES6
-                    .pipe(extreplace(".min.js"))
-                    .pipe(sourcemaps.write("../lib", {includeContent: false, addComment: false}))
-                    .pipe(gulp.dest("lib"))
-                    .pipe(gzip())
-                    .pipe(gulp.dest("lib"));
-            });
-
         gulp.task(babelTask(lib), [generateTask(lib)],
             function(){
                 return gulp.src(path.join("src", lib, "*.js"))
@@ -439,7 +426,7 @@ gulp.task("dist:libs", ["bower"],
             .pipe(gulp.dest("lib"));
     });
 
-gulp.task("dist", useBinDist ? ["dist:libs"] : libs.map(minLibTask).concat(libs.map(babelMinLibTask)).concat(libs.map(babelTask)));
+gulp.task("dist", useBinDist ? ["dist:libs"] : libs.map(libTask).concat(libs.map(babelMinLibTask)).concat(libs.map(babelTask)));
 gulp.task("dist:clean", libs.map(libCleanTask));
 
 function runTestsWithBrowser(url)
@@ -574,7 +561,7 @@ gulp.task("ice-module:clean", [],
     {
         return gulp.src(['node_modules/ice']).pipe(paths(del));
     });
-    cleanDepends.push("ice-module:clean")
+    cleanDepends.push("ice-module:clean");
 }
 
 gulp.task("lint", ["lint:js", "lint:html"]);

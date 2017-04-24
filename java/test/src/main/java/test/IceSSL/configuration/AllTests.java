@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -300,14 +300,14 @@ public class AllTests
                 java.security.cert.X509Certificate serverCert = loadCertificate(defaultDir + "/s_rsa_ca1.jks", "cert");
                 java.security.cert.X509Certificate caCert = loadCertificate(defaultDir + "/cacert1.jks", "ca");
 
-                com.zeroc.IceSSL.NativeConnectionInfo info =
-                    (com.zeroc.IceSSL.NativeConnectionInfo)server.ice_getConnection().getInfo();
+                com.zeroc.IceSSL.ConnectionInfo info =
+                    (com.zeroc.IceSSL.ConnectionInfo)server.ice_getConnection().getInfo();
 
-                test(info.nativeCerts.length == 2);
+                test(info.certs.length == 2);
                 test(info.verified);
 
-                test(caCert.equals(info.nativeCerts[1]));
-                test(serverCert.equals(info.nativeCerts[0]));
+                test(caCert.equals(info.certs[1]));
+                test(serverCert.equals(info.certs[0]));
             }
             catch(Exception ex)
             {
@@ -501,14 +501,18 @@ public class AllTests
             comm.destroy();
 
             //
-            // Test IceSSL.CheckCertName. The test certificates for the server contain "127.0.0.1"
-            // as the common name or as a subject alternative name, so we only perform this test when
-            // the default host is "127.0.0.1".
+            // Test Hostname verification only when Ice.DefaultHost is 127.0.0.1
+            // as that is the IP address used in the test certificates.
             //
             if(defaultHost.equals("127.0.0.1"))
             {
                 //
-                // Test subject alternative name.
+                // Test using localhost as target host
+                //
+                com.zeroc.Ice.Properties props = defaultProperties._clone();
+                props.setProperty("Ice.Default.Host", "localhost");
+                //
+                // Target host matches the certificate DNS altName
                 //
                 {
                     initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
@@ -517,7 +521,7 @@ public class AllTests
 
                     fact = ServerFactoryPrx.checkedCast(comm.stringToProxy(factoryRef));
                     test(fact != null);
-                    d = createServerProps(defaultProperties, "s_rsa_ca1", "cacert1");
+                    d = createServerProps(props, "s_rsa_ca1_cn1", "cacert1");
                     server = fact.createServer(d);
                     try
                     {
@@ -530,8 +534,9 @@ public class AllTests
                     fact.destroyServer(server);
                     comm.destroy();
                 }
+                
                 //
-                // Test common name.
+                // Target host does not match the certificate DNS altName
                 //
                 {
                     initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
@@ -540,7 +545,33 @@ public class AllTests
 
                     fact = ServerFactoryPrx.checkedCast(comm.stringToProxy(factoryRef));
                     test(fact != null);
-                    d = createServerProps(defaultProperties, "s_rsa_ca1_cn1", "cacert1");
+                    d = createServerProps(props, "s_rsa_ca1_cn2", "cacert1");
+                    server = fact.createServer(d);
+                    try
+                    {
+                        server.ice_ping();
+                        test(false);
+                    }
+                    catch(com.zeroc.Ice.SecurityException ex)
+                    {
+                        // Expected
+                    }
+                    fact.destroyServer(server);
+                    comm.destroy();
+                }
+                
+                //
+                // Target host matches the certificate Common Name and the certificate does not
+                // include a DNS altName
+                //
+                {
+                    initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
+                    initData.properties.setProperty("IceSSL.CheckCertName", "1");
+                    comm = Util.initialize(args, initData);
+
+                    fact = ServerFactoryPrx.checkedCast(comm.stringToProxy(factoryRef));
+                    test(fact != null);
+                    d = createServerProps(props, "s_rsa_ca1_cn3", "cacert1");
                     server = fact.createServer(d);
                     try
                     {
@@ -553,9 +584,10 @@ public class AllTests
                     fact.destroyServer(server);
                     comm.destroy();
                 }
+                
                 //
-                // Test common name again. The certificate used in this test has "127.0.0.11" as its
-                // common name, therefore the address "127.0.0.1" must NOT match.
+                // Target host does not match the certificate Common Name and the certificate does not
+                // include a DNS altName
                 //
                 {
                     initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
@@ -564,16 +596,172 @@ public class AllTests
 
                     fact = ServerFactoryPrx.checkedCast(comm.stringToProxy(factoryRef));
                     test(fact != null);
-                    d = createServerProps(defaultProperties, "s_rsa_ca1_cn2", "cacert1");
+                    d = createServerProps(props, "s_rsa_ca1_cn4", "cacert1");
                     server = fact.createServer(d);
                     try
                     {
                         server.ice_ping();
                         test(false);
                     }
+                    catch(com.zeroc.Ice.SecurityException ex)
+                    {
+                        // Expected
+                    }
+                    fact.destroyServer(server);
+                    comm.destroy();
+                }
+                
+                //
+                // Target host matches the certificate Common Name and the certificate has
+                // a DNS altName that does not matches the target host
+                //
+                {
+                    initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
+                    initData.properties.setProperty("IceSSL.CheckCertName", "1");
+                    comm = Util.initialize(args, initData);
+
+                    fact = ServerFactoryPrx.checkedCast(comm.stringToProxy(factoryRef));
+                    test(fact != null);
+                    d = createServerProps(props, "s_rsa_ca1_cn5", "cacert1");
+                    server = fact.createServer(d);
+                    try
+                    {
+                        server.ice_ping();
+                        test(false);
+                    }
+                    catch(com.zeroc.Ice.SecurityException ex)
+                    {
+                        // Expected
+                    }
+                    fact.destroyServer(server);
+                    comm.destroy();
+                }
+                
+                //
+                // Test using 127.0.0.1 as target host
+                //
+                
+                //
+                // Target host matches the certificate IP altName
+                //
+                {
+                    initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
+                    initData.properties.setProperty("IceSSL.CheckCertName", "1");
+                    comm = Util.initialize(args, initData);
+
+                    fact = ServerFactoryPrx.checkedCast(comm.stringToProxy(factoryRef));
+                    test(fact != null);
+                    d = createServerProps(defaultProperties, "s_rsa_ca1_cn6", "cacert1");
+                    server = fact.createServer(d);
+                    try
+                    {
+                        server.ice_ping();
+                    }
                     catch(com.zeroc.Ice.LocalException ex)
                     {
-                        // Expected.
+                        test(false);
+                    }
+                    fact.destroyServer(server);
+                    comm.destroy();
+                }
+                
+                //
+                // Target host does not match the certificate IP altName
+                //
+                {
+                    initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
+                    initData.properties.setProperty("IceSSL.CheckCertName", "1");
+                    comm = Util.initialize(args, initData);
+
+                    fact = ServerFactoryPrx.checkedCast(comm.stringToProxy(factoryRef));
+                    test(fact != null);
+                    d = createServerProps(defaultProperties, "s_rsa_ca1_cn7", "cacert1");
+                    server = fact.createServer(d);
+                    try
+                    {
+                        server.ice_ping();
+                        test(false);
+                    }
+                    catch(com.zeroc.Ice.SecurityException ex)
+                    {
+                        // Expected
+                    }
+                    fact.destroyServer(server);
+                    comm.destroy();
+                }
+                
+                //
+                // Target host is an IP addres that matches the CN and the certificate doesn't
+                // include an IP altName
+                //
+                {
+                    initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
+                    initData.properties.setProperty("IceSSL.CheckCertName", "1");
+                    comm = Util.initialize(args, initData);
+
+                    fact = ServerFactoryPrx.checkedCast(comm.stringToProxy(factoryRef));
+                    test(fact != null);
+                    d = createServerProps(defaultProperties, "s_rsa_ca1_cn8", "cacert1");
+                    server = fact.createServer(d);
+                    try
+                    {
+                        server.ice_ping();
+                        test(false);
+                    }
+                    catch(com.zeroc.Ice.SecurityException ex)
+                    {
+                        // Expected
+                    }
+                    fact.destroyServer(server);
+                    comm.destroy();
+                }
+
+                //
+                // Target host does not match the certificate DNS altName, connection should succeed
+                // because IceSSL.VerifyPeer is set to 0.
+                //
+                {
+                    initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
+                    initData.properties.setProperty("IceSSL.CheckCertName", "1");
+                    initData.properties.setProperty("IceSSL.VerifyPeer", "0");
+                    comm = Util.initialize(args, initData);
+
+                    fact = ServerFactoryPrx.checkedCast(comm.stringToProxy(factoryRef));
+                    test(fact != null);
+                    d = createServerProps(props, "s_rsa_ca1_cn2", "cacert1");
+                    server = fact.createServer(d);
+                    try
+                    {
+                        server.ice_ping();
+                    }
+                    catch(com.zeroc.Ice.LocalException ex)
+                    {
+                        test(false);
+                    }
+                    fact.destroyServer(server);
+                    comm.destroy();
+                }
+
+                //
+                // Target host does not match the certificate DNS altName, connection should succeed
+                // because IceSSL.CheckCertName is set to 0.
+                //
+                {
+                    initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
+                    initData.properties.setProperty("IceSSL.CheckCertName", "0");
+                    comm = Util.initialize(args, initData);
+
+                    fact = ServerFactoryPrx.checkedCast(comm.stringToProxy(factoryRef));
+                    test(fact != null);
+                    d = createServerProps(props, "s_rsa_ca1_cn2", "cacert1");
+                    server = fact.createServer(d);
+                    try
+                    {
+                        server.ice_ping();
+                    }
+                    catch(com.zeroc.Ice.LocalException ex)
+                    {
+                        test(false);
                     }
                     fact.destroyServer(server);
                     comm.destroy();
@@ -588,7 +776,7 @@ public class AllTests
         out.print("testing certificate chains... ");
         out.flush();
         {
-            com.zeroc.IceSSL.NativeConnectionInfo info;
+            com.zeroc.IceSSL.ConnectionInfo info;
 
             initData = createClientProps(defaultProperties, "", "");
             initData.properties.setProperty("IceSSL.VerifyPeer", "0");
@@ -607,8 +795,8 @@ public class AllTests
             ServerPrx server = fact.createServer(d);
             try
             {
-                info = (com.zeroc.IceSSL.NativeConnectionInfo)server.ice_getConnection().getInfo();
-                test(info.nativeCerts.length == 1);
+                info = (com.zeroc.IceSSL.ConnectionInfo)server.ice_getConnection().getInfo();
+                test(info.certs.length == 1);
                 test(!info.verified);
             }
             catch(com.zeroc.Ice.LocalException ex)
@@ -626,8 +814,8 @@ public class AllTests
             server = fact.createServer(d);
             try
             {
-                info = (com.zeroc.IceSSL.NativeConnectionInfo)server.ice_getConnection().getInfo();
-                test(info.nativeCerts.length == 1);
+                info = (com.zeroc.IceSSL.ConnectionInfo)server.ice_getConnection().getInfo();
+                test(info.certs.length == 1);
                 test(!info.verified);
             }
             catch(com.zeroc.Ice.LocalException ex)
@@ -646,8 +834,8 @@ public class AllTests
             server = fact.createServer(d);
             try
             {
-                info = (com.zeroc.IceSSL.NativeConnectionInfo)server.ice_getConnection().getInfo();
-                test(info.nativeCerts.length == 2);
+                info = (com.zeroc.IceSSL.ConnectionInfo)server.ice_getConnection().getInfo();
+                test(info.certs.length == 2);
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
@@ -672,8 +860,8 @@ public class AllTests
                 server = fact.createServer(d);
                 try
                 {
-                    info = (com.zeroc.IceSSL.NativeConnectionInfo)server.ice_getConnection().getInfo();
-                    test(info.nativeCerts.length == 2);
+                    info = (com.zeroc.IceSSL.ConnectionInfo)server.ice_getConnection().getInfo();
+                    test(info.certs.length == 2);
                     test(info.verified);
                 }
                 catch(com.zeroc.Ice.LocalException ex)
@@ -734,8 +922,8 @@ public class AllTests
                 server = fact.createServer(d);
                 try
                 {
-                    info = (com.zeroc.IceSSL.NativeConnectionInfo)server.ice_getConnection().getInfo();
-                    test(info.nativeCerts.length == 3);
+                    info = (com.zeroc.IceSSL.ConnectionInfo)server.ice_getConnection().getInfo();
+                    test(info.certs.length == 3);
                     test(info.verified);
                 }
                 catch(com.zeroc.Ice.LocalException ex)
@@ -779,8 +967,8 @@ public class AllTests
                 server = fact.createServer(d);
                 try
                 {
-                    info = (com.zeroc.IceSSL.NativeConnectionInfo)server.ice_getConnection().getInfo();
-                    test(info.nativeCerts.length == 4);
+                    info = (com.zeroc.IceSSL.ConnectionInfo)server.ice_getConnection().getInfo();
+                    test(info.certs.length == 4);
                     test(info.verified);
                 }
                 catch(com.zeroc.Ice.LocalException ex)
@@ -872,8 +1060,8 @@ public class AllTests
             {
                 String cipherSub = "DH_anon";
                 server.checkCipher(cipherSub);
-                com.zeroc.IceSSL.NativeConnectionInfo info =
-                    (com.zeroc.IceSSL.NativeConnectionInfo)server.ice_getConnection().getInfo();
+                com.zeroc.IceSSL.ConnectionInfo info =
+                    (com.zeroc.IceSSL.ConnectionInfo)server.ice_getConnection().getInfo();
                 test(info.cipher.indexOf(cipherSub) >= 0);
             }
             catch(com.zeroc.Ice.LocalException ex)
@@ -889,7 +1077,7 @@ public class AllTests
             //
             verifier.reset();
             verifier.returnValue(false);
-            server.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+            server.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             try
             {
                 server.ice_ping();

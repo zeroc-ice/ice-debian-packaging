@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -246,7 +246,7 @@ public class AllTests
             test(connection == to.ice_getConnection());
             try
             {
-                to.sleep(250 * mult);
+                to.sleep(100 * mult);
             }
             catch(Ice.InvocationTimeoutException ex)
             {
@@ -270,18 +270,17 @@ public class AllTests
             //
             TimeoutPrx to = TimeoutPrxHelper.uncheckedCast(obj.ice_invocationTimeout(500 * mult));
             CallbackSuccess cb = new CallbackSuccess();
-            to.begin_sleep(250 * mult, cb);
+            to.begin_sleep(100 * mult, cb);
             cb.check();
         }
         {
             //
             // Backward compatible connection timeouts
             //
-            TimeoutPrx to = TimeoutPrxHelper.uncheckedCast(obj.ice_invocationTimeout(-2).ice_timeout(100));
-            Ice.Connection con = null;
+            TimeoutPrx to = TimeoutPrxHelper.uncheckedCast(obj.ice_invocationTimeout(-2).ice_timeout(250));
+            Ice.Connection con = to.ice_getConnection();
             try
             {
-                con = to.ice_getConnection();
                 to.sleep(750);
                 test(false);
             }
@@ -329,7 +328,7 @@ public class AllTests
             TimeoutPrx to = TimeoutPrxHelper.checkedCast(obj.ice_timeout(100 * mult));
             Ice.Connection connection = to.ice_getConnection();
             timeout.holdAdapter(500);
-            connection.close(Ice.ConnectionClose.CloseGracefullyAndWait);
+            connection.close(Ice.ConnectionClose.GracefullyWithWait);
             try
             {
                 connection.getInfo(); // getInfo() doesn't throw in the closing state.

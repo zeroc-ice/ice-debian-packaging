@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -37,7 +37,7 @@ protected:
     virtual bool start(int, char*[], int&);
     virtual void waitForShutdown();
     virtual bool stop();
-    virtual CommunicatorPtr initializeCommunicator(int&, char*[], const InitializationData&);
+    virtual CommunicatorPtr initializeCommunicator(int&, char*[], const InitializationData&, int);
 
 private:
 
@@ -77,7 +77,7 @@ RegistryService::start(int argc, char* argv[], int& status)
     opts.addOpt("", "nowarn");
     opts.addOpt("", "readonly");
     opts.addOpt("", "initdb-from-replica", IceUtilInternal::Options::NeedArg);
-    
+
     vector<string> args;
     try
     {
@@ -130,7 +130,7 @@ RegistryService::start(int argc, char* argv[], int& status)
 
 
     TraceLevelsPtr traceLevels = new TraceLevels(communicator(), "IceGrid.Registry");
-    
+
     _registry = new RegistryI(communicator(), traceLevels, nowarn, readonly, initFromReplica, "");
     if(!_registry->start())
     {
@@ -160,15 +160,16 @@ RegistryService::stop()
 }
 
 CommunicatorPtr
-RegistryService::initializeCommunicator(int& argc, char* argv[], 
-                                        const InitializationData& initializationData)
+RegistryService::initializeCommunicator(int& argc, char* argv[],
+                                        const InitializationData& initializationData,
+                                        int version)
 {
     InitializationData initData = initializationData;
     initData.properties = createProperties(argc, argv, initData.properties);
-    
 
-    // If IceGrid.Registry.[Admin]PermissionsVerifier is not set and 
-    // IceGrid.Registry.[Admin]CryptPasswords is set, load the 
+
+    // If IceGrid.Registry.[Admin]PermissionsVerifier is not set and
+    // IceGrid.Registry.[Admin]CryptPasswords is set, load the
     // Glacier2CryptPermissionsVerifier plug-in
     //
     vector<string> vTypes;
@@ -178,23 +179,23 @@ RegistryService::initializeCommunicator(int& argc, char* argv[],
     for(vector<string>::const_iterator p = vTypes.begin(); p != vTypes.end(); ++p)
     {
         string verifier = "IceGrid.Registry." + *p + "PermissionsVerifier";
-        
+
         if(initData.properties->getProperty(verifier).empty())
         {
             string cryptPasswords = initData.properties->getProperty("IceGrid.Registry." + *p + "CryptPasswords");
-            
+
             if(!cryptPasswords.empty())
             {
                 initData.properties->setProperty("Ice.Plugin.Glacier2CryptPermissionsVerifier",
                                                  "Glacier2CryptPermissionsVerifier:createCryptPermissionsVerifier");
-            
-                initData.properties->setProperty("Glacier2CryptPermissionsVerifier.IceGrid.Registry." + *p + 
+
+                initData.properties->setProperty("Glacier2CryptPermissionsVerifier.IceGrid.Registry." + *p +
                                                  "PermissionsVerifier", cryptPasswords);
             }
         }
     }
 
-     
+
     //
     // Never create Admin object in Ice.Admin adapter
     //
@@ -219,7 +220,7 @@ RegistryService::initializeCommunicator(int& argc, char* argv[],
     initData.properties->setProperty("Ice.ACM.Close", "3");
 
 
-    return Service::initializeCommunicator(argc, argv, initData);
+    return Service::initializeCommunicator(argc, argv, initData, version);
 }
 
 void
@@ -231,7 +232,7 @@ RegistryService::usage(const string& appName)
         "-v, --version        Display the Ice version.\n"
         "--nowarn             Don't print any security warnings.\n"
         "--readonly           Start the master registry in read-only mode.\n"
-        "--initdb-from-replica=<replica>\n"
+        "--initdb-from-replica <replica>\n"
         "                     Initialize the database from the given replica.";
 #ifndef _WIN32
     options.append(

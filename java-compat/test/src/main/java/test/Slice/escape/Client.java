@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -17,6 +17,7 @@ import test.Slice.escape._abstract._default;
 import test.Slice.escape._abstract._defaultDisp;
 import test.Slice.escape._abstract._else;
 import test.Slice.escape._abstract._finalize;
+import test.Slice.escape._abstract._finalizeDisp;
 import test.Slice.escape._abstract._hashCode;
 import test.Slice.escape._abstract._import;
 import test.Slice.escape._abstract._new;
@@ -68,12 +69,6 @@ public class Client
         elseI()
         {
         }
-
-        @Override
-        public void
-        foo(defaultPrx _equals, Ice.IntHolder _final, Ice.Current current)
-        {
-        }
     }
 
     static public class newI implements _new
@@ -94,7 +89,7 @@ public class Client
         }
     }
 
-    static public class finalizeI extends _finalize
+    static public class finalizeI extends _finalizeDisp
     {
         public
         finalizeI()
@@ -112,12 +107,6 @@ public class Client
         @Override
         public void
         _do(Ice.Current current)
-        {
-        }
-
-        @Override
-        public void
-        foo(defaultPrx _equals, Ice.IntHolder _final, Ice.Current current)
         {
         }
     }
@@ -141,10 +130,13 @@ public class Client
         _default d1 = new defaultI();
         elsePrx e;
         _else e1 = new elseI();
+        e1._if = 0;
+        e1._equals = null;
+        e1._final = 0;
         finalizePrx f = null;
         f._checkedCast(0, new Ice.IntHolder());
         f._do();
-        _finalize f1 = new finalizeI();
+        _finalizeDisp f1 = new finalizeI();
         forHolder g;
         gotoHolder h;
         _hashCode i = new _hashCode();

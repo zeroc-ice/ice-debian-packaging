@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -611,6 +611,18 @@ public final class ObjectAdapterI implements ObjectAdapter
     }
 
     @Override
+    public synchronized Endpoint[]
+    getEndpoints()
+    {
+        List<Endpoint> endpoints = new ArrayList<Endpoint>();
+        for(IncomingConnectionFactory factory : _incomingConnectionFactories)
+        {
+            endpoints.add(factory.endpoint());
+        }
+        return endpoints.toArray(new Endpoint[0]);
+    }
+
+    @Override
     public void
     refreshPublishedEndpoints()
     {
@@ -648,22 +660,51 @@ public final class ObjectAdapterI implements ObjectAdapter
 
     @Override
     public synchronized Endpoint[]
-    getEndpoints()
-    {
-        List<Endpoint> endpoints = new ArrayList<Endpoint>();
-        for(IncomingConnectionFactory factory : _incomingConnectionFactories)
-        {
-            endpoints.add(factory.endpoint());
-        }
-        return endpoints.toArray(new Endpoint[0]);
-    }
-
-    @Override
-    public synchronized Endpoint[]
     getPublishedEndpoints()
     {
         return _publishedEndpoints.toArray(new Endpoint[0]);
     }
+
+    @Override
+    public void
+    setPublishedEndpoints(Endpoint[] newEndpoints)
+    {
+        List<IceInternal.EndpointI> newPublishedEndpoints = new ArrayList<>(newEndpoints.length);
+        for(Endpoint e: newEndpoints)
+        {
+            newPublishedEndpoints.add((IceInternal.EndpointI)e);
+        }
+
+        IceInternal.LocatorInfo locatorInfo = null;
+        List<IceInternal.EndpointI> oldPublishedEndpoints;
+
+        synchronized(this)
+        {
+            checkForDeactivation();
+            oldPublishedEndpoints = _publishedEndpoints;
+            _publishedEndpoints = newPublishedEndpoints;
+            locatorInfo = _locatorInfo;
+        }
+
+        try
+        {
+            Ice.Identity dummy = new Identity();
+            dummy.name = "dummy";
+            updateLocatorRegistry(locatorInfo, createDirectProxy(dummy));
+        }
+        catch(Ice.LocalException ex)
+        {
+            synchronized(this)
+            {
+                //
+                // Restore the old published endpoints.
+                //
+                _publishedEndpoints = oldPublishedEndpoints;
+                throw ex;
+            }
+        }
+    }
+
 
     public boolean
     isLocal(ObjectPrx proxy)
@@ -714,7 +755,7 @@ public final class ObjectAdapterI implements ObjectAdapter
                     }
                     for(IncomingConnectionFactory p : _incomingConnectionFactories)
                     {
-                        if(endpoint.equivalent(p.endpoint()))
+                        if(p.isLocal(endpoint))
                         {
                             return true;
                         }
@@ -746,7 +787,7 @@ public final class ObjectAdapterI implements ObjectAdapter
     }
 
     public void
-    flushAsyncBatchRequests(IceInternal.CommunicatorFlushBatch outAsync)
+    flushAsyncBatchRequests(Ice.CompressBatch compressBatch, IceInternal.CommunicatorFlushBatch outAsync)
     {
         List<IncomingConnectionFactory> f;
         synchronized(this)
@@ -755,7 +796,7 @@ public final class ObjectAdapterI implements ObjectAdapter
         }
         for(IncomingConnectionFactory p : f)
         {
-            p.flushAsyncBatchRequests(outAsync);
+            p.flushAsyncBatchRequests(compressBatch, outAsync);
         }
     }
 
@@ -1038,8 +1079,15 @@ public final class ObjectAdapterI implements ObjectAdapter
                     parseEndpoints(properties.getProperty(_name + ".Endpoints"), true);
                 for(IceInternal.EndpointI endp : endpoints)
                 {
-                    IncomingConnectionFactory factory = new IncomingConnectionFactory(instance, endp, this);
-                    _incomingConnectionFactories.add(factory);
+                    Ice.Holder<IceInternal.EndpointI> publishedEndpoint = new Ice.Holder<>();
+                    for(IceInternal.EndpointI expanded : endp.expandHost(publishedEndpoint))
+                    {
+                        IncomingConnectionFactory factory = new IncomingConnectionFactory(instance,
+                                                                                          expanded,
+                                                                                          publishedEndpoint.value,
+                                                                                          this);
+                        _incomingConnectionFactories.add(factory);
+                    }
                 }
                 if(endpoints.size() == 0)
                 {
@@ -1298,7 +1346,18 @@ public final class ObjectAdapterI implements ObjectAdapter
             //
             for(IncomingConnectionFactory factory : _incomingConnectionFactories)
             {
-                endpoints.addAll(factory.endpoint().expand());
+                for(IceInternal.EndpointI endpt : factory.endpoint().expandIfWildcard())
+                {
+                    //
+                    // Check for duplicate endpoints, this might occur if an endpoint with a DNS name
+                    // expands to multiple addresses. In this case, multiple incoming connection
+                    // factories can point to the same published endpoint.
+                    //
+                    if(!endpoints.contains(endpt))
+                    {
+                        endpoints.add(endpt);
+                    }
+                }
             }
         }
 

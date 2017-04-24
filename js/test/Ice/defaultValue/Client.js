@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,7 +11,6 @@
 {
     var Ice = require("ice").Ice;
     var Test = require("Test").Test;
-    var Promise = Ice.Promise;
 
     var run = function(out, id)
     {
@@ -32,7 +31,7 @@
             }
         };
 
-        Promise.try(
+        Ice.Promise.try(
             function()
             {
                 out.write("testing default values... ");
@@ -170,7 +169,7 @@
                 test(v2.b === 0);
                 test(v2.s === 0);
                 test(v2.i === 0);
-                test(v2.l === 0);
+                test(v2.l.equals(new Ice.Long(0, 0)));
                 test(v2.f === 0.0);
                 test(v2.d === 0.0);
                 test(v2.str === "");

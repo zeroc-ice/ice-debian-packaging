@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -138,6 +138,12 @@ allTests(const Ice::CommunicatorPtr& communicator)
             test(udpEndpoint->host == "127.0.0.1");
             test(udpEndpoint->datagram());
             test(udpEndpoint->port > 0);
+
+            endpoints.pop_back();
+            test(endpoints.size() == 1);
+            adapter->setPublishedEndpoints(endpoints);
+            publishedEndpoints = adapter->getPublishedEndpoints();
+            test(endpoints == publishedEndpoints);
 
             adapter->destroy();
 

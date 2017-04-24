@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -203,16 +203,56 @@ IceSSL::EndpointI::acceptor(const string& adapterName) const
 EndpointIPtr
 IceSSL::EndpointI::endpoint(const IceInternal::EndpointIPtr& delEndp) const
 {
-    return ICE_MAKE_SHARED(EndpointI, _instance, delEndp);
+    if(delEndp.get() == _delegate.get())
+    {
+        return ICE_DYNAMIC_CAST(EndpointI, ICE_SHARED_FROM_CONST_THIS(EndpointI));
+    }
+    else
+    {
+        return ICE_MAKE_SHARED(EndpointI, _instance, delEndp);
+    }
 }
 
 vector<IceInternal::EndpointIPtr>
-IceSSL::EndpointI::expand() const
+IceSSL::EndpointI::expandIfWildcard() const
 {
-    vector<IceInternal::EndpointIPtr> endps = _delegate->expand();
+    vector<IceInternal::EndpointIPtr> endps = _delegate->expandIfWildcard();
     for(vector<IceInternal::EndpointIPtr>::iterator p = endps.begin(); p != endps.end(); ++p)
     {
-        *p = p->get() == _delegate.get() ? ICE_SHARED_FROM_CONST_THIS(EndpointI) : ICE_MAKE_SHARED(EndpointI, _instance, *p);
+        if(p->get() == _delegate.get())
+        {
+            *p = ICE_SHARED_FROM_CONST_THIS(EndpointI);
+        }
+        else
+        {
+            *p = ICE_MAKE_SHARED(EndpointI, _instance, *p);
+        }
+    }
+    return endps;
+}
+
+vector<IceInternal::EndpointIPtr>
+IceSSL::EndpointI::expandHost(IceInternal::EndpointIPtr& publish) const
+{
+    vector<IceInternal::EndpointIPtr> endps = _delegate->expandHost(publish);
+    if(publish.get() == _delegate.get())
+    {
+        publish = ICE_SHARED_FROM_CONST_THIS(EndpointI);
+    }
+    else if(publish.get())
+    {
+        publish = ICE_MAKE_SHARED(EndpointI, _instance, publish);
+    }
+    for(vector<IceInternal::EndpointIPtr>::iterator p = endps.begin(); p != endps.end(); ++p)
+    {
+        if(p->get() == _delegate.get())
+        {
+            *p = ICE_SHARED_FROM_CONST_THIS(EndpointI);
+        }
+        else
+        {
+            *p = ICE_MAKE_SHARED(EndpointI, _instance, *p);
+        }
     }
     return endps;
 }

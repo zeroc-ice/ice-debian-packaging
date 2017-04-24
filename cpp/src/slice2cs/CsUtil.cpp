@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -261,7 +261,7 @@ Slice::CsGenerator::getStaticId(const TypePtr& type)
 }
 
 string
-Slice::CsGenerator::typeToString(const TypePtr& type, bool optional, bool local)
+Slice::CsGenerator::typeToString(const TypePtr& type, bool optional, bool local, const StringList& metaData)
 {
     if(!type)
     {
@@ -304,6 +304,19 @@ Slice::CsGenerator::typeToString(const TypePtr& type, bool optional, bool local)
         "_System.Object",
         "Ice.Value"
     };
+
+    if(local)
+    {
+        for(StringList::const_iterator i = metaData.begin(); i != metaData.end(); ++i)
+        {
+            const string clrType = "cs:type:";
+            const string meta = *i;
+            if(meta.find(clrType) == 0)
+            {
+                return meta.substr(clrType.size());
+            }
+        }
+    }
 
     BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
     if(builtin)
@@ -411,7 +424,7 @@ Slice::CsGenerator::resultType(const OperationPtr& op, bool dispatch)
     ClassDefPtr cl = ClassDefPtr::dynamicCast(op->container()); // Get the class containing the op.
     if(dispatch && op->hasMarshaledResult())
     {
-        return resultStructName(cl->name(), op->name(), true);
+        return fixId(cl->scope() + resultStructName(cl->name(), op->name(), true));
     }
 
     string t;
@@ -1029,7 +1042,7 @@ Slice::CsGenerator::writeOptionalMarshalUnmarshalCode(Output &out,
     EnumPtr en = EnumPtr::dynamicCast(type);
     if(en)
     {
-        size_t sz = en->getEnumerators().size();
+        size_t sz = en->enumerators().size();
         if(marshal)
         {
             out << nl << "if(" << param << ".HasValue)";
@@ -1258,49 +1271,25 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
                     }
                     if((kind == Builtin::KindObject || kind == Builtin::KindValue))
                     {
+                        string patcherName;
                         if(isArray)
                         {
+                            patcherName = "IceInternal.Patcher.arrayReadValue";
                             out << "Ice.Value[" << param << "_lenx];";
                         }
                         else if(isCustom)
                         {
+                            patcherName = "IceInternal.Patcher.customSeqReadValue";
                             out << "global::" << genericType << "<Ice.Value>();";
-                        }
-                        else if(isGeneric)
-                        {
-                            out << "_System.Collections.Generic." << genericType << "<Ice.Value>(";
-                            if(!isLinkedList)
-                            {
-                                out << param << "_lenx";
-                            }
-                            out << ");";
                         }
                         else
                         {
-                            out << typeToString(seq) << "(" << param << "_lenx);";
+                            patcherName = "IceInternal.Patcher.listReadValue";
+                            out << "_System.Collections.Generic." << genericType << "<Ice.Value>(" << param << "_lenx);";
                         }
                         out << nl << "for(int ix = 0; ix < " << param << "_lenx; ++ix)";
                         out << sb;
-                        string patcherName;
-                        if(isCustom)
-                        {
-                            patcherName = "CustomSeq";
-                        }
-                        else if(isList)
-                        {
-                            patcherName = "List";
-                        }
-                        else if(isArray)
-                        {
-                            patcherName = "Array";
-                        }
-                        else
-                        {
-                            patcherName = "Sequence";
-                        }
-                        out << nl << "IceInternal." << patcherName << "Patcher<Ice.Value> p = new IceInternal."
-                            << patcherName << "Patcher<Ice.Value>(\"::Ice::Object\", " << param << ", ix);";
-                        out << nl << stream << ".readValue(p.patch);";
+                        out << nl << stream << ".readValue(" << patcherName << "<Ice.Value>(" << param << ", ix));";
                     }
                     else
                     {
@@ -1312,7 +1301,11 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
                         {
                             out << "Ice.ObjectPrx[" << param << "_lenx];";
                         }
-                        else if(isGeneric)
+                        else if(isCustom)
+                        {
+                            out << "global::" << genericType << "<Ice.ObjectPrx>();";
+                        }
+                        else
                         {
                             out << "_System.Collections.Generic." << genericType << "<Ice.ObjectPrx>(";
                             if(!isLinkedList)
@@ -1320,10 +1313,6 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
                                 out << param << "_lenx";
                             }
                             out << ");";
-                        }
-                        else
-                        {
-                            out << typeToString(seq) << "(" << param << "_lenx);";
                         }
 
                         out << nl << "for(int ix = 0; ix < " << param << "_lenx; ++ix)";
@@ -1458,52 +1447,26 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
             out << nl << "int szx = " << stream << ".readAndCheckSeqSize("
                 << static_cast<unsigned>(type->minWireSize()) << ");";
             out << nl << param << " = new ";
+            string patcherName;
             if(isArray)
             {
-                out << toArrayAlloc(typeS + "[]", "szx");
+                patcherName = "IceInternal.Patcher.arrayReadValue";
+                out << toArrayAlloc(typeS + "[]", "szx") << ";";
             }
             else if(isCustom)
             {
-                out << "global::" << genericType << "<" << typeS << ">()";
-            }
-            else if(isGeneric)
-            {
-                out << "_System.Collections.Generic." << genericType << "<" << typeS << ">(";
-                if(!isLinkedList)
-                {
-                    out << "szx";
-                }
-                out << ")";
+                patcherName = "IceInternal.Patcher.customSeqReadValue";
+                out << "global::" << genericType << "<" << typeS << ">();";
             }
             else
             {
-                out << fixId(seq->scoped()) << "(szx)";
+                patcherName = "IceInternal.Patcher.listReadValue";
+                out << "_System.Collections.Generic." << genericType << "<" << typeS << ">(szx);";
             }
-            out << ';';
             out << nl << "for(int ix = 0; ix < szx; ++ix)";
             out << sb;
-
-            string patcherName;
-            if(isCustom)
-            {
-                patcherName = "CustomSeq";
-            }
-            else if(isList)
-            {
-                patcherName = "List";
-            }
-            else if(isArray)
-            {
-                patcherName = "Array";
-            }
-            else
-            {
-                patcherName = "Sequence";
-            }
             string scoped = ContainedPtr::dynamicCast(type)->scoped();
-            out << nl << "IceInternal." << patcherName << "Patcher<" << typeS << "> spx = new IceInternal."
-                << patcherName << "Patcher<" << typeS << ">(\"" << scoped << "\", " << param << ", ix);";
-            out << nl << stream << ".readValue(spx.patch);";
+            out << nl << stream << ".readValue(" << patcherName << '<' << typeS << ">(" << param << ", ix));";
             out << eb;
             out << eb;
         }
@@ -1611,7 +1574,7 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
             {
                 out << nl << typeS << "[] " << param << "_tmp = new " << toArrayAlloc(typeS + "[]", "szx") << ";";
             }
-            else if(isGeneric)
+            else
             {
                 out << nl << param << " = new _System.Collections.Generic." << genericType << "<" << typeS << ">(";
                 if(!isLinkedList)
@@ -1619,10 +1582,6 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
                     out << "szx";
                 }
                 out << ");";
-            }
-            else
-            {
-                out << nl << param << " = new " << fixId(seq->scoped()) << "(szx);";
             }
             out << nl << "for(int ix = 0; ix < szx; ++ix)";
             out << sb;
@@ -1714,7 +1673,7 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
             {
                 out << nl << typeS << "[] " << param << "_tmp = new " << toArrayAlloc(typeS + "[]", "szx") << ";";
             }
-            else if(isGeneric)
+            else
             {
                 out << nl << param << " = new _System.Collections.Generic." << genericType << "<" << typeS << ">(";
                 if(!isLinkedList)
@@ -1722,10 +1681,6 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
                     out << "szx";
                 }
                 out << ");";
-            }
-            else
-            {
-                out << nl << param << " = new " << fixId(seq->scoped()) << "(szx);";
             }
             out << nl << "for(int ix = 0; ix < szx; ++ix)";
             out << sb;
@@ -1822,13 +1777,9 @@ Slice::CsGenerator::writeSequenceMarshalUnmarshalCode(Output& out,
         {
             out << nl << typeS << "[] " << param << "_tmp = new " << toArrayAlloc(typeS + "[]", "szx") << ";";
         }
-        else if(isGeneric)
-        {
-            out << nl << param << " = new _System.Collections.Generic." << genericType << "<" << typeS << ">();";
-        }
         else
         {
-            out << nl << param << " = new " << fixId(seq->scoped()) << "(szx);";
+            out << nl << param << " = new _System.Collections.Generic." << genericType << "<" << typeS << ">();";
         }
         out << nl << "for(int ix = 0; ix < szx; ++ix)";
         out << sb;
@@ -2355,7 +2306,6 @@ Slice::CsGenerator::MetaDataVisitor::visitUnitStart(const UnitPtr& p)
         assert(dc);
         StringList globalMetaData = dc->getMetaData();
         StringList newGlobalMetaData;
-        bool emitWarnings = !dc->suppressWarning("invalid-metadata");
         static const string csPrefix = "cs:";
         static const string clrPrefix = "clr:";
 
@@ -2374,10 +2324,7 @@ Slice::CsGenerator::MetaDataVisitor::visitUnitStart(const UnitPtr& p)
                 static const string csAttributePrefix = csPrefix + "attribute:";
                 if(s.find(csAttributePrefix) != 0 || s.size() == csAttributePrefix.size())
                 {
-                    if(emitWarnings)
-                    {
-                        emitWarning(file, -1, "ignoring invalid global metadata `" + oldS + "'");
-                    }
+                    dc->warning(InvalidMetaData, file, -1, "ignoring invalid global metadata `" + oldS + "'");
                     continue;
                 }
             }
@@ -2502,7 +2449,6 @@ Slice::CsGenerator::MetaDataVisitor::validate(const ContainedPtr& cont)
     const UnitPtr unit = cont->unit();
     const DefinitionContextPtr dc = unit->findDefinitionContext(cont->file());
     assert(dc);
-    bool emitWarnings = !dc->suppressWarning("invalid-metadata");
 
     for(StringList::iterator p = localMetaData.begin(); p != localMetaData.end(); ++p)
     {
@@ -2547,11 +2493,8 @@ Slice::CsGenerator::MetaDataVisitor::validate(const ContainedPtr& cont)
                     string meta;
                     if(cont->findMetaData(csPrefix + "generic:", meta))
                     {
-                        if(emitWarnings)
-                        {
-                            emitWarning(cont->file(), cont->line(), msg + " `" + meta + "':\n" +
-                                        "serialization can only be used with the array mapping for byte sequences");
-                        }
+                        dc->warning(InvalidMetaData, cont->file(), cont->line(), msg + " `" + meta + "':\n" +
+                                    "serialization can only be used with the array mapping for byte sequences");
                         continue;
                     }
                     string type = s.substr(csSerializablePrefix.size());
@@ -2609,6 +2552,20 @@ Slice::CsGenerator::MetaDataVisitor::validate(const ContainedPtr& cont)
                     }
                 }
             }
+            else if(DataMemberPtr::dynamicCast(cont))
+            {
+                DataMemberPtr dataMember = DataMemberPtr::dynamicCast(cont);                
+                StructPtr st = StructPtr::dynamicCast(dataMember->container());
+                ExceptionPtr ex = ExceptionPtr::dynamicCast(dataMember->container());
+                ClassDefPtr cl = ClassDefPtr::dynamicCast(dataMember->container());
+                bool isLocal = (st && st->isLocal()) || (ex && ex->isLocal()) || (cl && cl->isLocal());
+                static const string csTypePrefix = csPrefix + "type:";
+                if(isLocal && s.find(csTypePrefix) == 0)
+                {
+                    newLocalMetaData.push_back(s);
+                    continue;
+                }
+            }
 
             static const string csAttributePrefix = csPrefix + "attribute:";
             static const string csTie = csPrefix + "tie";
@@ -2623,10 +2580,7 @@ Slice::CsGenerator::MetaDataVisitor::validate(const ContainedPtr& cont)
                 continue;
             }
 
-            if(emitWarnings)
-            {
-                emitWarning(cont->file(), cont->line(), msg + " `" + oldS + "'");
-            }
+            dc->warning(InvalidMetaData, cont->file(), cont->line(), msg + " `" + oldS + "'");
             continue;
         }
         else if(s == "delegate")
@@ -2638,10 +2592,7 @@ Slice::CsGenerator::MetaDataVisitor::validate(const ContainedPtr& cont)
                 continue;
             }
 
-            if(emitWarnings)
-            {
-                emitWarning(cont->file(), cont->line(), msg + " `" + s + "'");
-            }
+            dc->warning(InvalidMetaData, cont->file(), cont->line(), msg + " `" + s + "'");
             continue;
         }
         newLocalMetaData.push_back(s);

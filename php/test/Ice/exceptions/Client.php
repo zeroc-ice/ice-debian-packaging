@@ -1,7 +1,7 @@
 <?php
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -297,7 +297,8 @@ function allTests($communicator)
         catch(Exception $ex)
         {
             $uue = $NS ? "Ice\\ConnectionLostException" : "Ice_ConnectionLostException";
-            if(!($ex instanceof $uue))
+            $ule = $NS ? "Ice\\UnknownLocalException" : "Ice_UnknownLocalException";
+            if(!($ex instanceof $uue) && !($ex instanceof $ule))
             {
                 throw $ex;
             }
@@ -432,7 +433,7 @@ function allTests($communicator)
 $initData = $NS ? eval("return new Ice\\InitializationData;") : eval("return new Ice_InitializationData;");
 $initData->properties = $NS ? eval("return Ice\\getProperties();") : eval("return Ice_getProperties();");
 $initData->properties->setProperty("Ice.MessageSizeMax", "10");
-$communicator = $NS ? eval("return Ice\\initialize(\$argv, \$initData);") : 
+$communicator = $NS ? eval("return Ice\\initialize(\$argv, \$initData);") :
                       eval("return Ice_initialize(\$argv, \$initData);");
 
 // This property is set by the test suite, howerver we need to override it for this test.

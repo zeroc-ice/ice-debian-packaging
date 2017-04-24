@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -18,7 +18,7 @@ def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-class TestIntfI(Test._TestIntfDisp):
+class TestIntfI(Test.TestIntf):
     def opByte(self, b1, current=None):
         return (b1, b1)
 

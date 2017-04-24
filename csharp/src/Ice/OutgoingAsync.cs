@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -20,9 +20,9 @@ namespace IceInternal
 
         bool handleSent(bool done, bool alreadySent);
         bool handleException(Ice.Exception ex);
-        bool handleResponse(bool ok, OutgoingAsyncBase og);
+        bool handleResponse(bool userThread, bool ok, OutgoingAsyncBase og);
 
-        void handleInvokeSent(bool sentSynchronously, OutgoingAsyncBase og);
+        void handleInvokeSent(bool sentSynchronously, bool done, bool alreadySent, OutgoingAsyncBase og);
         void handleInvokeException(Ice.Exception ex, OutgoingAsyncBase og);
         void handleInvokeResponse(bool ok, OutgoingAsyncBase og);
     }
@@ -83,7 +83,7 @@ namespace IceInternal
         {
             try
             {
-                _completionCallback.handleInvokeSent(sentSynchronously_, this);
+                _completionCallback.handleInvokeSent(sentSynchronously_, _doneInSent, _alreadySent, this);
             }
             catch(System.Exception ex)
             {
@@ -233,6 +233,7 @@ namespace IceInternal
             instance_ = instance;
             sentSynchronously_ = false;
             _doneInSent = false;
+            _alreadySent = false;
             state_ = 0;
             os_ = os ?? new Ice.OutputStream(instance, Ice.Util.currentProtocolEncoding);
             is_ = iss ?? new Ice.InputStream(instance, Ice.Util.currentProtocolEncoding);
@@ -247,7 +248,7 @@ namespace IceInternal
         {
             lock(this)
             {
-                bool alreadySent = (state_ & StateSent) > 0;
+                _alreadySent = (state_ & StateSent) > 0;
                 state_ |= StateSent;
                 if(done)
                 {
@@ -269,7 +270,7 @@ namespace IceInternal
                     cacheMessageBuffers();
                 }
 
-                bool invoke = _completionCallback.handleSent(done, alreadySent);
+                bool invoke = _completionCallback.handleSent(done, _alreadySent);
                 if(!invoke && _doneInSent && observer_ != null)
                 {
                     observer_.detach();
@@ -305,7 +306,7 @@ namespace IceInternal
                 return invoke;
             }
         }
-        protected virtual bool responseImpl(bool ok)
+        protected virtual bool responseImpl(bool userThread, bool ok)
         {
             lock(this)
             {
@@ -319,7 +320,7 @@ namespace IceInternal
                 bool invoke;
                 try
                 {
-                    invoke = _completionCallback.handleResponse(ok, this);
+                    invoke = _completionCallback.handleResponse(userThread, ok, this);
                 }
                 catch(Ice.Exception ex)
                 {
@@ -386,6 +387,7 @@ namespace IceInternal
         protected Ice.InputStream is_;
 
         private bool _doneInSent;
+        private bool _alreadySent;
         private Ice.Exception _ex;
         private Ice.LocalException _cancellationException;
         private CancellationHandler _cancellationHandler;
@@ -623,13 +625,13 @@ namespace IceInternal
             return base.exceptionImpl(ex);
         }
 
-        protected override bool responseImpl(bool ok)
+        protected override bool responseImpl(bool userThread, bool ok)
         {
             if(proxy_.iceReference().getInvocationTimeout() != -1)
             {
                 instance_.timer().cancel(this);
             }
-            return base.responseImpl(ok);
+            return base.responseImpl(userThread, ok);
         }
 
         public void runTimerTask()
@@ -887,7 +889,7 @@ namespace IceInternal
                     }
                 }
 
-                return responseImpl(replyStatus == ReplyStatus.replyOK);
+                return responseImpl(false, replyStatus == ReplyStatus.replyOK);
             }
             catch(Ice.Exception ex)
             {
@@ -935,7 +937,7 @@ namespace IceInternal
             {
                 sentSynchronously_ = true;
                 proxy_.iceGetBatchRequestQueue().finishBatchRequest(os_, proxy_, operation);
-                responseImpl(true);
+                responseImpl(true, true);
                 return; // Don't call sent/completed callback for batch AMI requests
             }
 
@@ -1140,7 +1142,8 @@ namespace IceInternal
         {
             Protocol.checkSupportedProtocol(Protocol.getCompatibleProtocol(proxy_.iceReference().getProtocol()));
             observer_ = ObserverHelper.get(proxy_, operation, null);
-            _batchRequestNum = proxy_.iceGetBatchRequestQueue().swap(os_);
+            bool compress; // Not used for proxy flush batch requests.
+            _batchRequestNum = proxy_.iceGetBatchRequestQueue().swap(os_, out compress);
             invokeImpl(true); // userThread = true
         }
 
@@ -1160,7 +1163,7 @@ namespace IceInternal
         public override int invokeRemote(Ice.ConnectionI connection, bool compress, bool response)
         {
             cachedConnection_ = connection;
-            if(responseImpl(true))
+            if(responseImpl(false, true))
             {
                 invokeResponseAsync();
             }
@@ -1169,7 +1172,7 @@ namespace IceInternal
 
         public override int invokeCollocated(CollocatedRequestHandler handler)
         {
-            if(responseImpl(true))
+            if(responseImpl(false, true))
             {
                 invokeResponseAsync();
             }
@@ -1198,13 +1201,14 @@ namespace IceInternal
             _connection = connection;
         }
 
-        public void invoke(string operation)
+        public void invoke(string operation, Ice.CompressBatch compressBatch)
         {
             observer_ = ObserverHelper.get(instance_, operation);
             try
             {
                 int status;
-                int batchRequestNum = _connection.getBatchRequestQueue().swap(os_);
+                bool compress;
+                int batchRequestNum = _connection.getBatchRequestQueue().swap(os_, out compress);
                 if(batchRequestNum == 0)
                 {
                     status = AsyncStatusSent;
@@ -1215,7 +1219,20 @@ namespace IceInternal
                 }
                 else
                 {
-                    status = _connection.sendAsyncRequest(this, false, false, batchRequestNum);
+                    bool comp;
+                    if(compressBatch == Ice.CompressBatch.Yes)
+                    {
+                        comp = true;
+                    }
+                    else if(compressBatch == Ice.CompressBatch.No)
+                    {
+                        comp = false;
+                    }
+                    else
+                    {
+                        comp = compress;
+                    }
+                    status = _connection.sendAsyncRequest(this, comp, false, batchRequestNum);
                 }
 
                 if((status & AsyncStatusSent) != 0)
@@ -1311,7 +1328,7 @@ namespace IceInternal
             _useCount = 1;
         }
 
-        public void flushConnection(Ice.ConnectionI con)
+        public void flushConnection(Ice.ConnectionI con, Ice.CompressBatch compressBatch)
         {
             lock(this)
             {
@@ -1321,14 +1338,28 @@ namespace IceInternal
             try
             {
                 var flushBatch = new FlushBatch(this, instance_, _observer);
-                int batchRequestNum = con.getBatchRequestQueue().swap(flushBatch.getOs());
+                bool compress;
+                int batchRequestNum = con.getBatchRequestQueue().swap(flushBatch.getOs(), out compress);
                 if(batchRequestNum == 0)
                 {
                     flushBatch.sent();
                 }
                 else
                 {
-                    con.sendAsyncRequest(flushBatch, false, false, batchRequestNum);
+                    bool comp;
+                    if(compressBatch == Ice.CompressBatch.Yes)
+                    {
+                        comp = true;
+                    }
+                    else if(compressBatch == Ice.CompressBatch.No)
+                    {
+                        comp = false;
+                    }
+                    else
+                    {
+                        comp = compress;
+                    }
+                    con.sendAsyncRequest(flushBatch, comp, false, batchRequestNum);
                 }
             }
             catch(Ice.LocalException)
@@ -1338,15 +1369,15 @@ namespace IceInternal
             }
         }
 
-        public void invoke(string operation)
+        public void invoke(string operation, Ice.CompressBatch compressBatch)
         {
             _observer = ObserverHelper.get(instance_, operation);
             if(_observer != null)
             {
                 _observer.attach();
             }
-            instance_.outgoingConnectionFactory().flushAsyncBatchRequests(this);
-            instance_.objectAdapterFactory().flushAsyncBatchRequests(this);
+            instance_.outgoingConnectionFactory().flushAsyncBatchRequests(compressBatch, this);
+            instance_.objectAdapterFactory().flushAsyncBatchRequests(compressBatch, this);
             check(true);
         }
 
@@ -1383,7 +1414,7 @@ namespace IceInternal
     {
         public TaskCompletionCallback(System.IProgress<bool> progress, CancellationToken cancellationToken)
         {
-            _progress = progress;
+            progress_ = progress;
             _cancellationToken = cancellationToken;
         }
 
@@ -1395,40 +1426,51 @@ namespace IceInternal
             }
         }
 
-        public virtual bool handleSent(bool done, bool alreadySent)
+        public bool handleSent(bool done, bool alreadySent)
+        {
+            return done || progress_ != null && !alreadySent; // Invoke the sent callback only if not already invoked.
+        }
+
+        public bool handleException(Ice.Exception ex)
+        {
+            return true;
+        }
+
+        public bool handleResponse(bool userThread, bool ok, OutgoingAsyncBase og)
+        {
+            if(userThread)
+            {
+                handleInvokeResponse(ok, og);
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        public virtual void handleInvokeSent(bool sentSynchronously, bool done, bool alreadySent, OutgoingAsyncBase og)
         {
             if(done)
             {
                 SetResult(default(T));
             }
-            return _progress != null && !alreadySent; // Invoke the sent callback only if not already invoked.
-        }
-
-        public bool handleException(Ice.Exception ex)
-        {
-            SetException(ex);
-            return false;
-        }
-
-        public abstract bool handleResponse(bool ok, OutgoingAsyncBase og);
-
-        public void handleInvokeSent(bool sentSynchronously, OutgoingAsyncBase og)
-        {
-            _progress.Report(sentSynchronously);
+            if(progress_ != null && !alreadySent)
+            {
+               progress_.Report(sentSynchronously);
+            }
         }
 
         public void handleInvokeException(Ice.Exception ex, OutgoingAsyncBase og)
         {
-            Debug.Assert(false);
+            SetException(ex);
         }
 
-        public void handleInvokeResponse(bool ok, OutgoingAsyncBase og)
-        {
-            Debug.Assert(false);
-        }
+        abstract public void handleInvokeResponse(bool ok, OutgoingAsyncBase og);
 
         private readonly CancellationToken _cancellationToken;
-        private readonly System.IProgress<bool> _progress;
+
+        protected readonly System.IProgress<bool> progress_;
     }
 
     public class OperationTaskCompletionCallback<T> : TaskCompletionCallback<T>
@@ -1438,10 +1480,9 @@ namespace IceInternal
         {
         }
 
-        public override bool handleResponse(bool ok, OutgoingAsyncBase og)
+        public override void handleInvokeResponse(bool ok, OutgoingAsyncBase og)
         {
             SetResult(((OutgoingAsyncT<T>)og).getResult(ok));
-            return false;
         }
     }
 
@@ -1452,10 +1493,9 @@ namespace IceInternal
         {
         }
 
-        public override bool handleResponse(bool ok, OutgoingAsyncBase og)
+        public override void handleInvokeResponse(bool ok, OutgoingAsyncBase og)
         {
             SetResult(null);
-            return false;
         }
     }
 
@@ -1509,7 +1549,7 @@ namespace IceInternal
             }
         }
 
-        public bool handleResponse(bool ok, OutgoingAsyncBase og)
+        public bool handleResponse(bool userThread, bool ok, OutgoingAsyncBase og)
         {
             lock(this)
             {
@@ -1527,7 +1567,7 @@ namespace IceInternal
             }
         }
 
-        public void handleInvokeSent(bool sentSynchronously, OutgoingAsyncBase og)
+        public void handleInvokeSent(bool sentSynchronously, bool done, bool alreadySent, OutgoingAsyncBase og)
         {
             sentCallback_(this);
         }

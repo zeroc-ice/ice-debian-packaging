@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -734,6 +734,34 @@ public class OutputStream
         catch(java.lang.Exception ex)
         {
             throw new MarshalException("cannot serialize object: " + ex);
+        }
+    }
+
+    /**
+     * Writes an optional serializable Java object to the stream.
+     *
+     * @param tag The optional tag.
+     * @param v The optional serializable object to write.
+     **/
+    public <T extends java.io.Serializable> void writeSerializable(int tag, java.util.Optional<T> v)
+    {
+        if(v != null && v.isPresent())
+        {
+            writeSerializable(tag, v.get());
+        }
+    }
+
+    /**
+     * Writes an optional serializable Java object to the stream.
+     *
+     * @param tag The optional tag.
+     * @param v The serializable object to write.
+     **/
+    public void writeSerializable(int tag, java.io.Serializable v)
+    {
+        if(writeOptional(tag, OptionalFormat.VSize))
+        {
+            writeSerializable(v);
         }
     }
 

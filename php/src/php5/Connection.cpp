@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -128,17 +128,25 @@ ZEND_METHOD(Ice_Connection, getEndpoint)
 
 ZEND_METHOD(Ice_Connection, flushBatchRequests)
 {
-    if(ZEND_NUM_ARGS() > 0)
+    zval* compress;
+    if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, const_cast<char*>("z"), &compress TSRMLS_CC) != SUCCESS)
     {
-        WRONG_PARAM_COUNT;
+        RETURN_NULL();
     }
+
+    if(Z_TYPE_P(compress) != IS_LONG)
+    {
+        invalidArgument("value for 'compress' argument must be an enumerator of CompressBatch" TSRMLS_CC);
+        RETURN_NULL();
+    }
+    Ice::CompressBatch cb = static_cast<Ice::CompressBatch>(Z_LVAL_P(compress));
 
     Ice::ConnectionPtr _this = Wrapper<Ice::ConnectionPtr>::value(getThis() TSRMLS_CC);
     assert(_this);
 
     try
     {
-        _this->flushBatchRequests();
+        _this->flushBatchRequests(cb);
     }
     catch(const IceUtil::Exception& ex)
     {
@@ -739,10 +747,18 @@ IcePHP::createConnectionInfo(zval* zv, const Ice::ConnectionInfoPtr& p TSRMLS_DC
         add_property_string(zv, STRCAST("cipher"), const_cast<char*>(info->cipher.c_str()), 1);
         add_property_bool(zv, STRCAST("verified"), info->verified ? 1 : 0);
 
+        
         zval* zarr;
         MAKE_STD_ZVAL(zarr);
         AutoDestroy listDestroyer(zarr);
-        if(createStringArray(zarr, info->certs TSRMLS_CC))
+        
+        Ice::StringSeq encoded;
+        for(vector<IceSSL::CertificatePtr>::const_iterator i = info->certs.begin(); i != info->certs.end(); ++i)
+        {
+            encoded.push_back((*i)->encode());
+        }
+
+        if(createStringArray(zarr, encoded TSRMLS_CC))
         {
             add_property_zval(zv, STRCAST("certs"), zarr);
         }

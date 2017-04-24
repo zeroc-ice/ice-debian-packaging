@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -119,9 +119,7 @@ public class _ObjectPrxI implements ObjectPrx, java.io.Serializable
         OutgoingAsync<String[]> f =
             new OutgoingAsync<>(this, "ice_ids", OperationMode.Nonmutating, sync, null);
         f.invoke(true, context, null, null, istr -> {
-                       String[] ret;
-                       ret = StringSeqHelper.read(istr);
-                       return ret;
+                       return istr.readStringSeq();
                    });
         return f;
     }

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,6 +8,8 @@
 // **********************************************************************
 
 #pragma once
+
+[["suppress-warning:deprecated"]] // For classes with operations
 
 module Test
 {
@@ -67,16 +69,12 @@ class D
 {
     int i;
     string s;
-
-    bool checkValues();
 };
 
 class F
 {
     ["protected"] E e1;
     E e2;
-
-    bool checkValues();
 };
 
 interface I
@@ -134,7 +132,12 @@ exception EDerived extends EBase
     A1 a4;
 };
 
-class Initial
+class Recursive
+{
+    Recursive v;
+};
+
+interface Initial
 {
     void shutdown();
     B getB1();
@@ -143,6 +146,9 @@ class Initial
     D getD();
     E getE();
     F getF();
+
+    void setRecursive(Recursive p);
+    bool supportsClassGraphDepthMax();
 
     ["marshaled-result"] B getMB();
     ["amd", "marshaled-result"] B getAMDMB();

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -75,7 +75,7 @@ allTests(const CommunicatorPtr& communicator)
         {
             Ice::InitializationData initData;
             initData.properties = communicator->getProperties()->clone();
-            Ice::CommunicatorHolder comm = Ice::initialize(initData);
+            Ice::CommunicatorHolder comm(initData);
 #ifdef ICE_CPP11_MAPPING
             comm->stringToProxy("test:" + getTestEndpoint(communicator, 0))->ice_pingAsync();
 #else

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -100,7 +100,7 @@ class BatchOnewaysAMI
             batch.ice_pingAsync();
             batch2.ice_pingAsync();
             batch.ice_flushBatchRequestsAsync().join();
-            batch.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+            batch.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             batch.ice_pingAsync();
             batch2.ice_pingAsync();
 
@@ -108,7 +108,7 @@ class BatchOnewaysAMI
             batch2.ice_getConnection();
 
             batch.ice_pingAsync();
-            batch.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.CloseGracefullyAndWait);
+            batch.ice_getConnection().close(com.zeroc.Ice.ConnectionClose.GracefullyWithWait);
             test(!batch.ice_pingAsync().isCompletedExceptionally());
             test(!batch2.ice_pingAsync().isCompletedExceptionally());
         }

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -263,9 +263,9 @@
 //
 // The Ice version.
 //
-#define ICE_STRING_VERSION "3.7a4" // "A.B.C", with A=major, B=minor, C=patch
-#define ICE_INT_VERSION 30754      // AABBCC, with AA=major, BB=minor, CC=patch
-#define ICE_SO_VERSION "37a4"      // "ABC", with A=major, B=minor, C=patch
+#define ICE_STRING_VERSION "3.7b0" // "A.B.C", with A=major, B=minor, C=patch
+#define ICE_INT_VERSION 30760      // AABBCC, with AA=major, BB=minor, CC=patch
+#define ICE_SO_VERSION "37b0"      // "ABC", with A=major, B=minor, C=patch
 
 #if !defined(ICE_BUILDING_ICE) && defined(ICE_API_EXPORTS)
 #   define ICE_BUILDING_ICE
@@ -370,6 +370,7 @@ typedef long long Int64;
 #   define ICE_MAKE_SHARED(T, ...) ::std::make_shared<T>(__VA_ARGS__)
 #   define ICE_DEFINE_PTR(TPtr, T) using TPtr = ::std::shared_ptr<T>
 #   define ICE_ENUM(CLASS,ENUMERATOR) CLASS::ENUMERATOR
+#   define ICE_SCOPED_ENUM(CLASS,ENUMERATOR) CLASS::ENUMERATOR
 #   define ICE_NULLPTR nullptr
 #   define ICE_DYNAMIC_CAST(T,V) ::std::dynamic_pointer_cast<T>(V)
 #   define ICE_SHARED_FROM_THIS shared_from_this()
@@ -390,6 +391,7 @@ typedef long long Int64;
 #   define ICE_MAKE_SHARED(T, ...) new T(__VA_ARGS__)
 #   define ICE_DEFINE_PTR(TPtr, T) typedef ::IceUtil::Handle<T> TPtr
 #   define ICE_ENUM(CLASS,ENUMERATOR) ENUMERATOR
+#   define ICE_SCOPED_ENUM(CLASS,ENUMERATOR) CLASS##ENUMERATOR
 #   define ICE_NULLPTR 0
 #   define ICE_DYNAMIC_CAST(T,V) T##Ptr::dynamicCast(V)
 #   define ICE_SHARED_FROM_THIS this

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -45,14 +45,10 @@ class ConnectionACMMonitor implements ACMMonitor
         _connection = connection;
         if(_config.timeout > 0)
         {
-            _future = _timer.scheduleAtFixedRate(new Runnable() {
-                @Override
-                public void run()
-                {
-                    monitorConnection();
-                }
-            },
-            _config.timeout / 2, _config.timeout / 2, java.util.concurrent.TimeUnit.MILLISECONDS);
+            _future = _timer.scheduleAtFixedRate(() -> { monitorConnection(); },
+                                                 _config.timeout / 2,
+                                                 _config.timeout / 2,
+                                                 java.util.concurrent.TimeUnit.MILLISECONDS);
         }
     }
 

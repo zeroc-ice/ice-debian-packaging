@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -61,14 +61,14 @@ def batchOneways(p):
         batch1.end_ice_ping(batch1.begin_ice_ping())
         batch2.end_ice_ping(batch2.begin_ice_ping())
         batch1.end_ice_flushBatchRequests(batch1.begin_ice_flushBatchRequests())
-        batch1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
+        batch1.ice_getConnection().close(Ice.ConnectionClose.GracefullyWithWait)
         batch1.end_ice_ping(batch1.begin_ice_ping())
         batch2.end_ice_ping(batch2.begin_ice_ping())
 
         batch1.ice_getConnection()
         batch2.ice_getConnection()
 
-        batch1.ice_getConnection().close(Ice.ConnectionClose.CloseGracefullyAndWait)
+        batch1.ice_getConnection().close(Ice.ConnectionClose.GracefullyWithWait)
 
         batch1.end_ice_ping(batch1.begin_ice_ping())
         batch2.end_ice_ping(batch2.begin_ice_ping())

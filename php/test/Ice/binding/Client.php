@@ -1,7 +1,7 @@
 <?php
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -62,8 +62,8 @@ function allTests($communicator)
     $random = $NS ? constant("Ice\\EndpointSelectionType::Random") : constant("Ice_EndpointSelectionType::Random");
     $ordered = $NS ? constant("Ice\\EndpointSelectionType::Ordered") : constant("Ice_EndpointSelectionType::Ordered");
     $closeGracefullyAndWait =
-        $NS ? constant("Ice\\ConnectionClose::CloseGracefullyAndWait") :
-              constant("Ice_ConnectionClose::CloseGracefullyAndWait");
+        $NS ? constant("Ice\\ConnectionClose::GracefullyWithWait") :
+              constant("Ice_ConnectionClose::GracefullyWithWait");
 
     $ref = "communicator:default -p 12010";
     $com = $communicator->stringToProxy($ref)->ice_uncheckedCast("::Test::RemoteCommunicator");

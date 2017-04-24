@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -173,7 +173,10 @@ FILE*
 Slice::Preprocessor::preprocess(bool keepComments, const string& extraArg)
 {
     vector<string> args;
-    args.push_back(extraArg);
+    if(!extraArg.empty())
+    {
+        args.push_back(extraArg);
+    }
     return preprocess(keepComments, args);
 }
 

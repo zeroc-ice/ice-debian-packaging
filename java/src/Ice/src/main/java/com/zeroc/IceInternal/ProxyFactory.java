@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -59,8 +59,7 @@ public final class ProxyFactory
     public com.zeroc.Ice.ObjectPrx
     streamToProxy(com.zeroc.Ice.InputStream s)
     {
-        com.zeroc.Ice.Identity ident = com.zeroc.Ice.Identity.ice_read(s, null);
-
+        com.zeroc.Ice.Identity ident = com.zeroc.Ice.Identity.ice_read(s);
         Reference ref = _instance.referenceFactory().create(ident, s);
         return referenceToProxy(ref);
     }

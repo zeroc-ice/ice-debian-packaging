@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -70,7 +70,7 @@ InternalRegistryI::registerNode(const InternalNodeInfoPtr& info,
             if(sslConnInfo)
             {
                 if (sslConnInfo->certs.empty() ||
-                    !IceSSL::Certificate::decode(sslConnInfo->certs[0])->getSubjectDN().match("CN=" + info->name))
+                    !sslConnInfo->certs[0]->getSubjectDN().match("CN=" + info->name))
                 {
                     if(traceLevels->node > 0)
                     {
@@ -137,7 +137,7 @@ InternalRegistryI::registerReplica(const InternalReplicaInfoPtr& info,
             if(sslConnInfo)
             {
                 if (sslConnInfo->certs.empty() ||
-                    !IceSSL::Certificate::decode(sslConnInfo->certs[0])->getSubjectDN().match("CN=" + info->name))
+                    !sslConnInfo->certs[0]->getSubjectDN().match("CN=" + info->name))
                 {
                     if(traceLevels->replica > 0)
                     {

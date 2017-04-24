@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -133,7 +133,7 @@ public final class OutgoingConnectionFactory
                     {
                         for(Ice.ConnectionI c : l)
                         {
-                            c.close(Ice.ConnectionClose.CloseForcefully);
+                            c.close(Ice.ConnectionClose.Forcefully);
                         }
                     }
                     throw new Ice.OperationInterruptedException();
@@ -271,7 +271,7 @@ public final class OutgoingConnectionFactory
     }
 
     public void
-    flushAsyncBatchRequests(CommunicatorFlushBatch outAsync)
+    flushAsyncBatchRequests(Ice.CompressBatch compressBatch, CommunicatorFlushBatch outAsync)
     {
         java.util.List<Ice.ConnectionI> c = new java.util.LinkedList<Ice.ConnectionI>();
 
@@ -296,7 +296,7 @@ public final class OutgoingConnectionFactory
         {
             try
             {
-                outAsync.flushConnection(conn);
+                outAsync.flushConnection(conn, compressBatch);
             }
             catch(Ice.LocalException ex)
             {

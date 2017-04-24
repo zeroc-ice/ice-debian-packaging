@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -32,10 +32,6 @@ def test(b)
     end
 end
 
-class DisplayI  < BEGIN_::Display
-    def _do(_dup, current=nil)
-    end
-end
 
 def run(args, communicator)
     print "testing type names... "
@@ -48,11 +44,12 @@ def run(args, communicator)
     test(c.method(:_to_a))
     test(c.method(:_instance_variable_set))
     test(c.method(:_instance_variables))
-    d = BEGIN_::DisplayPrx::uncheckedCast(communicator.stringToProxy("test:tcp"))
-    test(d.method(:_do))
-    d1 = DisplayI.new
+    d1 = BEGIN_::Display.new
+    d1._when = 0
+    d1._do = 0
+    d1._dup = communicator.stringToProxy("test:tcp")
+    d1._else = 0
     e = BEGIN_::ElsifPrx::uncheckedCast(communicator.stringToProxy("test:tcp"))
-    test(e.method(:_do))
     test(e.method(:_case))
     f = BEGIN_::Next.new
     f._new = 0

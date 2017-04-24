@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -290,7 +290,7 @@ final class UdpTransceiver implements Transceiver
         }
         else
         {
-            intfs = Network.getInterfacesForMulticast(_mcastInterface, _mcastAddr);
+            intfs = Network.getInterfacesForMulticast(_mcastInterface, Network.getProtocolSupport(_mcastAddr));
         }
         if(!intfs.isEmpty())
         {
@@ -381,7 +381,7 @@ final class UdpTransceiver implements Transceiver
             Network.setBlock(_fd, false);
             //
             // NOTE: setting the multicast interface before performing the
-            // connect is important for some OS such as OS X.
+            // connect is important for some OS such as macOS.
             //
             if(_addr.getAddress().isMulticastAddress())
             {
@@ -407,19 +407,19 @@ final class UdpTransceiver implements Transceiver
     //
     // Only for use by UdpEndpoint
     //
-    UdpTransceiver(UdpEndpointI endpoint, ProtocolInstance instance, String host, int port, String mcastInterface,
-                   boolean connect)
+    UdpTransceiver(UdpEndpointI endpoint, ProtocolInstance instance, java.net.InetSocketAddress addr,
+                   String mcastInterface, boolean connect)
     {
         _endpoint = endpoint;
         _instance = instance;
         _state = connect ? StateNeedConnect : StateNotConnected;
         _mcastInterface = mcastInterface;
         _incoming = true;
-        _port = port;
+        _addr = addr;
+        _port = addr.getPort();
 
         try
         {
-            _addr = Network.getAddressForServer(host, port, instance.protocolSupport(), instance.preferIPv6());
             _fd = Network.createUdpSocket(_addr);
             setBufSize(-1, -1);
             Network.setBlock(_fd, false);

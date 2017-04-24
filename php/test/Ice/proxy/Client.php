@@ -1,7 +1,7 @@
 <?php
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -53,15 +53,6 @@ function allTests($communicator)
     $modeUnicode = $NS ? constant("Ice\\ToStringMode::Unicode") : constant("Ice_ToStringMode::Unicode");
     $modeASCII = $NS ? constant("Ice\\ToStringMode::ASCII") : constant("Ice_ToStringMode::ASCII");
     $modeCompat = $NS ? constant("Ice\\ToStringMode::Compat") : constant("Ice_ToStringMode::Compat");
-
-    if($NS)
-    {
-        echo "namespace ON\n";
-    }
-    else
-    {
-        echo "namespace OFF\n";
-    }
 
     echo "testing stringToProxy... ";
     flush();

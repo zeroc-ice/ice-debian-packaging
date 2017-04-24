@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -194,11 +194,11 @@ public class MetricsViewEditor extends Editor implements MetricsFieldContext
 
     MetricsViewEditor(Root root)
     {
-        Coordinator coord = root.getCoordinator();
-        _prefs = coord.getPrefs().node("MetricsView");
+        _prefs = Coordinator.getPreferences().node("MetricsView");
 
         if(_properties == null)
         {
+            Coordinator coord = root.getCoordinator();
             JTree tree = root.getTree();
             tree.addTreeSelectionListener(new SelectionListener());
 

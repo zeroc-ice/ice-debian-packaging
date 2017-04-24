@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -185,17 +185,17 @@ namespace Ice
         {
             lock(this)
             {
-                if(mode == ConnectionClose.CloseForcefully)
+                if(mode == ConnectionClose.Forcefully)
                 {
                     setState(StateClosed, new ConnectionManuallyClosedException(false));
                 }
-                else if(mode == ConnectionClose.CloseGracefully)
+                else if(mode == ConnectionClose.Gracefully)
                 {
                     setState(StateClosing, new ConnectionManuallyClosedException(true));
                 }
                 else
                 {
-                    Debug.Assert(mode == ConnectionClose.CloseGracefullyAndWait);
+                    Debug.Assert(mode == ConnectionClose.GracefullyWithWait);
 
                     //
                     // Wait until all outstanding requests have been completed.
@@ -473,9 +473,9 @@ namespace Ice
             return _batchRequestQueue;
         }
 
-        public void flushBatchRequests()
+        public void flushBatchRequests(CompressBatch compressBatch)
         {
-            flushBatchRequestsAsync().Wait();
+            flushBatchRequestsAsync(compressBatch).Wait();
         }
 
         private class ConnectionFlushBatchCompletionCallback : AsyncResultCompletionCallback
@@ -517,21 +517,24 @@ namespace Ice
             private Connection _connection;
         }
 
-        public Task flushBatchRequestsAsync(IProgress<bool> progress = null,
+        public Task flushBatchRequestsAsync(CompressBatch compressBatch,
+                                            IProgress<bool> progress = null,
                                             CancellationToken cancel = new CancellationToken())
         {
             var completed = new FlushBatchTaskCompletionCallback(progress, cancel);
             var outgoing = new ConnectionFlushBatchAsync(this, _instance, completed);
-            outgoing.invoke(_flushBatchRequests_name);
+            outgoing.invoke(_flushBatchRequests_name, compressBatch);
             return completed.Task;
         }
 
-        public AsyncResult begin_flushBatchRequests(AsyncCallback cb = null, object cookie = null)
+        public AsyncResult begin_flushBatchRequests(CompressBatch compressBatch,
+                                                    AsyncCallback cb = null,
+                                                    object cookie = null)
         {
             var result = new ConnectionFlushBatchCompletionCallback(this, _communicator, _instance,
                                                                     _flushBatchRequests_name, cookie, cb);
             var outgoing = new ConnectionFlushBatchAsync(this, _instance, result);
-            outgoing.invoke(_flushBatchRequests_name);
+            outgoing.invoke(_flushBatchRequests_name, compressBatch);
             return result;
         }
 
@@ -636,10 +639,9 @@ namespace Ice
             {
             }
 
-            public override bool handleResponse(bool ok, OutgoingAsyncBase og)
+            public override void handleInvokeResponse(bool ok, OutgoingAsyncBase og)
             {
                 SetResult(null);
-                return false;
             }
         }
 

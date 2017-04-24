@@ -2,7 +2,7 @@
 
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -84,7 +84,6 @@ int checkKeyword(string&);
 %option noyywrap
 %option never-interactive
 %option prefix="slice_"
-%option outfile="lex.yy.c"
 
 identifier      \\?[[:alpha:]_][[:alnum:]_]*
 integer_constant    (\+|-)?((0[0-7]+)|(0x[[:xdigit:]]+)|([[:digit:]]+))
@@ -167,7 +166,7 @@ floating_literal    (({fractional_constant}{exponent_part}?)|((\+|-)?[[:digit:]]
         }
         else if(c == EOF)
         {
-            unit->warning("EOF in comment");
+            unit->warning(All, "EOF in comment");
             break;
         }
         else
@@ -424,7 +423,7 @@ floating_literal    (({fractional_constant}{exponent_part}?)|((\+|-)?[[:digit:]]
                 {
                     ostringstream os;
                     os << "unknown escape sequence `\\" << next << "'";
-                    unit->warning(os.str());
+                    unit->warning(All, os.str());
 
                     // Escape the \ in this unknown escape sequence
                     str->v += '\\';
