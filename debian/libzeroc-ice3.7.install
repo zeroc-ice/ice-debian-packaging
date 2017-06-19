@@ -19,5 +19,4 @@ usr/lib/*/libIceSSL++11.so.*
 usr/lib/*/libIceSSL.so.*
 usr/lib/*/libIceStorm++11.so.*
 usr/lib/*/libIceStorm.so.*
-usr/lib/*/libIceXML++11.so.*
 usr/lib/*/libIceXML.so.*
