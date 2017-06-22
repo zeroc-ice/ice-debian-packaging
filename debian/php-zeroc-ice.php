@@ -1,1 +1,1 @@
-mod debian/IcePHP.ini
+mod debian/ice.ini
