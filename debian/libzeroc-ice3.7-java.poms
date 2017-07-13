@@ -1,4 +1,5 @@
 java/lib/glacier2-3.7.0.pom --artifact=java/lib/glacier2-3.7.0.jar --java-lib --no-usj-versionless
+java/lib/icebt-3.7.0.pom --artifact=java/lib/icebt-3.7.0.jar --java-lib --no-usj-versionless
 java/lib/icebox-3.7.0.pom --artifact=java/lib/icebox-3.7.0.jar --java-lib --no-usj-versionless
 java/lib/ice-3.7.0.pom --artifact=java/lib/ice-3.7.0.jar --java-lib --no-usj-versionless
 java/lib/icediscovery-3.7.0.pom --artifact=java/lib/icediscovery-3.7.0.jar --java-lib --no-usj-versionless
