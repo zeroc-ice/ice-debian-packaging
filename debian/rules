@@ -164,6 +164,12 @@ override_dh_install:
 	dh_install --list-missing -X.pom -XICE_LICENSE -XLICENSE
 	jh_depends -pzeroc-icegridgui
 
+override_dh_strip:
+	dh_strip
+	# Sadly, perl "-B" test (used by dh_strip) for binary files sometime misses some binary files,
+	# the following ensures, static libraries are always stripped even if the binay check fails.
+	strip --strip-debug --remove-section=.comment --remove-section=.note --enable-deterministic-archives \
+		debian/libzeroc-ice-dev/usr/lib/x86_64-linux-gnu/lib*.a
 
 override_dh_installdocs:
 	dh_installdocs -A debian/README
