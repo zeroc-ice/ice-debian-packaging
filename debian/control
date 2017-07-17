@@ -60,7 +60,8 @@ Package: libzeroc-ice3.7-java
 Architecture: all
 Multi-Arch: foreign
 Section: java
-Replaces: libice-java-dev
+Replaces: libzeroc-ice-java (<< 3.7.0~)
+Breaks: libzeroc-ice-java (<< 3.7.0~)
 Depends: default-jdk | openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer,
          ${misc:Depends}
 Description: Ice for Java run-time libraries.
@@ -70,6 +71,15 @@ Description: Ice for Java run-time libraries.
  with minimal effort. Ice takes care of all interactions with low-level
  network programming interfaces and allows you to focus your efforts on
  your application logic.
+
+
+Package: libzeroc-ice-java
+Depends: libzeroc-ice3.7-java (= ${binary:Version}), zeroc-ice-compilers (= ${binary:Version}), ${misc:Depends}
+Architecture: all
+Priority: extra
+Section: oldlibs
+Description: libzeroc-ice-java transitional package
+ This is a transitional package for libzeroc-ice-java. It can safely be removed.
 
 Package: libzeroc-ice3.7
 Architecture: any
@@ -112,7 +122,6 @@ Description: IceStorm publish-subscribe event distribution service
 Package: php-zeroc-ice
 Architecture: any
 Section: php
-Replaces: libice3.5-php
 Depends: libzeroc-ice3.7 (= ${binary:Version}),
          ${misc:Depends},
          ${php:Depends},
@@ -210,7 +219,6 @@ Depends: libzeroc-ice3.7-java (= ${source:Version}),
          zeroc-icepatch2 (>= ${source:Version}),
          zeroc-icebridge (>= ${source:Version}),
          ${misc:Depends}
-Replaces: icebox, libzeroc-ice-java (<=3.5.1)
 Description: Ice run-time packages (metapackage)
  This is a metapackage that depends on all run-time packages for Ice.
  .
@@ -223,12 +231,12 @@ Package: zeroc-ice-compilers
 Architecture: any
 Multi-Arch: foreign
 Section: devel
+Replaces: libzeroc-ice-java (<< 3.7.0~)
+Breaks: libzeroc-ice-java (<< 3.7.0~)
 Depends: libzeroc-ice3.7 (= ${binary:Version}),
          zeroc-ice-slice (= ${source:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
-Conflicts: ice35-translators
-Replaces: ice35-translators
 Description: Slice compilers for developing Ice applications
  This package contains Slice compilers for developing Ice applications.
  .
@@ -254,9 +262,6 @@ Package: zeroc-ice-utils
 Architecture: any
 Multi-Arch: foreign
 Section: admin
-Replaces: ice-utils,
-          ice35-services,
-          icebox
 Depends: libzeroc-ice3.7 (= ${binary:Version}),
          libzeroc-icestorm3.7 (= ${binary:Version}),
          ${misc:Depends},
@@ -273,11 +278,8 @@ Package: zeroc-icegridgui
 Architecture: all
 Multi-Arch: foreign
 Section: admin
-Replaces: ice-utils,
-          icegrid-gui,
-          ice-utils-java
-Conflicts: zeroc-ice-utils-java (<= 3.6.2)
-Breaks: zeroc-ice-utils-java (<= 3.6.2)
+Replaces: zeroc-ice-utils-java (<< 3.7.0~)
+Breaks: zeroc-ice-utils-java (<= 3.7.0~)
 Depends: default-jre | default-jdk | openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer | openjdk-7-jre | openjdk-8-jre,
          libzeroc-ice3.7-java (= ${source:Version}),
          ${java:Depends},
@@ -294,12 +296,19 @@ Description: IceGrid Admin graphical client
  network programming interfaces and allows you to focus your efforts on
  your application logic.
 
+
+Package: zeroc-ice-utils-java
+Depends: zeroc-icegridgui, ${misc:Depends}
+Architecture: all
+Priority: extra
+Section: oldlibs
+Description: zeroc-icegridgui transitional package
+ This is a transitional package for zeroc-icegridgui. It can safely be removed.
+
 Package: zeroc-icebox
 Architecture: any
 Multi-Arch: foreign
 Section: net
-Replaces: icebox
-Provides: icebox
 Depends: libzeroc-ice3.7 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
