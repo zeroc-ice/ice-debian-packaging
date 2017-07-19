@@ -28,7 +28,8 @@ export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
 			  -PicegridguiProguard=false \
 			  -PjgoodiesLooksVersion=debian \
 			  -PjgoodiesFormsVersion=debian \
-			  -PiceBuilderVersion=debian
+			  -PiceBuilderVersion=debian \
+			  -PiceBuilderClassPath=com.zeroc.gradle.ice-builder
 
 #
 # This is required to enable dbgsym packages in Ubuntu
@@ -39,7 +40,6 @@ export DH_BUILD_DDEBS	= 1
 # These files are not installed with any debian package.
 #
 INSTALL_EXCLUDE		= usr/bin/slice2confluence
-
 
 PHP_VERSIONS 		:= $(shell /usr/sbin/phpquery -V)
 
