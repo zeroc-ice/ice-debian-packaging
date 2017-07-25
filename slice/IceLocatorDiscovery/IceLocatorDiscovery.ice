@@ -8,7 +8,7 @@
 // **********************************************************************
 
 #pragma once
-[["ice-prefix", "cpp:header-ext:h", "objc:header-dir:objc"]]
+[["ice-prefix", "cpp:header-ext:h", "objc:header-dir:objc", "python:pkgdir:IceLocatorDiscovery"]]
 
 #include <Ice/Locator.ice>
 
@@ -29,7 +29,6 @@ module IceLocatorDiscovery
  * are searching for Ice locators. Ice locator implementations invoke
  * on this interface to provide their locator proxy.
  *
- * @see Ice.Locator
  * @see Lookup
  *
  **/
@@ -44,7 +43,7 @@ interface LookupReply
      *
      **/
     void foundLocator(Ice::Locator* prx);
-};
+}
 
 /**
  *
@@ -56,7 +55,6 @@ interface LookupReply
  * object accessible through UDP multicast. Clients typically make a
  * multicast findLocator request to find the locator proxy.
  *
- * @see Ice.Locator
  * @see LookupReply
  *
  **/
@@ -74,6 +72,6 @@ interface Lookup
      *
      **/
     idempotent void findLocator(string instanceName, LookupReply* reply);
-};
+}
 
-};
+}

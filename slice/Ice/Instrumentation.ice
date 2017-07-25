@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "python:pkgdir:Ice"]]
 
 #include <Ice/EndpointF.ice>
 #include <Ice/ConnectionF.ice>
@@ -65,7 +65,7 @@ local interface Observer
      *
      **/
     void failed(string exceptionName);
-};
+}
 
 /**
  *
@@ -107,7 +107,7 @@ local enum ThreadState
      *
      **/
     ThreadStateInUseForOther,
-};
+}
 
 /**
  *
@@ -128,7 +128,7 @@ local interface ThreadObserver extends Observer
      *
      **/
     void stateChanged(ThreadState oldState, ThreadState newState);
-};
+}
 
 /**
  *
@@ -173,8 +173,7 @@ local enum ConnectionState
      *
      **/
     ConnectionStateClosed
-};
-
+}
 
 /**
  *
@@ -200,7 +199,7 @@ local interface ConnectionObserver extends Observer
      *
      **/
     void receivedBytes(int num);
-};
+}
 
 /**
  *
@@ -224,7 +223,7 @@ local interface DispatchObserver extends Observer
      *
      **/
     void reply(int size);
-};
+}
 
 /**
  *
@@ -242,8 +241,7 @@ local interface ChildInvocationObserver extends Observer
      *
      **/
     void reply(int size);
-};
-
+}
 
 /**
  *
@@ -253,7 +251,7 @@ local interface ChildInvocationObserver extends Observer
  **/
 local interface RemoteObserver extends ChildInvocationObserver
 {
-};
+}
 
 /**
  *
@@ -263,7 +261,7 @@ local interface RemoteObserver extends ChildInvocationObserver
  **/
 local interface CollocatedObserver extends ChildInvocationObserver
 {
-};
+}
 
 /**
  *
@@ -320,7 +318,7 @@ local interface InvocationObserver extends Observer
      *
      **/
     CollocatedObserver getCollocatedObserver(ObjectAdapter adapter, int requestId, int size);
-};
+}
 
 /**
  *
@@ -364,7 +362,7 @@ local interface ObserverUpdater
      *
      **/
     void updateThreadObservers();
-};
+}
 
 /**
  *
@@ -497,8 +495,8 @@ local interface CommunicatorObserver
      *
      **/
     void setObserverUpdater(ObserverUpdater updater);
-};
+}
 
-};
+}
 
-};
+}

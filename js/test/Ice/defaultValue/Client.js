@@ -25,7 +25,7 @@
                 }
                 catch(err)
                 {
-                    p.fail(err);
+                    p.reject(err);
                     throw err;
                 }
             }
@@ -160,7 +160,6 @@
                 test(v.zeroDotD === 0);
 
                 out.writeLine("ok");
-
 
                 out.write("testing default constructor... ");
 

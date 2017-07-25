@@ -19,7 +19,7 @@ interface CallbackReceiver
     void callback(int token);
 
     void callbackWithPayload(Ice::ByteSeq payload);
-};
+}
 
 interface Callback
 {
@@ -28,7 +28,6 @@ interface Callback
     ["amd"] void initiateCallbackWithPayload(CallbackReceiver* proxy);
 
     void shutdown();
-};
+}
 
-};
-
+}

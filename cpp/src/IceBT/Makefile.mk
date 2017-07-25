@@ -7,16 +7,22 @@
 #
 # **********************************************************************
 
-ifneq ($(filter debian ubuntu yocto,$(linux_id)),)
+ifneq ($(filter debian ubuntu yocto poky,$(linux_id)),)
 
-$(project)_libraries	:= IceBT
+#
+# Only build the IceBT plugin if pkg-config, BlueZ and D-Bus requirements are
+# installed.
+#
+ifeq ($(shell pkg-config --exists bluez dbus-1 2> /dev/null && echo yes),yes)
+$(project)_libraries    := IceBT
 
-IceBT_targetdir		:= $(libdir)
-IceBT_dependencies	:= Ice
-IceBT_cppflags  	:= -DICEBT_API_EXPORTS $(shell pkg-config --cflags dbus-1)
-IceBT_system_libs	= $(IceSSL_system_libs) $(shell pkg-config --libs dbus-1)
-IceBT_sliceflags	:= --include-dir IceBT
+IceBT_targetdir         := $(libdir)
+IceBT_dependencies      := Ice
+IceBT_cppflags          := -DICEBT_API_EXPORTS $(shell pkg-config --cflags dbus-1)
+IceBT_sliceflags        := --include-dir IceBT
+IceBT_system_libs       = $(IceSSL_system_libs) $(shell pkg-config --libs dbus-1)
 
 projects += $(project)
+endif
 
 endif

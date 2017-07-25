@@ -7,6 +7,20 @@
 #
 # **********************************************************************
 
+def connect(prx)
+    nRetry = 10
+    while nRetry > 0 do
+        nRetry -=1
+        begin
+            prx.ice_getConnection() # Establish connection.
+            break
+        rescue Ice::ConnectTimeoutException
+            # Can sporadically occur with slow machines
+        end
+    end
+    return prx.ice_getConnection()
+end
+
 def allTests(communicator)
     sref = "timeout:default -p 12010"
     obj = communicator.stringToProxy(sref)
@@ -48,8 +62,9 @@ def allTests(communicator)
     # Expect TimeoutException.
     #
     seq = "\0" * 10000000 # 10,000,000 entries
-    to = Test::TimeoutPrx::uncheckedCast(obj.ice_timeout(100))
-    timeout.holdAdapter(500)
+    to = Test::TimeoutPrx::uncheckedCast(obj.ice_timeout(250))
+    connect(to)
+    timeout.holdAdapter(750)
     begin
         to.sendData(seq)
         test(false)
@@ -95,16 +110,16 @@ def allTests(communicator)
 
     print "testing close timeout... "
     STDOUT.flush
-    to = Test::TimeoutPrx.checkedCast(obj.ice_timeout(100))
-    connection = to.ice_getConnection()
-    timeout.holdAdapter(500)
+    to = Test::TimeoutPrx.uncheckedCast(obj.ice_timeout(250))
+    connection = connect(to);
+    timeout.holdAdapter(600)
     connection.close(Ice::ConnectionClose::GracefullyWithWait)
     begin
         connection.getInfo() # getInfo() doesn't throw in the closing state.
     rescue Ice::LocalException
         test(false)
     end
-    sleep(0.5)
+    sleep(0.65)
     begin
         connection.getInfo()
         test(false)
@@ -123,10 +138,12 @@ def allTests(communicator)
     #
     initData = Ice::InitializationData.new
     initData.properties = communicator.getProperties().clone()
+    initData.properties.setProperty("Ice.Override.ConnectTimeout", "250")
     initData.properties.setProperty("Ice.Override.Timeout", "100")
     comm = Ice.initialize(initData)
-    to = Test::TimeoutPrx::checkedCast(comm.stringToProxy(sref))
-    timeout.holdAdapter(500)
+    to = Test::TimeoutPrx::uncheckedCast(comm.stringToProxy(sref))
+    connect(to)
+    timeout.holdAdapter(700)
     begin
         to.sendData(seq)
         test(false)
@@ -137,7 +154,8 @@ def allTests(communicator)
     # Calling ice_timeout() should have no effect.
     #
     timeout.op() # Ensure adapter is active.
-    to = Test::TimeoutPrx::checkedCast(to.ice_timeout(1000))
+    to = Test::TimeoutPrx::uncheckedCast(to.ice_timeout(1000))
+    connect(to)
     timeout.holdAdapter(500)
     begin
         to.sendData(seq)
@@ -181,7 +199,7 @@ def allTests(communicator)
     #
     timeout.op() # Ensure adapter is active.
     to = Test::TimeoutPrx::uncheckedCast(to.ice_timeout(250))
-    to.ice_getConnection() # Establish connection.
+    connect(to)
     timeout.holdAdapter(750)
     begin
         to.sendData(seq)

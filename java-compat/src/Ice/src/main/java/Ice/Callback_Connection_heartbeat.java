@@ -23,28 +23,32 @@ public abstract class Callback_Connection_heartbeat extends IceInternal.Callback
 
     /**
      * Called when a queued invocation is sent successfully.
+     *
+     * @param sentSynchronously True if the invocation was sent synchronously (by the calling thread),
+     *        and false otherwise.
+     *
      **/
     public void sent(boolean sentSynchronously)
     {
     }
 
     @Override
-    public final void _iceCompleted(AsyncResult __result)
+    public final void _iceCompleted(AsyncResult result)
     {
         try
         {
-            __result.getConnection().end_heartbeat(__result);
+            result.getConnection().end_heartbeat(result);
         }
-        catch(LocalException __ex)
+        catch(LocalException ex)
         {
-            exception(__ex);
+            exception(ex);
         }
     }
 
     @Override
-    public final void _iceSent(AsyncResult __result)
+    public final void _iceSent(AsyncResult result)
     {
-        sent(__result.sentSynchronously());
+        sent(result.sentSynchronously());
     }
 
     @Override

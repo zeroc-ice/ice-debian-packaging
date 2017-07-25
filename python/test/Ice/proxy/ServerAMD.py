@@ -16,7 +16,7 @@ if not slice_dir:
     print(sys.argv[0] + ': Slice directory not found.')
     sys.exit(1)
 
-Ice.loadSlice("'-I" + slice_dir + "' TestAMD.ice")
+Ice.loadSlice("'-I" + slice_dir + "' Test.ice")
 import Test
 
 class MyDerivedClassI(Test.MyDerivedClass):
@@ -37,7 +37,7 @@ class MyDerivedClassI(Test.MyDerivedClass):
         return Test.MyDerivedClass.ice_isA(self, s, current)
 
 def run(args, communicator):
-    communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010:udp")
+    communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010")
     adapter = communicator.createObjectAdapter("TestAdapter")
     adapter.add(MyDerivedClassI(), Ice.stringToIdentity("test"))
     adapter.activate()

@@ -28,11 +28,8 @@ public class CommunicatorFlushBatch extends InvocationFutureI<Void>
     }
 
     @Override
-    protected void markSent()
+    protected void markCompleted()
     {
-        super.markSent();
-
-        assert((_state & StateOK) != 0);
         complete(null);
     }
 
@@ -45,18 +42,6 @@ public class CommunicatorFlushBatch extends InvocationFutureI<Void>
                 super(CommunicatorFlushBatch.this.getCommunicator(),
                       CommunicatorFlushBatch.this._instance,
                       CommunicatorFlushBatch.this.getOperation());
-            }
-
-            @Override
-            protected void markSent()
-            {
-                assert(false);
-            }
-
-            @Override
-            protected boolean needCallback()
-            {
-                return false;
             }
 
             @Override
@@ -77,7 +62,6 @@ public class CommunicatorFlushBatch extends InvocationFutureI<Void>
                 return false;
             }
 
-            // TODO: MJN: This is missing a test.
             @Override
             public boolean completed(com.zeroc.Ice.Exception ex)
             {
@@ -190,7 +174,7 @@ public class CommunicatorFlushBatch extends InvocationFutureI<Void>
         {
             try
             {
-                throw ee.getCause();
+                throw ee.getCause().fillInStackTrace();
             }
             catch(RuntimeException ex) // Includes LocalException
             {

@@ -12,12 +12,24 @@ package test.Ice.ami;
 import test.Ice.ami.Test.CloseMode;
 import test.Ice.ami.Test.TestIntf;
 import test.Ice.ami.Test.TestIntfException;
-
+import test.Ice.ami.Test.PingReplyPrx;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CompletableFuture;
 
 public class TestI implements TestIntf
 {
+    private static void test(boolean b)
+    {
+        if(!b)
+        {
+            new Throwable().printStackTrace();
+            //
+            // Exceptions raised by callbacks are swallowed by CompletableFuture.
+            //
+            throw new RuntimeException();
+        }
+    }
+
     TestI()
     {
     }
@@ -113,6 +125,17 @@ public class TestI implements TestIntf
     }
 
     @Override
+    public void pingBiDir(com.zeroc.Ice.Identity id, com.zeroc.Ice.Current current)
+    {
+        PingReplyPrx p = PingReplyPrx.uncheckedCast(current.con.createProxy(id));
+        p.replyAsync().whenCompleteAsync(
+            (result, ex) ->
+            {
+                test(Thread.currentThread().getName().indexOf("Ice.ThreadPool.Server") != -1);
+            }, p.ice_executor()).join();
+    }
+
+    @Override
     public synchronized boolean
     waitForBatch(int count, com.zeroc.Ice.Current current)
     {
@@ -155,36 +178,51 @@ public class TestI implements TestIntf
     public synchronized CompletionStage<Void>
     startDispatchAsync(com.zeroc.Ice.Current current)
     {
-        CompletableFuture<Void> f = new CompletableFuture<>();
-        _pending.add(f);
-        return f;
+        if(_shutdown)
+        {
+            // Ignore, this can occur with the forcefull connection close test, shutdown can be dispatch
+            // before start dispatch.
+            CompletableFuture<Void> v = new CompletableFuture<>();
+            v.complete(null);
+            return v;
+        }
+        else if(_pending != null)
+        {
+            _pending.complete(null);
+        }
+        _pending = new CompletableFuture<>();
+        return _pending;
     }
 
     @Override
     public synchronized void
     finishDispatch(com.zeroc.Ice.Current current)
     {
-        for(CompletableFuture<Void> f : _pending)
+        if(_shutdown)
         {
-            f.complete(null);
+            return;
         }
-        _pending.clear();
+        else if(_pending != null) // Pending might not be set yet if startDispatch is dispatch out-of-order
+        {
+            _pending.complete(null);
+            _pending = null;
+        }
     }
 
     @Override
     public synchronized void
     shutdown(com.zeroc.Ice.Current current)
     {
-        //
-        // Just in case a request arrived late.
-        //
-        for(CompletableFuture<Void> f : _pending)
+        _shutdown = true;
+        if(_pending != null)
         {
-            f.complete(null);
+            _pending.complete(null);
+            _pending = null;
         }
         current.adapter.getCommunicator().shutdown();
     }
 
     private int _batchCount;
-    private java.util.List<CompletableFuture<Void>> _pending = new java.util.LinkedList<>();
+    private boolean _shutdown = false;
+    private CompletableFuture<Void> _pending = null;
 }

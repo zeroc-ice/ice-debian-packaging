@@ -220,7 +220,7 @@ Slice::ObjCVisitor::writeDispatchAndMarshalling(const ClassDefPtr& p)
     assert(scopedIter != ids.end());
     StringList::difference_type scopedPos = IceUtilInternal::distance(firstIter, scopedIter);
 
-    _M << sp << nl << "static NSString * iceS_" << name << "_ids[] = ";
+    _M << sp << nl << "static NSString * iceS_" << name << "_ids[] =";
     _M << sb;
     {
         StringList::const_iterator q = ids.begin();
@@ -1155,6 +1155,11 @@ Slice::Gen::TypesVisitor::visitClassDefEnd(const ClassDefPtr& p)
 
         if(preserved && !basePreserved)
         {
+            _M << nl << "-(id<ICESlicedData>) ice_getSlicedData";
+            _M << sb;
+            _M << nl << "return ICE_AUTORELEASE(ICE_RETAIN(iceSlicedData_));";
+            _M << eb;
+
             _M << nl << "-(void) iceWrite:(id<ICEOutputStream>)ostr";
             _M << sb;
             _M << nl << "[ostr startValue:iceSlicedData_];";
@@ -1399,6 +1404,11 @@ Slice::Gen::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
 
         if(preserved && !basePreserved)
         {
+            _M << nl << nl << "-(id<ICESlicedData>) ice_getSlicedData";
+            _M << sb;
+            _M << nl << "return ICE_AUTORELEASE(ICE_RETAIN(slicedData_));";
+            _M << eb;
+
             _M << nl << nl << "-(void) iceWrite:(id<ICEOutputStream>)ostr";
             _M << sb;
             _M << nl << "[ostr startException:slicedData_];";
@@ -1787,7 +1797,6 @@ Slice::Gen::TypesVisitor::writeMemberSignature(const DataMemberList& dataMembers
             typeString = inTypeToString(type, (*q)->optional());
         }
 
-
         if(q != dataMembers.begin() || ct == LocalException)
         {
             _H << " " << getParamId(*q);
@@ -1893,10 +1902,13 @@ Slice::Gen::TypesVisitor::writeMemberDefaultValueInit(const DataMemberList& data
                 _M << nl <<  "self->" << name << " = " << firstEnum << ';';
             }
 
-            StructPtr st = StructPtr::dynamicCast((*p)->type());
-            if(st)
+            if(!(*p)->optional())
             {
-                _M << nl <<  "self->" << name << " = [[" << typeToString(st) << " alloc] init];";
+                StructPtr st = StructPtr::dynamicCast((*p)->type());
+                if(st)
+                {
+                    _M << nl <<  "self->" << name << " = [[" << typeToString(st) << " alloc] init];";
+                }
             }
         }
     }
@@ -2063,18 +2075,10 @@ Slice::Gen::TypesVisitor::writeMemberHashCode(const DataMemberList& dataMembers,
                         break;
                     }
                     case Builtin::KindFloat:
-                    {
-                        _M << sb;
-                        _M << nl << "uint32_t bits_ = *(uint32_t*)&" << name << ";";
-                        _M << nl << "h_ = ((h_ << 5) + h_) ^ (uint)bits_;";
-                        _M << eb;
-                        break;
-                    }
                     case Builtin::KindDouble:
                     {
                         _M << sb;
-                        _M << nl << "uint64_t bits_ = *(uint64_t*)&" << name << ";";
-                        _M << nl << "h_ = ((h_ << 5) + h_) ^ (uint)(bits_ ^ (bits_ >> 32));";
+                        _M << nl << "h_ = ((h_ << 5) + h_) ^ [@(" << name << ") hash];";
                         _M << eb;
                         break;
                     }
@@ -2147,48 +2151,43 @@ Slice::Gen::TypesVisitor::writeMemberEquals(const DataMemberList& dataMembers, i
 void
 Slice::Gen::TypesVisitor::writeMemberDealloc(const DataMemberList& dataMembers, int baseType, const string& slicedData) const
 {
-    if(dataMembers.empty())
-    {
-        return;
-    }
-
-    bool once = false;
+    bool needsDealloc = !slicedData.empty();
     for(DataMemberList::const_iterator q = dataMembers.begin(); q != dataMembers.end(); ++q)
     {
-        TypePtr type = (*q)->type();
-        if(!isValueType(type))
+        if(!isValueType((*q)->type()))
         {
-            if(!once)
-            {
-                once = true;
-                _M << sp;
-                _M.zeroIndent();
-                _M << nl << "#if defined(__clang__) && !__has_feature(objc_arc)";
-                _M.restoreIndent();
-                _M << nl << "-(void) dealloc";
-                _M << sb;
-            }
-
-            bool isValue = isValueType(type);
-            if(!isValue)
-            {
-                _M << nl << "[self->" << fixId((*q)->name(), baseType) << " release];";
-            }
+            needsDealloc = true;
+            break;
         }
     }
-    if(once)
+    if(!needsDealloc)
     {
-        if(!slicedData.empty())
-        {
-            _M << nl << "[(NSObject*)" << slicedData << " release];";
-        }
-        _M << nl << "[super dealloc];";
-        _M << eb;
-        _M.zeroIndent();
-        _M << nl << "#endif";
-        _M.restoreIndent();
-        _H << nl << "// This class also overrides dealloc";
+        return; // No reference type data members.
     }
+
+    _M << sp;
+    _M.zeroIndent();
+    _M << nl << "#if defined(__clang__) && !__has_feature(objc_arc)";
+    _M.restoreIndent();
+    _M << nl << "-(void) dealloc";
+    _M << sb;
+    for(DataMemberList::const_iterator q = dataMembers.begin(); q != dataMembers.end(); ++q)
+    {
+        if(!isValueType((*q)->type()))
+        {
+            _M << nl << "[self->" << fixId((*q)->name(), baseType) << " release];";
+        }
+    }
+    if(!slicedData.empty())
+    {
+        _M << nl << "[(NSObject*)" << slicedData << " release];";
+    }
+    _M << nl << "[super dealloc];";
+    _M << eb;
+    _M.zeroIndent();
+    _M << nl << "#endif";
+    _M.restoreIndent();
+    _H << nl << "// This class also overrides dealloc";
 }
 
 void
@@ -2621,7 +2620,6 @@ Slice::Gen::HelperVisitor::visitDictionary(const DictionaryPtr& p)
     _M << nl << "@end";
 }
 
-
 bool
 Slice::Gen::HelperVisitor::visitStructStart(const StructPtr& p)
 {
@@ -2899,7 +2897,7 @@ Slice::Gen::DelegateMVisitor::visitClassDefStart(const ClassDefPtr& p)
 
         _M << sp << nl << "-(id<ICEAsyncResult>) begin_" << (*r)->name() << marshalParams;
         _M << (marshalParams.empty() ? "" : " context") << ":(ICEContext*)context";
-        _M << " response:(" << responseCBSig << ")response exception:(void(^)(ICEException*))exception ";
+        _M << " response:(" << responseCBSig << ")response exception:(void(^)(ICEException*))exception";
         _M << sb;
         _M << nl << "return [self begin_" << (*r)->name() << marshalArgs;
         _M << (marshalArgs.empty() ? "" : " context") << ":context response:response exception:exception sent:nil];";
@@ -2907,7 +2905,7 @@ Slice::Gen::DelegateMVisitor::visitClassDefStart(const ClassDefPtr& p)
 
         _M << sp << nl << "-(id<ICEAsyncResult>) begin_" << (*r)->name() << marshalParams;
         _M << (marshalParams.empty() ? "" : " context") << ":(ICEContext*)context";
-        _M << " response:(" << responseCBSig << ")response exception:(void(^)(ICEException*))exception ";
+        _M << " response:(" << responseCBSig << ")response exception:(void(^)(ICEException*))exception";
         _M << " sent:(void(^)(BOOL))sent";
         _M << sb;
         if(!inParams.empty())

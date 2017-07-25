@@ -685,11 +685,48 @@ slicingExceptionsAllTests(id<ICECommunicator> communicator)
 
     tprintf("preserved exceptions... ");
     {
-        id<ICEObjectAdapter> adapter = [communicator createObjectAdapterWithEndpoints:@"Relay" endpoints:@"default"];
+        @try
+        {
+            [test unknownPreservedAsBase];
+            test(false);
+        }
+        @catch(TestSlicingExceptionsClientBase* ex)
+        {
+            if([[test ice_getEncodingVersion] isEqual:ICEEncoding_1_0])
+            {
+                test([ex ice_getSlicedData] == nil);
+            }
+            else
+            {
+                id<ICESlicedData> slicedData = [ex ice_getSlicedData];
+                test(slicedData != nil);
+            }
+        }
+
+        @try
+        {
+            [test unknownPreservedAsKnownPreserved];
+            test(false);
+        }
+        @catch(TestSlicingExceptionsClientKnownPreserved* ex)
+        {
+            test([ex.kp isEqualToString:@"preserved"]);
+            if([[test ice_getEncodingVersion] isEqual:ICEEncoding_1_0])
+            {
+                test([ex ice_getSlicedData] == nil);
+            }
+            else
+            {
+                id<ICESlicedData> slicedData = [ex ice_getSlicedData];
+                test(slicedData != nil);
+            }
+        }
+
+        id<ICEObjectAdapter> adapter = [communicator createObjectAdapter:@""];
         TestSlicingExceptionsClientRelayPrx* relay =
             [TestSlicingExceptionsClientRelayPrx uncheckedCast:[adapter addWithUUID:[RelayI relay]]];
         [adapter activate];
-
+        [[test ice_getConnection] setAdapter:adapter];
         @try
         {
             [test relayKnownPreservedAsBase:relay];

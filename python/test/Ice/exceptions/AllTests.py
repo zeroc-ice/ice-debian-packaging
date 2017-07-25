@@ -215,7 +215,7 @@ class Callback(CallbackBase):
 def allTests(communicator):
     sys.stdout.write("testing servant registration exceptions... ")
     sys.stdout.flush()
-    communicator.getProperties().setProperty("TestAdapter1.Endpoints", "default")
+    communicator.getProperties().setProperty("TestAdapter1.Endpoints", "tcp -h *")
     adapter = communicator.createObjectAdapter("TestAdapter1")
     obj = EmptyI()
     adapter.add(obj, Ice.stringToIdentity("x"))
@@ -237,7 +237,6 @@ def allTests(communicator):
     except Ice.IllegalServantException:
         pass
 
-
     adapter.remove(Ice.stringToIdentity("x"))
     try:
         adapter.remove(Ice.stringToIdentity("x"))
@@ -250,7 +249,7 @@ def allTests(communicator):
 
     sys.stdout.write("testing servant locator registrations exceptions... ")
     sys.stdout.flush()
-    communicator.getProperties().setProperty("TestAdapter2.Endpoints", "default")
+    communicator.getProperties().setProperty("TestAdapter2.Endpoints", "tcp -h *")
     adapter = communicator.createObjectAdapter("TestAdapter2")
     loc = ServantLocatorI()
     adapter.addServantLocator(loc, "x")
@@ -463,7 +462,6 @@ def allTests(communicator):
             test(False)
 
         print("ok")
-
 
     if thrower.ice_getConnection():
         sys.stdout.write("testing memory limit marshal exception...");

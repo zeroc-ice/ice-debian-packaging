@@ -96,7 +96,7 @@ typedef IceUtil::Handle<OperationI> OperationIPtr;
 //
 // The base class for client-side invocations.
 //
-class Invocation : virtual public IceUtil::Shared
+class Invocation : public virtual IceUtil::Shared
 {
 public:
 
@@ -115,7 +115,7 @@ typedef IceUtil::Handle<Invocation> InvocationPtr;
 // TypedInvocation uses the information in the given operation to validate, marshal, and unmarshal
 // parameters and exceptions.
 //
-class TypedInvocation : virtual public Invocation
+class TypedInvocation : public virtual Invocation
 {
 public:
 
@@ -135,7 +135,7 @@ protected:
 //
 // A synchronous typed invocation.
 //
-class SyncTypedInvocation : virtual public TypedInvocation
+class SyncTypedInvocation : public virtual TypedInvocation
 {
 public:
 
@@ -383,22 +383,24 @@ IcePHP::OperationI::convertParam(zval* p, int pos)
 void
 IcePHP::OperationI::getArgInfo(zend_internal_arg_info& arg, const ParamInfoPtr& info, bool out)
 {
-    arg.name = 0;
-    arg.class_name = 0;
-    arg.allow_null = 1;
-
-    if(!info->optional)
+    const zend_uchar pass_by_ref = out ? 1 : 0;
+    const zend_bool allow_null = 1;
+    if(!info->optional && (SequenceInfoPtr::dynamicCast(info->type) || DictionaryInfoPtr::dynamicCast(info->type)))
     {
-        const bool isArray = SequenceInfoPtr::dynamicCast(info->type) || DictionaryInfoPtr::dynamicCast(info->type);
-        arg.type_hint = isArray ? IS_ARRAY : 0;
-
+        zend_internal_arg_info ai[] =
+        {
+            ZEND_ARG_ARRAY_INFO(pass_by_ref, 0, allow_null)
+        };
+        arg = ai[0];
     }
     else
     {
-        arg.type_hint = 0;
+        zend_internal_arg_info ai[] =
+        {
+            ZEND_ARG_CALLABLE_INFO(pass_by_ref, 0, allow_null)
+        };
+        arg = ai[0];
     }
-
-    arg.pass_by_reference = out ? 1 : 0;
 }
 
 //

@@ -346,7 +346,7 @@ class TcpTransceiver
             this._bytesAvailableCallback();
         }
     }
-    
+
     static createOutgoing(instance, addr, sourceAddr)
     {
         const transceiver = new TcpTransceiver(instance);
@@ -439,7 +439,6 @@ function addressesToString(localHost, localPort, remoteHost, remotePort, targetA
 
     return s.join("");
 }
-
 
 const ECONNABORTED = "ECONNABORTED";
 const ECONNREFUSED = "ECONNREFUSED";

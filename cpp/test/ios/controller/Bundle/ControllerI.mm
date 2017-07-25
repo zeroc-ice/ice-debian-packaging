@@ -129,6 +129,7 @@ MainHelperI::~MainHelperI()
     if(_handle)
     {
         CFBundleUnloadExecutable(_handle);
+        CFRelease(_handle);
     }
 }
 
@@ -193,10 +194,17 @@ MainHelperI::run()
         return;
     }
 
-    // The following call is necessary to prevent random failures from CFBundleGetFunctionPointerForName
-    dlsym(_handle, "dllTestShutdown");
+    //
+    // The first CFBundleGetFunction... does not always succeed, so we make up to 5 attempts
+    //
+    void* sym = 0;
+    int attempts = 0;
+    while((sym = CFBundleGetFunctionPointerForName(_handle, CFSTR("dllTestShutdown"))) == 0 && attempts < 5)
+    {
+        attempts++;
+        [NSThread sleepForTimeInterval:0.2];
+    }
 
-    void* sym = CFBundleGetFunctionPointerForName(_handle, CFSTR("dllTestShutdown"));
     if(sym == 0)
     {
         NSString* err = [NSString stringWithFormat:@"Could not get function pointer dllTestShutdown from bundle %@",
@@ -205,6 +213,13 @@ MainHelperI::run()
         completed(EXIT_FAILURE);
         return;
     }
+    /*
+    else if(attempts > 0)
+    {
+        print([[NSString stringWithFormat:@"************ found dllTestShutdown after %d failed attempt(s)", attempts] UTF8String]);
+    }
+    */
+
     _dllTestShutdown = (SHUTDOWN_ENTRY_POINT)sym;
 
     sym = CFBundleGetFunctionPointerForName(_handle, CFSTR("dllMain"));
@@ -332,7 +347,12 @@ ProcessControllerI::start(const string& testSuite, const string& exe, const Stri
     replace(prefix.begin(), prefix.end(), '/', '_');
     [_controller println:[NSString stringWithFormat:@"starting %s %s... ", testSuite.c_str(), exe.c_str()]];
     IceUtil::Handle<MainHelperI> helper = new MainHelperI(_controller, prefix + '/' + exe + ".bundle", args);
-    helper->start();
+
+    //
+    // Use a 768KB thread stack size for the objects test. This is necessary when running the
+    // test on arm64 devices with a debug Ice libraries which require lots of stack space.
+    //
+    helper->start(768 * 1024);
     return ICE_UNCHECKED_CAST(ProcessPrx, c.adapter->addWithUUID(ICE_MAKE_SHARED(ProcessI, _controller, helper.get())));
 }
 
@@ -354,7 +374,6 @@ ControllerHelper::ControllerHelper(id<ViewController> controller, NSString* ipv4
     initData.properties = Ice::createProperties();
     initData.properties->setProperty("Ice.ThreadPool.Server.SizeMax", "10");
     initData.properties->setProperty("IceDiscovery.DomainId", "TestController");
-    initData.properties->setProperty("Ice.Default.Host", [ipv4 UTF8String]);
     initData.properties->setProperty("ControllerAdapter.Endpoints", "tcp");
     //initData.properties->setProperty("Ice.Trace.Network", "2");
     //initData.properties->setProperty("Ice.Trace.Protocol", "2");

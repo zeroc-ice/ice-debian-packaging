@@ -7,10 +7,8 @@
 //
 // **********************************************************************
 
-//sourceCompatibility = iceSourceCompatibility
-//targetCompatibility = iceTargetCompatibility
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = iceSourceCompatibility
+targetCompatibility = iceTargetCompatibility
 
 project.ext.displayName = "IceStorm"
 project.ext.description = "Publish-subscribe event distribution service"
@@ -28,7 +26,7 @@ slice {
     java {
         set1 {
             args = "--checksum com.zeroc.IceStorm.SliceChecksums"
-            files = fileTree(dir: "$sliceDir/IceStorm", includes:['*.ice'], excludes:["*F.ice"])
+            files = fileTree(dir: "$project.ext.topSrcDir/slice/IceStorm", includes:['*.ice'], excludes:["*F.ice"])
         }
     }
 }
@@ -37,4 +35,4 @@ dependencies {
     compile project(':ice')
 }
 
-apply from: "$rootProject.projectDir/gradle/library.gradle"
+apply from: "$project.ext.topSrcDir/java/gradle/library.gradle"

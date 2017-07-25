@@ -7,10 +7,8 @@
 //
 // **********************************************************************
 
-//sourceCompatibility = iceSourceCompatibility
-//targetCompatibility = iceTargetCompatibility
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = iceSourceCompatibility
+targetCompatibility = iceTargetCompatibility
 
 project.ext.displayName = "Glacier2"
 project.ext.description = "Firewall traversal for Ice"
@@ -28,7 +26,7 @@ slice {
     java {
         set1 {
             args = "--checksum com.zeroc.Glacier2.SliceChecksums"
-            files = fileTree(dir: "${sliceDir}/Glacier2", includes:['*.ice'], excludes:["*F.ice"])
+            files = fileTree(dir: "$project.ext.topSrcDir/slice/Glacier2", includes:['*.ice'], excludes:["*F.ice"])
         }
     }
 }
@@ -37,4 +35,4 @@ dependencies {
     compile project(':ice')
 }
 
-apply from: "$rootProject.projectDir/gradle/library.gradle"
+apply from: "$project.ext.topSrcDir/java/gradle/library.gradle"

@@ -113,7 +113,6 @@ public:
         base = base->ice_oneway();
         CallbackPrx callback = CallbackPrx::uncheckedCast(base);
 
-
         //
         // Block the CallbackReceiver in wait() to prevent the client from
         // processing other incoming calls and wait to receive the callback.
@@ -842,7 +841,6 @@ CallbackClient::run(int argc, char* argv[])
             (*q)->getThreadControl().join();
         }
 
-
         cout << "ok" << endl;
     }
 
@@ -874,8 +872,9 @@ CallbackClient::run(int argc, char* argv[])
         {
             router->destroySession();
         }
-        catch(const Ice::LocalException&)
+        catch(const Ice::LocalException& ex)
         {
+            cerr << ex << endl;
             test(false);
         }
         cout << "ok" << endl;

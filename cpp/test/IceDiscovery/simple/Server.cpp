@@ -25,7 +25,6 @@ run(int argc, char* argv[], const Ice::CommunicatorPtr& communicator)
     {
         ostringstream os;
         os << getTestEndpoint(communicator, num);
-        cerr << os.str() << endl;
         properties->setProperty("ControlAdapter.Endpoints", os.str());
     }
     {
@@ -53,6 +52,7 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL();
+    Ice::registerIceWS();
     Ice::registerIceDiscovery();
 #endif
 

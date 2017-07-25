@@ -18,7 +18,7 @@ using namespace std;
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0) + ":udp");
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0));
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
     Ice::ObjectPtr object = ICE_MAKE_SHARED(TimeoutI);
     adapter->add(object, Ice::stringToIdentity("timeout"));
@@ -28,12 +28,13 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     return EXIT_SUCCESS;
 }
 
-
 int
 main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL(false);
+    Ice::registerIceWS(true);
+    Ice::registerIceUDP(true);
 #endif
 
     try
@@ -52,6 +53,12 @@ main(int argc, char* argv[])
         // This test kills connections, so we don't want warnings.
         //
         initData.properties->setProperty("Ice.Warn.Connections", "0");
+
+        //
+        // The client sends large messages to cause the transport
+        // buffers to fill up.
+        //
+        initData.properties->setProperty("Ice.MessageSizeMax", "20000");
 
         //
         // Limit the recv buffer size, this test relies on the socket

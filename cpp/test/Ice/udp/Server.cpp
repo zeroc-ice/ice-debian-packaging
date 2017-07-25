@@ -39,13 +39,16 @@ run(int argc, char* argv[], const Ice::CommunicatorPtr& communicator)
     if(properties->getProperty("Ice.IPv6") == "1")
     {
         endpoint << "udp -h \"ff15::1:1\" -p " << getTestPort(properties, 10);
-#ifdef __APPLE__
-        endpoint << " --interface \"::1\"";
+#if defined(__APPLE__) || defined(_WIN32)
+        endpoint << " --interface \"::1\""; // Use loopback to prevent other machines to answer.
 #endif
     }
     else
     {
         endpoint << "udp -h 239.255.1.1 -p " << getTestPort(properties, 10);
+#if defined(__APPLE__) || defined(_WIN32)
+        endpoint << " --interface 127.0.0.1"; // Use loopback to prevent other machines to answer.
+#endif
     }
     properties->setProperty("McastTestAdapter.Endpoints", endpoint.str());
     Ice::ObjectAdapterPtr mcastAdapter = communicator->createObjectAdapter("McastTestAdapter");
@@ -63,6 +66,8 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL(false);
+    Ice::registerIceWS(true);
+    Ice::registerIceUDP(true);
 #endif
 
     try
@@ -81,4 +86,3 @@ main(int argc, char* argv[])
         return  EXIT_FAILURE;
     }
 }
-

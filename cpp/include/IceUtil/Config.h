@@ -105,7 +105,7 @@
 //
 #if (__cplusplus >= 201103) || \
     ((defined(__GNUC__) && defined(__GXX_EXPERIMENTAL_CXX0X__) && ((__GNUC__* 100) + __GNUC_MINOR__) >= 405)) || \
-    (defined(_MSC_VER) && (_MSC_VER >= 1600))
+    (defined(_MSC_VER) && (_MSC_VER >= 1900))
 #   define ICE_CPP11_COMPILER
 #endif
 
@@ -116,7 +116,6 @@
 #   error "you need a C++11 capable compiler to use the C++11 mapping"
 #endif
 
-
 #if defined(ICE_CPP11_COMPILER) && (!defined(_MSC_VER) || (_MSC_VER >= 1900))
 #   define ICE_NOEXCEPT noexcept
 #   define ICE_NOEXCEPT_FALSE noexcept(false)
@@ -124,7 +123,6 @@
 #   define ICE_NOEXCEPT throw()
 #   define ICE_NOEXCEPT_FALSE /**/
 #endif
-
 
 //
 // Does the C++ compiler library provide std::codecvt_utf8 and
@@ -244,6 +242,7 @@
 #ifndef _WIN32
 #   include <pthread.h>
 #   include <errno.h>
+#   include <unistd.h>
 #endif
 
 #ifdef __APPLE__
@@ -263,9 +262,9 @@
 //
 // The Ice version.
 //
-#define ICE_STRING_VERSION "3.7b0" // "A.B.C", with A=major, B=minor, C=patch
-#define ICE_INT_VERSION 30760      // AABBCC, with AA=major, BB=minor, CC=patch
-#define ICE_SO_VERSION "37b0"      // "ABC", with A=major, B=minor, C=patch
+#define ICE_STRING_VERSION "3.7.0" // "A.B.C", with A=major, B=minor, C=patch
+#define ICE_INT_VERSION 30700      // AABBCC, with AA=major, BB=minor, CC=patch
+#define ICE_SO_VERSION "37"      // "ABC", with A=major, B=minor, C=patch
 
 #if !defined(ICE_BUILDING_ICE) && defined(ICE_API_EXPORTS)
 #   define ICE_BUILDING_ICE
@@ -334,7 +333,6 @@ private:
     const noncopyable& operator=(const noncopyable&);
 };
 
-
 typedef unsigned char Byte;
 
 //
@@ -378,10 +376,7 @@ typedef long long Int64;
 #   define ICE_GET_SHARED_FROM_THIS(p) p->shared_from_this()
 #   define ICE_CHECKED_CAST(T, ...) Ice::checkedCast<T>(__VA_ARGS__)
 #   define ICE_UNCHECKED_CAST(T, ...) Ice::uncheckedCast<T>(__VA_ARGS__)
-#   define ICE_VALUE_FACTORY ::std::function<::std::shared_ptr<::Ice::Value>(const std::string&)>
-#   define ICE_USER_EXCEPTION_FACTORY ::std::function<void(const std::string&)>
-#   define ICE_CLOSE_CALLBACK ::std::function<void(const ::std::shared_ptr<::Ice::Connection>&)>
-#   define ICE_HEARTBEAT_CALLBACK ::std::function<void(const ::std::shared_ptr<::Ice::Connection>&)>
+#   define ICE_DELEGATE(T) T
 #   define ICE_IN(...) __VA_ARGS__
 #   define ICE_SET_EXCEPTION_FROM_CLONE(T, V)  T = V
 #else // C++98 mapping
@@ -399,10 +394,7 @@ typedef long long Int64;
 #   define ICE_GET_SHARED_FROM_THIS(p) p
 #   define ICE_CHECKED_CAST(T, ...) T::checkedCast(__VA_ARGS__)
 #   define ICE_UNCHECKED_CAST(T, ...) T::uncheckedCast(__VA_ARGS__)
-#   define ICE_VALUE_FACTORY ::Ice::ValueFactoryPtr
-#   define ICE_USER_EXCEPTION_FACTORY ::Ice::UserExceptionFactoryPtr
-#   define ICE_CLOSE_CALLBACK ::Ice::CloseCallbackPtr
-#   define ICE_HEARTBEAT_CALLBACK ::Ice::HeartbeatCallbackPtr
+#   define ICE_DELEGATE(T) T##Ptr
 #   define ICE_IN(...) const __VA_ARGS__&
 #   define ICE_SET_EXCEPTION_FROM_CLONE(T, V) T.reset(V)
 #endif

@@ -10,7 +10,6 @@
 package test.Ice.timeout;
 import test.Ice.timeout.Test._TimeoutDisp;
 
-
 class TimeoutI extends _TimeoutDisp
 {
     static class ActivateAdapterThread extends Thread
@@ -58,11 +57,11 @@ class TimeoutI extends _TimeoutDisp
     {
         try
         {
-            Thread.currentThread();
             Thread.sleep(to);
         }
         catch(InterruptedException ex)
         {
+            System.err.println("sleep interrupted");
         }
     }
 

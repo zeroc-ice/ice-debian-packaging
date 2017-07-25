@@ -291,8 +291,10 @@ class FutureSentCallback(CallbackBase):
         self._thread = threading.currentThread()
 
     def sent(self, f, sentSynchronously):
-        test((sentSynchronously and self._thread == threading.currentThread()) or \
-             (not sentSynchronously and self._thread != threading.currentThread()))
+        self.called()
+
+    def sentAsync(self, f, sentSynchronously):
+        test(self._thread != threading.currentThread())
         self.called()
 
 class FutureFlushCallback(CallbackBase):
@@ -302,8 +304,10 @@ class FutureFlushCallback(CallbackBase):
         self._cookie = cookie
 
     def sent(self, f, sentSynchronously):
-        test((sentSynchronously and self._thread == threading.currentThread()) or \
-             (not sentSynchronously and self._thread != threading.currentThread()))
+        self.called()
+
+    def sentAsync(self, f, sentSynchronously):
+        test(self._thread != threading.currentThread())
         self.called()
 
 class FutureFlushExCallback(CallbackBase):
@@ -708,17 +712,65 @@ def allTests(communicator, collocated):
         p.begin_op(cb.op, cb.noEx)
         cb.check()
 
+        def thrower(future):
+            try:
+                future.result()
+            except:
+                test(false)
+            throwEx(t)
+        f = p.opAsync()
+        try:
+            f.add_done_callback(thrower)
+        except Exception as ex:
+            try:
+                throwEx(t)
+            except Exception as ex2:
+                test(type(ex) == type(ex2))
+        f.add_done_callback_async(thrower)
+        f.result()
+
         p.begin_op(lambda: cb.opWC(cookie), lambda ex: cb.noExWC(ex, cookie))
         cb.check()
 
         q.begin_op(cb.op, cb.ex)
         cb.check()
 
+        f = q.opAsync()
+        def throwerEx(future):
+            try:
+                future.result()
+                test(false)
+            except:
+                throwEx(t)
+        try:
+            f.add_done_callback(throwerEx)
+        except Exception as ex:
+            try:
+                throwEx(t)
+            except Exception as ex2:
+                test(type(ex) == type(ex2))
+        f.add_done_callback_async(throwerEx)
+        try:
+            f.result()
+        except:
+            pass
+
         q.begin_op(lambda: cb.opWC(cookie), lambda ex: cb.exWC(ex, cookie))
         cb.check()
 
         p.begin_op(cb.noOp, cb.ex, cb.sent)
         cb.check()
+
+        f = p.opAsync()
+        try:
+            f.add_sent_callback(lambda f, s: throwEx(t))
+        except Exception as ex:
+            try:
+                throwEx(t)
+            except Exception as ex2:
+                test(type(ex) == type(ex2))
+        f.add_sent_callback_async(lambda f, s: throwEx(f))
+        f.result()
 
         p.begin_op(lambda: cb.noOpWC(cookie), lambda ex: cb.exWC(ex, cookie), lambda ss: cb.sentWC(ss, cookie))
         cb.check()
@@ -1363,7 +1415,7 @@ def allTestsFuture(communicator, collocated):
     try:
         p.ice_oneway().opWithResultAsync().result()
         test(False)
-    except RuntimeError:
+    except Ice.TwowayOnlyException:
         pass
 
     #
@@ -1447,6 +1499,21 @@ def allTestsFuture(communicator, collocated):
     p.opAsync().add_sent_callback(cb.sent)
     cb.check()
 
+    p.ice_isAAsync("").add_sent_callback_async(cb.sentAsync)
+    cb.check()
+
+    p.ice_pingAsync().add_sent_callback_async(cb.sentAsync)
+    cb.check()
+
+    p.ice_idAsync().add_sent_callback_async(cb.sentAsync)
+    cb.check()
+
+    p.ice_idsAsync().add_sent_callback_async(cb.sentAsync)
+    cb.check()
+
+    p.opAsync().add_sent_callback_async(cb.sentAsync)
+    cb.check()
+
     cbs = []
     if sys.version_info[0] == 2:
         b = [chr(random.randint(0, 255)) for x in range(0, 1024)]
@@ -1483,6 +1550,7 @@ def allTestsFuture(communicator, collocated):
     cb = FutureFlushCallback()
     f = b1.ice_flushBatchRequestsAsync()
     f.add_sent_callback(cb.sent)
+    f.add_sent_callback_async(cb.sentAsync)
     cb.check()
     test(f.is_sent())
     test(f.done())

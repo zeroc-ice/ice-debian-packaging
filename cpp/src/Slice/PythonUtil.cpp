@@ -40,7 +40,6 @@ getEscapedParamName(const OperationPtr& p, const string& name)
 
 }
 
-
 namespace Slice
 {
 namespace Python
@@ -457,6 +456,28 @@ Slice::Python::CodeVisitor::writeOperations(const ClassDefPtr& p)
             string fixedOpName = fixIdent((*oli)->name());
             if(!p->isLocal())
             {
+                if((*oli)->hasMarshaledResult())
+                {
+                    string name = (*oli)->name();
+                    name[0] = toupper(static_cast<unsigned char>(name[0]));
+                    _out << sp;
+                    _out << nl << "\"\"\"";
+                    _out << nl << "Immediately marshals the result of an invocation of " << (*oli)->name()
+                         << nl << "and returns an object that the servant implementation must return"
+                         << nl << "as its result."
+                         << nl << "Arguments:"
+                         << nl << "result -- The result (or result tuple) of the invocation."
+                         << nl << "current -- The Current object passed to the invocation."
+                         << nl << "Returns: An object containing the marshaled result.";
+                    _out << nl << "\"\"\"";
+                    _out << nl << "@staticmethod";
+                    _out << nl << "def " << name << "MarshaledResult(result, current):";
+                    _out.inc();
+                    _out << nl << "return IcePy.MarshaledResult(result, _M_" << getAbsolute(p) << "._op_"
+                        << (*oli)->name() << ", current.adapter.getCommunicator().getImpl(), current.encoding)";
+                    _out.dec();
+                }
+
                 _out << sp << nl << "def " << fixedOpName << "(self";
 
                 ParamDeclList params = (*oli)->parameters();
@@ -479,7 +500,7 @@ Slice::Python::CodeVisitor::writeOperations(const ClassDefPtr& p)
 
                 writeDocstring(*oli, DocAsyncDispatch, false);
 
-                _out << nl << "pass";
+                _out << nl << "raise NotImplementedError(\"servant method '" << fixedOpName << "' not implemented\")";
                 _out.dec();
             }
             else
@@ -503,7 +524,7 @@ Slice::Python::CodeVisitor::writeOperations(const ClassDefPtr& p)
                 _out << "):";
                 _out.inc();
                 writeDocstring(*oli, DocDispatch, p->isLocal());
-                _out << nl << "pass";
+                _out << nl << "raise NotImplementedError(\"method '" << fixedOpName << "' not implemented\")";
                 _out.dec();
             }
         }
@@ -876,7 +897,6 @@ Slice::Python::CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
         _out << nl << "return _M_" << prxAbs << ".ice_uncheckedCast(proxy, facet)";
         _out.dec();
 
-
         //
         // ice_staticId
         //
@@ -1019,7 +1039,6 @@ Slice::Python::CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
         }
         _out << "))";
         _out << nl << className << "._ice_type = _M_" << classType;
-
 
          //
         // Define each operation. The arguments to the IcePy.Operation constructor are:
@@ -2301,6 +2320,15 @@ Slice::Python::CodeVisitor::stripMarkup(const string& comment)
                 start = text.size();
             }
 
+            //
+            // Remove trailing whitespace
+            //
+            pos = line.find_last_not_of(" \t");
+            if(pos != string::npos)
+            {
+                line.erase(pos + 1, line.size() - pos - 1);
+            }
+
             lines.push_back(line);
 
             start = text.find_first_not_of("\r\n", start);
@@ -2820,6 +2848,78 @@ Slice::Python::CodeVisitor::writeDocstring(const OperationPtr& op, DocstringMode
     _out << nl << "\"\"\"";
 }
 
+string
+Slice::Python::getPackageDirectory(const string& file, const UnitPtr& unit)
+{
+    //
+    // file must be a fully-qualified path name.
+    //
+
+    //
+    // Check if the file contains the python:pkgdir global metadata.
+    //
+    DefinitionContextPtr dc = unit->findDefinitionContext(file);
+    assert(dc);
+    const string prefix = "python:pkgdir:";
+    string pkgdir = dc->findMetaData(prefix);
+    if(!pkgdir.empty())
+    {
+        //
+        // The metadata is present, so the generated file was placed in the specified directory.
+        //
+        pkgdir = pkgdir.substr(prefix.size());
+        assert(!pkgdir.empty()); // This situation should have been caught by MetaDataVisitor.
+    }
+    return pkgdir;
+}
+
+string
+Slice::Python::getImportFileName(const string& file, const UnitPtr& unit, const vector<string>& includePaths)
+{
+    //
+    // The file and includePaths arguments must be fully-qualified path names.
+    //
+
+    //
+    // Check if the file contains the python:pkgdir global metadata.
+    //
+    string pkgdir = getPackageDirectory(file, unit);
+    if(!pkgdir.empty())
+    {
+        //
+        // The metadata is present, so the generated file was placed in the specified directory.
+        //
+        vector<string> names;
+        IceUtilInternal::splitString(pkgdir, "/", names);
+        assert(!names.empty());
+        pkgdir = "";
+        for(vector<string>::iterator p = names.begin(); p != names.end(); ++p)
+        {
+            if(p != names.begin())
+            {
+                pkgdir += ".";
+            }
+            pkgdir += fixIdent(*p);
+        }
+        string::size_type pos = file.rfind('/');
+        assert(pos != string::npos);
+        string name = file.substr(pos + 1); // Get the name of the file without the leading path.
+        assert(!name.empty());
+        replace(name.begin(), name.end(), '.', '_'); // Convert .ice to _ice
+        return pkgdir + "." + name;
+    }
+    else
+    {
+        //
+        // The metadata is not present, so we transform the file name using the include paths (-I)
+        // given to the compiler.
+        //
+        string name = changeInclude(file, includePaths);
+        replace(name.begin(), name.end(), '/', '_');
+        return name + "_ice";
+    }
+}
+
 void
 Slice::Python::generate(const UnitPtr& un, bool all, bool checksum, const vector<string>& includePaths,
                         Output& out)
@@ -2841,9 +2941,7 @@ Slice::Python::generate(const UnitPtr& un, bool all, bool checksum, const vector
         StringList includes = un->includeFiles();
         for(StringList::const_iterator q = includes.begin(); q != includes.end(); ++q)
         {
-            string file = changeInclude(*q, paths);
-            replace(file.begin(), file.end(), '/', '_');
-            out << nl << "import " << file << "_ice";
+            out << nl << "import " << getImportFileName(*q, un, paths);
         }
     }
 
@@ -2995,6 +3093,11 @@ Slice::Python::MetaDataVisitor::visitUnitStart(const UnitPtr& p)
             {
                 static const string packagePrefix = "python:package:";
                 if(s.find(packagePrefix) == 0 && s.size() > packagePrefix.size())
+                {
+                    continue;
+                }
+                static const string pkgdirPrefix = "python:pkgdir:";
+                if(s.find(pkgdirPrefix) == 0 && s.size() > pkgdirPrefix.size())
                 {
                     continue;
                 }

@@ -1441,7 +1441,6 @@ Parser::signalServer(const list<string>& args)
     }
 }
 
-
 void
 Parser::writeMessage(const list<string>& args, int fd)
 {
@@ -1935,7 +1934,6 @@ Parser::listServices(const list<string>& args)
         exception(ex);
     }
 }
-
 
 void
 Parser::endpointsAdapter(const list<string>& args)
@@ -2528,7 +2526,7 @@ Parser::showLog(const string& id, const string& reader, bool tail, bool follow, 
 void
 Parser::showBanner()
 {
-    consoleOut << "Ice " << ICE_STRING_VERSION << "  Copyright (c) 2003-2016 ZeroC, Inc." << endl;
+    consoleOut << "Ice " << ICE_STRING_VERSION << "  Copyright (c) 2003-2017 ZeroC, Inc." << endl;
 }
 
 void

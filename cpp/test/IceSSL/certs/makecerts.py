@@ -111,7 +111,7 @@ certs = [
     (ca1, "s_rsa_ca1_cn6",   { "cn": "Server", "ip": "127.0.0.1" }),        # IP subjectAltName 127.0.0.1
     (ca1, "s_rsa_ca1_cn7",   { "cn": "Server", "ip": "127.0.0.2" }),        # IP subjectAltName 127.0.0.2
     (ca1, "s_rsa_ca1_cn8",   { "cn": "127.0.0.1" }),                        # No subjectAltName, CN=127.0.0.1
-    
+
     (ca2, "s_rsa_ca2",       { "cn": "Server", "ip": "127.0.0.1", "dns": "server" }),
     (ca2, "c_rsa_ca2",       { "cn": "Client", "ip": "127.0.0.1", "dns": "client" }),
     (dsaca, "s_dsa_ca1",     { "cn": "Server", "ip": "127.0.0.1", "dns": "server" }), # DSA
@@ -174,7 +174,6 @@ if clean or not os.path.exists("dh_params512.der"):
     ca1.run("openssl", "dhparam", 512, outform="DER", out="dh_params512.der")
 if clean or not os.path.exists("dh_params1024.der"):
     ca1.run("openssl", "dhparam", 1024, outform="DER", out="dh_params1024.der")
-
 
 #
 # Create certificate with custom extensions

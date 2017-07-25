@@ -12,7 +12,7 @@
 //
 // Suppress invalid metadata warnings
 //
-[["suppress-warning:invalid-metadata"]]
+[["suppress-warning:invalid-metadata, deprecated"]]
 
 #include <Ice/BuiltinSequences.ice>
 
@@ -24,7 +24,7 @@ enum MyEnum
     enum1,
     enum2,
     enum3
-};
+}
 
 class MyClass;
 interface MyInterface;
@@ -40,8 +40,8 @@ struct SmallStruct
     double d;
     string str;
     MyEnum e;
-    MyClass* p;
-};
+    MyInterface* p;
+}
 
 class OptionalClass
 {
@@ -49,7 +49,7 @@ class OptionalClass
     byte by;
     optional(1) short sh;
     optional(2) int i;
-};
+}
 
 sequence<MyEnum> MyEnumS;
 sequence<MyClass> MyClassS;
@@ -109,7 +109,7 @@ sequence<MyClass*> MyClassProxyStack;
 sequence<MyInterface*> MyInterfaceProxyStack;
 
 //
-// This will produce a warning and use the default 
+// This will produce a warning and use the default
 // sequence mapping. The generic:Stack metadata cannot be use
 // with object sequences.
 //
@@ -117,7 +117,7 @@ sequence<MyInterface*> MyInterfaceProxyStack;
 sequence<Object> ObjectStack;
 
 //
-// This will produce a warning and use the default 
+// This will produce a warning and use the default
 // sequence mapping. The generic:Stack metadata cannot be use
 // with object sequences.
 //
@@ -125,7 +125,7 @@ sequence<Object> ObjectStack;
 sequence<MyClass> MyClassStack;
 
 //
-// This will produce a warning and use the default 
+// This will produce a warning and use the default
 // sequence mapping. The generic:Stack metadata cannot be use
 // with object sequences.
 //
@@ -139,12 +139,10 @@ sequence<string> StringQueue;
 ["clr:generic:Queue"]
 sequence<SmallStruct> SmallStructQueue;
 
-
 ["clr:generic:List"]
 sequence<Ice::StringSeq> StringSList;
 ["clr:generic:Stack"]
 sequence<Ice::StringSeq> StringSStack;
-
 
 ["clr:generic:SortedDictionary"]
 dictionary<string, string> SortedStringStringD;
@@ -168,15 +166,15 @@ class MyClass
     MyClassS seq10;
     StringMyClassD d;
     SerialSmall ss;
-};
+}
 
 exception MyException
 {
     MyClass c;
-};
+}
 
 interface MyInterface
 {
-};
+}
 
-};
+}

@@ -103,7 +103,6 @@ public:
         _destroyed = true;
     }
 
-
     int _restart;
     bool _destroyed;
     CallbackReceiverIPtr _receiver;
@@ -111,10 +110,13 @@ public:
 
 } // anonymous namespace end
 
-
 int
 main(int argc, char* argv[])
 {
+#ifdef ICE_STATIC_LIBS
+    Ice::registerIceSSL(false);
+    Ice::registerIceWS(true);
+#endif
     Application app;
     Ice::InitializationData initData = getTestInitData(argc, argv);
     initData.properties->setProperty("Ice.Warn.Connections", "0");
@@ -151,4 +153,3 @@ main(int argc, char* argv[])
     communicator->destroy();
     return status;
 }
-

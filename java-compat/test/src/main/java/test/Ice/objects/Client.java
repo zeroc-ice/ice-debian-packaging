@@ -57,6 +57,7 @@ public class Client extends test.Util.Application
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static class MyObjectFactory implements Ice.ObjectFactory
     {
         @Override
@@ -72,6 +73,7 @@ public class Client extends test.Util.Application
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public int run(String[] args)
     {
@@ -98,6 +100,7 @@ public class Client extends test.Util.Application
     {
         Ice.InitializationData initData = super.getInitData(argsH);
         initData.properties.setProperty("Ice.Package.Test", "test.Ice.objects");
+        initData.properties.setProperty("Ice.MessageSizeMax", "2048"); // Needed on some Android versions
         return initData;
     }
 

@@ -8,7 +8,7 @@
 // **********************************************************************
 
 const Ice = require("../Ice/Value").Ice;
-    
+
 class SliceInfo
 {
     constructor()
@@ -63,7 +63,12 @@ class UnknownSlicedValue extends Ice.Value
         this._unknownTypeId = unknownTypeId;
     }
 
-    getUnknownTypeId()
+    ice_getSlicedData()
+    {
+        return this._slicedData;
+    }
+
+    ice_id()
     {
         return this._unknownTypeId;
     }

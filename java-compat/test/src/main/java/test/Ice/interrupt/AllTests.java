@@ -317,6 +317,8 @@ public class AllTests
             // This section of the test doesn't run when collocated.
             if(p.ice_getConnection() != null)
             {
+                testController.holdAdapter();
+
                 //
                 // Test interrupt of waitForSent. Here hold the adapter and send a large payload. The
                 // thread is interrupted in 500ms which should result in a operation interrupted exception.
@@ -337,7 +339,6 @@ public class AllTests
                     }
                 });
 
-                testController.holdAdapter();
                 Ice.AsyncResult r = null;
 
                 // The sequence needs to be large enough to fill the write/recv buffers
@@ -719,7 +720,7 @@ public class AllTests
             ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(1);
             Ice.InitializationData initData = app.createInitializationData();
             initData.properties = communicator.getProperties()._clone();
-            initData.properties.setProperty("ClientTestAdapter.Endpoints", "default");
+            initData.properties.setProperty("ClientTestAdapter.Endpoints", "tcp -h *");
             Ice.Communicator ic = app.initialize(initData);
             final Ice.ObjectAdapter adapter = ic.createObjectAdapter("ClientTestAdapter");
             adapter.activate();

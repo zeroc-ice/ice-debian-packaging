@@ -21,7 +21,7 @@ public class Ex
         if(v instanceof com.zeroc.Ice.UnknownSlicedValue)
         {
             com.zeroc.Ice.UnknownSlicedValue usv = (com.zeroc.Ice.UnknownSlicedValue)v;
-            throw new com.zeroc.Ice.NoValueFactoryException("", usv.getUnknownTypeId());
+            throw new com.zeroc.Ice.NoValueFactoryException("", usv.ice_id());
         }
 
         String type = v.ice_id();
@@ -48,7 +48,7 @@ public class Ex
         if(v instanceof com.zeroc.Ice.UnknownSlicedValue)
         {
             com.zeroc.Ice.UnknownSlicedValue usv = (com.zeroc.Ice.UnknownSlicedValue)v;
-            throw new com.zeroc.Ice.NoValueFactoryException("", usv.getUnknownTypeId());
+            throw new com.zeroc.Ice.NoValueFactoryException("", usv.ice_id());
         }
 
         String type = v.ice_id();
@@ -63,7 +63,7 @@ public class Ex
     }
 
     //
-    // A small utility to get the strack trace of the exception (which also includes toString()).
+    // A small utility to get the stack trace of the exception (which also includes toString()).
     //
     public static String toString(java.lang.Throwable ex)
     {

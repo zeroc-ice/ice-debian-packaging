@@ -10,7 +10,6 @@
 import os, sys, traceback, time
 import Ice, Test, TestAMDI
 
-
 class TestActivationAMDI(Test.TestActivation):
 
     def activateServantLocator(self, activate, current=None):
@@ -22,4 +21,3 @@ class TestActivationAMDI(Test.TestActivation):
             locator.deactivate("")
             locator = current.adapter.removeServantLocator("category")
             locator.deactivate("category")
-

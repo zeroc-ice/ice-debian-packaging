@@ -31,7 +31,7 @@ class ConfigurationTestCase(ClientServerTestCase):
             for c in ["cacert1.pem", "cacert2.pem"]:
                 pem = os.path.join(certsPath, c)
                 out =  run("{openssl} x509 -subject_hash -noout -in {pem}".format(pem=pem, openssl=self.getOpenSSLCommand()))
-                shutil.copyfile(pem, "{dir}/{out}.0".format(dir=certsPath, out=out))
+                shutil.copyfile(pem, "{dir}/{out}.0".format(dir=certsPath, out=out.splitlines()[0]))
 
     def teardownServerSide(self, current, success):
         # Nothing to do if we're not running this test with the C++ mapping
@@ -45,11 +45,11 @@ class ConfigurationTestCase(ClientServerTestCase):
             for c in ["cacert1.pem", "cacert2.pem"]:
                 pem = os.path.join(certsPath, c)
                 out =  run("{openssl} x509 -subject_hash -noout -in {pem}".format(pem=pem, openssl=self.getOpenSSLCommand()))
-                os.remove("{dir}/{out}.0".format(out=out, dir=certsPath))
+                os.remove("{dir}/{out}.0".format(out=out.splitlines()[0], dir=certsPath))
 
     def getOpenSSLCommand(self):
         if isinstance(platform, Windows):
-            return os.path.join(self.getPath(), "..", "..", "..", "msbuild", "packages", "zeroc.openssl.v140.1.0.2.2", 
+            return os.path.join(self.getPath(), "..", "..", "..", "msbuild", "packages", "zeroc.openssl.v140.1.0.2.4",
                                 "build", "native", "bin", "Win32", "Release", "openssl.exe")
         else:
             return "openssl"
@@ -75,7 +75,6 @@ outfilters = [ lambda x: re.sub("-! .* warning: deprecated property: IceSSL.KeyF
 # With UWP, we can't run this test with the UWP C++ server (used with tcp/ws)
 #
 options=lambda current: { "protocol": ["ssl", "wss"] } if current.config.uwp else {}
-
 
 TestSuite(__name__, [
    ConfigurationTestCase(client=IceSSLConfigurationClient(outfilters=outfilters, args=['"{testdir}"']),

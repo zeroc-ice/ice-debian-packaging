@@ -497,6 +497,7 @@ allTests(const Ice::CommunicatorPtr& communicator, const CommunicatorObserverIPt
     metrics->ice_connectionId("Con1")->ice_ping();
 
     waitForCurrent(clientMetrics, "View", "Invocation", 0);
+    waitForCurrent(serverMetrics, "View", "Dispatch", 0);
 
     view = clientMetrics->getMetricsView("View", timestamp);
     if(!collocated)
@@ -529,7 +530,7 @@ allTests(const Ice::CommunicatorPtr& communicator, const CommunicatorObserverIPt
         test(view["Connection"].size() == 2);
     }
     test(view["Dispatch"].size() == 1);
-    test(view["Dispatch"][0]->current <= 1 && view["Dispatch"][0]->total == 5);
+    test(view["Dispatch"][0]->current == 0 && view["Dispatch"][0]->total == 5);
     test(view["Dispatch"][0]->id.find("[ice_ping]") > 0);
 
     if(!collocated)
@@ -1406,14 +1407,19 @@ allTests(const Ice::CommunicatorPtr& communicator, const CommunicatorObserverIPt
 
     MetricsPrxPtr metricsBatchOneway = metrics->ice_batchOneway();
     metricsBatchOneway->op();
-    //metricsBatchOneway->end_op(metricsOneway->begin_op());
-    //metricsBatchOneway->begin_op(newCallback_Metrics_op(cb, &Callback::response, &Callback::exception));
+#ifdef ICE_CPP11_MAPPING
+    metricsBatchOneway->opAsync().get();
+    metricsBatchOneway->opAsync([cb]() {}, [cb](exception_ptr) {});
+#else
+    metricsBatchOneway->end_op(metricsBatchOneway->begin_op());
+    metricsBatchOneway->begin_op(newCallback_Metrics_op(cb, &Callback::response, &Callback::exception))->waitForCompleted();
+#endif
 
     map = toMap(clientMetrics->getMetricsView("View", timestamp)["Invocation"]);
     test(map.size() == 1);
 
     im1 = ICE_DYNAMIC_CAST(IceMX::InvocationMetrics, map["op"]);
-    test(im1->current == 0 && im1->total == 1 && im1->failures == 0 && im1->retry == 0);
+    test(im1->current == 0 && im1->total == 3 && im1->failures == 0 && im1->retry == 0);
     test(im1->remotes.size() == 0);
 
     testAttribute(clientMetrics, clientProps, update.get(), "Invocation", "mode", "batch-oneway",

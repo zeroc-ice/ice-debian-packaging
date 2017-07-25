@@ -37,8 +37,6 @@ ICE_API @protocol ICEObject <NSObject>
 -(void) ice_ping:(ICECurrent*)current;
 -(NSString*) ice_id:(ICECurrent*)current;
 -(NSArray*) ice_ids:(ICECurrent*)current;
--(void) ice_preMarshal;
--(void) ice_postUnmarshal;
 -(void) ice_dispatch:(id<ICERequest>)request;
 @end
 
@@ -47,8 +45,10 @@ ICE_API @interface ICEObject : NSObject<ICEObject, NSCopying>
 -(void) ice_ping;
 -(NSString*) ice_id;
 -(NSArray*) ice_ids;
--(void) ice_dispatch:(id<ICERequest>)request;
 +(NSString*) ice_staticId;
+-(void) ice_preMarshal;
+-(void) ice_postUnmarshal;
+-(id<ICESlicedData>) ice_getSlicedData;
 +(NSString*const*) iceStaticIds:(int*)count idIndex:(int*)idx;
 -(void) iceWrite:(id<ICEOutputStream>)os;
 -(void) iceRead:(id<ICEInputStream>)is;

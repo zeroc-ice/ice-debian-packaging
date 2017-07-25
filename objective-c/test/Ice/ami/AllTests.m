@@ -547,7 +547,9 @@ amiAllTests(id<ICECommunicator> communicator, BOOL collocated)
         {
             test([p opBatchCount] == 0);
             id<TestAMITestIntfPrx> b1 = [p ice_batchOneway];
-            [b1 opBatch];
+            id<ICEAsyncResult> br = [b1 begin_opBatch];
+            test([br isCompleted]);
+            test(![br isSent]);
             [b1 opBatch];
             TestAMICallback* cb = [TestAMICallback create];
             id<ICEAsyncResult> r = [b1 begin_ice_flushBatchRequests:^(ICEException* ex) { test(NO); }
@@ -617,7 +619,6 @@ amiAllTests(id<ICECommunicator> communicator, BOOL collocated)
         }
         tprintf("ok\n");
 
-
         tprintf("testing batch requests with communicator... ");
         {
             {
@@ -684,7 +685,6 @@ amiAllTests(id<ICECommunicator> communicator, BOOL collocated)
 
                 test(r1 == r1);
                 test(r1 != r2);
-
 
                 if([p ice_getConnection])
                 {

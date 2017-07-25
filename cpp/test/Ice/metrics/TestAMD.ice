@@ -14,7 +14,7 @@ module Test
 
 exception UserEx
 {
-};
+}
 
 sequence<byte> ByteSeq;
 
@@ -23,7 +23,7 @@ interface Metrics
     ["amd"] void op();
 
     ["amd"] idempotent void fail();
-    
+
     ["amd"] void opWithUserException()
         throws UserEx;
 
@@ -38,13 +38,13 @@ interface Metrics
     Object* getAdmin();
 
     void shutdown();
-};
+}
 
 interface Controller
 {
     void hold();
 
     void resume();
-};
+}
 
-};
+}

@@ -855,6 +855,9 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
         out.finished(data);
 
         Ice::InputStream in(communicator, data);
+#ifndef ICE_CPP11_MAPPING
+        in.setCollectObjects(true);
+#endif
         MyClassS arr2;
         in.read(arr2);
         in.readPendingValues();
@@ -887,6 +890,9 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
         out2.finished(data);
 
         Ice::InputStream in2(communicator, data);
+#ifndef ICE_CPP11_MAPPING
+        in2.setCollectObjects(true);
+#endif
         MyClassSS arr2S;
         in2.read(arr2S);
         test(arr2S.size() == arrS.size());
@@ -896,12 +902,12 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
 
 #ifdef ICE_CPP11_MAPPING
         auto clearS = [](MyClassS& arr) {
-	    for(MyClassS::iterator p = arr.begin(); p != arr.end(); ++p)
+            for(MyClassS::iterator p = arr.begin(); p != arr.end(); ++p)
             {
-	        if(*p)
+                if(*p)
                 {
-		    (*p)->c = nullptr;
-		    (*p)->o = nullptr;
+                    (*p)->c = nullptr;
+                    (*p)->o = nullptr;
                     (*p)->d["hi"] = nullptr;
                 }
             }
@@ -909,7 +915,7 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
         auto clearSS = [clearS](MyClassSS& arr) {
             for(MyClassSS::iterator p = arr.begin(); p != arr.end(); ++p)
             {
-	        clearS(*p);
+                clearS(*p);
             }
         };
         clearS(arr);
@@ -1057,6 +1063,9 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
         out.finished(data);
 
         Ice::InputStream in(communicator, data);
+#ifndef ICE_CPP11_MAPPING
+        in.setCollectObjects(true);
+#endif
         try
         {
             in.throwException();
@@ -1077,12 +1086,12 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
 
 #ifdef ICE_CPP11_MAPPING
             ex1.c->c = nullptr;
-	    ex1.c->o = nullptr;
+            ex1.c->o = nullptr;
 #endif
         }
 #ifdef ICE_CPP11_MAPPING
         c->c = nullptr;
-	c->o = nullptr;
+        c->o = nullptr;
 #endif
     }
 
@@ -1333,6 +1342,7 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL(false);
+    Ice::registerIceWS(true);
 #endif
 
     int status;

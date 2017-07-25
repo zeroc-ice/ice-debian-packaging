@@ -64,7 +64,7 @@ public:
 
 protected:
 
-    virtual std::shared_ptr<Value> cloneImpl() const
+    virtual std::shared_ptr<Value> _iceCloneImpl() const
     {
         assert(0); // not used
         return nullptr;
@@ -101,7 +101,7 @@ public:
 
 protected:
 
-    virtual std::shared_ptr<Value> cloneImpl() const
+    virtual std::shared_ptr<Value> _iceCloneImpl() const
     {
         assert(0); // not used
         return nullptr;
@@ -141,7 +141,7 @@ public:
 
 protected:
 
-    virtual std::shared_ptr<Value> cloneImpl() const
+    virtual std::shared_ptr<Value> _iceCloneImpl() const
     {
         assert(0); // not used
         return nullptr;
@@ -194,7 +194,7 @@ public:
 
 protected:
 
-    virtual std::shared_ptr<Value> cloneImpl() const
+    virtual std::shared_ptr<Value> _iceCloneImpl() const
     {
         assert(0); // not used
         return nullptr;
@@ -248,7 +248,7 @@ public:
 
 protected:
 
-    virtual std::shared_ptr<Value> cloneImpl() const
+    virtual std::shared_ptr<Value> _iceCloneImpl() const
     {
         assert(0); // not used
         return nullptr;
@@ -294,7 +294,7 @@ public:
 
 protected:
 
-    virtual std::shared_ptr<Value> cloneImpl() const
+    virtual std::shared_ptr<Value> _iceCloneImpl() const
     {
         assert(0); // not used
         return nullptr;
@@ -306,7 +306,6 @@ private:
 
     FPtr _f;
 };
-
 
 class FactoryI
 #ifndef ICE_CPP11_MAPPING
@@ -540,7 +539,6 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
     test(string("test1") > IceUtil::Optional<string>() && IceUtil::Optional<string>() < string("test1"));
 
     cout << "ok" << endl;
-
 
     cout << "testing marshalling... " << flush;
     OneOptionalPtr oo4 = ICE_DYNAMIC_CAST(OneOptional, initial->pingPong(ICE_MAKE_SHARED(OneOptional)));

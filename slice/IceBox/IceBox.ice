@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEBOX_API", "objc:header-dir:objc"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEBOX_API", "objc:header-dir:objc", "python:pkgdir:IceBox"]]
 [["cpp:include:IceBox/Config.h"]]
 
 #include <Ice/BuiltinSequences.ice>
@@ -49,8 +49,7 @@ local exception FailureException
      *
      **/
     string reason;
-};
-
+}
 
 /**
  *
@@ -60,7 +59,7 @@ local exception FailureException
  **/
 exception AlreadyStartedException
 {
-};
+}
 
 /**
  *
@@ -70,7 +69,7 @@ exception AlreadyStartedException
  **/
 exception AlreadyStoppedException
 {
-};
+}
 
 /**
  *
@@ -80,7 +79,7 @@ exception AlreadyStoppedException
  **/
 exception NoSuchServiceException
 {
-};
+}
 
 /**
  *
@@ -118,8 +117,7 @@ local interface Service
      *
      **/
     void stop();
-};
-
+}
 
 /**
  *
@@ -133,8 +131,7 @@ interface ServiceObserver
 {
     void servicesStarted(Ice::StringSeq services);
     void servicesStopped(Ice::StringSeq services);
-};
-
+}
 
 /**
  *
@@ -178,7 +175,6 @@ interface ServiceManager
     void stopService(string service)
         throws AlreadyStoppedException, NoSuchServiceException;
 
-
     /**
      *
      * Registers a new observer with the ServiceManager.
@@ -195,6 +191,6 @@ interface ServiceManager
      *
      **/
     void shutdown();
-};
+}
 
-};
+}

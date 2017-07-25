@@ -770,6 +770,12 @@ namespace Ice
         /// <param name="os">Output stream object to write the proxy.</param>
         [EditorBrowsable(EditorBrowsableState.Never)]
         void iceWrite(OutputStream os);
+
+        /// <summary>
+        /// Returns a scheduler object that uses the Ice thread pool.
+        /// </summary>
+        /// <returns>The task scheduler object.</returns>
+        System.Threading.Tasks.TaskScheduler ice_scheduler();
     }
 
     /// <summary>
@@ -902,6 +908,7 @@ namespace Ice
         iceI_ice_isAAsync(string id, OptionalContext context, IProgress<bool> progress, CancellationToken cancel,
                           bool synchronous)
         {
+            iceCheckTwowayOnly(_ice_isA_name);
             var completed = new OperationTaskCompletionCallback<bool>(progress, cancel);
             iceI_ice_isA(id, context, completed, synchronous);
             return completed.Task;
@@ -961,6 +968,7 @@ namespace Ice
         iceI_begin_ice_isA(string id, Dictionary<string, string> context, AsyncCallback callback, object cookie,
                            bool synchronous)
         {
+            iceCheckAsyncTwowayOnly(_ice_isA_name);
             var completed = new OperationAsyncResultCompletionCallback<Callback_Object_ice_isA, bool>(
                 (Callback_Object_ice_isA cb, bool result) =>
                 {
@@ -1136,6 +1144,7 @@ namespace Ice
         private Task<string[]> iceI_ice_idsAsync(OptionalContext context, IProgress<bool> progress, CancellationToken cancel,
                                                  bool synchronous)
         {
+            iceCheckTwowayOnly(_ice_ids_name);
             var completed = new OperationTaskCompletionCallback<string[]>(progress, cancel);
             iceI_ice_ids(context, completed, false);
             return completed.Task;
@@ -1176,6 +1185,7 @@ namespace Ice
         private AsyncResult<Callback_Object_ice_ids>
         iceI_begin_ice_ids(Dictionary<string, string> context, AsyncCallback callback, object cookie, bool synchronous)
         {
+            iceCheckAsyncTwowayOnly(_ice_ids_name);
             var completed = new OperationAsyncResultCompletionCallback<Callback_Object_ice_ids, string[]>(
                 (Callback_Object_ice_ids cb, string[] result) =>
                 {
@@ -1245,6 +1255,7 @@ namespace Ice
         private Task<string>
         iceI_ice_idAsync(OptionalContext context, IProgress<bool> progress, CancellationToken cancel, bool synchronous)
         {
+            iceCheckTwowayOnly(_ice_id_name);
             var completed = new OperationTaskCompletionCallback<string>(progress, cancel);
             iceI_ice_id(context, completed, synchronous);
             return completed.Task;
@@ -1290,6 +1301,7 @@ namespace Ice
         private AsyncResult<Callback_Object_ice_id>
         iceI_begin_ice_id(Dictionary<string, string> context, AsyncCallback callback, object cookie, bool synchronous)
         {
+            iceCheckAsyncTwowayOnly(_ice_id_name);
             var completed = new OperationAsyncResultCompletionCallback<Callback_Object_ice_id, string>(
                 (Callback_Object_ice_id cb, string result) =>
                 {
@@ -1317,7 +1329,6 @@ namespace Ice
                                  OutgoingAsyncCompletionCallback completed,
                                  bool synchronous)
         {
-            iceCheckAsyncTwowayOnly(_ice_id_name);
             getOutgoingAsync<string>(completed).invoke(_ice_id_name,
                                                        OperationMode.Nonmutating,
                                                        FormatType.DefaultFormat,
@@ -2111,25 +2122,6 @@ namespace Ice
             return _reference.getConnectionId();
         }
 
-        /// <summary>
-        /// Returns the Connection for this proxy. If the proxy does not yet have an established connection,
-        /// it first attempts to create a connection.
-        /// </summary>
-        /// <returns>The Connection for this proxy.</returns>
-        /// <exception name="CollocationOptimizationException">If the proxy uses collocation optimization and denotes a
-        /// collocated object.</exception>
-        public Connection ice_getConnection()
-        {
-            try
-            {
-                return ice_getConnectionAsync().Result;
-            }
-            catch(AggregateException ex)
-            {
-                throw ex.InnerException;
-            }
-        }
-
         private class ProxyGetConnectionAsyncCallback : ProxyAsyncResultCompletionCallback<Callback_Object_ice_getConnection>
         {
             public ProxyGetConnectionAsyncCallback(ObjectPrxHelperBase proxy, string operation, object cookie,
@@ -2165,8 +2157,8 @@ namespace Ice
         public class GetConnectionTaskCompletionCallback : TaskCompletionCallback<Connection>
         {
             public GetConnectionTaskCompletionCallback(ObjectPrx proxy,
-                                                       IProgress<bool> progress,
-                                                       CancellationToken cancellationToken) :
+                                                       IProgress<bool> progress = null,
+                                                       CancellationToken cancellationToken = new CancellationToken()) :
                 base(progress, cancellationToken)
             {
                 _proxy = proxy;
@@ -2180,32 +2172,49 @@ namespace Ice
             private ObjectPrx _proxy;
         }
 
+        /// <summary>
+        /// Returns the Connection for this proxy. If the proxy does not yet have an established connection,
+        /// it first attempts to create a connection.
+        /// </summary>
+        /// <returns>The Connection for this proxy.</returns>
+        /// <exception name="CollocationOptimizationException">If the proxy uses collocation optimization and denotes a
+        /// collocated object.</exception>
+        public Connection ice_getConnection()
+        {
+            try
+            {
+                var completed = new GetConnectionTaskCompletionCallback(this);
+                iceI_ice_getConnection(completed, true);
+                return completed.Task.Result;
+            }
+            catch(AggregateException ex)
+            {
+                throw ex.InnerException;
+            }
+        }
+
         public Task<Connection> ice_getConnectionAsync(IProgress<bool> progress = null,
                                                        CancellationToken cancel = new CancellationToken())
         {
             var completed = new GetConnectionTaskCompletionCallback(this, progress, cancel);
-            var outgoing = new ProxyGetConnection(this, completed);
-            try
-            {
-                outgoing.invoke(_ice_getConnection_name);
-            }
-            catch(Exception ex)
-            {
-                outgoing.abort(ex);
-            }
+            iceI_ice_getConnection(completed, false);
             return completed.Task;
         }
 
         public AsyncResult<Callback_Object_ice_getConnection> begin_ice_getConnection()
         {
-            return begin_ice_getConnectionInternal(null, null);
+            var completed = new ProxyGetConnectionAsyncCallback(this, _ice_getConnection_name, null, null);
+            iceI_ice_getConnection(completed, false);
+            return completed;
         }
 
         private const string _ice_getConnection_name = "ice_getConnection";
 
         public AsyncResult begin_ice_getConnection(AsyncCallback cb, object cookie)
         {
-            return begin_ice_getConnectionInternal(cb, cookie);
+            var completed = new ProxyGetConnectionAsyncCallback(this, _ice_getConnection_name, cookie, cb);
+            iceI_ice_getConnection(completed, false);
+            return completed;
         }
 
         public Connection end_ice_getConnection(AsyncResult r)
@@ -2215,20 +2224,17 @@ namespace Ice
             return ((ProxyGetConnection)resultI.OutgoingAsync).getConnection();
         }
 
-        private AsyncResult<Callback_Object_ice_getConnection> begin_ice_getConnectionInternal(AsyncCallback callback,
-                                                                                               object cookie)
+        private void iceI_ice_getConnection(OutgoingAsyncCompletionCallback completed, bool synchronous)
         {
-            var completed = new ProxyGetConnectionAsyncCallback(this, _ice_getConnection_name, cookie, callback);
             var outgoing = new ProxyGetConnection(this, completed);
             try
             {
-                outgoing.invoke(_ice_getConnection_name);
+                outgoing.invoke(_ice_getConnection_name, synchronous);
             }
             catch(Exception ex)
             {
                 outgoing.abort(ex);
             }
-            return completed;
         }
 
         /// <summary>
@@ -2258,39 +2264,6 @@ namespace Ice
                 }
             }
             return null;
-        }
-
-        /// <summary>
-        /// Flushes any pending batched requests for this communicator. The call blocks until the flush is complete.
-        /// </summary>
-        public void ice_flushBatchRequests()
-        {
-            try
-            {
-                ice_flushBatchRequestsAsync().Wait();
-            }
-            catch(AggregateException ex)
-            {
-                throw ex.InnerException;
-            }
-        }
-
-        internal const string _ice_flushBatchRequests_name = "ice_flushBatchRequests";
-
-        public Task ice_flushBatchRequestsAsync(IProgress<bool> progress = null,
-                                                CancellationToken cancel = new CancellationToken())
-        {
-            var completed = new FlushBatchTaskCompletionCallback(progress, cancel);
-            var outgoing = new ProxyFlushBatchAsync(this, completed);
-            try
-            {
-                outgoing.invoke(_ice_flushBatchRequests_name);
-            }
-            catch(Exception ex)
-            {
-                outgoing.abort(ex);
-            }
-            return completed.Task;
         }
 
         private class ProxyFlushBatchRequestsAsyncCallback : AsyncResultCompletionCallback
@@ -2331,18 +2304,37 @@ namespace Ice
             private ObjectPrx _proxy;
         }
 
+        /// <summary>
+        /// Flushes any pending batched requests for this communicator. The call blocks until the flush is complete.
+        /// </summary>
+        public void ice_flushBatchRequests()
+        {
+            try
+            {
+                var completed = new FlushBatchTaskCompletionCallback();
+                iceI_ice_flushBatchRequests(completed, true);
+                completed.Task.Wait();
+            }
+            catch(AggregateException ex)
+            {
+                throw ex.InnerException;
+            }
+        }
+
+        internal const string _ice_flushBatchRequests_name = "ice_flushBatchRequests";
+
+        public Task ice_flushBatchRequestsAsync(IProgress<bool> progress = null,
+                                                CancellationToken cancel = new CancellationToken())
+        {
+            var completed = new FlushBatchTaskCompletionCallback(progress, cancel);
+            iceI_ice_flushBatchRequests(completed, false);
+            return completed.Task;
+        }
+
         public AsyncResult begin_ice_flushBatchRequests(AsyncCallback cb = null, object cookie = null)
         {
             var completed = new ProxyFlushBatchRequestsAsyncCallback(this, _ice_flushBatchRequests_name, cookie, cb);
-            var outgoing = new ProxyFlushBatchAsync(this, completed);
-            try
-            {
-                outgoing.invoke(_ice_flushBatchRequests_name);
-            }
-            catch(Exception ex)
-            {
-                outgoing.abort(ex);
-            }
+            iceI_ice_flushBatchRequests(completed, false);
             return completed;
         }
 
@@ -2350,6 +2342,24 @@ namespace Ice
         {
             var resultI = AsyncResultI.check(r, this, _ice_flushBatchRequests_name);
             resultI.wait();
+        }
+
+        private void iceI_ice_flushBatchRequests(OutgoingAsyncCompletionCallback completed, bool synchronous)
+        {
+            var outgoing = new ProxyFlushBatchAsync(this, completed);
+            try
+            {
+                outgoing.invoke(_ice_flushBatchRequests_name, synchronous);
+            }
+            catch(Exception ex)
+            {
+                outgoing.abort(ex);
+            }
+        }
+
+        public System.Threading.Tasks.TaskScheduler ice_scheduler()
+        {
+            return _reference.getThreadPool();
         }
 
         /// <summary>
@@ -2467,6 +2477,20 @@ namespace Ice
             else
             {
                 throw ex; // Retry could break at-most-once semantics, don't retry.
+            }
+        }
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public void iceCheckTwowayOnly(string name)
+        {
+            //
+            // No mutex lock necessary, there is nothing mutable in this
+            // operation.
+            //
+
+            if(!ice_isTwoway())
+            {
+                throw new TwowayOnlyException(name);
             }
         }
 
@@ -2599,7 +2623,7 @@ namespace Ice
             {
                 try
                 {
-                    prepare(operation, mode, context, synchronous);
+                    prepare(operation, mode, context);
                     if(inParams == null || inParams.Length == 0)
                     {
                         os_.writeEmptyEncapsulation(encoding_);
@@ -2608,7 +2632,7 @@ namespace Ice
                     {
                         os_.writeEncapsulation(inParams);
                     }
-                    invoke(operation);
+                    invoke(operation, synchronous);
                 }
                 catch(Exception ex)
                 {
@@ -2692,13 +2716,13 @@ namespace Ice
             public override void handleInvokeSent(bool sentSynchronously, bool done, bool alreadySent,
                                                   OutgoingAsyncBase og)
             {
-                if(done)
-                {
-                    SetResult(new Object_Ice_invokeResult(true, null));
-                }
                 if(progress_ != null && !alreadySent)
                 {
                     progress_.Report(sentSynchronously);
+                }
+                if(done)
+                {
+                    SetResult(new Object_Ice_invokeResult(true, null));
                 }
             }
 
@@ -2918,7 +2942,6 @@ namespace Ice
             }
             return d;
         }
-
 
         /// <summary>
         /// Returns the Slice type id of the interface or class associated

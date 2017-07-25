@@ -73,9 +73,16 @@ public:
     SlicedData(const SliceInfoSeq&);
 
     const SliceInfoSeq slices;
+
+    //
+    // Clear the slices to break potential cyclic references.
+    //
+    void clear();
+
 #ifndef ICE_CPP11_MAPPING
     void _iceGcVisitMembers(IceInternal::GCVisitor&);
 #endif
+
 };
 
 //
@@ -92,23 +99,22 @@ public:
 
     UnknownSlicedValue(const std::string&);
 
-    const std::string& getUnknownTypeId() const;
-
-    SlicedDataPtr getSlicedData() const;
-
 #ifdef ICE_CPP11_MAPPING
-    virtual void _iceWrite(::Ice::OutputStream*) const override;
-    virtual void _iceRead(::Ice::InputStream*) override;
-
+    virtual SlicedDataPtr ice_getSlicedData() const override;
     virtual std::string ice_id() const override;
     std::shared_ptr<UnknownSlicedValue> ice_clone() const;
 
+    virtual void _iceWrite(::Ice::OutputStream*) const override;
+    virtual void _iceRead(::Ice::InputStream*) override;
+
 protected:
 
-    virtual std::shared_ptr<Value> cloneImpl() const override;
+    virtual std::shared_ptr<Value> _iceCloneImpl() const override;
 #else
-    virtual void _iceGcVisitMembers(IceInternal::GCVisitor&);
+    virtual SlicedDataPtr ice_getSlicedData() const;
+    virtual const std::string& ice_id(const Current& = Ice::emptyCurrent) const;
 
+    virtual void _iceGcVisitMembers(IceInternal::GCVisitor&);
     virtual void _iceWrite(::Ice::OutputStream*) const;
     virtual void _iceRead(::Ice::InputStream*);
 #endif

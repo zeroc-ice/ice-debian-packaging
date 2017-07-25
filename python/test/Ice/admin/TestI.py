@@ -37,9 +37,9 @@ class RemoteCommunicatorI(Test.RemoteCommunicator, Ice.PropertiesAdminUpdateCall
             #
             while not self.called:
                 self.m.wait()
-            
+
             self.called = False
-            
+
             return self.changes
 
     def shutdown(self, current = None):
@@ -96,4 +96,3 @@ class RemoteCommunicatorFactoryI(Test.RemoteCommunicatorFactory):
 
     def shutdown(self, current = None):
         current.adapter.getCommunicator().shutdown()
-

@@ -2463,7 +2463,6 @@ Slice::CsGenerator::MetaDataVisitor::validate(const ContainedPtr& cont)
             s.replace(0, clrPrefix.size(), csPrefix);
         }
 
-
         if(s.find(csPrefix) == 0)
         {
             SequencePtr seq = SequencePtr::dynamicCast(cont);
@@ -2554,7 +2553,7 @@ Slice::CsGenerator::MetaDataVisitor::validate(const ContainedPtr& cont)
             }
             else if(DataMemberPtr::dynamicCast(cont))
             {
-                DataMemberPtr dataMember = DataMemberPtr::dynamicCast(cont);                
+                DataMemberPtr dataMember = DataMemberPtr::dynamicCast(cont);
                 StructPtr st = StructPtr::dynamicCast(dataMember->container());
                 ExceptionPtr ex = ExceptionPtr::dynamicCast(dataMember->container());
                 ClassDefPtr cl = ClassDefPtr::dynamicCast(dataMember->container());

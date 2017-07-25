@@ -134,7 +134,6 @@ private:
 };
 typedef IceUtil::Handle<TaskCollector> TaskCollectorPtr;
 
-
 class SharedResource : public IceUtil::Shared
 {
 public:
@@ -193,7 +192,6 @@ private:
 
     IceUtil::Mutex _mutex;
 };
-
 
 class SharedResourceRecMutex : public SharedResource
 {
@@ -353,7 +351,7 @@ PriorityInversionTest::run()
         Monitor<Mutex> monitor;
         TaskCollectorPtr collector = new TaskCollector(cores, high, medium, low, monitor);
         vector<ThreadControl> threads;
-                
+
         SharedResourcePtr shared = new SharedResourceMutex(collector);
 
         //
@@ -378,8 +376,6 @@ PriorityInversionTest::run()
             ThreadPtr t = new MediumPriorityThread(collector, highThread, timeout);
             threads.push_back(t->start(128, medium));
         }
-        test(lowThread->isAlive());
-        test(highThread->isAlive());
         //
         // Join with all the threads.
         //
@@ -430,8 +426,6 @@ PriorityInversionTest::run()
             ThreadPtr t = new MediumPriorityThread(collector, highThread, timeout);
             threads.push_back(t->start(128, medium));
         }
-        test(lowThread->isAlive());
-        test(highThread->isAlive());
 
         //
         // Join with all the threads.

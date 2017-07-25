@@ -1,4 +1,13 @@
 <?php
+// **********************************************************************
+//
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+//
+// This copy of Ice is licensed to you under the terms described in the
+// ICE_LICENSE file included in this distribution.
+//
+// **********************************************************************
+
 error_reporting(E_ALL | E_STRICT);
 
 if(!extension_loaded("ice"))
@@ -425,7 +434,7 @@ function allTests($communicator)
     return $test;
 }
 
-$communicator = $NS ? eval("return Ice\\initialize(\$argv);") : 
+$communicator = $NS ? eval("return Ice\\initialize(\$argv);") :
                       eval("return Ice_initialize(\$argv);");
 
 $test = allTests($communicator);

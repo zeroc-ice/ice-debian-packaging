@@ -18,7 +18,7 @@ run(id<ICECommunicator> communicator)
     [properties setProperty:@"Ice.Warn.Dispatch" value:@"0"];
     [[communicator getProperties] setProperty:@"TestAdapter.Endpoints" value:@"default -p 12010"];
     id<ICEObjectAdapter> adapter = [communicator createObjectAdapter:@"TestAdapter"];
-    ICEObject* object = [TestSlicingObjectsServerI testIntf];
+    ICEObject* object = [TestSlicingObjectsServerI serverI];
     [adapter add:object identity:[ICEUtil stringToIdentity:@"Test"]];
     [adapter activate];
 
@@ -37,6 +37,7 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     ICEregisterIceSSL(YES);
+    ICEregisterIceWS(YES);
 #if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
     ICEregisterIceIAP(YES);
 #endif

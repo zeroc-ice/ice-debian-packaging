@@ -136,8 +136,6 @@ class IceGridRegistry(ProcessFromBinDir, Server):
             pass
 
     def getProps(self, current):
-        # NOTE: we use the loopback interface for multicast with IPv6 to prevent failures
-        # on some machines which don't really have an IPv6 interface configured.
         props = {
             'IceGrid.InstanceName' : 'TestIceGrid',
             'IceGrid.Registry.PermissionsVerifier' : 'TestIceGrid/NullPermissionsVerifier',
@@ -162,6 +160,8 @@ class IceGridRegistry(ProcessFromBinDir, Server):
             'IceGrid.Registry.DefaultTemplates' :
                 '"' + os.path.abspath(os.path.join(toplevel, "cpp", "config", "templates.xml")) + '"'
         }
+        if not isinstance(platform, Linux):
+            props["IceGrid.Registry.Discovery.Interface"] = "::1" if current.config.ipv6 else "127.0.0.1"
         return props
 
     def getEndpoints(self, current):

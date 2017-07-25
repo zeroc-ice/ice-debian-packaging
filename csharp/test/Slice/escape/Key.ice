@@ -9,39 +9,40 @@
 
 #pragma once
 
+[["suppress-warning:deprecated"]]
 module abstract
 {
 
 enum as
 {
     base
-};
+}
 
 struct break
 {
     int readonly;
-};
+}
 
 interface case
 {
     ["amd"] void catch(int checked, out int continue);
-};
+}
 
 interface decimal
 {
     void default();
-};
+}
 
 class delegate
 {
     int if;
     case* else;
     int event;
-};
+}
 
 interface explicit extends decimal, case
 {
-};
+}
 
 dictionary<string, break> while;
 
@@ -53,7 +54,7 @@ class optionalMembers
     optional(5) while internal;
     optional(7) string namespace;
     optional(8) explicit* null;
-};
+}
 
 interface optionalParams
 {
@@ -82,18 +83,18 @@ interface optionalParams
                               out optional(5) while internal,
                               out optional(7) string namespace,
                               out optional(8) explicit* null);
-};
+}
 
 exception fixed
 {
     int for;
-};
+}
 
 exception foreach extends fixed
 {
     int goto;
     int if;
-};
+}
 
 exception BaseMethods
 {
@@ -112,14 +113,14 @@ exception BaseMethods
     int GetType;
     int ReferenceEquals;
     int ToString;
-};
+}
 
 local interface implicit
 {
     as in(break internal, delegate is, explicit lock, case* namespace, decimal* new, delegate null,
           explicit* operator, int override, int params, int private)
         throws fixed, foreach;
-};
+}
 
 const int protected = 0;
 const int public = 0;
@@ -133,11 +134,11 @@ module System
 interface Test
 {
     void op();
-};
+}
 
-};
+}
 
-};
+}
 
 //
 // System as outer module.
@@ -148,6 +149,6 @@ module System
 interface Test
 {
     void op();
-};
+}
 
-};
+}
