@@ -76,7 +76,7 @@ run(id<ICECommunicator> communicator)
     }
     test([[interceptor getLastOperation] isEqualToString:@"notExistAdd"]);
     tprintf("ok\n");
-    tprintf("testing system exception... ");
+    tprintf("testing unknown local exception... ");
     [interceptor clear];
     @try
     {
@@ -112,6 +112,7 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     ICEregisterIceSSL(YES);
+    ICEregisterIceWS(YES);
 #if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
     ICEregisterIceIAP(YES);
 #endif

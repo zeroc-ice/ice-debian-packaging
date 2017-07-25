@@ -52,12 +52,12 @@ public abstract class Application extends com.zeroc.Ice.Application
     /**
      * This exception is raised if the session should be restarted.
      */
-    public class RestartSessionException extends Exception
+    public static class RestartSessionException extends Exception
     {
     }
 
     /**
-     * Initializes an instance that calls {@link Ice.Communicator#shutdown}
+     * Initializes an instance that calls {@link com.zeroc.Ice.Communicator#shutdown}
      * if a signal is received.
      **/
     public Application()
@@ -70,12 +70,22 @@ public abstract class Application extends com.zeroc.Ice.Application
      *
      * @param signalPolicy Determines how to respond to signals.
      *
-     * @see Ice.SignalPolicy
+     * @see com.zeroc.Ice.SignalPolicy
      **/
     public Application(com.zeroc.Ice.SignalPolicy signalPolicy)
     {
         super(signalPolicy);
     }
+
+    /**
+     * Creates a new Glacier2 session. A call to
+     * <code>createSession</code> always precedes a call to
+     * <code>runWithSession</code>. If <code>com.zeroc.Ice.LocalException</code>
+     * is thrown from this method, the application is terminated.
+     *
+     * @return The Glacier2 session.
+     **/
+    abstract public com.zeroc.Glacier2.SessionPrx createSession();
 
     /**
      * Called once the communicator has been initialized and the Glacier2 session
@@ -98,6 +108,17 @@ public abstract class Application extends com.zeroc.Ice.Application
         throws RestartSessionException;
 
     /**
+     * Called when the session refresh thread detects that the session has been
+     * destroyed. A subclass can override this method to take action after the
+     * loss of connectivity with the Glacier2 router. This method is called
+     * according to the Ice invocation dipsatch rules (in other words, it
+     * uses the same rules as an servant upcall or AMI callback).
+     **/
+    public void sessionDestroyed()
+    {
+    }
+
+    /**
      * Run should not be overridden for com.zeroc.Glacier2.Application. Instead
      * <code>runWithSession</code> should be used.
      */
@@ -116,31 +137,10 @@ public abstract class Application extends com.zeroc.Ice.Application
      *
      * @throws RestartSessionException This exception is always thrown.
      **/
-    public void restart()
+    public static void restart()
         throws RestartSessionException
     {
         throw new RestartSessionException();
-    }
-
-    /**
-     * Creates a new Glacier2 session. A call to
-     * <code>createSession</code> always precedes a call to
-     * <code>runWithSession</code>. If <code>com.zeroc.Ice.LocalException</code>
-     * is thrown from this method, the application is terminated.
-     *
-     * @return The Glacier2 session.
-     **/
-    abstract public com.zeroc.Glacier2.SessionPrx createSession();
-
-    /**
-     * Called when the session refresh thread detects that the session has been
-     * destroyed. A subclass can override this method to take action after the
-     * loss of connectivity with the Glacier2 router. This method is called
-     * according to the Ice invocation dipsatch rules (in other words, it
-     * uses the same rules as an servant upcall or AMI callback).
-     **/
-    public void sessionDestroyed()
-    {
     }
 
     /**
@@ -168,7 +168,7 @@ public abstract class Application extends com.zeroc.Ice.Application
      * @return The category.
      * @throws SessionNotExistException No session exists.
      **/
-    public String categoryForClient()
+    public static String categoryForClient()
         throws SessionNotExistException
     {
         if(_router == null)
@@ -184,7 +184,7 @@ public abstract class Application extends com.zeroc.Ice.Application
      * @return The identity with the given name and a unique category.
      * @throws SessionNotExistException No session exists.
      **/
-    public com.zeroc.Ice.Identity createCallbackIdentity(String name)
+    public static com.zeroc.Ice.Identity createCallbackIdentity(String name)
         throws SessionNotExistException
     {
         return new com.zeroc.Ice.Identity(name, categoryForClient());
@@ -196,7 +196,7 @@ public abstract class Application extends com.zeroc.Ice.Application
      * @return The proxy for the servant.
      * @throws SessionNotExistException No session exists.
      **/
-    public com.zeroc.Ice.ObjectPrx addWithUUID(com.zeroc.Ice.Object servant)
+    public static com.zeroc.Ice.ObjectPrx addWithUUID(com.zeroc.Ice.Object servant)
         throws SessionNotExistException
     {
         return objectAdapter().add(servant, createCallbackIdentity(java.util.UUID.randomUUID().toString()));
@@ -207,7 +207,7 @@ public abstract class Application extends com.zeroc.Ice.Application
      * @return The object adapter.
      * @throws SessionNotExistException No session exists.
      */
-    public com.zeroc.Ice.ObjectAdapter objectAdapter()
+    public static com.zeroc.Ice.ObjectAdapter objectAdapter()
         throws SessionNotExistException
     {
         if(_router == null)
@@ -215,7 +215,7 @@ public abstract class Application extends com.zeroc.Ice.Application
             throw new SessionNotExistException();
         }
 
-        synchronized(this)
+        synchronized(_mutex)
         {
             if(_adapter == null)
             {
@@ -271,6 +271,7 @@ public abstract class Application extends com.zeroc.Ice.Application
         DoMainResult r = new DoMainResult();
         r.restart = false;
         r.returnValue = 0;
+        boolean sessionCreated = false;
 
         try
         {
@@ -299,7 +300,7 @@ public abstract class Application extends com.zeroc.Ice.Application
                 try
                 {
                     _session = createSession();
-                    _createdSession = true;
+                    sessionCreated = true;
                 }
                 catch(com.zeroc.Ice.LocalException ex)
                 {
@@ -307,7 +308,7 @@ public abstract class Application extends com.zeroc.Ice.Application
                     r.returnValue = 1;
                 }
 
-                if(_createdSession)
+                if(sessionCreated)
                 {
                     int acmTimeout = 0;
                     try
@@ -425,7 +426,7 @@ public abstract class Application extends com.zeroc.Ice.Application
             }
         }
 
-        if(_createdSession && _router != null)
+        if(sessionCreated && _router != null)
         {
             try
             {
@@ -475,7 +476,6 @@ public abstract class Application extends com.zeroc.Ice.Application
         _adapter = null;
         _router = null;
         _session = null;
-        _createdSession = false;
         _category = null;
 
         return r;
@@ -484,6 +484,5 @@ public abstract class Application extends com.zeroc.Ice.Application
     private static com.zeroc.Ice.ObjectAdapter _adapter;
     private static com.zeroc.Glacier2.RouterPrx _router;
     private static com.zeroc.Glacier2.SessionPrx _session;
-    private static boolean _createdSession = false;
     private static String _category;
 }

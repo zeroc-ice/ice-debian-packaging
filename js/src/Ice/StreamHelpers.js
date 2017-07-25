@@ -145,14 +145,12 @@ class SequenceHelper
     {
         return (v === null || v === undefined) ? 0 : v.length;
     }
-    
+
     get minWireSize()
     {
         return 1;
     }
 }
-
-
 
 // Speacialization optimized for ByteSeq
 const byteSeqHelper = new SequenceHelper();
@@ -263,7 +261,7 @@ class DictionaryHelper
     {
         return (v === null || v === undefined) ? 0 : v.size;
     }
-    
+
     get minWireSize()
     {
         return 1;

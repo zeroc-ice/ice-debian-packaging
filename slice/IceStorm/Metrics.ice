@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICESTORM_API", "objc:header-dir:objc", "objc:dll-export:ICESTORM_API", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICESTORM_API", "objc:header-dir:objc", "objc:dll-export:ICESTORM_API", "js:ice-build", "python:pkgdir:IceStorm"]]
 [["cpp:include:IceStorm/Config.h"]]
 
 #include <Ice/Metrics.ice>
@@ -42,7 +42,7 @@ class TopicMetrics extends Metrics
      *
      **/
     long forwarded = 0;
-};
+}
 
 /**
  *
@@ -71,6 +71,6 @@ class SubscriberMetrics extends Metrics
      *
      **/
     long delivered = 0;
-};
+}
 
-};
+}

@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICESSL_API", "objc:header-dir:objc", "objc:dll-export:ICESSL_API", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICESSL_API", "objc:header-dir:objc", "objc:dll-export:ICESSL_API", "js:ice-build", "python:pkgdir:IceSSL"]]
 
 [["cpp:include:IceSSL/Plugin.h"]]
 
@@ -41,6 +41,6 @@ local class ConnectionInfo extends Ice::ConnectionInfo
 
     /** The certificate chain verification status. */
     bool verified;
-};
+}
 
-};
+}

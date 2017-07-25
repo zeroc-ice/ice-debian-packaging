@@ -139,8 +139,13 @@ namespace IceInternal
                     Debug.Assert(_connections.Count == 0);
                     Debug.Assert(_connectionsByEndpoint.Count == 0);
                 }
-                _monitor.destroy();
             }
+
+            //
+            // Must be destroyed outside the synchronization since this might block waiting for
+            // a timer task to execute.
+            //
+            _monitor.destroy();
         }
 
         public void create(EndpointI[] endpts, bool hasMore, Ice.EndpointSelectionType selType,
@@ -687,7 +692,7 @@ namespace IceInternal
         private void handleConnectionException(Ice.LocalException ex, bool hasMore)
         {
             TraceLevels traceLevels = _instance.traceLevels();
-            if(traceLevels.retry >= 2)
+            if(traceLevels.network >= 2)
             {
                 StringBuilder s = new StringBuilder();
                 s.Append("connection to endpoint failed");
@@ -707,7 +712,7 @@ namespace IceInternal
                     }
                 }
                 s.Append(ex);
-                _instance.initializationData().logger.trace(traceLevels.retryCat, s.ToString());
+                _instance.initializationData().logger.trace(traceLevels.networkCat, s.ToString());
             }
         }
 
@@ -767,7 +772,7 @@ namespace IceInternal
         internal void handleException(Ice.LocalException ex, bool hasMore)
         {
             TraceLevels traceLevels = _instance.traceLevels();
-            if(traceLevels.retry >= 2)
+            if(traceLevels.network >= 2)
             {
                 StringBuilder s = new StringBuilder();
                 s.Append("couldn't resolve endpoint host");
@@ -787,7 +792,7 @@ namespace IceInternal
                     }
                 }
                 s.Append(ex);
-                _instance.initializationData().logger.trace(traceLevels.retryCat, s.ToString());
+                _instance.initializationData().logger.trace(traceLevels.networkCat, s.ToString());
             }
         }
 
@@ -1261,8 +1266,13 @@ namespace IceInternal
                     }
                 }
                 _connections.Clear();
-                _monitor.destroy();
             }
+
+            //
+            // Must be destroyed outside the synchronization since this might block waiting for
+            // a timer task to execute.
+            //
+            _monitor.destroy();
         }
 
         public bool isLocal(EndpointI endpoint)

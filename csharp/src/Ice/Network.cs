@@ -235,7 +235,6 @@ namespace IceInternal
                 throw new Ice.SocketException(ex);
             }
 
-
             if(!udp)
             {
                 try
@@ -445,7 +444,7 @@ namespace IceInternal
                     socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.MulticastInterface, ifaceIndex);
                 }
             }
-            catch(SocketException ex)
+            catch(Exception ex)
             {
                 closeSocketNoThrow(socket);
                 throw new Ice.SocketException(ex);
@@ -725,7 +724,6 @@ namespace IceInternal
                 }
                 return addresses;
             }
-
 
             int retry = 5;
 

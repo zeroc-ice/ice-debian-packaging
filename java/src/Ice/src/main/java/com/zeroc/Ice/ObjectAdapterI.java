@@ -156,11 +156,10 @@ public final class ObjectAdapterI implements ObjectAdapter
             }
             catch(InterruptedException ex)
             {
-                throw new OperationInterruptedException();
+                throw new OperationInterruptedException(ex);
             }
         }
     }
-
 
     @Override
     public void
@@ -185,7 +184,7 @@ public final class ObjectAdapterI implements ObjectAdapter
                 }
                 catch(InterruptedException ex)
                 {
-                    throw new OperationInterruptedException();
+                    throw new OperationInterruptedException(ex);
                 }
             }
             if(_state > StateDeactivating)
@@ -334,7 +333,7 @@ public final class ObjectAdapterI implements ObjectAdapter
                 }
                 catch(InterruptedException ex)
                 {
-                    throw new OperationInterruptedException();
+                    throw new OperationInterruptedException(ex);
                 }
             }
             if(_state == StateDestroyed)

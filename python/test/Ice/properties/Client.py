@@ -9,14 +9,13 @@
 #
 # **********************************************************************
 
-
 import os, sys, traceback
 import Ice
 
 def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
-    
+
 class Client(Ice.Application):
     def run(self, args):
         properties = self.communicator().getProperties()
@@ -25,7 +24,6 @@ class Client(Ice.Application):
         test(properties.getProperty("Config.Path") == "./config/中国_client.config")
         test(properties.getProperty("Ice.ProgramName") == "PropertiesClient")
         test(self.appName() == properties.getProperty("Ice.ProgramName"))
-
 
 sys.stdout.write("testing load properties from UTF-8 path... ")
 sys.stdout.flush()

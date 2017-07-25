@@ -49,7 +49,7 @@ class TimeoutI(Test.Timeout):
         current.adapter.getCommunicator().shutdown()
 
 def run(args, communicator):
-    communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010:udp")
+    communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010")
     adapter = communicator.createObjectAdapter("TestAdapter")
     adapter.add(TimeoutI(), Ice.stringToIdentity("timeout"))
     adapter.activate()
@@ -60,6 +60,13 @@ try:
     initData = Ice.InitializationData()
     initData.properties = Ice.createProperties(sys.argv)
     initData.properties.setProperty("Ice.Warn.Connections", "0");
+
+    #
+    # The client sends large messages to cause the transport
+    # buffers to fill up.
+    #
+    initData.properties.setProperty("Ice.MessageSizeMax", "10000");
+
     #
     # Limit the recv buffer size, this test relies on the socket
     # send() blocking after sending a given amount of data.

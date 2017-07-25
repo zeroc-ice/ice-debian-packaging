@@ -32,17 +32,17 @@ public abstract class ObjectImpl implements Object, java.lang.Cloneable, java.io
     public ObjectImpl
     clone()
     {
-    	ObjectImpl c = null;
+        ObjectImpl c = null;
 
-    	try
-    	{
-    	   c = (ObjectImpl)super.clone();
-    	}
-    	catch(CloneNotSupportedException ex)
-    	{
-    	    assert false;
-    	}
-    	return c;
+        try
+        {
+           c = (ObjectImpl)super.clone();
+        }
+        catch(CloneNotSupportedException ex)
+        {
+            assert false;
+        }
+        return c;
     }
 
     private final static String[] _ids =
@@ -256,6 +256,19 @@ public abstract class ObjectImpl implements Object, java.lang.Cloneable, java.io
     public void
     ice_postUnmarshal()
     {
+    }
+
+    /**
+     * Returns the sliced data if the value has a preserved-slice base class and has been sliced during
+     * un-marshaling of the value, null is returned otherwise.
+     *
+     * @return The sliced data or null.
+     **/
+    @Override
+    public SlicedData
+    ice_getSlicedData()
+    {
+        return null;
     }
 
     private final static String[] _all =

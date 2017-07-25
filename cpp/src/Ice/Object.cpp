@@ -120,6 +120,12 @@ Ice::Object::ice_clone() const
     throw CloneNotImplementedException(__FILE__, __LINE__);
     return 0; // avoid warning with some compilers
 }
+
+Ice::SlicedDataPtr
+Ice::Object::ice_getSlicedData() const
+{
+    return 0;
+}
 #endif
 
 bool
@@ -171,7 +177,6 @@ Ice::Object::_iceD_ice_id(Incoming& inS, const Current& current)
     return true;
 }
 
-
 bool
 #ifdef ICE_CPP11_MAPPING
 Ice::Object::ice_dispatch(Request& request, std::function<bool()> r, std::function<bool(std::exception_ptr)> e)
@@ -192,8 +197,9 @@ Ice::Object::ice_dispatch(Request& request, const DispatchInterceptorAsyncCallba
 #endif
         try
         {
-            return _iceDispatch(in, in.getCurrent());
+            bool sync = _iceDispatch(in, in.getCurrent());
             in.pop();
+            return sync;
         }
         catch(...)
         {

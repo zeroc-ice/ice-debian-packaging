@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "python:pkgdir:Ice"]]
 
 #include <Ice/PropertiesAdmin.ice>
 
@@ -94,7 +94,6 @@ local interface Properties
      *
      **/
     int getPropertyAsIntWithDefault(string key, int \value);
-
 
      /**
      *
@@ -228,6 +227,6 @@ local interface Properties
      *
      **/
     Properties clone();
-};
+}
 
-};
+}

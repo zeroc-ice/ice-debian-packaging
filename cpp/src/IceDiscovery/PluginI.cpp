@@ -42,6 +42,13 @@ ICE_DISCOVERY_API void
 registerIceDiscovery(bool loadOnInitialize)
 {
     Ice::registerPluginFactory("IceDiscovery", createIceDiscovery, loadOnInitialize);
+
+#ifdef ICE_STATIC_LIBS
+    //
+    // Also register the UDP plugin with static builds to ensure the UDP transport is loaded.
+    //
+    registerIceUDP(true);
+#endif
 }
 
 }
@@ -132,7 +139,8 @@ PluginI::initialize()
         ICE_UNCHECKED_CAST(Ice::LocatorRegistryPrx, _locatorAdapter->addWithUUID(locatorRegistry));
 
     Ice::ObjectPrxPtr lookupPrx = _communicator->stringToProxy("IceDiscovery/Lookup -d:" + lookupEndpoints);
-    lookupPrx = lookupPrx->ice_collocationOptimized(false); // No collocation optimization for the multicast proxy!
+    // No collocation optimization for the multicast proxy!
+    lookupPrx = lookupPrx->ice_collocationOptimized(false)->ice_router(ICE_NULLPTR);
 
     //
     // Add lookup and lookup reply Ice objects
@@ -140,8 +148,10 @@ PluginI::initialize()
     _lookup = ICE_MAKE_SHARED(LookupI, locatorRegistry, ICE_UNCHECKED_CAST(LookupPrx, lookupPrx), properties);
     _multicastAdapter->add(_lookup, Ice::stringToIdentity("IceDiscovery/Lookup"));
 
-    Ice::ObjectPrxPtr lookupReply = _replyAdapter->addWithUUID(ICE_MAKE_SHARED(LookupReplyI, _lookup))->ice_datagram();
-    _lookup->setLookupReply(ICE_UNCHECKED_CAST(LookupReplyPrx, lookupReply));
+    _replyAdapter->addDefaultServant(ICE_MAKE_SHARED(LookupReplyI, _lookup), "");
+    Ice::Identity id;
+    id.name = "dummy";
+    _lookup->setLookupReply(ICE_UNCHECKED_CAST(LookupReplyPrx, _replyAdapter->createProxy(id)->ice_datagram()));
 
     //
     // Setup locator on the communicator.

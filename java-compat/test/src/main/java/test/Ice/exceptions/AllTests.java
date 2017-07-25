@@ -1,5 +1,6 @@
 // **********************************************************************
 //
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -737,7 +738,7 @@ public class AllTests
                 // Expected
             }
 
-            communicator.getProperties().setProperty("TestAdapter0.Endpoints", "default");
+            communicator.getProperties().setProperty("TestAdapter0.Endpoints", "tcp -h *");
             first = communicator.createObjectAdapter("TestAdapter0");
             try
             {
@@ -764,7 +765,7 @@ public class AllTests
 
         {
             out.print("testing servant registration exceptions... ");
-            communicator.getProperties().setProperty("TestAdapter1.Endpoints", "default");
+            communicator.getProperties().setProperty("TestAdapter1.Endpoints", "tcp -h *");
             Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter1");
             Ice.Object obj = new EmptyI();
             adapter.add(obj, Ice.Util.stringToIdentity("x"));
@@ -810,7 +811,7 @@ public class AllTests
 
         {
             out.print("testing servant locator registration exceptions... ");
-            communicator.getProperties().setProperty("TestAdapter2.Endpoints", "default");
+            communicator.getProperties().setProperty("TestAdapter2.Endpoints", "tcp -h *");
             Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter2");
             Ice.ServantLocator loc = new ServantLocatorI();
             adapter.addServantLocator(loc, "x");

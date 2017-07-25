@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -23,6 +23,9 @@
     <RootNamespace>IceUtil</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup>
+    <DefaultPlatformToolset Condition="'$(VisualStudioVersion)' == '10.0' And  '$(DefaultPlatformToolset)' == ''">v100</DefaultPlatformToolset>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -87,12 +90,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\ConsoleUtil.cpp" />
+    <ClCompile Include="..\..\ConvertUTF.cpp">
+      <ExcludedFromBuild Condition="'$(PlatformToolset)'!='v100'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\CtrlCHandler.cpp" />
     <ClCompile Include="..\..\OutputUtil.cpp" />
     <ClCompile Include="..\..\RecMutex.cpp" />
     <ClCompile Include="..\..\StringConverter.cpp" />
     <ClCompile Include="..\..\ThreadException.cpp" />
     <ClCompile Include="..\..\Time.cpp" />
+    <ClCompile Include="..\..\Unicode.cpp">
+      <ExcludedFromBuild Condition="'$(PlatformToolset)'!='v100'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\UtilException.cpp" />
     <ClCompile Include="..\..\FileUtil.cpp" />
     <ClCompile Include="..\..\InputUtil.cpp" />
@@ -132,7 +141,6 @@
     <ClInclude Include="..\..\..\..\include\IceUtil\RecMutex.h" />
     <ClInclude Include="..\..\..\..\include\IceUtil\ScannerConfig.h" />
     <ClInclude Include="..\..\..\..\include\IceUtil\ScopedArray.h" />
-    <ClInclude Include="..\..\..\..\include\IceUtil\SHA1.h" />
     <ClInclude Include="..\..\..\..\include\IceUtil\Shared.h" />
     <ClInclude Include="..\..\..\..\include\IceUtil\StringConverter.h" />
     <ClInclude Include="..\..\..\..\include\IceUtil\StringUtil.h" />
@@ -141,7 +149,6 @@
     <ClInclude Include="..\..\..\..\include\IceUtil\Time.h" />
     <ClInclude Include="..\..\..\..\include\IceUtil\Timer.h" />
     <ClInclude Include="..\..\..\..\include\IceUtil\UndefSysMacros.h" />
-    <ClInclude Include="..\..\..\..\include\IceUtil\UniquePtr.h" />
     <ClInclude Include="..\..\..\..\include\IceUtil\UUID.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

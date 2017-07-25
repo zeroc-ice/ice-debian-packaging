@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build", "python:pkgdir:Ice"]]
 
 #include <Ice/Identity.ice>
 #include <Ice/Process.ice>
@@ -29,7 +29,7 @@ module Ice
  **/
 exception AdapterNotFoundException
 {
-};
+}
 
 /**
  *
@@ -39,7 +39,7 @@ exception AdapterNotFoundException
  **/
 exception InvalidReplicaGroupIdException
 {
-};
+}
 
 /**
  *
@@ -49,7 +49,7 @@ exception InvalidReplicaGroupIdException
  **/
 exception AdapterAlreadyActiveException
 {
-};
+}
 
 /**
  *
@@ -58,7 +58,7 @@ exception AdapterAlreadyActiveException
  **/
 exception ObjectNotFoundException
 {
-};
+}
 
 /**
  *
@@ -67,7 +67,7 @@ exception ObjectNotFoundException
  **/
 exception ServerNotFoundException
 {
-};
+}
 
 interface LocatorRegistry;
 
@@ -126,7 +126,7 @@ interface Locator
      *
      **/
     ["nonmutating", "cpp:const"] idempotent LocatorRegistry* getRegistry();
-};
+}
 
 /**
  *
@@ -205,7 +205,7 @@ interface LocatorRegistry
      **/
     ["amd"] idempotent void setServerProcessProxy(string id, Process* proxy)
         throws ServerNotFoundException;
-};
+}
 
 /**
  *
@@ -227,6 +227,6 @@ interface LocatorFinder
      *
      **/
     Locator* getLocator();
-};
+}
 
-};
+}

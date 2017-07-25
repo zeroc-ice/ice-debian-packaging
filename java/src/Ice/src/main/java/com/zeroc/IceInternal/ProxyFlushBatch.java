@@ -27,28 +27,9 @@ public class ProxyFlushBatch extends ProxyOutgoingAsyncBaseI<Void>
     }
 
     @Override
-    protected synchronized void markSent()
-    {
-        super.markSent();
-
-        assert((_state & StateOK) != 0);
-        complete(null);
-    }
-
-    @Override
-    protected boolean needCallback()
-    {
-        return true;
-    }
-
-    @Override
     protected void markCompleted()
     {
-        super.markCompleted();
-        if(_exception != null)
-        {
-            completeExceptionally(_exception);
-        }
+        complete(null);
     }
 
     @Override
@@ -77,38 +58,6 @@ public class ProxyFlushBatch extends ProxyOutgoingAsyncBaseI<Void>
     {
         Protocol.checkSupportedProtocol(Protocol.getCompatibleProtocol(_proxy._getReference().getProtocol()));
         invokeImpl(true); // userThread = true
-    }
-
-    public void waitForResponse()
-    {
-        if(Thread.interrupted())
-        {
-            throw new com.zeroc.Ice.OperationInterruptedException();
-        }
-
-        try
-        {
-            get();
-        }
-        catch(InterruptedException ex)
-        {
-            throw new com.zeroc.Ice.OperationInterruptedException();
-        }
-        catch(java.util.concurrent.ExecutionException ee)
-        {
-            try
-            {
-                throw ee.getCause();
-            }
-            catch(RuntimeException ex) // Includes LocalException
-            {
-                throw ex;
-            }
-            catch(Throwable ex)
-            {
-                throw new com.zeroc.Ice.UnknownException(ex);
-            }
-        }
     }
 
     protected int _batchRequestNum;

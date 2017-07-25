@@ -19,21 +19,21 @@ enum MyEnum
     enum1,
     enum2,
     enum3
-};
+}
 
 interface MyClass;
 
 struct AnotherStruct
 {
     string s;
-};
+}
 
 struct Structure
 {
     MyClass* p;
     MyEnum e;
     AnotherStruct s;
-};
+}
 
 sequence<byte> ByteS;
 sequence<bool> BoolS;
@@ -63,7 +63,7 @@ struct MyStruct
 {
     int i;
     int j;
-};
+}
 
 dictionary<byte, bool> ByteBoolD;
 dictionary<short, int> ShortIntD;
@@ -91,7 +91,7 @@ dictionary<string, DoubleS> StringDoubleSD;
 dictionary<string, StringS> StringStringSD;
 dictionary<MyEnum, MyEnumS> MyEnumMyEnumSD;
 
-exception SomeException {};
+exception SomeException {}
 
 interface MyClass
 {
@@ -144,7 +144,6 @@ interface MyClass
 
     LongSS opShortIntLongSS(ShortSS p1, IntSS p2, LongSS p3,
                             out ShortSS p4, out IntSS p5, out LongSS p6);
-
 
     DoubleSS opFloatDoubleSS(FloatSS p1, DoubleSS p2,
                              out FloatSS p3, out DoubleSS p4);
@@ -261,28 +260,28 @@ interface MyClass
 
     ["marshaled-result"] StringStringD opMDict1();
     ["marshaled-result"] StringStringD opMDict2(StringStringD p1, out StringStringD p2);
-};
+}
 
 struct MyStruct1
 {
     string tesT; // Same name as the enclosing module
-    MyClass myClass; // Same name as an already defined class
+    MyClass* myClass; // Same name as an already defined class
     string myStruct1; // Same name as the enclosing struct
-};
+}
 
 class MyClass1
 {
     string tesT; // Same name as the enclosing module
-    MyClass myClass; // Same name as an already defined class
+    MyClass* myClass; // Same name as an already defined class
     string myClass1; // Same name as the enclosing class
-};
+}
 
 ["cs:tie"] interface MyDerivedClass extends MyClass
 {
     void opDerived();
     MyClass1 opMyClass1(MyClass1 opMyClass1);
     MyStruct1 opMyStruct1(MyStruct1 opMyStruct1);
-};
+}
 
 //
 // String literals
@@ -313,17 +312,17 @@ const string sw9 = "\U0001F34C";                      // BANANA (U+1F34C)
 const string sw10 = "\U00000DA7";                     // Sinhala Letter Alpapraana Ttayanna
 
 /**
-\'	single quote	byte 0x27 in ASCII encoding
-\"	double quote	byte 0x22 in ASCII encoding
-\?	question mark	byte 0x3f in ASCII encoding
-\\	backslash	byte 0x5c in ASCII encoding
-\a	audible bell	byte 0x07 in ASCII encoding
-\b	backspace	byte 0x08 in ASCII encoding
-\f	form feed - new page	byte 0x0c in ASCII encoding
-\n	line feed - new line	byte 0x0a in ASCII encoding
-\r	carriage return	byte 0x0d in ASCII encoding
-\t	horizontal tab	byte 0x09 in ASCII encoding
-\v	vertical tab	byte 0x0b in ASCII encoding
+\'      single quote    byte 0x27 in ASCII encoding
+\"      double quote    byte 0x22 in ASCII encoding
+\?      question mark   byte 0x3f in ASCII encoding
+\\      backslash       byte 0x5c in ASCII encoding
+\a      audible bell    byte 0x07 in ASCII encoding
+\b      backspace       byte 0x08 in ASCII encoding
+\f      form feed - new page    byte 0x0c in ASCII encoding
+\n      line feed - new line    byte 0x0a in ASCII encoding
+\r      carriage return byte 0x0d in ASCII encoding
+\t      horizontal tab  byte 0x09 in ASCII encoding
+\v      vertical tab    byte 0x0b in ASCII encoding
 **/
 
 const string ss0 = "\'\"\?\\\a\b\f\n\r\t\v\6";
@@ -352,7 +351,7 @@ const string su0 = "ĨŸÿĀἀ𐆔𐅪𐆘🍀🍁🍂🍃";
 const string su1 = "\u0128\u0178\u00FF\u0100\u1F00\U00010194\U0001016A\U00010198\U0001F340\U0001F341\U0001F342\U0001F343";
 const string su2 = "\U00000128\U00000178\U000000FF\U00000100\U00001F00\U00010194\U0001016A\U00010198\U0001F340\U0001F341\U0001F342\U0001F343";
 
-};
+}
 
 module Test2
 {
@@ -365,6 +364,6 @@ module Test2
  **/
 interface MyDerivedClass extends Test::MyClass
 {
-};
+}
 
-};
+}

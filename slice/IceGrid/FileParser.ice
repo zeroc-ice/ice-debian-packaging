@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEGRID_API", "objc:header-dir:objc", "objc:dll-export:ICEGRID_API", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEGRID_API", "objc:header-dir:objc", "objc:dll-export:ICEGRID_API", "js:ice-build", "python:pkgdir:IceGrid"]]
 [["cpp:include:IceGrid/Config.h"]]
 
 #include <IceGrid/Admin.ice>
@@ -31,7 +31,7 @@ exception ParseException
 {
     /** The reason for the failure. */
     string reason;
-};
+}
 
 /**
  *
@@ -60,6 +60,6 @@ interface FileParser
 
     idempotent ApplicationDescriptor parse(string xmlFile, Admin* adminProxy)
         throws ParseException;
-};
+}
 
-};
+}

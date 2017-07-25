@@ -136,7 +136,7 @@ public class AsyncResultI implements AsyncResult
         {
             Thread.currentThread().setContextClassLoader(_callback.getClass().getClassLoader());
         }
-        
+
         try
         {
             _callback._iceSent(this);
@@ -180,7 +180,7 @@ public class AsyncResultI implements AsyncResult
         {
             Thread.currentThread().setContextClassLoader(_callback.getClass().getClassLoader());
         }
-        
+
         try
         {
             _callback._iceCompleted(this);
@@ -204,7 +204,7 @@ public class AsyncResultI implements AsyncResult
                 Thread.currentThread().setContextClassLoader(null);
             }
         }
-    
+
         if(_observer != null)
         {
             _observer.detach();
@@ -246,7 +246,7 @@ public class AsyncResultI implements AsyncResult
 
     public final boolean waitForResponseOrUserEx()
     {
-        try 
+        try
         {
             synchronized(this)
             {
@@ -254,7 +254,7 @@ public class AsyncResultI implements AsyncResult
                 {
                     throw new IllegalArgumentException("end_ method called more than once");
                 }
-    
+
                 _state |= StateEndCalled;
                 if(Thread.interrupted())
                 {
@@ -264,12 +264,12 @@ public class AsyncResultI implements AsyncResult
                 {
                     this.wait();
                 }
-    
+
                 if(_exception != null)
                 {
                     throw (Ice.Exception)_exception.fillInStackTrace();
                 }
-    
+
                 return (_state & StateOK) > 0;
             }
         }
@@ -299,7 +299,7 @@ public class AsyncResultI implements AsyncResult
     protected boolean sent(boolean done)
     {
         synchronized(this)
-        {        
+        {
             assert(_exception == null);
 
             boolean alreadySent = (_state & StateSent) != 0;
@@ -328,7 +328,7 @@ public class AsyncResultI implements AsyncResult
         }
     }
 
-    protected boolean finished(boolean ok)
+    protected boolean finished(boolean ok, boolean invoke)
     {
         synchronized(this)
         {
@@ -338,7 +338,8 @@ public class AsyncResultI implements AsyncResult
                 _state |= StateOK;
             }
             _cancellationHandler = null;
-            if(_callback == null)
+            invoke &= _callback != null;
+            if(!invoke)
             {
                 if(_observer != null)
                 {
@@ -347,7 +348,7 @@ public class AsyncResultI implements AsyncResult
                 }
             }
             this.notifyAll();
-            return _callback != null;
+            return invoke;
         }
     }
 
@@ -456,7 +457,7 @@ public class AsyncResultI implements AsyncResult
     private final CallbackBase _callback;
 
     private Ice.Exception _exception;
-    
+
     private CancellationHandler _cancellationHandler;
     private Ice.LocalException _cancellationException;
 

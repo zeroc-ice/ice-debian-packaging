@@ -34,12 +34,35 @@ To build the Ice assemblies, services and tests, run
 
 Upon completion, the Ice assemblies are placed in the `Assemblies` subdirectory.
 
-If you want to run the test suite without building the entire source base, use this
-command:
+You can add Strong Naming signatures to Ice assemblies by setting the following
+environment variables:
+
+ - PUBLIC_KEYFILE Identity public key used to delay sign the assembly
+ - KEYFILE Identity full key pair used to sign the assembly
+
+If only PUBLIC_KEYFILE is set, the assemblies are delay signed during the build
+and you must re-sign the assemblies with the full identity key pair.
+
+If only KEYFILE is set, the assemblies are fully signed during the build using
+KEYFILE.
+
+If both PUBLIC_KEYFILE and KEYFILE are set, assemblies are delay signed during
+the build using PUBLIC_KEYFILE and re-signed after the build using KEYFILE.
+This can be used for generating [Enhanced Strong Naming](3) signatures.
+
+You can also sign the Ice binaries with Authenticode by setting the following
+environment variables:
+
+ - SIGN_CERTIFICATE to your Authenticode certificate
+ - SIGN_PASSWORD to the certificate password
+
+If you want to build the test suite without building the entire source base, use
+this command:
 
     msbuild msbuild\ice.proj /p:ICE_BIN_DIST=all
 
-The build will automatically install ZeroC's official Ice binary NuGet packages if necessary.
+The build will automatically install ZeroC's official Ice binary NuGet packages
+if necessary.
 
 ## Running the .NET Tests
 
@@ -77,6 +100,7 @@ To create a NuGet package for the distribution, use the following command:
 
 This will create `zeroc.ice.net\zeroc.ice.net.nupkg`.
 
-[1]: https://zeroc.com/download.html
-[2]: https://doc.zeroc.com/display/Ice37/Supported+Platforms+for+Ice+3.7.0
+[1]: https://zeroc.com/distributions/ice
+[2]: https://doc.zeroc.com/display/Rel/Supported+Platforms+for+Ice+3.7.0
 [3]: https://github.com/zeroc-ice/ice-builder-visualstudio
+[4]: https://docs.microsoft.com/en-us/dotnet/framework/app-domains/enhanced-strong-naming

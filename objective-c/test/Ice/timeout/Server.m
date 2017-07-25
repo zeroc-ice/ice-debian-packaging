@@ -35,6 +35,8 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     ICEregisterIceSSL(YES);
+    ICEregisterIceWS(YES);
+    ICEregisterIceUDP(YES);
 #if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
     ICEregisterIceIAP(YES);
 #endif
@@ -59,6 +61,12 @@ main(int argc, char* argv[])
             // This test kills connections, so we don't want warnings.
             //
             [initData.properties setProperty:@"Ice.Warn.Connections" value:@"0"];
+
+            //
+            // The client sends large messages to cause the transport
+            // buffers to fill up.
+            //
+            [initData.properties setProperty:@"Ice.MessageSizeMax" value:@"20000"];
 
             //
             // Limit the send buffer size, this test relies on the socket

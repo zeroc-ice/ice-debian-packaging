@@ -15,14 +15,13 @@ module Test
 interface CallbackReceiver
 {
     void callback();
-};
+}
 
 interface Callback
 {
     void initiateCallback(CallbackReceiver* proxy);
 
     void shutdown();
-};
+}
 
-};
-
+}

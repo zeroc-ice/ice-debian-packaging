@@ -850,21 +850,21 @@ Ice::Service::run(int argc, const char* const argv[], const InitializationData& 
     catch(const std::exception& ex)
     {
         ServiceError err(this);
-        err << "service caught unhandled exception:\n" << ex;
+        err << "service terminating after catching exception:\n" << ex;
     }
     catch(const std::string& msg)
     {
         ServiceError err(this);
-        err << "service caught unhandled exception:\n" << msg;
+        err << "service terminating after catching exception:\n" << msg;
     }
     catch(const char* msg)
     {
         ServiceError err(this);
-        err << "service caught unhandled exception:\n" << msg;
+        err << "service terminating after catching exception:\n" << msg;
     }
     catch(...)
     {
-        error("service caught unhandled C++ exception");
+        error("service terminating after catching unknown exception");
     }
 
     if(_communicator)
@@ -1249,7 +1249,7 @@ Ice::Service::serviceMain(int argc, const wchar_t* const argv[])
     // Register the control handler function.
     //
     _statusHandle = RegisterServiceCtrlHandlerW(argv[0], Ice_Service_CtrlHandler);
-    if(_statusHandle == (SERVICE_STATUS_HANDLE)0)
+    if(_statusHandle == 0)
     {
         syserror("unable to register service control handler");
         return;
@@ -1265,10 +1265,10 @@ Ice::Service::serviceMain(int argc, const wchar_t* const argv[])
     serviceStatusManager->startUpdate(SERVICE_START_PENDING);
 
     //
-    // Don't need to pass a wide string converter in the bellow argv conversions
+    // Don't need to pass a wide string converter in the argv conversions
     // as argv come from Windows API.
     //
-    const IceUtil::StringConverterPtr converter(IceUtil::getProcessStringConverter());
+    const IceUtil::StringConverterPtr converter = IceUtil::getProcessStringConverter();
 
     //
     // Merge the executable's arguments with the service's arguments.
@@ -1372,11 +1372,11 @@ Ice::Service::serviceMain(int argc, const wchar_t* const argv[])
     catch(const std::exception& ex)
     {
         ServiceError err(this);
-        err << "service caught unhandled std::exception:\n" << ex;
+        err << "service terminating after catching exception:\n" << ex;
     }
     catch(...)
     {
-        error("service caught unhandled C++ exception");
+        error("service terminating after catching unknown exception");
     }
 
     delete[] args;
@@ -1820,12 +1820,12 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
     catch(const std::exception& ex)
     {
         ServiceError err(this);
-        err << "service caught unhandled std::exception:\n" << ex;
+        err << "service terminating after catching exception:\n" << ex;
         errMsg = err.str();
     }
     catch(...)
     {
-        errMsg = "service caught unhandled C++ exception";
+        errMsg = "service terminating after catching unknown exception";
         error(errMsg);
     }
 

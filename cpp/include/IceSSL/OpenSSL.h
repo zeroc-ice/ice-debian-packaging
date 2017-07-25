@@ -38,6 +38,16 @@
 #   endif
 #endif
 
+#if defined(_WIN32) && !defined(ICESSL_OPENSSL_API_EXPORTS)
+
+namespace Ice
+{
+
+ICE_PLUGIN_REGISTER_DECLSPEC_IMPORT void registerIceSSLOpenSSL(bool = true);
+
+}
+#endif
+
 namespace IceSSL
 {
 
@@ -109,7 +119,7 @@ public:
     // Changes made to this value have no effect on existing connections.
     //
     virtual SSL_CTX* getContext() = 0;
-    
+
 };
 ICE_DEFINE_PTR(PluginPtr, Plugin);
 

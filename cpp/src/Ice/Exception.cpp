@@ -77,7 +77,7 @@ throwUOE(const string& expectedType, const ValuePtr& v)
     UnknownSlicedValue* usv = dynamic_cast<UnknownSlicedValue*>(v.get());
     if(usv)
     {
-        throw NoValueFactoryException(__FILE__, __LINE__, "", usv->getUnknownTypeId());
+        throw NoValueFactoryException(__FILE__, __LINE__, "", usv->ice_id());
     }
 
     string type = v->ice_id();
@@ -126,6 +126,12 @@ Ice::UserException::ice_clone() const
     return unique_ptr<UserException>(static_cast<UserException*>(ice_cloneImpl()));
 }
 #endif
+
+Ice::SlicedDataPtr
+Ice::UserException::ice_getSlicedData() const
+{
+    return ICE_NULLPTR;
+}
 
 void
 Ice::UserException::_write(::Ice::OutputStream* os) const
@@ -350,7 +356,6 @@ Ice::IllegalServantException::ice_print(ostream& out) const
     out << ":\nillegal servant: `" << reason << "'";
 }
 
-
 static void
 printFailedRequestData(ostream& out, const RequestFailedException& ex)
 {
@@ -475,7 +480,6 @@ Ice::OperationInterruptedException::ice_print(ostream& out) const
     Exception::ice_print(out);
     out << ":\noperation interrupted";
 }
-
 
 void
 Ice::TimeoutException::ice_print(ostream& out) const

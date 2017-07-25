@@ -17,19 +17,36 @@
     var Ice = require("ice").Ice;
     var Test = require("Test").Test;
 
+    var connect = function(prx)
+    {
+        var nRetry = 10;
+        var next = function next() {
+            if(--nRetry > 0) {
+                return prx.ice_getConnection().then(c => c, ex => next());
+            }
+            return null;
+        };
+        return next();
+    }
+
     var allTests = function(out, communicator)
     {
         var failCB = function() { test(false); };
         var ref, obj, mult, timeout, to, connection, comm, now;
 
         var p = new Ice.Promise();
-        var test = function(b)
+        var test = function(b, ex)
         {
             if(!b)
             {
                 try
                 {
-                    throw new Error("test failed");
+                    var msg = "test failed";
+                    if(ex)
+                    {
+                        msg += ":\n" + ex.toString();
+                    }
+                    throw new Error(msg);
                 }
                 catch(err)
                 {
@@ -68,7 +85,7 @@
             failCB,
             ex =>
             {
-                test(ex instanceof Ice.ConnectTimeoutException);
+                test(ex instanceof Ice.ConnectTimeoutException, ex);
                 return timeout.op(); // Ensure adapter is active.
             }
         ).then(() =>
@@ -82,15 +99,19 @@
             {
                 out.writeLine("ok");
                 out.write("testing connection timeout... ");
-                to = Test.TimeoutPrx.uncheckedCast(obj.ice_timeout(100 * mult));
+                to = Test.TimeoutPrx.uncheckedCast(obj.ice_timeout(250 * mult));
+                return connect(to);
+            }
+        ).then(() =>
+            {
                 seq = new Uint8Array(10000000);
-                return timeout.holdAdapter(1000 * mult);
+                return timeout.holdAdapter(1500 * mult);
             }
         ).then(() => to.sendData(seq) // Expect TimeoutException
         ).then(() => test(false),
                ex =>
             {
-                test(ex instanceof Ice.TimeoutException);
+                test(ex instanceof Ice.TimeoutException, ex);
                 return timeout.op(); // Ensure adapter is active.
             }
         ).then(() =>
@@ -121,7 +142,7 @@
             failCB,
             ex =>
             {
-                test(ex instanceof Ice.InvocationTimeoutException);
+                test(ex instanceof Ice.InvocationTimeoutException, ex);
                 return obj.ice_ping();
             }
         ).then(() =>
@@ -139,7 +160,7 @@
                 out.writeLine("ok");
                 out.write("testing close timeout... ");
                 to = Test.TimeoutPrx.uncheckedCast(obj.ice_timeout(500));
-                return to.ice_getConnection();
+                return connect(to);
             }
         ).then(con =>
             {
@@ -167,7 +188,7 @@
                 }
                 catch(ex)
                 {
-                    test(ex instanceof Ice.ConnectionManuallyClosedException); // Expected
+                    test(ex instanceof Ice.ConnectionManuallyClosedException, ex); // Expected
                 }
                 return timeout.op();
             }
@@ -183,18 +204,20 @@
                 initData.properties = communicator.getProperties().clone();
                 if(mult === 1)
                 {
+                    initData.properties.setProperty("Ice.Override.ConnectTimeout", "250");
                     initData.properties.setProperty("Ice.Override.Timeout", "100");
                 }
                 else
                 {
+                    initData.properties.setProperty("Ice.Override.ConnectTimeout", "5000");
                     initData.properties.setProperty("Ice.Override.Timeout", "2000");
                 }
                 comm = Ice.initialize(initData);
-                return Test.TimeoutPrx.checkedCast(comm.stringToProxy(ref));
+                to = Test.TimeoutPrx.uncheckedCast(comm.stringToProxy(ref));
+                return connect(to);
             }
-        ).then(obj =>
+        ).then(c =>
             {
-                to = obj;
                 return timeout.holdAdapter(750 * 2 * mult);
             }
         ).then(() => to.sendData(seq) // Expect TimeoutException.
@@ -202,13 +225,16 @@
             failCB,
             ex =>
             {
-                test(ex instanceof Ice.TimeoutException);
+                test(ex instanceof Ice.TimeoutException, ex);
                 return timeout.op(); // Ensure adapter is active.
             }
-        ).then(() => Test.TimeoutPrx.checkedCast(to.ice_timeout(1000 * mult)) // Calling ice_timeout() should have no effect.
-        ).then(obj =>
+        ).then(() =>
             {
-                to = obj;
+                to = Test.TimeoutPrx.uncheckedCast(to.ice_timeout(1000 * mult)) // Calling ice_timeout() should have no effect.
+                return connect(to);
+            }
+        ).then(c =>
+            {
                 return timeout.holdAdapter(750 * 2 * mult);
             }
         ).then(() => to.sendData(seq) // Expect TimeoutException.
@@ -216,7 +242,7 @@
             failCB,
             ex =>
             {
-                test(ex instanceof Ice.TimeoutException);
+                test(ex instanceof Ice.TimeoutException, ex);
                 return comm.destroy();
             }
         ).then(() =>
@@ -243,7 +269,7 @@
             failCB,
             ex =>
             {
-                test(ex instanceof Ice.ConnectTimeoutException);
+                test(ex instanceof Ice.ConnectTimeoutException, ex);
                 return timeout.op(); // Ensure adapter is active.
             }
         ).then(() => timeout.holdAdapter(750 * mult)
@@ -258,13 +284,13 @@
         ).then(() => test(false),
                ex =>
             {
-                test(ex instanceof Ice.ConnectTimeoutException);
+                test(ex instanceof Ice.ConnectTimeoutException, ex);
                 return timeout.op(); // Ensure adapter is active.
             }
         ).then(() =>
             {
                 to = Test.TimeoutPrx.uncheckedCast(to.ice_timeout(100 * mult));
-                return to.ice_getConnection(); // Force connection.
+                return connect(to); // Force connection.
             }
         ).then(obj => timeout.holdAdapter(750 * mult)
         ).then(() => to.sendData(seq)
@@ -272,7 +298,7 @@
             failCB,
             ex =>
             {
-                test(ex instanceof Ice.TimeoutException);
+                test(ex instanceof Ice.TimeoutException, ex);
                 return comm.destroy();
             }
         ).then(() =>
@@ -315,11 +341,7 @@
         //
         id.properties.setProperty("Ice.Warn.Connections", "0");
 
-        //
-        // We need to send messages large enough to cause the transport
-        // buffers to fill up.
-        //
-        id.properties.setProperty("Ice.MessageSizeMax", "10000");
+        id.properties.setProperty("Ice.PrintStackTraces", "1");
 
         var c = Ice.initialize(id);
         return Ice.Promise.try(() =>

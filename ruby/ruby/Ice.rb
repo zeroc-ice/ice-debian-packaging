@@ -136,13 +136,16 @@ module Ice
             self::ICE_ID
         end
 
+        def ice_getSlicedData()
+            return _ice_slicedData
+        end
+
         attr_accessor :_ice_slicedData  # Only used for instances of preserved classes.
     end
 
     T_Value.defineClass(Value, -1, false, false, nil, [])
 
     T_ObjectPrx.defineProxy(ObjectPrx, nil, [])
-
 
     class InterfaceByValue < Value
         def initialize(id)
@@ -158,7 +161,9 @@ module Ice
     # UnknownSlicedValue.
     #
     class UnknownSlicedValue < Value
-        attr_accessor :unknownTypeId
+        def ice_id
+            return @unknownTypeId
+        end
     end
     T_UnknownSlicedValue = Ice.__declareClass('::Ice::UnknownSlicedValue')
     T_UnknownSlicedValue.defineClass(UnknownSlicedValue, -1, true, false, T_Value, [])
@@ -294,7 +299,7 @@ module Ice
             @mutex = Mutex.new
             @queue = Array.new
             @callback = nil
-            
+
             @read, @write = IO.pipe
 
             #
@@ -356,7 +361,6 @@ module Ice
             }
         end
 
- 
         @@_self = nil
     end
 

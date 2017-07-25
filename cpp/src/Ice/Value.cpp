@@ -66,10 +66,16 @@ Ice::Value::ice_staticId()
     return object_ids[0];
 }
 
-ValuePtr
+shared_ptr<Value>
 Ice::Value::ice_clone() const
 {
-    return cloneImpl();
+    return _iceCloneImpl();
+}
+
+shared_ptr<SlicedData>
+Ice::Value::ice_getSlicedData() const
+{
+    return nullptr;
 }
 
 #endif

@@ -98,7 +98,7 @@ socketRead(SSLConnectionRef connection, void* data, size_t* length)
 }
 
 bool
-checkTrustResult(SecTrustRef trust, 
+checkTrustResult(SecTrustRef trust,
                  const IceSSL::SecureTransport::SSLEnginePtr& engine,
                  const IceSSL::InstancePtr& instance,
                  const string& host)
@@ -132,8 +132,8 @@ checkTrustResult(SecTrustRef trust,
                 throw SecurityException(__FILE__, __LINE__, "IceSSL: handshake failure:\n" + sslErrorToString(err));
             }
             UniqueRef<CFMutableArrayRef> newPolicies(CFArrayCreateMutableCopy(kCFAllocatorDefault, 0, policies.get()));
-            CFArrayAppendValue(newPolicies.get(), policy.release());
-            if((err = SecTrustSetPolicies(trust, newPolicies.release())))
+            CFArrayAppendValue(newPolicies.get(), policy.get());
+            if((err = SecTrustSetPolicies(trust, newPolicies.get())))
             {
                 throw SecurityException(__FILE__, __LINE__, "IceSSL: handshake failure:\n" + sslErrorToString(err));
             }
@@ -302,7 +302,7 @@ IceSSL::SecureTransport::TransceiverI::initialize(IceInternal::Buffer& readBuffe
 
     if(_instance->engine()->securityTraceLevel() >= 1)
     {
-        
+
         Trace out(_instance->logger(), _instance->traceCategory());
         out << "SSL summary for " << (_incoming ? "incoming" : "outgoing") << " connection\n";
 

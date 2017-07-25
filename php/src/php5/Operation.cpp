@@ -97,7 +97,7 @@ typedef IceUtil::Handle<OperationI> OperationIPtr;
 //
 // The base class for client-side invocations.
 //
-class Invocation : virtual public IceUtil::Shared
+class Invocation : public virtual IceUtil::Shared
 {
 public:
 
@@ -119,7 +119,7 @@ typedef IceUtil::Handle<Invocation> InvocationPtr;
 // TypedInvocation uses the information in the given operation to validate, marshal, and unmarshal
 // parameters and exceptions.
 //
-class TypedInvocation : virtual public Invocation
+class TypedInvocation : public virtual Invocation
 {
 public:
 
@@ -139,7 +139,7 @@ protected:
 //
 // A synchronous typed invocation.
 //
-class SyncTypedInvocation : virtual public TypedInvocation
+class SyncTypedInvocation : public virtual TypedInvocation
 {
 public:
 
@@ -878,9 +878,9 @@ ZEND_FUNCTION(IcePHP_defineOperation)
     ProxyInfoPtr c = ProxyInfoPtr::dynamicCast(type);
     assert(c);
 
-    OperationIPtr op = new OperationI(name, 
+    OperationIPtr op = new OperationI(name,
                                       static_cast<Ice::OperationMode>(mode),
-                                      static_cast<Ice::OperationMode>(sendMode), 
+                                      static_cast<Ice::OperationMode>(sendMode),
                                       static_cast<Ice::FormatType>(format),
                                       inParams, outParams, returnType, exceptions TSRMLS_CC);
 

@@ -7,8 +7,8 @@
 //
 // **********************************************************************
 
-sourceCompatibility = iceSourceCompatibility
-targetCompatibility = iceTargetCompatibility
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
 
 project.ext.displayName = "IceBT Compat"
 project.ext.description = "Bluetooth support for Ice"
@@ -25,7 +25,7 @@ dependencies {
     compile project(':ice-compat')
 }
 
-apply from: "$rootProject.projectDir/../java/gradle/library.gradle"
+apply from: "$project.ext.topSrcDir/java/gradle/library.gradle"
 
 jar {
     //

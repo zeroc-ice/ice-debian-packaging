@@ -219,8 +219,13 @@ IceInternal::OutgoingConnectionFactory::waitUntilFinished()
         cons.clear();
         _connections.clear();
         _connectionsByEndpoint.clear();
-        _monitor->destroy();
     }
+
+    //
+    // Must be destroyed outside the synchronization since this might block waiting for
+    // a timer task to complete.
+    //
+    _monitor->destroy();
 }
 
 void
@@ -809,9 +814,9 @@ void
 IceInternal::OutgoingConnectionFactory::handleException(const LocalException& ex, bool hasMore)
 {
     TraceLevelsPtr traceLevels = _instance->traceLevels();
-    if(traceLevels->retry >= 2)
+    if(traceLevels->network >= 2)
     {
-        Trace out(_instance->initializationData().logger, traceLevels->retryCat);
+        Trace out(_instance->initializationData().logger, traceLevels->networkCat);
 
         out << "couldn't resolve endpoint host";
         if(dynamic_cast<const CommunicatorDestroyedException*>(&ex))
@@ -837,9 +842,9 @@ void
 IceInternal::OutgoingConnectionFactory::handleConnectionException(const LocalException& ex, bool hasMore)
 {
     TraceLevelsPtr traceLevels = _instance->traceLevels();
-    if(traceLevels->retry >= 2)
+    if(traceLevels->network >= 2)
     {
-        Trace out(_instance->initializationData().logger, traceLevels->retryCat);
+        Trace out(_instance->initializationData().logger, traceLevels->networkCat);
 
         out << "connection to endpoint failed";
         if(dynamic_cast<const CommunicatorDestroyedException*>(&ex))
@@ -1251,8 +1256,13 @@ IceInternal::IncomingConnectionFactory::waitUntilFinished()
             cons.clear();
         }
         _connections.clear();
-        _monitor->destroy();
     }
+
+    //
+    // Must be destroyed outside the synchronization since this might block waiting for
+    // a timer task to complete.
+    //
+    _monitor->destroy();
 }
 
 bool
@@ -1845,4 +1855,3 @@ IceInternal::IncomingConnectionFactory::closeAcceptor()
         _instance->timer()->schedule(ICE_MAKE_SHARED(StartAcceptor, ICE_SHARED_FROM_THIS), IceUtil::Time::seconds(1));
     }
 }
-

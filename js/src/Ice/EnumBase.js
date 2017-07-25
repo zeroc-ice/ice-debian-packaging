@@ -7,7 +7,6 @@
 //
 // **********************************************************************
 
-
 const Ice = require("../Ice/ModuleRegistry").Ice;
 //
 // Ice.EnumBase
@@ -44,12 +43,12 @@ class EnumBase
     {
         return this._name;
     }
-    
+
     get name()
     {
         return this._name;
     }
-    
+
     get value()
     {
         return this._value;
@@ -101,7 +100,7 @@ Slice.defineEnum = function(enumerators)
     const enums = [];
     let maxValue = 0;
     let firstEnum = null;
-    
+
     for(let idx in enumerators)
     {
         let e = enumerators[idx][0], value = enumerators[idx][1];

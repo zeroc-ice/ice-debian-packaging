@@ -7,10 +7,8 @@
 //
 // **********************************************************************
 
-//sourceCompatibility = iceSourceCompatibility
-//targetCompatibility = iceTargetCompatibility
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = iceSourceCompatibility
+targetCompatibility = iceTargetCompatibility
 
 project.ext.displayName = "IceBox"
 project.ext.description = "IceBox is an easy-to-use framework for Ice application services"
@@ -19,7 +17,7 @@ slice {
     java {
         set1 {
             args = "--checksum com.zeroc.IceBox.SliceChecksums"
-            files = fileTree(dir: "$sliceDir/IceBox", includes:['*.ice'], excludes:["*F.ice"])
+            files = fileTree(dir: "$project.ext.topSrcDir/slice/IceBox", includes:['*.ice'], excludes:["*F.ice"])
         }
     }
 }
@@ -28,4 +26,4 @@ dependencies {
     compile project(':ice')
 }
 
-apply from: "$rootProject.projectDir/gradle/library.gradle"
+apply from: "$project.ext.topSrcDir/java/gradle/library.gradle"

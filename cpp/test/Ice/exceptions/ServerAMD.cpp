@@ -18,7 +18,7 @@ using namespace std;
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0) + ":udp");
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0));
     communicator->getProperties()->setProperty("TestAdapter2.Endpoints", getTestEndpoint(communicator, 1));
     communicator->getProperties()->setProperty("TestAdapter2.MessageSizeMax", "0");
     communicator->getProperties()->setProperty("TestAdapter3.Endpoints", getTestEndpoint(communicator, 2));
@@ -43,6 +43,8 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL(false);
+    Ice::registerIceWS(true);
+    Ice::registerIceUDP(true);
 #endif
 
     try

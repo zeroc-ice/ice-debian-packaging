@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build", "python:pkgdir:Ice"]]
 
 #include <Ice/Version.ice>
 #include <Ice/BuiltinSequences.ice>
@@ -144,7 +144,7 @@ local class EndpointInfo
      *
      **/
     ["cpp:const"] bool secure();
-};
+}
 
 /**
  *
@@ -171,7 +171,7 @@ local interface Endpoint
      *
      **/
     ["cpp:const"] EndpointInfo getInfo();
-};
+}
 
 /**
  *
@@ -203,7 +203,7 @@ local class IPEndpointInfo extends EndpointInfo
      *
      */
     string sourceAddress;
-};
+}
 
 /**
  *
@@ -215,7 +215,7 @@ local class IPEndpointInfo extends EndpointInfo
 ["php:internal"]
 local class TCPEndpointInfo extends IPEndpointInfo
 {
-};
+}
 
 /**
  *
@@ -240,7 +240,7 @@ local class UDPEndpointInfo extends IPEndpointInfo
      *
      **/
      int mcastTtl;
-};
+}
 
 /**
  *
@@ -256,7 +256,7 @@ local class WSEndpointInfo extends EndpointInfo
      *
      **/
     string resource;
-};
+}
 
 /**
  *
@@ -282,6 +282,6 @@ local class OpaqueEndpointInfo extends EndpointInfo
      *
      **/
     Ice::ByteSeq rawBytes;
-};
+}
 
-};
+}

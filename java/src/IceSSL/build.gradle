@@ -7,10 +7,8 @@
 //
 // **********************************************************************
 
-//sourceCompatibility = iceSourceCompatibility
-//targetCompatibility = iceTargetCompatibility
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = iceSourceCompatibility
+targetCompatibility = iceTargetCompatibility
 
 project.ext.displayName = "IceSSL"
 project.ext.description = "The IceSSL plug-in"
@@ -19,7 +17,7 @@ slice {
     java {
 
         nostream {
-            files = fileTree(dir: "$sliceDir", includes:['IceSSL/*.ice'])
+            files = fileTree(dir: "$project.ext.topSrcDir/slice", includes:['IceSSL/*.ice'])
         }
     }
 }
@@ -28,4 +26,4 @@ dependencies {
     compile project(':ice')
 }
 
-apply from: "$rootProject.projectDir/gradle/library.gradle"
+apply from: "$project.ext.topSrcDir/java/gradle/library.gradle"

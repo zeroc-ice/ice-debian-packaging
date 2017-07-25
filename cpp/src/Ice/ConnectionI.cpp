@@ -72,7 +72,7 @@ public:
     DispatchCall(const ConnectionIPtr& connection, const ConnectionI::StartCallbackPtr& startCB,
                  const vector<ConnectionI::OutgoingMessage>& sentCBs, Byte compress, Int requestId,
                  Int invokeNum, const ServantManagerPtr& servantManager, const ObjectAdapterPtr& adapter,
-                 const OutgoingAsyncBasePtr& outAsync, const ICE_HEARTBEAT_CALLBACK& heartbeatCallback,
+                 const OutgoingAsyncBasePtr& outAsync, const ICE_DELEGATE(HeartbeatCallback)& heartbeatCallback,
                  InputStream& stream) :
         DispatchWorkItem(connection),
         _connection(connection),
@@ -108,7 +108,7 @@ private:
     const ServantManagerPtr _servantManager;
     const ObjectAdapterPtr _adapter;
     const OutgoingAsyncBasePtr _outAsync;
-    const ICE_HEARTBEAT_CALLBACK _heartbeatCallback;
+    const ICE_DELEGATE(HeartbeatCallback) _heartbeatCallback;
     InputStream _stream;
 };
 
@@ -293,7 +293,6 @@ Ice::ConnectionI::Observer::attach(const Ice::Instrumentation::ConnectionObserve
         _readStreamPos = 0;
     }
 }
-
 
 void
 Ice::ConnectionI::OutgoingMessage::adopt(OutputStream* str)
@@ -650,7 +649,7 @@ Ice::ConnectionI::monitor(const IceUtil::Time& now, const ACMConfig& acm)
        (acm.heartbeat != ICE_ENUM(ACMHeartbeat, HeartbeatOff) &&
         _writeStream.b.empty() && now >= (_acmLastActivity + acm.timeout / 4)))
     {
-        if(acm.heartbeat != ICE_ENUM(ACMHeartbeat, HeartbeatOnInvocation) || _dispatchCount > 0)
+        if(acm.heartbeat != ICE_ENUM(ACMHeartbeat, HeartbeatOnDispatch) || _dispatchCount > 0)
         {
             sendHeartbeatNow();
         }
@@ -784,12 +783,6 @@ Ice::ConnectionI::getBatchRequestQueue() const
 }
 
 #ifdef ICE_CPP11_MAPPING
-void
-Ice::ConnectionI::flushBatchRequests(CompressBatch compress)
-{
-    Connection::flushBatchRequestsAsync(compress).get();
-}
-
 std::function<void()>
 Ice::ConnectionI::flushBatchRequestsAsync(CompressBatch compress,
                                           ::std::function<void(::std::exception_ptr)> ex,
@@ -896,15 +889,15 @@ Ice::ConnectionI::_iceI_begin_flushBatchRequests(CompressBatch compress,
 void
 Ice::ConnectionI::end_flushBatchRequests(const AsyncResultPtr& r)
 {
-    AsyncResult::check(r, this, flushBatchRequests_name);
-    r->waitForResponse();
+    AsyncResult::_check(r, this, flushBatchRequests_name);
+    r->_waitForResponse();
 }
 #endif
 
 namespace
 {
 
-const ::std::string __heartbeat_name = "heartbeat";
+const ::std::string heartbeat_name = "heartbeat";
 
 class HeartbeatAsync : public OutgoingAsyncBase
 {
@@ -931,12 +924,12 @@ public:
 
     virtual const string& getOperation() const
     {
-        return __heartbeat_name;
+        return heartbeat_name;
     }
 
     void invoke()
     {
-        _observer.attach(_instance.get(), __heartbeat_name);
+        _observer.attach(_instance.get(), heartbeat_name);
         try
         {
             _os.write(magic[0]);
@@ -1064,20 +1057,24 @@ Ice::ConnectionI::_iceI_begin_heartbeat(const CallbackBasePtr& cb, const LocalOb
 void
 Ice::ConnectionI::end_heartbeat(const AsyncResultPtr& r)
 {
-    AsyncResult::check(r, this, __heartbeat_name);
-    r->waitForResponse();
+    AsyncResult::_check(r, this, heartbeat_name);
+    r->_waitForResponse();
 }
 #endif
 
 void
-Ice::ConnectionI::setHeartbeatCallback(ICE_IN(ICE_HEARTBEAT_CALLBACK) callback)
+Ice::ConnectionI::setHeartbeatCallback(ICE_IN(ICE_DELEGATE(HeartbeatCallback)) callback)
 {
     IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
+    if(_state >= StateClosed)
+    {
+        return;
+    }
     _heartbeatCallback = callback;
 }
 
 void
-Ice::ConnectionI::setCloseCallback(ICE_IN(ICE_CLOSE_CALLBACK) callback)
+Ice::ConnectionI::setCloseCallback(ICE_IN(ICE_DELEGATE(CloseCallback)) callback)
 {
     IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
     if(_state >= StateClosed)
@@ -1088,7 +1085,7 @@ Ice::ConnectionI::setCloseCallback(ICE_IN(ICE_CLOSE_CALLBACK) callback)
             {
             public:
 
-                CallbackWorkItem(const ConnectionIPtr& connection, ICE_IN(ICE_CLOSE_CALLBACK) callback) :
+                CallbackWorkItem(const ConnectionIPtr& connection, ICE_IN(ICE_DELEGATE(CloseCallback)) callback) :
                     _connection(connection),
 #ifdef ICE_CPP11_MAPPING
                     _callback(move(callback))
@@ -1106,7 +1103,7 @@ Ice::ConnectionI::setCloseCallback(ICE_IN(ICE_CLOSE_CALLBACK) callback)
             private:
 
                 const ConnectionIPtr _connection;
-                const ICE_CLOSE_CALLBACK _callback;
+                const ICE_DELEGATE(CloseCallback) _callback;
             };
 #ifdef ICE_CPP11_MAPPING
             _threadPool->dispatch(new CallbackWorkItem(ICE_SHARED_FROM_THIS, move(callback)));
@@ -1122,7 +1119,7 @@ Ice::ConnectionI::setCloseCallback(ICE_IN(ICE_CLOSE_CALLBACK) callback)
 }
 
 void
-Ice::ConnectionI::closeCallback(const ICE_CLOSE_CALLBACK& callback)
+Ice::ConnectionI::closeCallback(const ICE_DELEGATE(CloseCallback)& callback)
 {
     try
     {
@@ -1575,7 +1572,7 @@ Ice::ConnectionI::message(ThreadPoolCurrent& current)
     ServantManagerPtr servantManager;
     ObjectAdapterPtr adapter;
     OutgoingAsyncBasePtr outAsync;
-    ICE_HEARTBEAT_CALLBACK heartbeatCallback;
+    ICE_DELEGATE(HeartbeatCallback) heartbeatCallback;
     int dispatchCount = 0;
 
     ThreadPoolMessage<ConnectionI> msg(current, *this);
@@ -1845,7 +1842,7 @@ void
 ConnectionI::dispatch(const StartCallbackPtr& startCB, const vector<OutgoingMessage>& sentCBs,
                       Byte compress, Int requestId, Int invokeNum, const ServantManagerPtr& servantManager,
                       const ObjectAdapterPtr& adapter, const OutgoingAsyncBasePtr& outAsync,
-                      const ICE_HEARTBEAT_CALLBACK& heartbeatCallback, InputStream& stream)
+                      const ICE_DELEGATE(HeartbeatCallback)& heartbeatCallback, InputStream& stream)
 {
     int dispatchedCount = 0;
 
@@ -2088,7 +2085,6 @@ Ice::ConnectionI::finish(bool close)
             }
 #endif
         }
-
 
         for(deque<OutgoingMessage>::iterator o = _sendStreams.begin(); o != _sendStreams.end(); ++o)
         {
@@ -3217,7 +3213,7 @@ Ice::ConnectionI::doUncompress(InputStream& compressed, InputStream& uncompresse
 SocketOperation
 Ice::ConnectionI::parseMessage(InputStream& stream, Int& invokeNum, Int& requestId, Byte& compress,
                                ServantManagerPtr& servantManager, ObjectAdapterPtr& adapter,
-                               OutgoingAsyncBasePtr& outAsync, ICE_HEARTBEAT_CALLBACK& heartbeatCallback,
+                               OutgoingAsyncBasePtr& outAsync, ICE_DELEGATE(HeartbeatCallback)& heartbeatCallback,
                                int& dispatchCount)
 {
     assert(_state > StateNotValidated && _state < StateClosed);

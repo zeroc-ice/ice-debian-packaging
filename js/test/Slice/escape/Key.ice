@@ -9,39 +9,41 @@
 
 #pragma once
 
+[["suppress-warning:deprecated"]]
+
 module await
 {
 
 enum var
 {
     base
-};
+}
 
 struct break
 {
     int while;
-};
+}
 
 interface case
 {
     ["amd"] void catch(int checked, out int continue);
-};
+}
 
 interface typeof
 {
     void default();
-};
+}
 
 class delete
 {
     int if;
     case* else;
     int export;
-};
+}
 
 interface explicit extends typeof, case
 {
-};
+}
 
 dictionary<string, break> while;
 
@@ -53,7 +55,7 @@ class package
     optional(5) while internal;
     optional(7) string debugger;
     optional(8) explicit* null;
-};
+}
 
 interface optionalParams
 {
@@ -82,18 +84,18 @@ interface optionalParams
                               out optional(5) while internal,
                               out optional(7) string namespace,
                               out optional(8) explicit* null);
-};
+}
 
 exception fixed
 {
     int for;
-};
+}
 
 exception foreach extends fixed
 {
     int goto;
     int if;
-};
+}
 
 exception BaseMethods
 {
@@ -112,14 +114,14 @@ exception BaseMethods
     int GetType;
     int ReferenceEquals;
     int ToString;
-};
+}
 
 local interface implicit
 {
     var in(break internal, delete is, explicit lock, case* namespace, typeof* new, delete null,
           explicit* operator, int override, int params, int private)
         throws fixed, foreach;
-};
+}
 
 const int protected = 0;
 const int public = 0;
@@ -133,11 +135,11 @@ module System
 interface Test
 {
     void op();
-};
+}
 
-};
+}
 
-};
+}
 
 //
 // System as outer module.
@@ -148,6 +150,6 @@ module System
 interface Test
 {
     void op();
-};
+}
 
-};
+}

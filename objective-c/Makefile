@@ -7,8 +7,8 @@
 #
 # **********************************************************************
 
-top_srcdir	:= ..
-lang_srcdir	:= $(top_srcdir)/$(notdir $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST))))))
+top_srcdir      := ..
+lang_srcdir     := $(top_srcdir)/$(notdir $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST))))))
 
 include $(top_srcdir)/config/Make.rules
 include $(lang_srcdir)/config/Make.rules
@@ -17,7 +17,7 @@ include $(lang_srcdir)/config/Make.rules
 # Load C++ dependencies
 #
 $(eval $(call load-translator-dependencies,$(top_srcdir)/cpp/src/slice2objc))
-$(eval $(call load-dependencies,$(addprefix $(top_srcdir)/cpp/src/,Ice IceSSL)))
+$(eval $(call load-dependencies,$(addprefix $(top_srcdir)/cpp/src/,Ice IceSSL IceIAP)))
 
 #
 # Load source projects

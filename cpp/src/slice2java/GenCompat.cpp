@@ -102,7 +102,6 @@ getEscapedParamName(const DataMemberList& params, const string& name)
     return name;
 }
 
-
 string
 getDeprecateReason(const ContainedPtr& p1, const ContainedPtr& p2, const string& type)
 {
@@ -117,6 +116,19 @@ getDeprecateReason(const ContainedPtr& p1, const ContainedPtr& p2, const string&
         }
     }
     return deprecateReason;
+}
+
+bool
+writeSuppressDeprecation(Output& out, const ContainedPtr& p1, const ContainedPtr& p2 = 0)
+{
+    string deprecateMetadata;
+    if(p1->findMetaData("deprecate", deprecateMetadata) ||
+       (p2 != 0 && p2->findMetaData("deprecate", deprecateMetadata)))
+    {
+        out << nl << "@SuppressWarnings(\"deprecation\")";
+        return true;
+    }
+    return false;
 }
 
 string
@@ -1222,14 +1234,7 @@ Slice::JavaCompatVisitor::writeDispatchAndMarshalling(Output& out, const ClassDe
         if(generateOperation)
         {
             out << sp;
-            if(amd)
-            {
-                writeDocCommentAsync(out, op, InParam);
-            }
-            else
-            {
-                writeDocComment(out, op, deprecateReason);
-            }
+            writeSuppressDeprecation(out, op, cl);
             out << nl << "public final "
                 << typeToString(ret, TypeModeReturn, package, op->getMetaData(), true,
                                 optionalMapping && op->returnIsOptional())
@@ -1259,14 +1264,10 @@ Slice::JavaCompatVisitor::writeDispatchAndMarshalling(Output& out, const ClassDe
         ContainerPtr container = op->container();
         ClassDefPtr cl = ClassDefPtr::dynamicCast(container);
         assert(cl);
-        string deprecateReason = getDeprecateReason(op, cl, "operation");
 
         string opName = op->name();
         out << sp;
-        if(!deprecateReason.empty())
-        {
-            out << nl << "/** @deprecated **/";
-        }
+        writeSuppressDeprecation(out, op);
         out << nl << "public static boolean _iceD_" << opName << '(' << name
             << " obj, IceInternal.Incoming inS, Ice.Current current)";
         out.inc();
@@ -1679,6 +1680,11 @@ Slice::JavaCompatVisitor::writeDispatchAndMarshalling(Output& out, const ClassDe
 
     if(preserved && !basePreserved)
     {
+        out << sp << nl << "public Ice.SlicedData ice_getSlicedData()";
+        out << sb;
+        out << nl << "return _iceSlicedData;";
+        out << eb;
+
         out << sp << nl << "public void _iceWrite(Ice.OutputStream ostr)";
         out << sb;
         out << nl << "ostr.startValue(_iceSlicedData);";
@@ -2105,6 +2111,39 @@ Slice::JavaCompatVisitor::writeDocCommentAsync(Output& out, const OperationPtr& 
 
     if(paramType == InParam)
     {
+        //
+        // Print @throws tags
+        //
+        const string throwsTag = "@throws";
+        bool found = false;
+        for(StringList::const_iterator i = lines.begin(); i != lines.end(); ++i)
+        {
+            if(found && i->find("@") == 0)
+            {
+                found = false; // reset
+            }
+
+            if(!found)
+            {
+                if(i->find(throwsTag) != string::npos)
+                {
+                    found = true;
+                }
+            }
+
+            if(found)
+            {
+                if((*i).empty())
+                {
+                    out << nl << " *";
+                }
+                else
+                {
+                    out << nl << " * " << *i;
+                }
+            }
+        }
+
         if(!deprecateReason.empty())
         {
             out << nl << " * @deprecated " << deprecateReason;
@@ -2201,6 +2240,11 @@ Slice::JavaCompatVisitor::writeDocCommentAMI(Output& out, const OperationPtr& p,
         bool found = false;
         for(StringList::const_iterator i = lines.begin(); i != lines.end(); ++i)
         {
+            if(found && i->find("@") == 0)
+            {
+                found = false; // reset
+            }
+
             if(!found)
             {
                 if(i->find(returnTag) != string::npos || i->find(throwsTag) != string::npos ||
@@ -2775,7 +2819,7 @@ Slice::GenCompat::TypesVisitor::visitClassDefStart(const ClassDefPtr& p)
                 out << "Ice.AsyncResult begin_" << opname << spar << inParams << epar << ';';
 
                 out << sp;
-                writeDocCommentAMI(out, op, InParam);
+                writeDocCommentAMI(out, op, InParam, "@param " + getEscapedParamName(op, "cb") + " A generic callback.");
                 out << nl;
                 if(!p->isInterface())
                 {
@@ -2785,7 +2829,7 @@ Slice::GenCompat::TypesVisitor::visitClassDefStart(const ClassDefPtr& p)
                     << epar << ';';
 
                 out << sp;
-                writeDocCommentAMI(out, op, InParam);
+                writeDocCommentAMI(out, op, InParam, "@param " + getEscapedParamName(op, "cb") + " A typed callback.");
                 out << nl;
                 if(!p->isInterface())
                 {
@@ -2795,7 +2839,10 @@ Slice::GenCompat::TypesVisitor::visitClassDefStart(const ClassDefPtr& p)
                 out << "Ice.AsyncResult begin_" << opname << spar << inParams << cb << epar << ';';
 
                 out << sp;
-                writeDocCommentAMI(out, op, InParam);
+                writeDocCommentAMI(out, op, InParam,
+                                   "@param " + getEscapedParamName(op, "responseCb") + " The response callback.",
+                                   "@param " + getEscapedParamName(op, "exceptionCb") + " The exception callback.",
+                                   "@param " + getEscapedParamName(op, "sentCb") + " The sent callback.");
                 out << nl;
                 if(!p->isInterface())
                 {
@@ -3375,6 +3422,11 @@ Slice::GenCompat::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
 
         if(preserved && !basePreserved)
         {
+            out << sp;
+            out << nl << "public Ice.SlicedData " << nl << "ice_getSlicedData()";
+            out << sb;
+            out << nl << "return _slicedData;";
+            out << eb;
 
             out << sp << nl << "public void" << nl << "_write(Ice.OutputStream ostr)";
             out << sb;
@@ -4349,7 +4401,6 @@ Slice::GenCompat::HolderVisitor::writeHolder(const TypePtr& p)
     string name = contained->name();
     string absolute = getAbsolute(contained, "", "", "Holder");
 
-
     string file;
     if(p->definitionContext())
     {
@@ -4358,11 +4409,17 @@ Slice::GenCompat::HolderVisitor::writeHolder(const TypePtr& p)
 
     open(absolute, file);
     Output& out = output();
-
-    string typeS = typeToString(p, TypeModeIn, getPackage(contained));
-    out << sp << nl << "public final class " << name << "Holder";
     BuiltinPtr builtin = BuiltinPtr::dynamicCast(p);
     ClassDeclPtr cl = ClassDeclPtr::dynamicCast(p);
+
+    out << sp;
+    if(cl)
+    {
+        writeSuppressDeprecation(out, cl->definition());
+    }
+
+    string typeS = typeToString(p, TypeModeIn, getPackage(contained));
+    out << nl << "public final class " << name << "Holder";
     if(!p->isLocal() && ((builtin && builtin->kind() == Builtin::KindObject) || cl))
     {
         out << " extends Ice.ObjectHolderBase<" << typeS << ">";
@@ -4449,6 +4506,7 @@ Slice::GenCompat::HelperVisitor::visitClassDefStart(const ClassDefPtr& p)
 
     open(getAbsolute(p, "", "", "PrxHelper"), p->file());
     Output& out = output();
+    OperationList ops = p->allOperations();
 
     //
     // A proxy helper class serves two purposes: it implements the
@@ -4458,6 +4516,18 @@ Slice::GenCompat::HelperVisitor::visitClassDefStart(const ClassDefPtr& p)
     out << sp;
     writeDocComment(out, getDeprecateReason(p, 0, p->isInterface() ? "interface" : "class"),
                     "Provides type-specific helper functions.");
+
+    if(!writeSuppressDeprecation(out, p))
+    {
+        for(OperationList::iterator r = ops.begin(); r != ops.end(); ++r)
+        {
+            if(writeSuppressDeprecation(out, (*r)))
+            {
+                break;
+            }
+        }
+    }
+
     out << nl << "public final class " << name << "PrxHelper extends Ice.ObjectPrxHelperBase implements " << name
         << "Prx";
 
@@ -4466,7 +4536,6 @@ Slice::GenCompat::HelperVisitor::visitClassDefStart(const ClassDefPtr& p)
     string contextParam = "java.util.Map<String, String> context";
     string explicitContextParam = "boolean explicitCtx";
 
-    OperationList ops = p->allOperations();
     for(OperationList::iterator r = ops.begin(); r != ops.end(); ++r)
     {
         OperationPtr op = *r;
@@ -5699,7 +5768,6 @@ Slice::GenCompat::DispatcherVisitor::visitClassDefStart(const ClassDefPtr& p)
         Output& out = output();
 
         out << sp;
-        writeDocComment(out, p, getDeprecateReason(p, 0, p->isInterface() ? "interface" : "class"));
         out << nl << "public abstract class _" << name << "Disp extends Ice.ObjectImpl implements " << fixKwd(name);
         out << sb;
 
@@ -6468,8 +6536,9 @@ Slice::GenCompat::AsyncVisitor::visitOperation(const OperationPtr& p)
             }
 
             int iter;
-
-            out << sp << nl << "final class " << classNameAMDI << '_' << name
+            out << sp;
+            writeSuppressDeprecation(out, p);
+            out << nl << "final class " << classNameAMDI << '_' << name
                 << " extends IceInternal.IncomingAsync implements " << classNameAMD << '_' << name;
             out << sb;
 

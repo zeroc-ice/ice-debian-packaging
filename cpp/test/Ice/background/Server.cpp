@@ -124,7 +124,6 @@ private:
     BackgroundControllerIPtr _controller;
 };
 
-
 int
 run(int, char**, const Ice::CommunicatorPtr& communicator)
 {
@@ -161,6 +160,7 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL(false);
+    Ice::registerIceWS(true);
     Ice::registerPluginFactory("Test", createTestTransport, false);
 #endif
 

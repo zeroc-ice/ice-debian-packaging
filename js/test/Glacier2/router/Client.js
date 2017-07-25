@@ -33,7 +33,6 @@
             this._p = new Ice.Promise();
         }
 
-
         callback(current)
         {
             test(!this._callback);
@@ -352,7 +351,7 @@
                     out.writeLine("ok");
 
                     out.write("testing stringToProxy for process object... ");
-                    processBase = communicator.stringToProxy("Glacier2/admin -f Process:default -h 127.0.0.1 -p 12021");
+                    processBase = communicator.stringToProxy("Glacier2/admin -f Process:default -p 12021");
                     out.writeLine("ok");
 
                     out.write("testing checked cast for admin object... ");
@@ -369,7 +368,7 @@
                     ).then(
                         function()
                         {
-                            return processPrx.ice_ping();
+                            return processPrx.ice_timeout(500).ice_ping();
                         }
                     ).then(
                         failCB,
@@ -377,8 +376,7 @@
                         {
                             test(ex instanceof Ice.LocalException);
                             out.writeLine("ok");
-                        }
-                    );
+                        });
                 }
             }
         );

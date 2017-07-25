@@ -393,15 +393,29 @@ Ice::registerPluginFactory(const std::string& name, PluginFactory factory, bool 
     PluginManagerI::registerPluginFactory(name, factory, loadOnInitialize);
 }
 
-
 //
 // CommunicatorHolder
 //
+
+Ice::CommunicatorHolder::CommunicatorHolder()
+{
+}
 
 #ifdef ICE_CPP11_MAPPING
 Ice::CommunicatorHolder::CommunicatorHolder(shared_ptr<Communicator> communicator) :
     _communicator(std::move(communicator))
 {
+}
+
+Ice::CommunicatorHolder&
+Ice::CommunicatorHolder::operator=(shared_ptr<Communicator> communicator)
+{
+    if(_communicator)
+    {
+        _communicator->destroy();
+    }
+    _communicator = std::move(communicator);
+    return *this;
 }
 
 Ice::CommunicatorHolder&
@@ -438,7 +452,7 @@ Ice::CommunicatorHolder::CommunicatorHolder(int& argc, char* argv[], const char*
 {
 }
 
-#ifdef _WIN32
+#   ifdef _WIN32
 Ice::CommunicatorHolder::CommunicatorHolder(int& argc, const wchar_t* argv[], const InitializationData& initData,
                                             int version) :
     _communicator(initialize(argc, argv, initData, version))
@@ -460,7 +474,7 @@ Ice::CommunicatorHolder::CommunicatorHolder(int& argc, wchar_t* argv[], const ch
     _communicator(initialize(argc, argv, configFile, version))
 {
 }
-#endif
+#   endif
 
 Ice::CommunicatorHolder::CommunicatorHolder(StringSeq& args, const InitializationData& initData, int version) :
     _communicator(initialize(args, initData, version))
@@ -486,6 +500,18 @@ Ice::CommunicatorHolder::CommunicatorHolder(const CommunicatorPtr& communicator)
     _communicator(communicator)
 {
 }
+
+Ice::CommunicatorHolder&
+Ice::CommunicatorHolder::operator=(const CommunicatorPtr& communicator)
+{
+    if(_communicator)
+    {
+        _communicator->destroy();
+    }
+    _communicator = communicator;
+    return *this;
+}
+
 #endif
 
 Ice::CommunicatorHolder::~CommunicatorHolder()
@@ -494,6 +520,11 @@ Ice::CommunicatorHolder::~CommunicatorHolder()
     {
         _communicator->destroy();
     }
+}
+
+Ice::CommunicatorHolder::operator bool() const
+{
+    return _communicator != ICE_NULLPTR;
 }
 
 const Ice::CommunicatorPtr&

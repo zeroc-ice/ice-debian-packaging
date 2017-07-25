@@ -15,6 +15,9 @@
 using namespace std;
 using namespace Test;
 
+namespace
+{
+
 class CallbackBase : public IceUtil::Monitor<IceUtil::Mutex>
 {
 public:
@@ -80,6 +83,33 @@ public:
 };
 typedef IceUtil::Handle<Callback> CallbackPtr;
 
+Ice::ConnectionPtr
+connect(const Ice::ObjectPrxPtr& prx)
+{
+    //
+    // Establish connection with the given proxy (which might have a timeout
+    // set and might sporadically fail on connection establishment if it's
+    // too slow). The loop ensures that the connection is established by retrying
+    // in case we can a ConnectTimeoutException
+    //
+    int nRetry = 10;
+    while(--nRetry > 0)
+    {
+        try
+        {
+            prx->ice_getConnection(); // Establish connection
+            break;
+        }
+        catch(const Ice::ConnectTimeoutException&)
+        {
+            // Can sporadically occur with slow machines
+        }
+    }
+    return prx->ice_getConnection();
+}
+
+}
+
 TimeoutPrxPtr
 allTests(const Ice::CommunicatorPtr& communicator)
 {
@@ -133,8 +163,9 @@ allTests(const Ice::CommunicatorPtr& communicator)
         //
         // Expect TimeoutException.
         //
-        TimeoutPrxPtr to = ICE_UNCHECKED_CAST(TimeoutPrx, obj->ice_timeout(100));
-        timeout->holdAdapter(500);
+        TimeoutPrxPtr to = ICE_UNCHECKED_CAST(TimeoutPrx, obj->ice_timeout(250));
+        connect(to);
+        timeout->holdAdapter(750);
         try
         {
             to->sendData(seq);
@@ -243,7 +274,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         // Backward compatible connection timeouts
         //
         TimeoutPrxPtr to = ICE_UNCHECKED_CAST(TimeoutPrx, obj->ice_invocationTimeout(-2)->ice_timeout(250));
-        Ice::ConnectionPtr con = to->ice_getConnection();
+        Ice::ConnectionPtr con = connect(to);
         try
         {
             to->sleep(750);
@@ -264,7 +295,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         obj->ice_ping();
         try
         {
-            con = to->ice_getConnection();
+            con = connect(to);
 #ifdef ICE_CPP11_MAPPING
             to->sleepAsync(750).get();
 #else
@@ -290,8 +321,8 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     cout << "testing close timeout... " << flush;
     {
-        TimeoutPrxPtr to = ICE_CHECKED_CAST(TimeoutPrx, obj->ice_timeout(250));
-        Ice::ConnectionPtr connection = to->ice_getConnection();
+        TimeoutPrxPtr to = ICE_UNCHECKED_CAST(TimeoutPrx, obj->ice_timeout(250));
+        Ice::ConnectionPtr connection = connect(to);
         timeout->holdAdapter(600);
         connection->close(Ice::ICE_SCOPED_ENUM(ConnectionClose, GracefullyWithWait));
         try
@@ -325,10 +356,12 @@ allTests(const Ice::CommunicatorPtr& communicator)
         //
         Ice::InitializationData initData;
         initData.properties = communicator->getProperties()->clone();
-        initData.properties->setProperty("Ice.Override.Timeout", "250");
+        initData.properties->setProperty("Ice.Override.ConnectTimeout", "250");
+        initData.properties->setProperty("Ice.Override.Timeout", "100");
         Ice::CommunicatorHolder ich(initData);
-        TimeoutPrxPtr to = ICE_CHECKED_CAST(TimeoutPrx, ich->stringToProxy(sref));
-        timeout->holdAdapter(700);
+        TimeoutPrxPtr to = ICE_UNCHECKED_CAST(TimeoutPrx, ich->stringToProxy(sref));
+        connect(to);
+        timeout->holdAdapter(500);
         try
         {
             to->sendData(seq);
@@ -343,7 +376,8 @@ allTests(const Ice::CommunicatorPtr& communicator)
         // Calling ice_timeout() should have no effect.
         //
         timeout->op(); // Ensure adapter is active.
-        to = ICE_CHECKED_CAST(TimeoutPrx, to->ice_timeout(1000));
+        to = ICE_UNCHECKED_CAST(TimeoutPrx, to->ice_timeout(1000));
+        connect(to);
         timeout->holdAdapter(500);
         try
         {
@@ -394,7 +428,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         //
         timeout->op(); // Ensure adapter is active.
         to = ICE_UNCHECKED_CAST(TimeoutPrx, to->ice_timeout(250));
-        to->ice_getConnection(); // Establish connection
+        connect(to);
         timeout->holdAdapter(750);
         try
         {

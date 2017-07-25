@@ -21,7 +21,6 @@ struct LogUpdate
     long generation;
     /** The iteration within this generation. */
     long iteration;
-};
+}
 
-};
-
+}

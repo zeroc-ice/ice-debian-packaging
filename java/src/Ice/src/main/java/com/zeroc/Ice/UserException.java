@@ -56,13 +56,24 @@ public abstract class UserException extends java.lang.Exception implements Clone
     {
         return ice_id().substring(2);
     }
-    
+
     /**
      * Returns the type id of this exception.
      *
      * @return The type id of this exception.
      **/
     public abstract String ice_id();
+
+    /**
+     * Returns the sliced data if the exception has a preserved-slice base class and has been sliced during
+     * un-marshaling, null is returned otherwise.
+     *
+     * @return The sliced data or null.
+     **/
+    public com.zeroc.Ice.SlicedData ice_getSlicedData()
+    {
+        return null;
+    }
 
     /**
      * Returns a string representation of this exception.

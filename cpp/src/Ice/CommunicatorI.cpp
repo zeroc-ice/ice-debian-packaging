@@ -371,11 +371,6 @@ const ::std::string flushBatchRequests_name = "flushBatchRequests";
 }
 
 #ifdef ICE_CPP11_MAPPING
-void
-Ice::CommunicatorI::flushBatchRequests(CompressBatch compress)
-{
-    Communicator::flushBatchRequestsAsync(compress).get();
-}
 
 ::std::function<void()>
 Ice::CommunicatorI::flushBatchRequestsAsync(CompressBatch compress,
@@ -470,8 +465,8 @@ Ice::CommunicatorI::_iceI_begin_flushBatchRequests(CompressBatch compress,
 void
 Ice::CommunicatorI::end_flushBatchRequests(const AsyncResultPtr& r)
 {
-    AsyncResult::check(r, this, flushBatchRequests_name);
-    r->waitForResponse();
+    AsyncResult::_check(r, this, flushBatchRequests_name);
+    r->_waitForResponse();
 }
 #endif
 

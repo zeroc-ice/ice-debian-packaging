@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "python:pkgdir:Ice"]]
 
 #include <Ice/CommunicatorF.ice>
 #include <Ice/ServantLocatorF.ice>
@@ -110,7 +110,7 @@ local interface ObjectAdapter
      * requests through its endpoints. Object adapters that have been
      * deactivated must not be reactivated again, and cannot be used
      * otherwise. Attempts to use a deactivated object adapter raise
-     * {@link ObjectAdapterDeactivatedException}; however, attempts to
+     * {@link ObjectAdapterDeactivatedException} however, attempts to
      * {@link #deactivate} an already deactivated object adapter are
      * ignored and do nothing. Once deactivated, it is possible to
      * destroy the adapter to clean up resources and then create and
@@ -679,11 +679,13 @@ local interface ObjectAdapter
      * Set of the endpoints that proxies created by this object
      * adapter will contain.
      *
+     * @param newEndpoints The new set of endpoints that the object adapter will embed in proxies.
+     *
      * @see #refreshPublishedEndpoints
      * @see Endpoint
      *
      **/
     void setPublishedEndpoints(EndpointSeq newEndpoints);
-};
+}
 
-};
+}

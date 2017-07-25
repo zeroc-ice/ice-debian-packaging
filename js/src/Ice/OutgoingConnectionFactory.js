@@ -556,7 +556,7 @@ class OutgoingConnectionFactory
     handleConnectionException(ex, hasMore)
     {
         const traceLevels = this._instance.traceLevels();
-        if(traceLevels.retry >= 2)
+        if(traceLevels.network >= 2)
         {
             const s = [];
             s.push("connection to endpoint failed");
@@ -576,14 +576,14 @@ class OutgoingConnectionFactory
                 }
             }
             s.push(ex.toString());
-            this._instance.initializationData().logger.trace(traceLevels.retryCat, s.join(""));
+            this._instance.initializationData().logger.trace(traceLevels.networkCat, s.join(""));
         }
     }
 
     handleException(ex, hasMore)
     {
         const traceLevels = this._instance.traceLevels();
-        if(traceLevels.retry >= 2)
+        if(traceLevels.network >= 2)
         {
             const s = [];
             s.push("couldn't resolve endpoint host");
@@ -603,7 +603,7 @@ class OutgoingConnectionFactory
                 }
             }
             s.push(ex.toString());
-            this._instance.initializationData().logger.trace(traceLevels.retryCat, s.join(""));
+            this._instance.initializationData().logger.trace(traceLevels.networkCat, s.join(""));
         }
     }
 
@@ -835,6 +835,20 @@ class ConnectCallback
 
     nextEndpoint()
     {
+
+        const start = (connection) =>
+            {
+                connection.start().then(
+                    () =>
+                    {
+                        this.connectionStartCompleted(connection);
+                    },
+                    ex =>
+                    {
+                        this.connectionStartFailed(connection, ex);
+                    });
+            };
+
         while(true)
         {
             const traceLevels = this._factory._instance.traceLevels();
@@ -853,16 +867,7 @@ class ConnectCallback
                     this._factory._instance.initializationData().logger.trace(traceLevels.networkCat, s.join(""));
                 }
 
-                const connection = this._factory.createConnection(this._current.connect(), this._current);
-                connection.start().then(
-                    () =>
-                    {
-                        this.connectionStartCompleted(connection);
-                    },
-                    ex =>
-                    {
-                        this.connectionStartFailed(connection, ex);
-                    });
+                start(this._factory.createConnection(this._current.connect(), this._current));
             }
             catch(ex)
             {
