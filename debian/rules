@@ -35,8 +35,9 @@ export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
 #
 INSTALL_EXCLUDE		= usr/lib/$(DEB_HOST_MULTIARCH)/libIceStormService.so
 
-export PYTHONDIR := $(shell python3 -c "import sys;print('python{0}.{1}'.format(sys.version_info.major, sys.version_info.minor))")
-
+PYTHON_VERSIONS := 2 3
+export PYTHON2DIR := $(shell python2 -c "import sys;print('python{0}.{1}'.format(sys.version_info.major, sys.version_info.minor))")
+export PYTHON3DIR := $(shell python3 -c "import sys;print('python{0}.{1}'.format(sys.version_info.major, sys.version_info.minor))")
 PHP_VERSIONS := $(shell /usr/sbin/phpquery -V)
 
 export VERSION   := $(shell echo $(DEB_VERSION_UPSTREAM) | sed -e 's,^\([.0-9]*\).*,\1,')
@@ -78,7 +79,10 @@ override_dh_auto_build-arch:
 	  cp -a php php-$${v}; \
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v}; \
 	done
-	PYTHON=python3 $(MAKE) $(MAKEOPTS) -C python
+	for v in $(PYTHON_VERSIONS); do \
+	  cp -a python python-$${v}; \
+	  PYTHON=python$${v} $(MAKE) $(MAKEOPTS) -C python-$${v}; \
+	done
 
 override_dh_auto_build-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp
@@ -93,7 +97,9 @@ override_dh_auto_install-arch:
 	for v in $(PHP_VERSIONS); do \
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v} install; \
 	done
-	PYTHON=python3 $(MAKE) $(MAKEOPTS) -C python install
+	for v in $(PYTHON_VERSIONS); do \
+	  PYTHON=python$${v} $(MAKE) $(MAKEOPTS) -C python-$${v} install; \
+	done
 	rm -rf $(addprefix $(DESTDIR)/,$(INSTALL_EXCLUDE))
 
 override_dh_auto_install-indep:
@@ -107,7 +113,9 @@ override_dh_auto_clean-arch:
 	for v in $(PHP_VERSIONS); do \
 	  rm -rf php-$${v}; \
 	done
-	PYTHON=python3 $(MAKE) $(MAKEOPTS) -C python clean
+	for v in $(PYTHON_VERSIONS); do \
+	  rm -rf python-$${v}; \
+	done
 
 override_dh_auto_clean-indep:
 	$(MAKE) $(MAKEOPTS) -C cpp clean

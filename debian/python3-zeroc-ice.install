@@ -1,2 +1,2 @@
 #!/usr/bin/dh-exec
-usr/local/lib/${PYTHONDIR}/dist-packages/* usr/lib/${PYTHONDIR}/dist-packages
+usr/local/lib/${PYTHON3DIR}/dist-packages/* usr/lib/${PYTHON3DIR}/dist-packages
