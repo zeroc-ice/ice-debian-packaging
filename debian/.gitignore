@@ -13,6 +13,7 @@ libzeroc-ice3.6-java/*
 libzeroc-ice3.6/*
 libzeroc-icestorm3.6/*
 php-zeroc-ice/*
+python-zeroc-ice/*
 python3-zeroc-ice/*
 zeroc-glacier2/*
 zeroc-ice-all-dev/*
