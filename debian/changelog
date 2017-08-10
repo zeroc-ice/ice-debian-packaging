@@ -1,3 +1,14 @@
+zeroc-ice (3.6.3-6) unstable; urgency=medium
+
+  * Add python2 packages
+  * Update obsolete standards version
+  * Fix usage of deprecated operator < in dependencies
+  * Update .gitignore file
+  * Rebuild libzeroc-ice3.6 with G++ 7 and bump symbols
+  * Update git-buildpackage configuration for 3.6-sid branch
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Thu, 10 Aug 2017 10:48:29 +0000
+
 zeroc-ice (3.6.3-5) unstable; urgency=medium
 
   * Do not install libIceStormService.so (Closes: #857219)
