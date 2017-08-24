@@ -1,3 +1,11 @@
+zeroc-ice (3.6.4-1) UNRELEASED; urgency=medium
+
+  * ICE-7727 - Add python2 packages
+  * Update obsolete standards version
+  * Fix usage of deprecated operator < in dependencies
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Thu, 24 Aug 2017 17:36:52 +0200
+
 zeroc-ice (3.6.3-5) unstable; urgency=medium
 
   * Do not install libIceStormService.so (Closes: #857219)
