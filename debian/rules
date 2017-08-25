@@ -28,7 +28,8 @@ export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
 			  -PicegridguiProguard=false \
 			  -PjgoodiesLooksVersion=debian \
 			  -PjgoodiesFormsVersion=debian \
-			  -PiceBuilderVersion=debian
+			  -PiceBuilderVersion=debian \
+			  -PjarsClassPath=true
 
 #
 # These files are not installed with any debian package.
