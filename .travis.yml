@@ -2,7 +2,7 @@ sudo: required
 language: generic
 
 env:
-  - TRAVIS_DEBIAN_DISTRIBUTION=ubuntu/xenial
+  - TRAVIS_DEBIAN_DISTRIBUTION=stable
 
 services:
   - docker
