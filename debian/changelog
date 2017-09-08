@@ -1,10 +1,16 @@
-zeroc-ice (3.6.4-1) UNRELEASED; urgency=medium
+zeroc-ice (3.6.4-1) unstable; urgency=medium
 
   * ICE-7727 - Add python2 packages
   * Update obsolete standards version
   * Fix usage of deprecated operator < in dependencies
+  * Removed icegridgui patch, no longer necessary with 3.6.4
+  * Set iceBuilderClassPath to use the local Ice Builder plug-in
+  * Add class path entries to JAR files
+  * Renamed zeroc-icegrid.icegridnode.service
+  * Enable jarsClassPath see ICE-8444
+  * Imported Upstream version 3.6.4
 
- -- José Gutiérrez de la Concha <jose@zeroc.com>  Thu, 24 Aug 2017 17:36:52 +0200
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Fri, 08 Sep 2017 20:36:13 +0200
 
 zeroc-ice (3.6.3-5) unstable; urgency=medium
 
