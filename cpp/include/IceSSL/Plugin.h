@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -17,13 +17,6 @@
 
 #include <vector>
 #include <list>
-
-// For struct sockaddr_storage
-#ifdef _WIN32
-#   include <winsock2.h>
-#else
-#   include <sys/socket.h>
-#endif
 
 #if defined(ICE_USE_SECURE_TRANSPORT)
 #   include <CoreFoundation/CFError.h>

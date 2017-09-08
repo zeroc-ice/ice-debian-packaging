@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -36,7 +36,7 @@ if TestUtil.isAIX() or TestUtil.isLinux():
 if sys.version_info[0] == 2 and TestUtil.isWin32():
     print("To run this test on Windows you need to be using Python 3.x")
     print("Python 2.x subprocess module doesn't support unicode on Windows")
-    print("Skipping tes")
+    print("Skipping test")
     sys.exit(0)
 
 if os.environ.get("USE_BIN_DIST", "no") == "yes":

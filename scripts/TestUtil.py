@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -879,7 +879,7 @@ def hashPasswords(filePath, entries):
       os.remove(filePath)
     passwords = open(filePath, "a")
 
-    command = '%s "%s"' % (sys.executable,
+    command = '"%s" "%s"' % (sys.executable,
                            os.path.abspath(os.path.join(os.path.dirname(__file__), "icehashpassword.py")))
 
     #
@@ -1187,7 +1187,7 @@ def getCommandLine(exe, config, options = "", interpreterOptions = ""):
             output.write(" " + interpreterOptions)
         output.write(" " + exe + " ")
     elif config.lang == "python":
-        output.write(sys.executable)
+        output.write('"' + sys.executable + '"')
         if interpreterOptions:
             output.write(" " + interpreterOptions)
         output.write(' "%s" ' % exe)
@@ -1796,6 +1796,8 @@ def getCppBinDir(lang = None):
             lang = getDefaultMapping()
         if isVC110() and lang != "python":
             binDir = os.path.join(binDir, "vc110")
+        elif isVC100():
+            binDir = os.path.join(binDir, "vc100")
         elif isVC140():
             binDir = os.path.join(binDir, "vc140")
         if x64:
@@ -1845,8 +1847,8 @@ def getJavaLibraryPath():
             return ("-Djava.library.path=\"%s\" " % os.path.join(getIceDir("cpp"), "third-party-packages",
                     "berkeley.db.java7", "build", "native", "bin", "x64" if x64 else "Win32"))
     elif isDarwin():
-        if os.path.exists('/usr/local/opt/berkeley-db53/lib'):
-            return "-Djava.library.path=/usr/local/opt/berkeley-db53/lib "
+        if os.path.exists('/usr/local/opt/berkeley-db@5.3/lib'):
+            return "-Djava.library.path=/usr/local/opt/berkeley-db@5.3/lib "
         elif os.path.exists('/usr/local/opt/ice/libexec/lib'):
             return "-Djava.library.path=/usr/local/opt/ice/libexec/lib "
     elif isRhel() or isSles():
@@ -1984,8 +1986,8 @@ def getTestEnv(lang, testdir):
                       addClasspath(os.path.join(pkgdir, "berkeley.db.java7", "build", "native", "lib", "db.jar"), env)
 
         elif isDarwin():
-            if os.path.exists('/usr/local/opt/berkeley-db53/lib'):
-                addClasspath(os.path.join("/", "usr", "local", "opt", "berkeley-db53", "lib", "db.jar"), env)
+            if os.path.exists('/usr/local/opt/berkeley-db@5.3/lib'):
+                addClasspath(os.path.join("/", "usr", "local", "opt", "berkeley-db@5.3", "lib", "db.jar"), env)
             elif os.path.exists('/usr/local/opt/ice/libexec/lib'):
                 addClasspath(os.path.join("/", "usr", "local", "opt", "ice", "libexec", "lib", "db.jar"), env)
         else:
@@ -2010,7 +2012,10 @@ def getTestEnv(lang, testdir):
     if isWin32():
         if lang == "java":
             addLdPath(os.path.join(getIceDir("cpp"), "bin", "x64" if x64 else ""), env) # Add bin for db53_vc100.dll
-        addLdPath(getCppLibDir(lang), env)
+        if isMINGW() and lang == "ruby":
+            addPathToEnv("RUBY_DLL_PATH", getCppLibDir(lang), env)
+        else:
+            addLdPath(getCppLibDir(lang), env)
     elif isAIX():
         addLdPath(getCppLibDir(lang), env)
     elif lang in ["python", "ruby", "php", "js", "objective-c"]:
@@ -2449,15 +2454,16 @@ def runTests(start, expanded, num = 0, script = False):
 
             global keepGoing
             if script:
-                print("if ! %s %s %s; then" % (sys.executable, os.path.join(dir, "run.py"), args))
+                print('if ! "%s" "%s" %s; then' % (sys.executable, os.path.join(dir, "run.py"), args))
                 print("  echo 'test in %s failed'" % os.path.abspath(dir))
                 if not keepGoing:
                     print("  exit 1")
                 print("fi")
             else:
-                status = os.system(sys.executable + " " +  quoteArgument(os.path.join(dir, "run.py")) + " " + args)
+                status = subprocess.call("%s %s %s" % (quoteArgument(sys.executable),
+                                                       quoteArgument(os.path.join(dir, "run.py")),
+                                                       args), shell=True)
                 if status:
-                    status = status if isWin32() else (status >> 8)
                     if(num > 0):
                         sys.stdout.write("[" + str(num) + "] ")
                     message = "test in " + os.path.abspath(dir) + " failed with exit status", status,

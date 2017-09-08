@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -620,7 +620,7 @@ static NSString* ICEObject_all__[4] =
     object__->__decRef();
     [super dealloc];
 }
-+(id) objectWrapperWithCxxObject:(Ice::Object*)arg
++(id) objectWrapperWithCxxObjectNoAutoRelease:(Ice::Object*)arg
 {
     @synchronized([ICEObjectWrapper class])
     {
@@ -631,7 +631,7 @@ static NSString* ICEObject_all__[4] =
         }
         else
         {
-            return [[(ICEObjectWrapper*)[self alloc] initWithCxxObject:arg] autorelease];
+            return [(ICEObjectWrapper*)[self alloc] initWithCxxObject:arg];
         }
     }
 }

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -32,6 +32,14 @@ if (project.ext.hasJavaFx) {
             }
         }
     }
+}
+
+// Avoid gradle warnings related to separate output directories for each JVM language
+sourceSets.main.output.classesDir = new File(buildDir, "classes/main")
+
+// Disable deprecation warnings caused by JGoodies
+tasks.withType(JavaCompile) {
+    options.deprecation = false
 }
 
 configurations {
@@ -84,45 +92,48 @@ if(icegridguiProguard.toBoolean()){
     apply from: "plain-jar.gradle"
 }
 
-task signjar(dependsOn: updateManifest) << {
-    if(keystore != null && keystore.length() > 0) {
-        ant.signjar(jar: "${libDir}/${jarName}",
-                    alias: 'zeroc.com',
-                    keystore:"${keystore}",
-                    storepass:"${keystore_password}")
+task signjar(dependsOn: updateManifest) {
+    doLast {
+        if(keystore != null && keystore.length() > 0) {
+            ant.signjar(jar: "${libDir}/${jarName}",
+                        alias: 'zeroc.com',
+                        keystore:"${keystore}",
+                        storepass:"${keystore_password}")
+        }
     }
 }
 assemble.dependsOn(signjar)
 
-
 if(macosx)
 {
     def appName = "IceGrid Admin"
-    task bundleapp(dependsOn: updateManifest) << {
-        ant.taskdef(name: 'bundleapp',
-                    classname: 'com.oracle.appbundler.AppBundlerTask',
-                    classpath: configurations.bundleapp.asPath)
+    task bundleapp(dependsOn: updateManifest) {
+        doLast {
+            ant.taskdef(name: 'bundleapp',
+                        classname: 'com.oracle.appbundler.AppBundlerTask',
+                        classpath: configurations.bundleapp.asPath)
 
-        ant.bundleapp(outputdirectory: "${libDir}",
-                      name: appName,
-                      displayname: appName,
-                      identifier: "com.zeroc.IceGridGUI",
-                      icon: "${projectDir}/src/main/resources/icons/icegrid.icns",
-                      shortversion: "${project.version}",
-                      applicationCategory: "public.app-category.utilities",
-                      mainclassname: "IceGridGUI/MainProxy",
-                      copyright: "Copyright © 2005-2016 ZeroC, Inc. All rights reserved.") {
-            classpath(file: "${libDir}/${jarName}") {
-            }
-            option(value: "-Dapple.laf.useScreenMenuBar=true") {
-            }
-            option(value: "-Dcom.apple.macos.use-file-dialog-packages=true") {
-            }
-            option(value: "-Dcom.apple.macos.useScreenMenuBar=true") {
-            }
-            option(value: "-Xdock:name=IceGrid Admin") {
-            }
-            option(value: "-Dcom.apple.mrj.application.apple.menu.about.name=${appName}") {
+            ant.bundleapp(outputdirectory: "${libDir}",
+                          name: appName,
+                          displayname: appName,
+                          identifier: "com.zeroc.IceGridGUI",
+                          icon: "${projectDir}/src/main/resources/icons/icegrid.icns",
+                          shortversion: "${project.version}",
+                          applicationCategory: "public.app-category.utilities",
+                          mainclassname: "IceGridGUI/MainProxy",
+                          copyright: "Copyright © 2005-2017 ZeroC, Inc. All rights reserved.") {
+                classpath(file: "${libDir}/${jarName}") {
+                }
+                option(value: "-Dapple.laf.useScreenMenuBar=true") {
+                }
+                option(value: "-Dcom.apple.macos.use-file-dialog-packages=true") {
+                }
+                option(value: "-Dcom.apple.macos.useScreenMenuBar=true") {
+                }
+                option(value: "-Xdock:name=IceGrid Admin") {
+                }
+                option(value: "-Dcom.apple.mrj.application.apple.menu.about.name=${appName}") {
+                }
             }
         }
     }

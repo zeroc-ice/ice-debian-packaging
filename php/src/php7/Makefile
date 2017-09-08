@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -33,7 +33,7 @@ LINKWITH        := $(ICE_LIBS) $(CXXLIBS)
 
 $(libdir)/$(LIBNAME): $(OBJS)
 	rm -f $@
-	$(call mkshlib,$@,$(SONAME),$(OBJS),$(LINKWITH))
+	$(call mkplugin,$@,$(SONAME),$(OBJS),$(LINKWITH))
 
 install:: all
 	$(call installphplib,$(libdir)/$(LIBNAME),$(DESTDIR)$(install_libdir))

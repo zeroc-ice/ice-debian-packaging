@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -95,14 +95,20 @@ namespace IceInternal
         {
             lock(this)
             {
-                if(_exception != null)
-                {
-                    throw _exception;
-                }
-                else
+                //
+                // First check for the connection, it's important otherwise the user could first get a connection
+                // and then the exception if he tries to obtain the proxy cached connection mutiple times (the
+                // exception can be set after the connection is set if the flush of pending requests fails).
+                //
+                if(_connection != null)
                 {
                     return _connection;
                 }
+                else if(_exception != null)
+                {
+                    throw _exception;
+                }
+                return null;
             }
         }
 
@@ -114,7 +120,7 @@ namespace IceInternal
         {
             lock(this)
             {
-                Debug.Assert(_exception == null && _connection == null);
+                Debug.Assert(!_flushing && _exception == null && _connection == null);
                 _connection = connection;
                 _compress = compress;
             }
@@ -139,35 +145,40 @@ namespace IceInternal
         {
             lock(this)
             {
-                Debug.Assert(!_initialized && _exception == null);
+                Debug.Assert(!_flushing && !_initialized && _exception == null);
                 _exception = ex;
+                _flushing = true; // Ensures request handler is removed before processing new requests.
+            }
+
+            //
+            // NOTE: remove the request handler *before* notifying the requests that the connection
+            // failed. It's important to ensure that future invocations will obtain a new connect
+            // request handler once invocations are notified.
+            //
+            try
+            {
+                _reference.getInstance().requestHandlerFactory().removeRequestHandler(_reference, this);
+            }
+            catch(Ice.CommunicatorDestroyedException)
+            {
+                // Ignore
+            }
+
+            foreach(ProxyOutgoingAsyncBase outAsync in _requests)
+            {
+                Ice.AsyncCallback cb = outAsync.completed(_exception);
+                if(cb != null)
+                {
+                    outAsync.invokeCompletedAsync(cb);
+                }
+            }
+            _requests.Clear();
+
+            lock(this)
+            {
+                _flushing = false;
                 _proxies.Clear();
                 _proxy = null; // Break cyclic reference count.
-
-                //
-                // NOTE: remove the request handler *before* notifying the
-                // requests that the connection failed. It's important to ensure
-                // that future invocations will obtain a new connect request
-                // handler once invocations are notified.
-                //
-                try
-                {
-                    _reference.getInstance().requestHandlerFactory().removeRequestHandler(_reference, this);
-                }
-                catch(Ice.CommunicatorDestroyedException)
-                {
-                    // Ignore
-                }
-
-                foreach(ProxyOutgoingAsyncBase outAsync in _requests)
-                {
-                    Ice.AsyncCallback cb = outAsync.completed(_exception);
-                    if(cb != null)
-                    {
-                        outAsync.invokeCompletedAsync(cb);
-                    }
-                }
-                _requests.Clear();
                 System.Threading.Monitor.PulseAll(this);
             }
         }
@@ -203,7 +214,7 @@ namespace IceInternal
             }
             else
             {
-                while(_flushing && _exception == null)
+                while(_flushing)
                 {
                     System.Threading.Monitor.Wait(this);
                 }

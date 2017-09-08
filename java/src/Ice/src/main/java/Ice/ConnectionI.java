@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -2557,7 +2557,9 @@ public final class ConnectionI extends IceInternal.EventHandler
             //
             // Suppress AssertionError and OutOfMemoryError, rethrow everything else.
             //
-            if(!(t instanceof java.lang.AssertionError || t instanceof java.lang.OutOfMemoryError))
+            if(!(t instanceof java.lang.AssertionError ||
+                 t instanceof java.lang.OutOfMemoryError ||
+                 t instanceof java.lang.StackOverflowError))
             {
                 throw (java.lang.Error)t;
             }
@@ -2582,7 +2584,9 @@ public final class ConnectionI extends IceInternal.EventHandler
             //
             // Suppress AssertionError and OutOfMemoryError, rethrow everything else.
             //
-            if(!(ex instanceof java.lang.AssertionError || ex instanceof java.lang.OutOfMemoryError))
+            if(!(ex instanceof java.lang.AssertionError ||
+                 ex instanceof java.lang.OutOfMemoryError ||
+                 ex instanceof java.lang.StackOverflowError))
             {
                 throw ex;
             }

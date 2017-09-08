@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -94,14 +94,14 @@ ICECPPFLAGS		= -I"$(slicedir)"
 SLICE2PYFLAGS		= $(ICECPPFLAGS)
 
 !if "$(ice_src_dist)" != ""
-SLICE2PY                = $(PYTHON_HOME)\python $(top_srcdir)\config\s2py.py
+SLICE2PY                = "$(PYTHON_HOME)\python" $(top_srcdir)\config\s2py.py
 SLICEPARSERLIB          = $(ice_cpp_dir)\lib\slice.lib
 !if !exist ("$(SLICEPARSERLIB)")
 SLICEPARSERLIB          = $(ice_cpp_dir)\lib\sliced.lib
 !endif
 !else
-SLICE2PY                = $(PYTHON_HOME)\Scripts\slice2py.exe
-SLICEPARSERLIB          = $(PYTHON_HOME)\Scripts\slice2py.exe
+SLICE2PY                = "$(PYTHON_HOME)\Scripts\slice2py.exe"
+SLICEPARSERLIB          = "$(PYTHON_HOME)\Scripts\slice2py.exe"
 !endif
 
 MT			= mt.exe

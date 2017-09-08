@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -136,7 +136,7 @@ checkTrustResult(SecTrustRef trust, const SecureTransportEnginePtr& engine, cons
     }
     default:
     // case kSecTrustResultInvalid:
-    // case kSecTrustResultConfirm: // Used in old OS X versions
+    // case kSecTrustResultConfirm: // Used in old macOS versions
     // case kSecTrustResultDeny:
     // case kSecTrustResultRecoverableTrustFailure:
     // case kSecTrustResultFatalTrustFailure:

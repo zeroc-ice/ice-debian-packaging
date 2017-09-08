@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -34,12 +34,12 @@ IceUtilInternal::CountDownLatch::CountDownLatch(int count) :
     {
         throw IceUtil::ThreadSyscallException(__FILE__, __LINE__, rc);
     }
-    
+
     rc = pthread_cond_init(&_cond, 0);
     if(rc != 0)
     {
         throw IceUtil::ThreadSyscallException(__FILE__, __LINE__, rc);
-    }   
+    }
 #endif
 }
 
@@ -60,7 +60,7 @@ IceUtilInternal::CountDownLatch::~CountDownLatch()
 #endif
 }
 
-void 
+void
 IceUtilInternal::CountDownLatch::await() const
 {
 #ifdef _WIN32
@@ -72,7 +72,7 @@ IceUtilInternal::CountDownLatch::await() const
         DWORD rc = WaitForSingleObjectEx(_event, INFINITE, false);
 #   endif
         assert(rc == WAIT_OBJECT_0 || rc == WAIT_FAILED);
-        
+
         if(rc == WAIT_FAILED)
         {
             throw IceUtil::ThreadSyscallException(__FILE__, __LINE__, GetLastError());
@@ -90,11 +90,11 @@ IceUtilInternal::CountDownLatch::await() const
         }
     }
     unlock();
-    
+
 #endif
 }
 
-void 
+void
 IceUtilInternal::CountDownLatch::countDown()
 {
 #ifdef _WIN32
@@ -115,7 +115,7 @@ IceUtilInternal::CountDownLatch::countDown()
     }
 #if defined(__APPLE__)
     //
-    // On OS X we do the broadcast with the mutex held. This seems to
+    // On macOS we do the broadcast with the mutex held. This seems to
     // be necessary to prevent the broadcast call to hang (spinning in
     // an infinite loop).
     //
@@ -129,10 +129,10 @@ IceUtilInternal::CountDownLatch::countDown()
         }
     }
     unlock();
-    
+
 #else
     unlock();
-    
+
     if(broadcast)
     {
         int rc = pthread_cond_broadcast(&_cond);
@@ -146,7 +146,7 @@ IceUtilInternal::CountDownLatch::countDown()
 #endif
 }
 
-int 
+int
 IceUtilInternal::CountDownLatch::getCount() const
 {
 #ifdef _WIN32

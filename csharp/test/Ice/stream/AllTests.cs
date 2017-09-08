@@ -1,6 +1,6 @@
 ﻿// **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -1221,6 +1221,25 @@ public class AllTests : TestCommon.TestApp
             byte[] data = @out.finished();
             @in = Ice.Util.createInputStream(communicator, data);
             Stack<Test.MyClassPrx> l2 = Test.MyClassProxyStackHelper.read(@in);
+            test(Compare(l2, l));
+            @out.destroy();
+            @in.destroy();
+        }
+
+        {
+            //
+            // Ensure ObjectPrx Stack is correcly marshal and unmarshal
+            //
+            Ice.ObjectPrx[] arr = new Ice.ObjectPrx[2];
+            arr[0] = communicator.stringToProxy("zero");
+            arr[1] = communicator.stringToProxy("one");
+            @out = Ice.Util.createOutputStream(communicator);
+            Stack<Ice.ObjectPrx> l = new Stack<Ice.ObjectPrx>(arr);
+            Test.ObjectProxyStackHelper.write(@out, l);
+            byte[] data = @out.finished();
+            @in = Ice.Util.createInputStream(communicator, data);
+            Stack<Ice.ObjectPrx> l2 = Test.ObjectProxyStackHelper.read(@in);
+
             test(Compare(l2, l));
             @out.destroy();
             @in.destroy();

@@ -34,6 +34,7 @@ Main.obj: \
     "$(includedir)\IceUtil\Options.h" \
     "$(includedir)\IceUtil\OutputUtil.h" \
     "$(includedir)\IceUtil\StringUtil.h" \
+    "..\..\src\IceUtil\Unicode.h" \
     "$(includedir)\Slice\Checksum.h" \
     "$(includedir)\Slice\Parser.h" \
     "$(includedir)\Slice\Preprocessor.h" \

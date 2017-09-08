@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,6 +8,8 @@
 // **********************************************************************
 
 package IceInternal;
+
+import java.util.concurrent.Callable;
 
 public final class OutgoingConnectionFactory
 {
@@ -161,8 +163,13 @@ public final class OutgoingConnectionFactory
                 assert(_connections.isEmpty());
                 assert(_connectionsByEndpoint.isEmpty());
             }
-            _monitor.destroy();
         }
+
+        //
+        // Must be destroyed outside the synchronization since this might block waiting for
+        // a timer task to execute.
+        //
+        _monitor.destroy();
     }
 
     public void
@@ -194,8 +201,28 @@ public final class OutgoingConnectionFactory
             return;
         }
 
-        ConnectCallback cb = new ConnectCallback(this, endpoints, hasMore, callback, selType);
-        cb.getConnectors();
+        final ConnectCallback cb = new ConnectCallback(this, endpoints, hasMore, callback, selType);
+        //
+        // Calling cb.getConnectors() can eventually result in a call to connect() on a socket, which is not
+        // allowed while in Android's main thread (with a dispatcher installed).
+        //
+        if(_instance.queueRequests())
+        {
+            _instance.getQueueExecutor().executeNoThrow(new Callable<Void>()
+            {
+                @Override
+                public Void call()
+                    throws Exception
+                {
+                    cb.getConnectors();
+                    return null;
+                }
+            });
+        }
+        else
+        {
+            cb.getConnectors();
+        }
     }
 
     public synchronized void

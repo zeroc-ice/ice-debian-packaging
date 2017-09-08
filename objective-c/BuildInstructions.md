@@ -1,13 +1,13 @@
-# Building Ice for Objective-C on OS X
+# Building Ice for Objective-C on macOS
 
 This page describes how to build and install Ice for Objective-C from source
-code on OS X. If you prefer, you can install a [Homebrew][1] package instead.
+code on macOS. If you prefer, you can install a [Homebrew][1] package instead.
 
 ## Objective-C Build Requirements
 
 ### Operating Systems and Compilers
 
-Ice for Objective-C is currently only supported on OS X, and was extensively
+Ice for Objective-C is currently only supported on macOS, and was extensively
 tested using the operating system and compiler versions listed for our
 [supported platforms][2].
 
@@ -55,5 +55,6 @@ This command is equivalent to:
 If everything worked out, you should see lots of `ok` messages. In case of a
 failure, the tests abort with `failed`.
 
-[1]: https://doc.zeroc.com/display/Ice36/Using+the+OS+X+Binary+Distribution
-[2]: https://zeroc.com/platforms_3_6_0.html
+[1]: https://doc.zeroc.com/display/Ice36/Using+the+macOS+Binary+Distribution
+[2]: https://doc.zeroc.com/display/Ice36/Supported+Platforms+for+Ice+and+Ice+Touch+3.6.4
+

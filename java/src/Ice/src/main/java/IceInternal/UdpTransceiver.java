@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -371,7 +371,7 @@ final class UdpTransceiver implements Transceiver
             Network.setBlock(_fd, false);
             //
             // NOTE: setting the multicast interface before performing the
-            // connect is important for some OS such as OS X.
+            // connect is important for some OS such as macOS.
             //
             if(_addr.getAddress().isMulticastAddress())
             {

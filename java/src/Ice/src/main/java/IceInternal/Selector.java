@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -149,7 +149,7 @@ public final class Selector
         }
         _interrupted = false;
         _spuriousWakeUp = 0;
-        
+
         for(java.nio.channels.SelectionKey key : _keys)
         {
             EventHandler handler = (EventHandler)key.attachment();
@@ -203,7 +203,7 @@ public final class Selector
             }
             catch(java.nio.channels.CancelledKeyException ex)
             {
-                // This sometime occurs on OS X, ignore.
+                // This sometime occurs on macOS, ignore.
                 continue;
             }
             catch(java.io.IOException ex)
@@ -233,7 +233,7 @@ public final class Selector
             break;
         }
     }
-    
+
     void wakeup()
     {
         _selector.wakeup();
@@ -338,5 +338,5 @@ public final class Selector
     private java.util.HashSet<EventHandler> _changes = new java.util.HashSet<EventHandler>();
     private boolean _selecting;
     private boolean _interrupted;
-    private int _spuriousWakeUp;    
+    private int _spuriousWakeUp;
 }

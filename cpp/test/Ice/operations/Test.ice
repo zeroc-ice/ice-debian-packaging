@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -412,5 +412,20 @@ const ["cpp:type:wstring"]string wss5 = "\\u0041\\";  /* \u0041\ */
 const ["cpp:type:wstring"]string wsu0 = "ĨŸÿĀἀ𐆔𐅪𐆘🍀🍁🍂🍃";
 const ["cpp:type:wstring"]string wsu1 = "\u0128\u0178\u00FF\u0100\u1F00\U00010194\U0001016A\U00010198\U0001F340\U0001F341\U0001F342\U0001F343";
 const ["cpp:type:wstring"]string wsu2 = "\U00000128\U00000178\U000000FF\U00000100\U00001F00\U00010194\U0001016A\U00010198\U0001F340\U0001F341\U0001F342\U0001F343";
+
+};
+
+module Test2
+{
+
+/**
+ *
+ * Makes sure that proxy operations are correctly generated when extending an interface from
+ * a different module (ICE-7639).
+ *
+ **/
+class MyDerivedClass extends Test::MyClass
+{
+};
 
 };

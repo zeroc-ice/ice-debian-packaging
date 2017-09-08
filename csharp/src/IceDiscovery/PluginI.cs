@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -95,7 +95,8 @@ namespace IceDiscovery
             }
 
             Ice.ObjectPrx lookupPrx = _communicator.stringToProxy("IceDiscovery/Lookup -d:" + lookupEndpoints);
-            lookupPrx = lookupPrx.ice_collocationOptimized(false);
+            // No colloc optimization for the multicast proxy!
+            lookupPrx = lookupPrx.ice_collocationOptimized(false).ice_router(null);
             try
             {
                 lookupPrx.ice_getConnection();
@@ -117,8 +118,9 @@ namespace IceDiscovery
             LookupI lookup = new LookupI(locatorRegistry, LookupPrxHelper.uncheckedCast(lookupPrx), properties);
             _multicastAdapter.add(lookup, _communicator.stringToIdentity("IceDiscovery/Lookup"));
 
-            Ice.ObjectPrx lookupReply = _replyAdapter.addWithUUID(new LookupReplyI(lookup)).ice_datagram();
-            lookup.setLookupReply(LookupReplyPrxHelper.uncheckedCast(lookupReply));
+            _replyAdapter.addDefaultServant(new LookupReplyI(lookup), "");
+            Ice.Identity id = new Ice.Identity("dummy", "");
+            lookup.setLookupReply(LookupReplyPrxHelper.uncheckedCast(_replyAdapter.createProxy(id).ice_datagram()));
 
             //
             // Setup locator on the communicator.
@@ -126,7 +128,9 @@ namespace IceDiscovery
             Ice.ObjectPrx loc;
             loc = _locatorAdapter.addWithUUID(
                 new LocatorI(lookup, Ice.LocatorRegistryPrxHelper.uncheckedCast(locatorRegistryPrx)));
-            _communicator.setDefaultLocator(Ice.LocatorPrxHelper.uncheckedCast(loc));
+            _defaultLocator = _communicator.getDefaultLocator();
+            _locator = Ice.LocatorPrxHelper.uncheckedCast(loc);
+            _communicator.setDefaultLocator(_locator);
 
             _multicastAdapter.activate();
             _replyAdapter.activate();
@@ -135,15 +139,31 @@ namespace IceDiscovery
 
         public void destroy()
         {
-            _multicastAdapter.destroy();
-            _replyAdapter.destroy();
-            _locatorAdapter.destroy();
+            if(_multicastAdapter != null)
+            {
+                _multicastAdapter.destroy();
+            }
+            if(_replyAdapter != null)
+            {
+                _replyAdapter.destroy();
+            }
+            if(_locatorAdapter != null)
+            {
+                _locatorAdapter.destroy();
+            }
+            if(_communicator.getDefaultLocator().Equals(_locator))
+            {
+                // Restore original default locator proxy, if the user didn't change it in the meantime
+                _communicator.setDefaultLocator(_defaultLocator);
+            }
         }
 
         private Ice.Communicator _communicator;
         private Ice.ObjectAdapter _multicastAdapter;
         private Ice.ObjectAdapter _replyAdapter;
         private Ice.ObjectAdapter _locatorAdapter;
+        private Ice.LocatorPrx _locator;
+        private Ice.LocatorPrx _defaultLocator;
     }
 
 }

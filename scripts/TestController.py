@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -34,7 +34,7 @@ def removeTrustSettings():
         print("trust settings already removed")
 
 #
-# On OS X, provide an option to allow removing the trust settings
+# On macOS, provide an option to allow removing the trust settings
 #
 if TestUtil.isDarwin():
     try:
@@ -45,7 +45,7 @@ if TestUtil.isDarwin():
     except getopt.GetoptError:
         pass
 
-iceVersion = "3.6.3"
+iceVersion = "3.6.4"
 jar = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                    "java/test/controller/build/libs/testController-%(iceVersion)s.jar" % {"iceVersion": iceVersion})
 
@@ -67,7 +67,7 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 if TestUtil.isDarwin():
     #
-    # On OS X, we set the trust settings on the certificate to prevent
+    # On macOS, we set the trust settings on the certificate to prevent
     # the Web browsers from prompting the user about the unstrusted
     # certificate. Some browsers such as Chrome don't provide the
     # option to set this trust settings.

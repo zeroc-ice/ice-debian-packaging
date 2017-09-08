@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -88,10 +88,19 @@ public sealed class InitialI : Initial
     {
         return new HI();
     }
-    
+
     public override D1 getD1(D1 d1, Ice.Current current)
     {
         return d1;
+    }
+
+    public override void setRecursive(Recursive r, Ice.Current current)
+    {
+    }
+
+    public override bool supportsClassGraphDepthMax(Ice.Current current)
+    {
+        return true;
     }
 
     public override void throwEDerived(Ice.Current current)

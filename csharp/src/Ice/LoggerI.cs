@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -127,7 +127,7 @@ namespace Ice
             base(prefix)
         {
             _file = file;
-            _writer = new StreamWriter(new FileStream(file, FileMode.Append, FileAccess.Write, FileShare.None));
+            _writer = new StreamWriter(new FileStream(file, FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
         }
 
         public override Logger cloneWithPrefix(string prefix)

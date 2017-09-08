@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -165,6 +165,11 @@ exception EDerived extends EBase
     A1 a4;
 };
 
+class Recursive
+{
+    Recursive v;
+};
+
 class Initial
 {
     void shutdown();
@@ -175,15 +180,18 @@ class Initial
     E getE();
     F getF();
 
+    void setRecursive(Recursive p);
+    bool supportsClassGraphDepthMax();
+
     void getAll(out B b1, out B b2, out C theC, out D theD);
 
     I getI();
     I getJ();
     I getH();
-    
+
     D1 getD1(D1 d1);
     void throwEDerived() throws EDerived;
-    
+
     void setI(I theI);
 
     BaseSeq opBaseSeq(BaseSeq inSeq, out BaseSeq outSeq);

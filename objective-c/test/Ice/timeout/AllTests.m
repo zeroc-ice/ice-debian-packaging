@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -32,6 +32,11 @@
     }
     cond = [[NSCondition alloc] init];
     return self;
+}
+
++(id) create
+{
+    return ICE_AUTORELEASE([[TestTimeoutCallback alloc] init]);
 }
 
 #if defined(__clang__) && !__has_feature(objc_arc)
@@ -195,7 +200,7 @@ timeoutAllTests(id<ICECommunicator> communicator)
         // Expect InvocationTimeoutException.
         //
         id<TestTimeoutTimeoutPrx> to = [TestTimeoutTimeoutPrx uncheckedCast:[obj ice_invocationTimeout:100]];
-        TestTimeoutCallback* cb = [[TestTimeoutCallback alloc] init];
+        TestTimeoutCallback* cb = [TestTimeoutCallback create];
         [to begin_sleep:750 response:^ { [cb responseEx]; } exception:^(ICEException* ex) { [cb exceptionEx:ex]; }];
         [cb check];
         [obj ice_ping];
@@ -205,7 +210,7 @@ timeoutAllTests(id<ICECommunicator> communicator)
         // Expect Success.
         //
         id<TestTimeoutTimeoutPrx> to = [TestTimeoutTimeoutPrx uncheckedCast:[obj ice_invocationTimeout:500]];
-        TestTimeoutCallback* cb = [[TestTimeoutCallback alloc] init];
+        TestTimeoutCallback* cb = [TestTimeoutCallback create];
         [to begin_sleep:250 response:^ { [cb response]; } exception:^(ICEException* ex) { [cb exception:ex]; }];
         [cb check];
     }

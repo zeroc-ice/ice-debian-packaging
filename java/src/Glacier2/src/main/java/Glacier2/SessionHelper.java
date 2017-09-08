@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -465,7 +465,7 @@ public class SessionHelper
         {
             try
             {
-                _communicator.destroy();
+                communicator.destroy();
             }
             catch(Throwable ex)
             {
@@ -478,19 +478,25 @@ public class SessionHelper
     {
         assert !_destroy;
 
-        try
+        new Thread(new Runnable()
         {
-            _communicator = Ice.Util.initialize(_initData);
-        }
-        catch(final Ice.LocalException ex)
-        {
-            _destroy = true;
-            new Thread(new Runnable()
+            @Override
+            public void run()
+            {
+                try
                 {
-                    @Override
-                    public void run()
+                    synchronized(SessionHelper.this)
                     {
-                        dispatchCallback(new Runnable()
+                        _communicator = Ice.Util.initialize(_initData);
+                    }
+                }
+                catch(final Ice.LocalException ex)
+                {
+                    synchronized(SessionHelper.this)
+                    {
+                        _destroy = true;
+                    }
+                    dispatchCallback(new Runnable()
                         {
                             @Override
                             public void run()
@@ -498,18 +504,11 @@ public class SessionHelper
                                 _callback.connectFailed(SessionHelper.this, ex);
                             }
                         }, null);
-                    }
-                }).start();
-            return;
-        }
+                    return;
+                }
 
-        final Ice.RouterFinderPrx finder =
-            Ice.RouterFinderPrxHelper.uncheckedCast(_communicator.stringToProxy(_finderStr));
-        new Thread(new Runnable()
-        {
-            @Override
-            public void run()
-            {
+                final Ice.RouterFinderPrx finder =
+                    Ice.RouterFinderPrxHelper.uncheckedCast(_communicator.stringToProxy(_finderStr));
                 if(_communicator.getDefaultRouter() == null)
                 {
                     try

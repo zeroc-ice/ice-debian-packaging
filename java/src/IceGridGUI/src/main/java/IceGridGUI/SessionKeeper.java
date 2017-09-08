@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -293,43 +293,6 @@ public class SessionKeeper
                     }
                 }, sessionTimeout / 2, sessionTimeout / 2, java.util.concurrent.TimeUnit.SECONDS);
             }
-
-            try
-            {
-                registerObservers();
-            }
-            catch(final Ice.LocalException e)
-            {
-                while(true)
-                {
-                    try
-                    {
-                        SwingUtilities.invokeAndWait(new Runnable()
-                            {
-                                @Override
-                                public void run()
-                                {
-                                    logout(true);
-                                    JOptionPane.showMessageDialog(parent,
-                                                                "Could not register observers: "
-                                                                + e.toString(),
-                                                                "Login failed",
-                                                                JOptionPane.ERROR_MESSAGE);
-                                }
-                            });
-                        break;
-                    }
-                    catch(java.lang.InterruptedException ex)
-                    {
-                        // Ignore and retry
-                    }
-                    catch(java.lang.reflect.InvocationTargetException ex)
-                    {
-                        break;
-                    }
-                }
-                throw e;
-            }
         }
 
         void logout(boolean destroySession)
@@ -446,7 +409,7 @@ public class SessionKeeper
             _coordinator.setConnected(false);
         }
 
-        private void registerObservers() throws java.lang.Throwable
+        public void registerObservers() throws java.lang.Throwable
         {
             //
             // Create the object adapter for the observers
@@ -1125,7 +1088,7 @@ public class SessionKeeper
     {
         ConnectionWizardDialog(JDialog parent)
         {
-            super(parent, true);
+            super(_coordinator.getMainFrame(), true);
             _x509CertificateDefault = true;
             initialize("New Connection - IceGrid Admin", parent);
             _connectNow = true;
@@ -1133,7 +1096,7 @@ public class SessionKeeper
 
         ConnectionWizardDialog(ConnectionInfo inf, JDialog parent)
         {
-            super(parent, true);
+            super(_coordinator.getMainFrame(), true);
             _conf = inf;
             _x509CertificateDefault = false;
             initialize("Edit Connection - IceGrid Admin", parent);
@@ -1190,16 +1153,16 @@ public class SessionKeeper
                                             {
                                                 Ice.LocatorPrx prx = Ice.LocatorPrxHelper.uncheckedCast(
                                                             communicator.stringToProxy(
-                                                                communicator.identityToString(locator.ice_getIdentity()) + 
+                                                                communicator.identityToString(locator.ice_getIdentity()) +
                                                                 ":" + e.toString()));
-                                        
+
                                                 if(_directDiscoveryEndpointModel.indexOf(prx) == -1)
                                                 {
                                                     _directDiscoveryEndpointModel.addElement(prx);
                                                 }
                                             }
 
-                                            if(_directDiscoveryEndpointModel.size() > 0 && 
+                                            if(_directDiscoveryEndpointModel.size() > 0 &&
                                                 _directDiscoveryEndpointList.getSelectedIndex() == -1)
                                             {
                                                 _directDiscoveryEndpointList.setSelectedIndex(0);
@@ -1231,7 +1194,7 @@ public class SessionKeeper
             final String intf = properties.getProperty("IceGridAdmin.Discovery.Interface");
             String lookupEndpoints = properties.getProperty("IceGridAdmin.Discovery.Lookup");
             String address;
-            if(properties.getPropertyAsIntWithDefault("Ice.IPv4", 1) > 0 && 
+            if(properties.getPropertyAsIntWithDefault("Ice.IPv4", 1) > 0 &&
                properties.getPropertyAsInt("Ice.PreferIPv6Address") <= 0)
             {
                 address = "239.255.0.1";
@@ -1257,9 +1220,9 @@ public class SessionKeeper
             try
             {
                 final LookupPrx lookupPrx = LookupPrxHelper.uncheckedCast(
-                    communicator.stringToProxy("IceLocatorDiscovery/Lookup -d:" + 
+                    communicator.stringToProxy("IceLocatorDiscovery/Lookup -d:" +
                                                lookupEndpoints).ice_collocationOptimized(false).ice_router(null));
-                
+
                 new Thread(new Runnable()
                 {
                     @Override
@@ -1268,15 +1231,15 @@ public class SessionKeeper
                         synchronized(SessionKeeper.this)
                         {
                             //
-                            // If search is in progress when refresh is hit, cancel the 
+                            // If search is in progress when refresh is hit, cancel the
                             // finish task we will schedule a new one with this new
                             // search.
-                            // 
+                            //
                             if(_discoveryFinishTask != null)
                             {
                                 _discoveryFinishTask.cancel();
                             }
-                            
+
                             if(properties.getProperty("IceGridAdmin.Discovery.Reply.Endpoints").isEmpty())
                             {
                                 StringBuilder s = new StringBuilder();
@@ -1287,7 +1250,7 @@ public class SessionKeeper
                                 }
                                 properties.setProperty("IceGridAdmin.Discovery.Reply.Endpoints", s.toString());
                             }
-                            
+
                             try
                             {
                                 if(_discoveryAdapter == null)
@@ -1295,11 +1258,11 @@ public class SessionKeeper
                                     _discoveryAdapter = communicator.createObjectAdapter(
                                         "IceGridAdmin.Discovery.Reply");
                                     _discoveryAdapter.activate();
-                                    _discoveryReplyPrx =  
+                                    _discoveryReplyPrx =
                                         LookupReplyPrxHelper.uncheckedCast(
                                             _discoveryAdapter.addWithUUID(_discoveryLookupReply).ice_datagram());
                                 }
-                            
+
                                 lookupPrx.findLocator("", _discoveryReplyPrx);
                             }
                             catch(final Ice.LocalException ex)
@@ -1318,7 +1281,7 @@ public class SessionKeeper
                                     }
                                 });
                             }
-                            
+
                             //
                             // We schedule a timer task to destroy the discovery adapter after 2
                             // seconds, the user doesn't need to wait, discovered proxies are
@@ -1360,7 +1323,7 @@ public class SessionKeeper
 
             _directInstanceName = new JLabel();
             _routedInstanceName = new JLabel();
-            
+
             // Connection type panel
             {
                 FormLayout layout = new FormLayout("pref", "pref");
@@ -1420,7 +1383,7 @@ public class SessionKeeper
                                 }
                             }
                         });
-                
+
                 _directDiscoveryEndpointList.addListSelectionListener(new ListSelectionListener()
                 {
                     @Override
@@ -1429,7 +1392,7 @@ public class SessionKeeper
                         validatePanel();
                     }
                 });
-                
+
                 ButtonGroup group = new ButtonGroup();
                 _directDiscoveryDiscoveredEndpoint = new JRadioButton(new AbstractAction("Discovered Endpoints")
                 {
@@ -1465,7 +1428,7 @@ public class SessionKeeper
                     builder.append(_discoveryStatus, _discoveryRefresh);
                     discoveryStatus = builder.getPanel();
                 }
-                
+
                 _directDiscoveryManualEndpoint = new JRadioButton(new AbstractAction("Manual Endpoint")
                 {
                     @Override
@@ -1479,7 +1442,7 @@ public class SessionKeeper
                     }
                 });
                 group.add(_directDiscoveryManualEndpoint);
-               
+
                 {
                     FormLayout layout = new FormLayout("pref:grow", "pref");
                     DefaultFormBuilder builder = new DefaultFormBuilder(layout);
@@ -2166,7 +2129,6 @@ public class SessionKeeper
                                 }
                                 break;
                             }
-                            
                             case DirectMasterStep:
                             {
                                 _cardLayout.show(_cardPanel, WizardStep.DirectDiscoveryChooseStep.toString());
@@ -2184,20 +2146,18 @@ public class SessionKeeper
                                 {
                                     _cardLayout.show(_cardPanel, WizardStep.DirectEndpointStep.toString());
                                     _wizardSteps.push(WizardStep.DirectEndpointStep);
-                                } 
-                                else 
+                                }
+                                else
                                 {
                                     Ice.LocatorPrx locator = _directDiscoveryEndpointList.getSelectedValue();
                                     _directInstanceName.setText(locator.ice_getIdentity().category);
                                     _directCustomEndpointValue.setText(locator.ice_getEndpoints()[0].toString());
                                     _directCustomEndpoints.setSelected(true);
-                                    
                                     _cardLayout.show(_cardPanel, WizardStep.DirectCustomEnpointStep.toString());
                                     _wizardSteps.push(WizardStep.DirectCustomEnpointStep);
                                 }
                                 break;
                             }
-                            
                             case DirectEndpointStep:
                             {
                                 if(_directDefaultEndpoints.isSelected())
@@ -2237,7 +2197,7 @@ public class SessionKeeper
                                 }
                                 else
                                 {
-                                    _cardLayout.show(_cardPanel, 
+                                    _cardLayout.show(_cardPanel,
                                     		WizardStep.DirectUsernamePasswordCredentialsStep.toString());
                                     _wizardSteps.push(WizardStep.DirectUsernamePasswordCredentialsStep);
                                 }
@@ -2256,7 +2216,6 @@ public class SessionKeeper
                                 }
                                 break;
                             }
-                            
                             case RoutedDefaultEndpointStep:
                             {
                                 if(_routedDefaultEndpointSSL.isSelected())
@@ -2266,7 +2225,7 @@ public class SessionKeeper
                                 }
                                 else
                                 {
-                                    _cardLayout.show(_cardPanel, 
+                                    _cardLayout.show(_cardPanel,
                                     		WizardStep.RoutedUsernamePasswordCredentialsStep.toString());
                                     _wizardSteps.push(WizardStep.RoutedUsernamePasswordCredentialsStep);
                                 }
@@ -2285,7 +2244,6 @@ public class SessionKeeper
                                 }
                                 break;
                             }
-                            
                             case DirectCustomEnpointStep:
                             {
                                 try
@@ -2305,7 +2263,7 @@ public class SessionKeeper
                                     }
                                     else
                                     {
-                                        _cardLayout.show(_cardPanel, 
+                                        _cardLayout.show(_cardPanel,
                                         		WizardStep.DirectUsernamePasswordCredentialsStep.toString());
                                         _wizardSteps.push(WizardStep.DirectUsernamePasswordCredentialsStep);
                                     }
@@ -2362,7 +2320,7 @@ public class SessionKeeper
                                     }
                                     else
                                     {
-                                        _cardLayout.show(_cardPanel, 
+                                        _cardLayout.show(_cardPanel,
                                         		WizardStep.RoutedUsernamePasswordCredentialsStep.toString());
                                         _wizardSteps.push(WizardStep.RoutedUsernamePasswordCredentialsStep);
                                     }
@@ -2400,7 +2358,6 @@ public class SessionKeeper
                                 }
                                 break;
                             }
-                            
                             case X509CertificateStep:
                             {
                                 if(_x509CertificateYesButton.isSelected())
@@ -2461,7 +2418,6 @@ public class SessionKeeper
                                 }
                                 break;
                             }
-                            
                             default:
                             {
                                 break;
@@ -2627,20 +2583,6 @@ public class SessionKeeper
                             inf.setUseX509Certificate(true);
                         }
 
-                        try
-                        {
-                            inf.save();
-                        }
-                        catch(java.util.prefs.BackingStoreException ex)
-                        {
-                            JOptionPane.showMessageDialog(
-                                    ConnectionWizardDialog.this,
-                                    ex.toString(),
-                                    "Error saving connection",
-                                    JOptionPane.ERROR_MESSAGE);
-                        }
-                        _connectionManagerDialog.load();
-
                         ConnectionWizardDialog.this.dispose();
                         if(_connectNow)
                         {
@@ -2691,7 +2633,7 @@ public class SessionKeeper
                 {
                 	if(_directDiscoveryManualEndpoint.isSelected())
                 	{
-                		_directDiscoveryManualEndpoint.requestFocusInWindow();	
+                		_directDiscoveryManualEndpoint.requestFocusInWindow();
                 	}
                 	else
                 	{
@@ -2699,7 +2641,7 @@ public class SessionKeeper
                 	}
                     break;
                 }
-                
+
                 case DirectEndpointStep:
                 {
                     if(_directDefaultEndpoints.isSelected())
@@ -2791,7 +2733,6 @@ public class SessionKeeper
                     _routedUsername.requestFocusInWindow();
                     break;
                 }
-                
                 default:
                 {
                     break;
@@ -2923,7 +2864,6 @@ public class SessionKeeper
                     validated = _routedUsername.getText() != null && _routedUsername.getText().length() > 0;
                     break;
                 }
-                
                 case DirectMasterStep:
                 case RoutedEndpointStep:
                 case DirectEndpointStep:
@@ -3242,7 +3182,7 @@ public class SessionKeeper
         private JRadioButton _directDiscoveryDiscoveredEndpoint;
         private JLabel _discoveryStatus;
         private JButton _discoveryRefresh;
-        
+
         private java.util.TimerTask _discoveryFinishTask;
         private Ice.ObjectAdapter _discoveryAdapter;
         private LookupReplyPrx _discoveryReplyPrx;
@@ -3339,7 +3279,7 @@ public class SessionKeeper
 
     enum WizardStep {ConnectionTypeStep,
                      DirectMasterStep, DirectDiscoveryChooseStep, DirectEndpointStep, DirectDefaultEndpointStep,
-                        DirectCustomEnpointStep,
+                     DirectCustomEnpointStep,
                      RoutedEndpointStep, RoutedDefaultEndpointStep, RoutedCustomEnpointStep,
                      X509CertificateStep,
                      DirectX509CredentialsStep, RoutedX509CredentialsStep,
@@ -5229,12 +5169,33 @@ public class SessionKeeper
     }
 
     public void loginSuccess(final JDialog parent, final Cursor oldCursor, final long sessionTimeout,
-                             final int acmTimeout, final AdminSessionPrx session, final ConnectionInfo info)
+                             final int acmTimeout, final AdminSessionPrx adminSession, final ConnectionInfo info)
     {
-        assert session != null;
         try
         {
-            _replicaName = session.getReplicaName();
+            if(!info.getStorePassword())
+            {
+                info.setPassword(null);
+            }
+            if(!info.getStoreKeyPassword())
+            {
+                info.setKeyPassword(null);
+            }
+            info.save();
+            _connectionManagerDialog.load();
+        }
+        catch(java.util.prefs.BackingStoreException ex)
+        {
+            JOptionPane.showMessageDialog(parent,
+                                          ex.toString(),
+                                          "Error saving connection",
+                                          JOptionPane.ERROR_MESSAGE);
+        }
+
+        assert adminSession != null;
+        try
+        {
+            _replicaName = adminSession.getReplicaName();
         }
         catch(Ice.LocalException e)
         {
@@ -5260,7 +5221,7 @@ public class SessionKeeper
         }
 
         //
-        // Create the session in is own thread as it made remote calls
+        // Create the session in its own thread as it made remote calls
         //
         new Thread(new Runnable()
             {
@@ -5269,7 +5230,51 @@ public class SessionKeeper
                 {
                     try
                     {
-                        setSession(new Session(session, sessionTimeout, acmTimeout, !info.getDirect(), parent));
+                        final Session session = new Session(adminSession, sessionTimeout, acmTimeout, !info.getDirect(), parent);
+                        SwingUtilities.invokeAndWait(new Runnable()
+                            {
+                                @Override
+                                public void run()
+                                {
+                                    _session = session;
+                                }
+                            });
+                        try
+                        {
+                            session.registerObservers();
+                        }
+                        catch(final Ice.LocalException e)
+                        {
+                            while(true)
+                            {
+                                try
+                                {
+                                    SwingUtilities.invokeAndWait(new Runnable()
+                                        {
+                                            @Override
+                                            public void run()
+                                            {
+                                                logout(true);
+                                                JOptionPane.showMessageDialog(parent,
+                                                                              "Could not register observers: "
+                                                                              + e.toString(),
+                                                                              "Login failed",
+                                                                              JOptionPane.ERROR_MESSAGE);
+                                            }
+                                        });
+                                    break;
+                                }
+                                catch(java.lang.InterruptedException ex)
+                                {
+                                    // Ignore and retry
+                                }
+                                catch(java.lang.reflect.InvocationTargetException ex)
+                                {
+                                    break;
+                                }
+                            }
+                            throw e;
+                        }
                     }
                     catch(java.lang.Throwable e)
                     {
@@ -5291,31 +5296,6 @@ public class SessionKeeper
                             {
                                 _connectionManagerDialog.setCursor(oldCursor);
                                 _connectionManagerDialog.setVisible(false);
-                                if(!info.getStorePassword())
-                                {
-                                    info.setPassword(null);
-                                }
-                                if(!info.getStoreKeyPassword())
-                                {
-                                    info.setKeyPassword(null);
-                                }
-
-                                if(info.getStorePassword() || info.getStoreKeyPassword())
-                                {
-                                    try
-                                    {
-                                        info.save();
-                                    }
-                                    catch(java.util.prefs.BackingStoreException ex)
-                                    {
-                                        JOptionPane.showMessageDialog(
-                                                _coordinator.getMainFrame(),
-                                                ex.toString(),
-                                                "Error saving connection",
-                                                JOptionPane.ERROR_MESSAGE);
-                                    }
-                                    _connectionManagerDialog.load();
-                                }
                             }
                         });
                 }
@@ -5539,11 +5519,6 @@ public class SessionKeeper
         }
     }
 
-    synchronized void setSession(Session session)
-    {
-        _session = session;
-    }
-
     AdminSessionPrx getSession()
     {
         return _session == null ? null : _session.getSession();
@@ -5594,7 +5569,7 @@ public class SessionKeeper
     private static AuthDialog _authDialog;
 
     private final Coordinator _coordinator;
-    
+
     private Session _session;
     private boolean _connectedToMaster = false;
     private String _replicaName = "";

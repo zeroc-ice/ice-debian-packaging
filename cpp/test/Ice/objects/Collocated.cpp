@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -104,7 +104,15 @@ main(int argc, char* argv[])
 
     try
     {
-        communicator = Ice::initialize(argc, argv);
+        Ice::InitializationData initData;
+        initData.properties = Ice::createProperties(argc, argv);
+#if defined(__APPLE__)
+        initData.properties->setProperty("Ice.ThreadPool.Server.StackSize", "1048576"); // 1MB stack size
+#endif
+        initData.properties->setProperty("Ice.CollectObjects", "1");
+        initData.properties->setProperty("Ice.Warn.Dispatch", "0");
+        initData.properties->setProperty("Ice.ClassGraphDepthMax", "100");
+        communicator = Ice::initialize(argc, argv, initData);
         status = run(argc, argv, communicator);
     }
     catch(const Ice::Exception& ex)

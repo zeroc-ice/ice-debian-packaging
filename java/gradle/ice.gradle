@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -40,11 +40,11 @@ buildscript {
         mavenCentral()
 
         maven {
-            url "https://${iceMavenRepo}/nexus/content/repositories/releases"
+            url "https://plugins.gradle.org/m2/"
         }
     }
     dependencies {
-        classpath group: 'com.zeroc.gradle.ice-builder', name: 'slice', version: "${iceBuilderVersion}"
+        classpath group: iceBuilderClassPath, name: 'slice', version: iceBuilderVersion
     }
 }
 
@@ -101,7 +101,6 @@ if ((prefix.startsWith("/usr") || prefix.startsWith("/usr/local")) && !prefix.st
 def iceCppDir = slice.srcDist ? [slice.iceHome, "cpp"].join(File.separator) : slice.iceHome
 def iceSrcDist = false
 
-
 // Check is DESTDIR is set (non-Windows)
 if (isWindows) {
     ext.DESTDIR = ""
@@ -134,8 +133,6 @@ ext.searchFile = { List<Closure> places, List<String> searchPaths ->
     }
 }
 
-
-
 def localDependency(artifactId) {
     if (project.slice.srcDist) {
         return project(":${artifactId}")
@@ -165,7 +162,7 @@ task nugetDirectory() {
 }
 
 task nugetInstall(type:Exec, dependsOn:nugetDirectory) {
-  commandLine 'cmd', '/c', 'powershell', '-Command', "(New-Object Net.WebClient).DownloadFile('http://nuget.org/nuget.exe', '${nuget}')"
+  commandLine 'cmd', '/c', 'powershell', '-Command', "(New-Object Net.WebClient).DownloadFile('http://dist.nuget.org/win-x86-commandline/v3.4.4/NuGet.exe', '${nuget}')"
 }
 
 task nugetInstallBerkeleyDb(type:Exec) {
@@ -200,7 +197,7 @@ if (!android) {
         } else {
             subdirs = [
                 "/usr/local/opt/ice/libexec/lib/",
-                "/usr/local/opt/berkeley-db53/lib/",
+                "/usr/local/opt/berkeley-db@5.3/lib/",
                 "/usr/local/lib/",
                 "/usr/share/java/",
                 "/opt/Ice-${project.version}/lib/",
@@ -220,7 +217,6 @@ if (!android) {
             new File(it).exists()
         }
     }
-
 
     if(!ext.dbJar || !new File(ext.dbJar).exists()) {
         throw new GradleException("Unable to locate the required third party BerkeleyDB jar file `db.jar'.")

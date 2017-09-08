@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -1005,13 +1005,10 @@ Slice::Ruby::CodeVisitor::visitStructStart(const StructPtr& p)
     _out.inc();
     _out << nl << "return false if";
     _out.inc();
+    _out << " !other.is_a? " << getAbsolute(p, IdentToUpper);
     for(MemberInfoList::iterator r = memberList.begin(); r != memberList.end(); ++r)
     {
-        if(r != memberList.begin())
-        {
-            _out << " or";
-        }
-        _out << nl << "@" << r->fixedName << " != other." << r->fixedName;
+        _out << " or" << nl << "@" << r->fixedName << " != other." << r->fixedName;
     }
     _out.dec();
     _out << nl << "true";
@@ -1820,7 +1817,7 @@ Slice::Ruby::printHeader(IceUtilInternal::Output& out)
     static const char* header =
 "# **********************************************************************\n"
 "#\n"
-"# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.\n"
+"# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.\n"
 "#\n"
 "# This copy of Ice is licensed to you under the terms described in the\n"
 "# ICE_LICENSE file included in this distribution.\n"

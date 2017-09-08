@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -3069,7 +3069,7 @@ Slice::Gen::printHeader()
     static const char* header =
 "// **********************************************************************\n"
 "//\n"
-"// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.\n"
+"// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.\n"
 "//\n"
 "// This copy of Ice is licensed to you under the terms described in the\n"
 "// ICE_LICENSE file included in this distribution.\n"
@@ -3818,7 +3818,9 @@ Slice::Gen::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
     const bool hasDataMemberInitializers = requiresDataMemberInitializers(dataMembers);
     if(hasDataMemberInitializers)
     {
-        _out << sp << nl << "private void initDM__()";
+        _out << sp;
+        emitGeneratedCodeAttribute();
+        _out << nl << "private void initDM__()";
         _out << sb;
         writeDataMemberInitializers(dataMembers, DotNet::Exception);
         _out << eb;
@@ -3868,7 +3870,9 @@ Slice::Gen::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
     {
         if(!dataMembers.empty())
         {
-            _out << sp << nl << "private void initDM__" << spar << paramDecl << epar;
+            _out << sp;
+            emitGeneratedCodeAttribute();
+            _out << nl << "private void initDM__" << spar << paramDecl << epar;
             _out << sb;
             for(DataMemberList::const_iterator q = dataMembers.begin(); q != dataMembers.end(); ++q)
             {
