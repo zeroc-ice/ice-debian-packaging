@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -60,8 +60,8 @@ registryOptions = r' --Ice.Warn.Connections=0' + \
                   r' --IceGrid.Registry.DefaultTemplates="' + \
                   os.path.abspath(os.path.join(TestUtil.toplevel, "cpp", "config", "templates.xml") + '"')
 
-if TestUtil.ipv6 and TestUtil.isDarwin():
-   registryOptions += r' --IceGrid.Registry.Discovery.Interface="::1"'
+if not TestUtil.isLinux():
+    registryOptions += r' --IceGrid.Registry.Discovery.Interface="{}"'.format("::1" if TestUtil.ipv6 else "127.0.0.1")
 
 def getDefaultLocatorProperty():
 

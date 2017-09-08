@@ -1,6 +1,6 @@
 ﻿// **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -39,7 +39,7 @@ using System.Runtime.InteropServices;
 //
 // You can specify all the values or you can default the Revision and Build Numbers 
 // by using the '*' as shown below:
-[assembly: AssemblyVersion("3.6.3")]
-[assembly: AssemblyFileVersion("3.6.3")]
+[assembly: AssemblyVersion("3.6.4")]
+[assembly: AssemblyFileVersion("3.6.4")]
 
 [assembly: System.CLSCompliant(true)]

@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -86,6 +86,8 @@ endif
 mklibtargets		= $(1)
 
 mkshlib			= $(CXX) -qmkshrobj $(LDFLAGS) -o $(2) $(3) $(4) ; ar -rc $(1) $(2) ; rm $(2)
+
+mkplugin		= $(mkshlib)
 
 mklib			= ar -rc $(1) $(2)
 

@@ -1,3 +1,14 @@
+\zeroc-ice (3.6.4-1) unstable; urgency=medium
+
+  * Removed icegridgui patch, no longer necessary with 3.6.4
+  * Set iceBuilderClassPath to use the local Ice Builder plug-in
+  * Add class path entries to JAR files
+  * Renamed zeroc-icegrid.icegridnode.service
+  * Enable jarsClassPath see ICE-8444
+  * Imported Upstream version 3.6.4
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Fri, 08 Sep 2017 20:36:13 +0200
+
 zeroc-ice (3.6.3-6) unstable; urgency=medium
 
   * Add python2 packages

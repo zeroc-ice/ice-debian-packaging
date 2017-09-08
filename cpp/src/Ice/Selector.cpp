@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -21,6 +21,13 @@
 
 using namespace std;
 using namespace IceInternal;
+
+#if defined(ICE_USE_KQUEUE)
+namespace
+{
+struct timespec zeroTimeout = { 0, 0 };
+}
+#endif
 
 #ifdef ICE_OS_WINRT
 using namespace Windows::Foundation;
@@ -450,11 +457,26 @@ Selector::finish(EventHandler* handler, bool closeNow)
 void
 Selector::updateSelector()
 {
-    int rs = kevent(_queueFd, &_changes[0], _changes.size(), 0, 0, 0);
+    int rs = kevent(_queueFd, &_changes[0], _changes.size(), &_changes[0], _changes.size(), &zeroTimeout);
     if(rs < 0)
     {
         Ice::Error out(_instance->initializationData().logger);
         out << "error while updating selector:\n" << IceUtilInternal::errorToString(IceInternal::getSocketErrno());
+    }
+    else
+    {
+        for(int i = 0; i < rs; ++i)
+        {
+            //
+            // Check for errors, we ignore EINPROGRESS that started showing up with macOS Sierra
+            // and which occurs when another thread removes the FD from the kqueue (see ICE-7419).
+            //
+            if(_changes[i].flags & EV_ERROR && _changes[i].data != EINPROGRESS)
+            {
+                Ice::Error out(_instance->initializationData().logger);
+                out << "error while updating selector:\n" << IceUtilInternal::errorToString(_changes[i].data);
+            }
+        }
     }
     _changes.clear();
 }
@@ -464,6 +486,7 @@ void
 Selector::select(vector<pair<EventHandler*, SocketOperation> >& handlers, int timeout)
 {
     int ret = 0;
+    int spuriousWakeup = 0;
     while(true)
     {
 #if defined(ICE_USE_EPOLL)
@@ -495,6 +518,16 @@ Selector::select(vector<pair<EventHandler*, SocketOperation> >& handlers, int ti
                 out << "fatal error: selector failed:\n" << ex;
             }
             abort();
+        }
+        else if(ret == 0 && timeout <= 0)
+        {
+            if(++spuriousWakeup > 100)
+            {
+                spuriousWakeup = 0;
+                _instance->initializationData().logger->warning("spurious selector wakeup");
+            }
+            IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(1));
+            continue;
         }
         break;
     }

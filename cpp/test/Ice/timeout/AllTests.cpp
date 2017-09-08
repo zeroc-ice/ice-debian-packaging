@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -417,6 +417,16 @@ allTests(const Ice::CommunicatorPtr& communicator)
         }
         catch(const Ice::InvocationTimeoutException&)
         {
+        }
+
+        try
+        {
+            timeout->ice_invocationTimeout(-2)->ice_ping();
+            timeout->ice_invocationTimeout(-2)->begin_ice_ping()->waitForCompleted();
+        }
+        catch(const Ice::Exception&)
+        {
+            test(false);
         }
 
         TimeoutPrx batchTimeout = timeout->ice_batchOneway();

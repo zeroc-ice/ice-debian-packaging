@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -86,7 +86,6 @@ const Byte FLAG_HAS_SLICE_SIZE        = (1<<4);
 const Byte FLAG_IS_LAST_SLICE         = (1<<5);
 
 }
-
 
 IceInternal::BasicStream::BasicStream(Instance* instance, const EncodingVersion& encoding) :
     _instance(instance),
@@ -1844,13 +1843,16 @@ IceInternal::BasicStream::initReadEncaps()
     if(!_currentReadEncaps->decoder) // Lazy initialization.
     {
         ObjectFactoryManagerPtr factoryManager = _instance->servantFactoryManager();
+        size_t classGraphDepthMax = _instance->classGraphDepthMax();
         if(_currentReadEncaps->encoding == Encoding_1_0)
         {
-            _currentReadEncaps->decoder = new EncapsDecoder10(this, _currentReadEncaps, _sliceObjects, factoryManager);
+            _currentReadEncaps->decoder = new EncapsDecoder10(this, _currentReadEncaps, _sliceObjects,
+                                                              classGraphDepthMax, factoryManager);
         }
         else
         {
-            _currentReadEncaps->decoder = new EncapsDecoder11(this, _currentReadEncaps, _sliceObjects, factoryManager);
+            _currentReadEncaps->decoder = new EncapsDecoder11(this, _currentReadEncaps, _sliceObjects,
+                                                              classGraphDepthMax, factoryManager);
         }
     }
 }
@@ -1986,6 +1988,7 @@ IceInternal::BasicStream::EncapsDecoder::addPatchEntry(Int index, PatchFunc patc
     PatchEntry e;
     e.patchFunc = patchFunc;
     e.patchAddr = patchAddr;
+    e.classGraphDepth = _classGraphDepth;
     q->second.push_back(e);
 }
 
@@ -2373,6 +2376,30 @@ IceInternal::BasicStream::EncapsDecoder10::readInstance()
         //
         skipSlice();
         startSlice(); // Read next Slice header for next iteration.
+    }
+
+    //
+    // Compute the biggest class graph depth of this object. To compute this,
+    // we get the class graph depth of each ancestor from the patch map and
+    // keep the biggest one.
+    //
+    _classGraphDepth = 0;
+    PatchMap::iterator patchPos = _patchMap.find(index);
+    if(patchPos != _patchMap.end())
+    {
+        assert(patchPos->second.size() > 0);
+        for(PatchList::iterator k = patchPos->second.begin(); k != patchPos->second.end(); ++k)
+        {
+            if(k->classGraphDepth > _classGraphDepth)
+            {
+                _classGraphDepth = k->classGraphDepth;
+            }
+        }
+    }
+
+    if(++_classGraphDepth > _classGraphDepthMax)
+    {
+        throw MarshalException(__FILE__, __LINE__, "maximum class graph depth reached");
     }
 
     //
@@ -2862,10 +2889,17 @@ IceInternal::BasicStream::EncapsDecoder11::readInstance(Int index, PatchFunc pat
         startSlice(); // Read next Slice header for next iteration.
     }
 
+    if(++_classGraphDepth > _classGraphDepthMax)
+    {
+        throw MarshalException(__FILE__, __LINE__, "maximum class graph depth reached");
+    }
+
     //
     // Un-marshal the object
     //
     unmarshal(index, v);
+
+    --_classGraphDepth;
 
     if(!_current && !_patchMap.empty())
     {
@@ -3392,4 +3426,3 @@ IceInternal::BasicStream::EncapsEncoder11::writeInstance(const ObjectPtr& v)
     _stream->writeSize(1); // Object instance marker.
     v->__write(_stream);
 }
-

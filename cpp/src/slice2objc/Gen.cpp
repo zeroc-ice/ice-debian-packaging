@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -808,7 +808,7 @@ Slice::Gen::printHeader(Output& o)
     static const char* header =
 "// **********************************************************************\n"
 "//\n"
-"// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.\n"
+"// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.\n"
 "//\n"
 "// This copy of Ice is licensed to you under the terms described in the\n"
 "// ICE_LICENSE file included in this distribution.\n"
@@ -1592,7 +1592,7 @@ Slice::Gen::TypesVisitor::writeConstantValue(IceUtilInternal::Output& out, const
                         break;
                     }
                 }
-                
+
                 out << val[i];                              // Print normally if in basic source character set
             }
             ++i;
@@ -2070,13 +2070,24 @@ Slice::Gen::TypesVisitor::writeMemberHashCode(const DataMemberList& dataMembers,
             BuiltinPtr builtin = BuiltinPtr::dynamicCast(type);
             if(builtin)
             {
-                if(builtin->kind() == Builtin::KindFloat || builtin->kind() == Builtin::KindDouble)
+                switch(builtin->kind())
                 {
-                    _M << "(2654435761u * (uint)" << name << ");";
-                }
-                else
-                {
-                    _M << "(2654435761u * " << name << ");";
+                    case Builtin::KindLong:
+                    {
+                        _M << nl << "(uint)(" << name << " ^ (" << name << " >> 32));";
+                        break;
+                    }
+                    case Builtin::KindFloat:
+                    case Builtin::KindDouble:
+                    {
+                        _M << nl << "[@(" << name << ") hash];";
+                        break;
+                    }
+                    default:
+                    {
+                        _M << "(2654435761u * " << name << ");";
+                        break;
+                    }
                 }
             }
             else

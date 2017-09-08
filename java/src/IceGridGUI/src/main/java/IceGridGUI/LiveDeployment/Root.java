@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -364,6 +364,7 @@ public class Root extends ListArrayTreeNode
         _slaves.clear();
         _treeModel.nodeStructureChanged(this);
         _tree.setRootVisible(false);
+        _editor = null;
     }
 
     public void patch(final String applicationName)
@@ -462,17 +463,20 @@ public class Root extends ListArrayTreeNode
         int[] toRemoveIndices = new int[_nodes.size()];
 
         int i = 0;
-        for(int index = 0; index < _nodes.size(); ++index)
+        for(Node node : _nodes)
         {
-            Node node = _nodes.get(index);
             if(node.remove(name))
             {
                 toRemove.add(node);
-                toRemoveIndices[i++] = _slaves.size() + index;
+                toRemoveIndices[i++] = getIndex(node);
             }
         }
 
-        removeNodes(resize(toRemoveIndices, toRemove.size()), toRemove);
+        if(toRemove.size() > 0)
+        {
+            _nodes.removeAll(toRemove);
+            _treeModel.nodesWereRemoved(this, toRemoveIndices, toRemove.toArray());
+        }
     }
 
     public void applicationUpdated(ApplicationUpdateInfo update)
@@ -1204,10 +1208,10 @@ public class Root extends ListArrayTreeNode
     private void loadLogPrefs()
     {
         Preferences logPrefs = _coordinator.getPrefs().node("Log");
-        _logMaxLines = logPrefs.getInt("maxLines", 500);
-        _logMaxSize = logPrefs.getInt("maxSize", 20000);
-        _logInitialLines = logPrefs.getInt("initialLines", 10);
-        _logMaxReadSize = logPrefs.getInt("maxReadSize", 10000);
+        _logMaxLines = logPrefs.getInt("maxLines", 1000);
+        _logMaxSize = logPrefs.getInt("maxSize", 1000000);
+        _logInitialLines = logPrefs.getInt("initialLines", 1000);
+        _logMaxReadSize = logPrefs.getInt("maxReadSize", 1000000);
         _logPeriod = logPrefs.getInt("period", 300);
 
         if(_logMaxReadSize + 512 > _messageSizeMax)
@@ -1233,29 +1237,7 @@ public class Root extends ListArrayTreeNode
 
     private void insertNode(Node node)
     {
-        String nodeName = node.toString();
-        int i;
-        for(i = 0; i < _nodes.size(); ++i)
-        {
-            String otherNodeName = _nodes.get(i).toString();
-            if(nodeName.compareTo(otherNodeName) < 0)
-            {
-                break;
-            }
-        }
-
-        _nodes.add(i, node);
-        _treeModel.nodesWereInserted(this, new int[]{_slaves.size() + i});
-    }
-
-    @SuppressWarnings("rawtypes")
-    private void removeNodes(int[] toRemoveIndices, java.util.List toRemove)
-    {
-        if(toRemove.size() > 0)
-        {
-            _nodes.removeAll(toRemove);
-            _treeModel.nodesWereRemoved(this, toRemoveIndices, toRemove.toArray());
-        }
+        insertSortedChild(node, _nodes, _treeModel);
     }
 
     public static int computeMessageSizeMax(int num)

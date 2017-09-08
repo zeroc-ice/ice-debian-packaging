@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -334,7 +334,7 @@ def getSliceDir():
 
     elif sys.platform == "darwin":
         #
-        # Check the default OS X location.
+        # Check the default macOS location.
         #
         dir = os.path.join("/", "Library", "Developer", "Ice-" + iceVer, "slice")
         if os.path.exists(dir):
@@ -1178,7 +1178,8 @@ value is an integer representing the exit status.
         # Install our handler for the signals we are interested in. We assume main()
         # is called from the main thread.
         #
-        Application._ctrlCHandler = CtrlCHandler()
+        if Application._signalPolicy == Application.HandleSignals:
+            Application._ctrlCHandler = CtrlCHandler()
 
         try:
             Application._interrupted = False
@@ -1204,8 +1205,9 @@ value is an integer representing the exit status.
         # Set _ctrlCHandler to 0 only once communicator.destroy() has
         # completed.
         #
-        Application._ctrlCHandler.destroy()
-        Application._ctrlCHandler = None
+        if Application._signalPolicy == Application.HandleSignals:
+            Application._ctrlCHandler.destroy()
+            Application._ctrlCHandler = None
 
         return status
 

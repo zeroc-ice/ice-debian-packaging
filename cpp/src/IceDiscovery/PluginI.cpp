@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -122,7 +122,8 @@ PluginI::initialize()
     }
 
     Ice::ObjectPrx lookupPrx = _communicator->stringToProxy("IceDiscovery/Lookup -d:" + lookupEndpoints);
-    lookupPrx = lookupPrx->ice_collocationOptimized(false); // No collocation optimization for the multicast proxy!
+    // No collocation optimization for the multicast proxy!
+    lookupPrx = lookupPrx->ice_collocationOptimized(false)->ice_router(0);
     try
     {
         // Ensure we can establish a connection to the multicast proxy
@@ -148,14 +149,19 @@ PluginI::initialize()
     _lookup = new LookupI(locatorRegistry, LookupPrx::uncheckedCast(lookupPrx), properties);
     _multicastAdapter->add(_lookup, _communicator->stringToIdentity("IceDiscovery/Lookup"));
 
-    Ice::ObjectPrx lookupReply = _replyAdapter->addWithUUID(new LookupReplyI(_lookup))->ice_datagram();
-    _lookup->setLookupReply(LookupReplyPrx::uncheckedCast(lookupReply));
+    _replyAdapter->addDefaultServant(new LookupReplyI(_lookup), "");
+    Ice::Identity id;
+    id.name = "dummy";
+    _lookup->setLookupReply(LookupReplyPrx::uncheckedCast(_replyAdapter->createProxy(id)->ice_datagram()));
+
 
     //
     // Setup locator on the communicator.
     //
     Ice::ObjectPrx loc = _locatorAdapter->addWithUUID(new LocatorI(_lookup, locatorRegistryPrx));
-    _communicator->setDefaultLocator(Ice::LocatorPrx::uncheckedCast(loc));
+    _defaultLocator = _communicator->getDefaultLocator();
+    _locator = Ice::LocatorPrx::uncheckedCast(loc);
+    _communicator->setDefaultLocator(_locator);
 
     _multicastAdapter->activate();
     _replyAdapter->activate();
@@ -169,4 +175,9 @@ PluginI::destroy()
     _replyAdapter->destroy();
     _locatorAdapter->destroy();
     _lookup->destroy();
+    // Restore original default locator proxy, if the user didn't change it in the meantime.
+    if(_communicator->getDefaultLocator() == _locator)
+    {
+        _communicator->setDefaultLocator(_defaultLocator);
+    }
 }

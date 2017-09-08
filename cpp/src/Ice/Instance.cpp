@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -183,7 +183,6 @@ private:
 
     const InstancePtr _instance;
 };
-
 
 //
 // Timer specialization which supports the thread observer
@@ -1064,6 +1063,7 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
     _initData(initData),
     _messageSizeMax(0),
     _batchAutoFlushSize(0),
+    _classGraphDepthMax(0),
     _collectObjects(false),
     _implicitContext(0),
     _stringConverter(IceUtil::getProcessStringConverter()),
@@ -1132,21 +1132,25 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
                 string newUser = _initData.properties->getProperty("Ice.ChangeUser");
                 if(!newUser.empty())
                 {
-                    errno = 0;
-                    struct passwd* pw = getpwnam(newUser.c_str());
-                    if(!pw)
+                    struct passwd pwbuf;
+                    vector<char> buffer(4096); // 4KB initial buffer
+                    struct passwd *pw;
+                    int err = getpwnam_r(newUser.c_str(), &pwbuf, &buffer[0], buffer.size(), &pw);
+                    while(err == ERANGE && buffer.size() < 1024 * 1024) // Limit buffer to 1MB
                     {
-                        if(errno)
-                        {
-                            SyscallException ex(__FILE__, __LINE__);
-                            ex.error = getSystemErrno();
-                            throw ex;
-                        }
-                        else
-                        {
-                            InitializationException ex(__FILE__, __LINE__, "Unknown user account `" + newUser + "'");
-                            throw ex;
-                        }
+                        buffer.resize(buffer.size() * 2);
+                    }
+                    if(err != 0)
+                    {
+                        Ice::SyscallException ex(__FILE__, __LINE__);
+                        ex.error = err;
+                        throw ex;
+                    }
+                    else if(pw == 0)
+                    {
+                        InitializationException ex(__FILE__, __LINE__);
+                        ex.reason ="unknown user account `" + newUser + "'";
+                        throw ex;
                     }
 
                     if(setgid(pw->pw_gid) == -1)
@@ -1209,7 +1213,6 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
 #endif
             }
         }
-
 
         if(!_initData.logger)
         {
@@ -1300,6 +1303,19 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
             {
                 // Property is in kilobytes, convert in bytes.
                 const_cast<size_t&>(_batchAutoFlushSize) = static_cast<size_t>(num) * 1024;
+            }
+        }
+
+        {
+            static const int defaultValue = 0; // Disabled by default
+            Int num = _initData.properties->getPropertyAsIntWithDefault("Ice.ClassGraphDepthMax", defaultValue);
+            if(num < 1 || static_cast<size_t>(num) > static_cast<size_t>(0x7fffffff))
+            {
+                const_cast<size_t&>(_classGraphDepthMax) = static_cast<size_t>(0x7fffffff);
+            }
+            else
+            {
+                const_cast<size_t&>(_classGraphDepthMax) = static_cast<size_t>(num);
             }
         }
 
@@ -1461,7 +1477,7 @@ IceInternal::Instance::finishSetup(int& argc, char* argv[], const Ice::Communica
     {
         _wstringConverter = newWstringConverter;
     }
-    else if(!dynamic_cast<IceUtil::UnicodeWstringConverter*>(_wstringConverter.get()))
+    else
     {
         _wstringConverter = new IceUtil::UnicodeWstringConverter;
     }
@@ -1889,7 +1905,6 @@ IceInternal::Instance::updateThreadObservers()
     {
     }
 }
-
 
 BufSizeWarnInfo
 IceInternal::Instance::getBufSizeWarn(Short type)

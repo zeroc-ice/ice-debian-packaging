@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -139,8 +139,13 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
                 }
             }
             _connections.clear();
-            _monitor.destroy();
         }
+
+        //
+        // Must be destroyed outside the synchronization since this might block waiting for
+        // a timer task to execute.
+        //
+        _monitor.destroy();
     }
 
     public EndpointI
@@ -533,7 +538,7 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
                 if(_acceptor != null)
                 {
                     //
-                    // If possible, close the acceptor now to prevent new connections from 
+                    // If possible, close the acceptor now to prevent new connections from
                     // being accepted while we are deactivating. This is especially useful
                     // if there are no more threads in the thread pool available to dispatch
                     // the finish() call.

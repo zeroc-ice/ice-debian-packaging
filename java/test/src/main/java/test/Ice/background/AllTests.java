@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -695,6 +695,7 @@ public class AllTests
             }
             catch(Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
 
@@ -721,6 +722,7 @@ public class AllTests
             }
             catch(Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
 
@@ -762,6 +764,7 @@ public class AllTests
             }
             catch(Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
 
@@ -801,6 +804,7 @@ public class AllTests
         }
         catch(Ice.LocalException ex)
         {
+            ex.printStackTrace();
             test(false);
         }
         background.ice_getConnection().close(false);
@@ -1068,6 +1072,7 @@ public class AllTests
         }
         catch(Ice.LocalException ex)
         {
+            ex.printStackTrace();
             test(false);
         }
 
@@ -1080,6 +1085,7 @@ public class AllTests
         }
         catch(Ice.LocalException ex)
         {
+            ex.printStackTrace();
             test(false);
         }
 
@@ -1242,6 +1248,7 @@ public class AllTests
         }
         catch(Ice.LocalException ex)
         {
+            ex.printStackTrace();
             test(false);
         }
 
@@ -1254,6 +1261,7 @@ public class AllTests
         }
         catch(Ice.LocalException ex)
         {
+            ex.printStackTrace();
             test(false);
         }
 
@@ -1296,6 +1304,7 @@ public class AllTests
             }
             catch(Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -198,7 +198,7 @@ namespace IceInternal
 
         public static bool notConnected(SocketException ex)
         {
-            // BUGFIX: SocketError.InvalidArgument because shutdown() under OS X returns EINVAL
+            // BUGFIX: SocketError.InvalidArgument because shutdown() under macOS returns EINVAL
             // if the server side is gone.
             // BUGFIX: shutdown() under Vista might return SocketError.ConnectionReset
             SocketError error = socketErrorCode(ex);

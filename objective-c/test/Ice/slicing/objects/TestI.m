@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -249,19 +249,19 @@
         // 1.0 encoding doesn't support unmarshaling unknown classes even if referenced
         // from unread slice.
         //
-        return [[TestSlicingObjectsServerPSUnknown alloc] init:5
+        return ICE_AUTORELEASE([[TestSlicingObjectsServerPSUnknown alloc] init:5
                                                             ps:@"preserved"
                                                            psu:@"unknown"
                                                          graph:0
-                                                            cl:nil];
+                                                            cl:nil]);
     }
     else
     {
-        return [[TestSlicingObjectsServerPSUnknown alloc] init:5
-                                                            ps:@"preserved"
-                                                           psu:@"unknown"
-                                                         graph:0
-                                                            cl:[[TestSlicingObjectsServerMyClass alloc] init:15]];
+        return ICE_AUTORELEASE([[TestSlicingObjectsServerPSUnknown alloc] init:5
+                                            ps:@"preserved"
+                                           psu:@"unknown"
+                                         graph:0
+                                            cl:ICE_AUTORELEASE([[TestSlicingObjectsServerMyClass alloc] init:15])]);
     }
 }
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -51,8 +51,10 @@ ext.projectPom = {
 
 task writeNewPom {
     outputs.file file(pomName)
-} << {
-    projectPom().writeTo(pomName)
+
+    doLast {
+        projectPom().writeTo(pomName)
+    }
 }
 
 jar.dependsOn(writeNewPom)
@@ -136,16 +138,19 @@ if(jarsClassPath.toBoolean()){
         into "${DESTDIR}${jarDir}"
     }
 
-    task updateInstallManifest(dependsOn: copyJars) << {
-        ant.jar(update: true, destfile: "${DESTDIR}${jarDir}/${jar.archiveName}") {
-            delegate.manifest {
-                attribute(name: "Built-By", value: "ZeroC, Inc.")
-                attribute(name: "Class-Path", value: configurations.runtime.resolve().collect { "file://${it.absolutePath}" }.join(' ').replaceAll("${libDir}", "${jarDir}"))
+    task updateInstallManifest(dependsOn: copyJars) {
+        outputs.file("${DESTDIR}${jarDir}/${jar.archiveName}")
+        doLast {
+            ant.jar(update: true, destfile: "${DESTDIR}${jarDir}/${jar.archiveName}") {
+                delegate.manifest {
+                    attribute(name: "Built-By", value: "ZeroC, Inc.")
+                    attribute(name: "Class-Path", value: configurations.runtime.resolve().collect { "file://${it.absolutePath}" }.join(' ').replaceAll("${libDir}", "${jarDir}"))
+                }
             }
         }
     }
-    updateInstallManifest.files("${DESTDIR}${jarDir}/${jar.archiveName}")
-    install.dependsOn(updateInstallManifest)
+    task install(dependsOn:updateInstallManifest, overwrite: true) {
+    }
 } else {
     task install(type: Copy, dependsOn: jarSources, overwrite: true) {
         from "${pomName}"

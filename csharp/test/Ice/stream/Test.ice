@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -95,6 +95,25 @@ sequence<float> FloatStack;
 sequence<SmallStruct> SmallStructStack;
 ["clr:generic:Stack"]
 sequence<MyClass*> MyClassProxyStack;
+
+["clr:generic:Stack"]
+sequence<Object*> ObjectProxyStack;
+
+//
+// This will produce a warning and use the default 
+// sequence mapping. The generic:Stack metadata cannot be use
+// with object sequences.
+//
+["clr:generic:Stack"]
+sequence<Object> ObjectStack;
+
+//
+// This will produce a warning and use the default 
+// sequence mapping. The generic:Stack metadata cannot be use
+// with object sequences.
+//
+["clr:generic:Stack"]
+sequence<MyClass> MyClassStack;
 
 ["clr:generic:Queue"]
 sequence<double> DoubleQueue;

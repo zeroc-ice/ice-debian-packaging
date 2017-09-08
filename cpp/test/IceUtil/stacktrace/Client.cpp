@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -28,6 +28,8 @@ namespace IceUtilInternal
 {
 extern bool ICE_UTIL_API printStackTraces;
 }
+
+#ifdef HAS_STACK_TRACES
 
 namespace
 {
@@ -113,7 +115,7 @@ getIceHome()
 void
 standardizeVersion(string& str)
 {
-    string v1("3.6.3");
+    string v1 = ICE_STRING_VERSION;
     string v2("36");
     size_t pos = 0;
     while((pos = str.find(v1, pos)) != string::npos)
@@ -137,6 +139,8 @@ splitLines(const string& str)
 }
 #endif
 }
+
+#endif
 
 int main(int argc, char* argv[])
 {

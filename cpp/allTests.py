@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -81,8 +81,8 @@ tests = [
     ("Ice/networkProxy", ["core", "noipv6", "nosocks"]),
     ("Ice/services", ["once", "nomingw"]),
     ("IceSSL/configuration", ["once", "novalgrind"]), # valgrind doesn't work well with openssl
-    ("IceBox/configuration", ["core", "noipv6", "novc100", "nomingw", "nomx"]),
-    ("IceBox/admin", ["core", "noipv6", "novc100", "nomingw", "nomx"]),
+    ("IceBox/configuration", ["core", "noipv6", "nomingw", "nomx"]),
+    ("IceBox/admin", ["core", "noipv6", "nomingw", "nomx"]),
     ("Freeze/dbmap", ["once", "novc100", "nomingw"]),
     ("Freeze/complex", ["once", "novc100", "nomingw"]),
     ("Freeze/evictor", ["once", "novc100", "nomingw"]),

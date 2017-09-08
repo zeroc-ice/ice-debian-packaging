@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -110,6 +110,7 @@ public:
     Ice::PluginManagerPtr pluginManager() const;
     size_t messageSizeMax() const { return _messageSizeMax; }
     size_t batchAutoFlushSize() const { return _batchAutoFlushSize; }
+    size_t classGraphDepthMax() const { return _classGraphDepthMax; }
     bool collectObjects() const { return _collectObjects; }
     const ACMConfig& clientACM() const;
     const ACMConfig& serverACM() const;
@@ -170,6 +171,7 @@ private:
     const DefaultsAndOverridesPtr _defaultsAndOverrides; // Immutable, not reset by destroy().
     const size_t _messageSizeMax; // Immutable, not reset by destroy().
     const size_t _batchAutoFlushSize; // Immutable, not reset by destroy().
+    const size_t _classGraphDepthMax; // Immutable, not reset by destroy().
     const bool _collectObjects; // Immutable, not reset by destroy().
     ACMConfig _clientACM;
     ACMConfig _serverACM;

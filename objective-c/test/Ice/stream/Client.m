@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -599,7 +599,7 @@ run(id<ICECommunicator> communicator)
     }
 
     {
-        TestStreamMyInterface ICE_AUTORELEASING_QUALIFIER * i = [TestStreamMyInterface new];
+        TestStreamMyInterface ICE_AUTORELEASING_QUALIFIER * i = ICE_AUTORELEASE([TestStreamMyInterface new]);
         out = [ICEUtil createOutputStream:communicator];
         [TestStreamMyInterfaceHelper write:i stream:out];
         [out writePendingObjects];

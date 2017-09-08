@@ -2,7 +2,7 @@
 <!--
  **********************************************************************
 
- Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+ Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 
  This copy of Ice is licensed to you under the terms described in the
  ICE_LICENSE file included in this distribution.
@@ -327,6 +327,7 @@ generated from the section label.
         <property name="BatchAutoFlush" deprecated="true"/>
         <property name="BatchAutoFlushSize" />
         <property name="ChangeUser" />
+        <property name="ClassGraphDepthMax" />
         <property name="ClientAccessPolicyProtocol" />
         <property name="Compression.Level" />
         <property name="CollectObjects"/>
@@ -428,7 +429,7 @@ generated from the section label.
         <property name="DomainId"/>
     </section>
 
-    <section name="IceGridDiscovery">
+    <section name="IceLocatorDiscovery">
         <property name="Reply" class="objectadapter" />
         <property name="Locator" class="objectadapter" />
         <property name="Lookup"/>

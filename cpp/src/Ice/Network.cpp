@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -155,30 +155,6 @@ setKeepAlive(SOCKET fd)
         SocketException ex(__FILE__, __LINE__);
         ex.error = getSocketErrno();
         throw ex;
-    }
-}
-#endif
-
-#if defined(_WIN32) && !defined(ICE_OS_WINRT)
-void
-setTcpLoopbackFastPath(SOCKET fd)
-{
-    int OptionValue = 1;
-    DWORD NumberOfBytesReturned = 0;
-
-    int status =
-        WSAIoctl(fd, SIO_LOOPBACK_FAST_PATH, &OptionValue, sizeof(OptionValue), NULL, 0, &NumberOfBytesReturned, 0, 0);
-    if(status == SOCKET_ERROR)
-    {
-	    // On platforms that do not support fast path (< Windows 8), WSAEONOTSUPP is expected.
-        DWORD LastError = ::GetLastError();
-        if(LastError != WSAEOPNOTSUPP)
-        {
-            closeSocketNoThrow(fd);
-            SocketException ex(__FILE__, __LINE__);
-            ex.error = getSocketErrno();
-            throw ex;
-        }
     }
 }
 #endif
@@ -933,7 +909,7 @@ IceInternal::getAddresses(const string& host, int port, ProtocolSupport protocol
 
     // In theory, getaddrinfo should only return EAI_NONAME if
     // AI_NUMERICHOST is specified and the host name is not a IP
-    // address. However on some platforms (e.g. OS X 10.4.x)
+    // address. However on some platforms (e.g. macOS 10.4.x)
     // EAI_NODATA is also returned so we also check for it.
 #  ifdef EAI_NODATA
     if(!blocking && (rs == EAI_NONAME || rs == EAI_NODATA))
@@ -1238,10 +1214,10 @@ IceInternal::closeSocket(SOCKET fd)
     WSASetLastError(error);
 #else
     int error = errno;
-    
+
 #  if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
     //
-    // FreeBSD returns ECONNRESET if the underlying object was 
+    // FreeBSD returns ECONNRESET if the underlying object was
     // a stream socket that was shut down by the peer before all
     // pending data was delivered.
     //
