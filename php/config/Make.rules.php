@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -17,14 +17,14 @@ prefix			?= /opt/Ice-$(VERSION)
 #
 # The "root directory" for runpath embedded in executables. Can be set
 # to change the runpath added to Ice executables. The default is
-# platform dependent (Linux only, on OS X the embedded runpath is always
+# platform dependent (Linux only, on macOS the embedded runpath is always
 # based on @loader_path).
 #
 #embedded_runpath_prefix ?= /opt/Ice-$(VERSION_MAJOR).$(VERSION_MINOR)
 
 #
 # Define embedded_runpath as no if you don't want any RPATH added to
-# the executables (Linux only, on OS X we always add a runpath).
+# the executables (Linux only, on macOS we always add a runpath).
 #
 embedded_runpath 	?= yes
 
@@ -68,10 +68,6 @@ ice_language     = php
 ice_require_cpp  = yes
 slice_translator = slice2php
 
-ifeq ($(shell $(PHP_CONFIG) --libs /dev/null && echo 0),0)
-    $(error $(PHP_CONFIG) not found review your PHP installation and ensure $(PHP_CONFIG) is in your PATH)
-endif
-
 ifeq ($(shell test -f $(top_srcdir)/config/Make.common.rules && echo 0),0)
     include $(top_srcdir)/config/Make.common.rules
 else
@@ -80,12 +76,18 @@ endif
 
 libdir		= $(top_srcdir)/lib
 
-ifndef usr_dir_install
-    install_phpdir	= $(prefix)/php
-    install_libdir  	= $(prefix)/php
-else
-    install_phpdir  	= $(prefix)/share/php
-    install_libdir  	= $(shell $(PHP_CONFIG) --extension-dir)
+ifeq ($(findstring /php/test/,$(abspath $(MAKEFILE_LIST))),)
+    ifneq ($(shell type $(PHP_CONFIG) > /dev/null 2>&1 && echo 0),0)
+        $(error $(PHP_CONFIG) not found review your PHP installation and ensure $(PHP_CONFIG) is in your PATH)
+    endif
+
+    ifndef usr_dir_install
+        install_phpdir	= $(prefix)/php
+        install_libdir  	= $(prefix)/php
+    else
+        install_phpdir  	= $(prefix)/share/php
+        install_libdir  	= $(shell $(PHP_CONFIG) --extension-dir)
+    endif
 endif
 
 ifdef ice_src_dist

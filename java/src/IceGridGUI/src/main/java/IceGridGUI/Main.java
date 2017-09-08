@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -29,7 +29,7 @@ public class Main extends JFrame
         //
         try
         {
-            if(System.getProperty("os.name").startsWith("Mac OS")) // OS X L&F
+            if(System.getProperty("os.name").startsWith("Mac OS")) // macOS L&F
             {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             }
@@ -37,10 +37,13 @@ public class Main extends JFrame
             {
                 UIManager.setLookAndFeel("com.jgoodies.looks.windows.WindowsLookAndFeel");
             }
-            else  // JGoodies L&F
-            {
-                UIManager.setLookAndFeel("com.jgoodies.looks.plastic.PlasticLookAndFeel");
-            }
+            //
+            // Setting PlasticLookAndFeel trigger a crash when creating a JFileChooser.
+            //
+            //else  // JGoodies L&F
+            //{
+            //    UIManager.setLookAndFeel("com.jgoodies.looks.plastic.PlasticLookAndFeel");
+            //}
         }
         catch(Exception e)
         {
@@ -88,10 +91,10 @@ public class Main extends JFrame
                 {
                     if(_coordinator != null)
                     {
-                        if(_coordinator.needsSaving()) 
+                        if(_coordinator.needsSaving())
                         {
                             if(JOptionPane.showOptionDialog(
-                                            Main.this, 
+                                            Main.this,
                                             "The application has unsave changes, if you exit all unsaved changes will be lost.\n" +
                                             "Exit and discard changes?",
                                             "Save application", JOptionPane.YES_NO_OPTION,

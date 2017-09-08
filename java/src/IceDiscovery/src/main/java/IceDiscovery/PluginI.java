@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -86,7 +86,8 @@ public class PluginI implements Ice.Plugin
         }
 
         Ice.ObjectPrx lookupPrx = _communicator.stringToProxy("IceDiscovery/Lookup -d:" + lookupEndpoints);
-        lookupPrx = lookupPrx.ice_collocationOptimized(false); // No collocation optimization for the multicast proxy!
+        // No collocation optimization for the multicast proxy!
+        lookupPrx = lookupPrx.ice_collocationOptimized(false).ice_router(null);
         try
         {
             lookupPrx.ice_getConnection();
@@ -108,14 +109,17 @@ public class PluginI implements Ice.Plugin
         LookupI lookup = new LookupI(locatorRegistry, LookupPrxHelper.uncheckedCast(lookupPrx), properties);
         _multicastAdapter.add(lookup, _communicator.stringToIdentity("IceDiscovery/Lookup"));
 
-        Ice.ObjectPrx lookupReply = _replyAdapter.addWithUUID(new LookupReplyI(lookup)).ice_datagram();
-        lookup.setLookupReply(LookupReplyPrxHelper.uncheckedCast(lookupReply));
+        _replyAdapter.addDefaultServant(new LookupReplyI(lookup), "");
+        final Ice.Identity id = new Ice.Identity("dummy", "");
+        lookup.setLookupReply(LookupReplyPrxHelper.uncheckedCast(_replyAdapter.createProxy(id).ice_datagram()));
 
         //
         // Setup locator on the communicator.
         //
         Ice.ObjectPrx locator = _locatorAdapter.addWithUUID(new LocatorI(lookup, locatorRegistryPrx));
-        _communicator.setDefaultLocator(Ice.LocatorPrxHelper.uncheckedCast(locator));
+        _defaultLocator = _communicator.getDefaultLocator();
+        _locator = Ice.LocatorPrxHelper.uncheckedCast(locator);
+        _communicator.setDefaultLocator(_locator);
 
         _multicastAdapter.activate();
         _replyAdapter.activate();
@@ -126,13 +130,29 @@ public class PluginI implements Ice.Plugin
     public void
     destroy()
     {
-        _multicastAdapter.destroy();
-        _replyAdapter.destroy();
-        _locatorAdapter.destroy();
+        if(_multicastAdapter != null)
+        {
+            _multicastAdapter.destroy();
+        }
+        if(_replyAdapter != null)
+        {
+            _replyAdapter.destroy();
+        }
+        if(_locatorAdapter != null)
+        {
+            _locatorAdapter.destroy();
+        }
+        if(_communicator.getDefaultLocator().equals(_locator))
+        {
+            // Restore original default locator proxy, if the user didn't change it in the meantime
+            _communicator.setDefaultLocator(_defaultLocator);
+        }
     }
 
     private Ice.Communicator _communicator;
     private Ice.ObjectAdapter _multicastAdapter;
     private Ice.ObjectAdapter _replyAdapter;
     private Ice.ObjectAdapter _locatorAdapter;
+    private Ice.LocatorPrx _locator;
+    private Ice.LocatorPrx _defaultLocator;
 }

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -22,11 +22,23 @@ using namespace IcePHP;
 
 ZEND_DECLARE_MODULE_GLOBALS(ice)
 
+//
+// BUGFIX Avoid narrowing conversion warnings with ZEND_BEGIN_ARG_INFO_EX usage
+// in PHP >= 5.4
+//
+#if ZEND_MODULE_API_NO >= 20100525
 ZEND_BEGIN_ARG_INFO_EX(Ice_initialize_arginfo, 1, ZEND_RETURN_VALUE, static_cast<zend_uint>(-1))
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(Ice_createProperties_arginfo, 1, ZEND_RETURN_VALUE, static_cast<zend_uint>(-1))
 ZEND_END_ARG_INFO()
+#else
+ZEND_BEGIN_ARG_INFO_EX(Ice_initialize_arginfo, 1, ZEND_RETURN_VALUE, -1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(Ice_createProperties_arginfo, 1, ZEND_RETURN_VALUE, -1)
+ZEND_END_ARG_INFO()
+#endif
 
 #define ICEPHP_COMMUNICATOR_FUNCTIONS \
     ZEND_FE(Ice_initialize, Ice_initialize_arginfo) \

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -672,10 +672,8 @@ IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::B
                 throw IceUtilInternal::lastErrorToString();
             }
 
-            CERT_SIMPLE_CHAIN* simpleChain = certChain->rgpChain[0];
-
             string trustError;
-            if(simpleChain->TrustStatus.dwErrorStatus != CERT_TRUST_NO_ERROR)
+            if(certChain->TrustStatus.dwErrorStatus != CERT_TRUST_NO_ERROR)
             {
                 trustError = trustStatusToString(certChain->TrustStatus.dwErrorStatus);
             }

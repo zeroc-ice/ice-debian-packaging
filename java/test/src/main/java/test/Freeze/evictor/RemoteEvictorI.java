@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -59,7 +59,7 @@ public final class RemoteEvictorI extends _RemoteEvictorDisp
         _category = category;
 
         //
-        // NOTE: COMPILERBUG: The timeout here is required for OS X. It shouldn't be too low since
+        // NOTE: COMPILERBUG: The timeout here is required for macOS. It shouldn't be too low since
         // some operations can take some time to complete on slow machines.
         //
         _evictorAdapter = communicator.

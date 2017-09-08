@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -138,21 +138,6 @@ Client::run(int argc, char* argv[])
     {
         cerr << appName() << ": `" << base << "' is not an IceBox::ServiceManager" << endl;
         return EXIT_FAILURE;
-    }
-
-    Ice::SliceChecksumDict serverChecksums = manager->getSliceChecksums();
-    Ice::SliceChecksumDict localChecksums = Ice::sliceChecksums();
-    for(Ice::SliceChecksumDict::const_iterator p = localChecksums.begin(); p != localChecksums.end(); ++p)
-    {
-        Ice::SliceChecksumDict::const_iterator q = serverChecksums.find(p->first);
-        if(q == serverChecksums.end())
-        {
-            cerr << appName() << ": server is using unknown Slice type `" << q->first << "'" << endl;
-        }
-        else if(p->second != q->second)
-        {
-            cerr << appName() << ": server is using a different Slice definition of `" << q->first << "'" << endl;
-        }
     }
 
     for(vector<string>::const_iterator r = commands.begin(); r != commands.end(); ++r)

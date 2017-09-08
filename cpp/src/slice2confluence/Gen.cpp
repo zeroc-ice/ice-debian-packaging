@@ -1,12 +1,13 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
 
+#include <IceUtil/FileUtil.h>
 #include <IceUtil/Functional.h>
 #include <IceUtil/StringUtil.h>
 #include <Slice/FileTracker.h>
@@ -1804,7 +1805,7 @@ Slice::GeneratorBase::makeDir(const string& dir)
 string
 Slice::GeneratorBase::readFile(const string& file)
 {
-    ifstream in(file.c_str());
+    std::ifstream in(file.c_str());
     if(!in)
     {
         ostringstream os;
@@ -1840,7 +1841,7 @@ Slice::GeneratorBase::getFooter(const string& footer)
 void
 Slice::GeneratorBase::readFile(const string& file, string& part1, string& part2)
 {
-    ifstream in(file.c_str());
+    std::ifstream in(file.c_str());
     if(!in)
     {
         ostringstream os;

@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -14,8 +14,8 @@
 SHELL		= /bin/sh
 VERSION_MAJOR   = 3
 VERSION_MINOR   = 6
-VERSION_PATCH   = 3
-VERSION         = 3.6.3
+VERSION_PATCH   = 4
+VERSION         = 3.6.4
 SHORT_VERSION   = 3.6
 SOVERSION	= 36
 
@@ -391,7 +391,7 @@ ifneq ($(ice_dir), $(usr_dir))
     endif
 
     ifneq ($(findstring MINGW,$(UNAME)),)
-	set PATH := $(ice_lib_dir);$(PATH)
+	export PATH := $(ice_lib_dir):$(PATH)
     endif
 endif
 

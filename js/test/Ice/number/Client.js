@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -50,6 +50,7 @@
                 test(new Ice.Long(0xFFFFFFFE, 0x00000001).toNumber() === -(Math.pow(2, 33) - 1));   // -(2^33 - 1)
                 test(new Ice.Long(0xFFF00000, 0x00000000).toNumber() === -Math.pow(2, 52));         // -(2^52)
                 test(new Ice.Long(0xFFF00000, 0x00000001).toNumber() === -(Math.pow(2, 52) - 1));   // -(2^52 - 1)
+                test(new Ice.Long(0xFFE00000, 0x00000001).toNumber() === -(Math.pow(2, 53) - 1));   // -(2^53 - 1)
                 test(new Ice.Long(0xFFE00000, 0x00000000).toNumber() === Number.NEGATIVE_INFINITY); // -(2^53)
                 out.writeLine("ok");
             });

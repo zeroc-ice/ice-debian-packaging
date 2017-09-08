@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -83,7 +83,7 @@ include $(top_srcdir)/config/Make.rules
 CPPFLAGS	:= $(CPPFLAGS) -I. -I.. $(READLINE_FLAGS)
 ICECPPFLAGS	:= $(ICECPPFLAGS) -I..
 SLICE2CPPFLAGS	:= --ice --include-dir IceStorm -I. $(SLICE2CPPFLAGS)
-LINKWITH	:= $(BZIP2_RPATH_LINK) -lIceStorm -lIceGrid -lGlacier2 -lFreeze -lIceBox -lIce -lIceUtil
+LINKWITH	:= $(BZIP2_RPATH_LINK) -lIceStorm -lIceGrid -lFreeze -lIceBox -lIce -lIceUtil
 
 $(libdir)/$(LIBFILENAME): $(LIB_OBJS)
 	@mkdir -p $(dir $@)

@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -43,7 +43,7 @@ USE_NAMESPACES		= no
 # Set PHP_HOME to your PHP source directory.
 #
 !if "$(PHP_HOME)" == ""
-PHP_HOME		= C:\php-5.6.26
+PHP_HOME		= C:\php-5.6.31
 !endif
 
 #
@@ -51,9 +51,9 @@ PHP_HOME		= C:\php-5.6.26
 #
 !if "$(PHP_BIN_HOME)" == ""
 !if "$(PROCESSOR_ARCHITECTURE)" == "AMD64"
-PHP_BIN_HOME	 = $(PROGRAMFILES) (x86)\PHP
+PHP_BIN_HOME	 = $(PROGRAMFILES) (x86)\PHP\v5.6
 !else
-PHP_BIN_HOME	 = $(PROGRAMFILES)\PHP
+PHP_BIN_HOME	 = $(PROGRAMFILES)\PHP\v5.6
 !endif
 !endif
 

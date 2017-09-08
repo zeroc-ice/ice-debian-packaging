@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -218,7 +218,7 @@ public class AllTests
 
         //
         // Sending the replies back on the multicast UDP connection doesn't work for most
-        // platform (it works for OS X Leopard but not Snow Leopard, doesn't work on SLES,
+        // platform (it works for macOS Leopard but not Snow Leopard, doesn't work on SLES,
         // Windows...). For Windows, see UdpTransceiver constructor for the details. So
         // we don't run this test.
         //

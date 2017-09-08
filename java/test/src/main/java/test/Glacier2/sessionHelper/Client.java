@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,10 +9,12 @@
 
 package test.Glacier2.sessionHelper;
 
-import javax.swing.SwingUtilities;
 import java.io.PrintWriter;
 import test.Glacier2.sessionHelper.Test.CallbackPrx;
 import test.Glacier2.sessionHelper.Test.CallbackPrxHelper;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 
 public class Client extends test.Util.Application
 {
@@ -43,7 +45,7 @@ public class Client extends test.Util.Application
                 public void
                 dispatch(Runnable runnable, Ice.Connection connection)
                 {
-                    SwingUtilities.invokeLater(runnable);
+                    _workQueue.submit(runnable);
                 }
             };
 
@@ -116,13 +118,14 @@ public class Client extends test.Util.Application
             {
                 try
                 {
-                    wait();
+                    wait(30000);
                     break;
                 }
                 catch(java.lang.InterruptedException ex)
                 {
                 }
             }
+            test(!_session.isConnected());
         }
 
         _initData.properties.setProperty("Ice.Default.Router", "");
@@ -199,13 +202,14 @@ public class Client extends test.Util.Application
             {
                 try
                 {
-                    wait();
+                    wait(30000);
                     break;
                 }
                 catch(java.lang.InterruptedException ex)
                 {
                 }
             }
+            test(!_session.isConnected());
         };
 
         _factory = new Glacier2.SessionFactoryHelper(_initData, new Glacier2.SessionCallback()
@@ -260,7 +264,7 @@ public class Client extends test.Util.Application
             {
                 try
                 {
-                    wait();
+                    wait(30000);
                     break;
                 }
                 catch(java.lang.InterruptedException ex)
@@ -514,6 +518,8 @@ public class Client extends test.Util.Application
             out.println("ok");
         }
 
+        _workQueue.shutdown();
+
         return 0;
     }
 
@@ -536,6 +542,7 @@ public class Client extends test.Util.Application
     private Glacier2.SessionHelper _session;
     private Glacier2.SessionFactoryHelper _factory;
     private Ice.InitializationData _initData;
+    private ExecutorService _workQueue = Executors.newSingleThreadExecutor();
     static public Client me;
     final public PrintWriter out;
 }

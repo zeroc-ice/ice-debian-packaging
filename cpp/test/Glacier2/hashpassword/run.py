@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -27,8 +27,8 @@ def test(b):
         raise RuntimeError('test assertion failed')
 
 def hashPasswords(password, args = ""):
-    p = subprocess.Popen('%s "%s" %s' % (sys.executable, hashpassword, args), shell=True, stdout=subprocess.PIPE,
-                         stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+    p = subprocess.Popen('"%s" -W ignore "%s" %s' % (sys.executable, hashpassword, args), shell=True,
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
     p.stdin.write(password.encode('UTF-8'))
     p.stdin.write('\r\n'.encode('UTF-8'))
     p.stdin.flush()

@@ -8,6 +8,12 @@ We recommend that you use the release notes as a guide for migrating your
 applications to this release, and the manual for complete details on a
 particular aspect of Ice.
 
+- [Changes in Ice 3.6.4](#changes-in-ice-364)
+  - [General Changes](#general-changes)
+  - [C++ Changes](#c-changes)
+  - [Java Changes](#java-changes)
+  - [JavaScript Changes](#javascript-changes)
+  - [C# Changes](#c-changes-2)
 - [Changes in Ice 3.6.3](#changes-in-ice-363)
   - [General Changes](#general-changes)
   - [C++ Changes](#c-changes)
@@ -37,6 +43,72 @@ particular aspect of Ice.
   - [Python Changes](#python-changes-2)
   - [Ruby Changes](#ruby-changes-1)
 
+# Changes in Ice 3.6.4
+
+These are the changes since Ice 3.6.3.
+
+## General Changes
+
+- Fixed IceGrid node bug where a replica might not get up-to-date object
+  adapter information about a server if an update is pending for this
+  server. Thanks to Michael Gmelin for the bug report and fix.
+
+- Added support for a new `Ice.ClassGraphDepthMax` property to prevent stack
+  overflows in case a sender sends a very large graph.
+
+  The unmarshaling or destruction of a graph of Slice class instances is a
+  recursive operation. This property limits the amount of stack size required to
+  perform these operations. This property is supported with all the language
+  mappings except Java and JavaScript where it's not needed (the run time
+  environment allows graceful handling of stack overflows).
+
+  The default maximum class graph depth is infinite. If your application
+  receives class graphs in an insecure environment, you should set the
+  `Ice.ClassGraphDepthMax` to a value that ensures the thread pool stack size is
+  large enough to allow reading graphs without causing a stack overflow.
+
+- Fixed IceGrid bug where updating properties of an IceBox service at runtime
+  would fail if the service used the IceBox shared communicator. Thanks to
+  Andreas Sommer for the bug report and fix.
+
+- Fixed a bug in the Slice compilers: they generated incorrect dependencies for
+  Slice files in directories with the string ".ice" in their path.
+
+- Significantly reduced the size of the Windows binary distribution by
+  moving all C++ debug information (PDB files) to https://symbols.zeroc.com.
+  Also removed the WinRT libraries from the Windows binary distribution.
+
+## C++ Changes
+
+- Fixed a spurious and harmless error message related to the kqueue selector.
+  This message would only show up under certain circumstances when using Ice
+  on macOS Sierra (10.2).
+
+- Fixed a bug which would cause an IceUtil::NullHandleException to be raised when
+  using a proxy configured with ice_invocationTimeout(-2) with collocated calls.
+
+- Fixed a bug which caused PTHREAD_PRIO_INHERIT to be ignored when building Ice
+  with -DICE_PRIO_INHERIT.
+
+## Java Changes
+
+- Fixed generated code bug which would cause a build failure if an interface
+  inherited from an interface from another module and if this interface had
+  operations returning multiple values.
+
+## JavaScript Changes
+
+- Fixed a bug in the Ice.Long toNumber implementation: negative integers
+  smaller than -(2^52 - 1) were not correctly handled.
+
+## CSharp Changes
+
+- Fixed a bug that affects the Stack sequence mapping. When using the Stack
+mapping with a sequence<Object*>, items were unmarshaled in reverse
+order.
+
+- Fixed a bug where incorrect code could be generated for invalid metadata
+directives.
 
 # Changes in Ice 3.6.3
 
@@ -146,7 +218,7 @@ These are the changes since Ice 3.6.1.
 - Fixed potential deadlock that could occur when using collocation optimization
   and serialized server thread pools.
 
-- Fixed IceSSL bug that would only show up with WSS servers running on OS X
+- Fixed IceSSL bug that would only show up with WSS servers running on macOS
   and Linux. The WSS server could stop reading requests if the client sent
   multiple requests within the same SSL record.
 
@@ -164,7 +236,7 @@ These are the changes since Ice 3.6.1.
 - Fixed an IceGridGUI bug where metrics attributes for Glacier2 and IceStorm
   were not displayed.
 
-- Fixed an IceGridGUI bug where the GUI started minimized in OS X.
+- Fixed an IceGridGUI bug where the GUI started minimized in macOS.
 
 ## Python Changes
 
@@ -247,7 +319,7 @@ These are the changes since Ice 3.6.0.
 
 ## PHP Changes
 
-- Update PHP builds for Linux and OS X to use php-config from PATH. It is no
+- Update PHP builds for Linux and macOS to use php-config from PATH. It is no
   longer necessary to set PHP_HOME.
 
 # Changes in Ice 3.6.0
@@ -312,7 +384,7 @@ These are the changes since Ice 3.5.1.
   member should always be `true` since servers always reject invalid client
   certificates.
 
-- The Ice distribution now supports the Objective-C mapping on OS X.
+- The Ice distribution now supports the Objective-C mapping on macOS.
 
 - The Glacier2 `SessionHelper` class now creates the callback object adapter
   automatically unless the application calls
@@ -616,11 +688,11 @@ These are the changes since Ice 3.5.1.
 
 - Significant changes to the IceSSL plug-in:
 
-    - Now uses the native SecureTransport API on OS X
+    - Now uses the native SecureTransport API on macOS
     - Now uses the native SChannel API on Windows
     - OpenSSL is only used in IceSSL on Linux
 
-- Added support for the `IceSSL.FindCert` property on Windows and OS X.
+- Added support for the `IceSSL.FindCert` property on Windows and macOS.
 
 - Added the new metadata tag `cpp:view-type:Type`, where `Type` is a type that
   can safely provide a "view" into the Ice unmarshaling buffer and thereby avoid

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -36,7 +36,7 @@ using namespace IceSSL;
 //
 // See: http://cvs.openssl.org/chngview?cn=22569
 //
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL && !defined(LIBRESSL_VERSION_NUMBER)
 namespace
 {
 
@@ -156,13 +156,13 @@ IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::B
         //
         // See: http://cvs.openssl.org/chngview?cn=22569
         //
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL && !defined(LIBRESSL_VERSION_NUMBER)
         IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(sslMutex);
 #endif
 
         int ret = _incoming ? SSL_accept(_ssl) : SSL_connect(_ssl);
 
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x100000bfL && !defined(LIBRESSL_VERSION_NUMBER)
         sync.release();
 #endif
         if(ret <= 0)
@@ -190,44 +190,37 @@ IceSSL::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::B
             }
             case SSL_ERROR_SYSCALL:
             {
-                if(ret == 0)
+                if(IceInternal::interrupted())
+                {
+                    break;
+                }
+
+                if(IceInternal::wouldBlock())
+                {
+                    if(SSL_want_read(_ssl))
+                    {
+                        return IceInternal::SocketOperationRead;
+                    }
+                    else if(SSL_want_write(_ssl))
+                    {
+                        return IceInternal::SocketOperationWrite;
+                    }
+
+                    break;
+                }
+
+                if(IceInternal::connectionLost() || IceInternal::getSocketErrno() == 0)
                 {
                     ConnectionLostException ex(__FILE__, __LINE__);
-                    ex.error = 0;
+                    ex.error = IceInternal::getSocketErrno();
                     throw ex;
                 }
-
-                if(ret == -1)
+                else
                 {
-                    if(IceInternal::interrupted())
-                    {
-                        break;
-                    }
-
-                    if(IceInternal::wouldBlock())
-                    {
-                        if(SSL_want_read(_ssl))
-                        {
-                            return IceInternal::SocketOperationRead;
-                        }
-                        else if(SSL_want_write(_ssl))
-                        {
-                            return IceInternal::SocketOperationWrite;
-                        }
-
-                        break;
-                    }
-
-                    if(IceInternal::connectionLost())
-                    {
-                        ConnectionLostException ex(__FILE__, __LINE__);
-                        ex.error = IceInternal::getSocketErrno();
-                        throw ex;
-                    }
+                    SocketException ex(__FILE__, __LINE__);
+                    ex.error = IceInternal::getSocketErrno();
+                    throw ex;
                 }
-                SocketException ex(__FILE__, __LINE__);
-                ex.error = IceInternal::getSocketErrno();
-                throw ex;
             }
             case SSL_ERROR_SSL:
             {
@@ -382,42 +375,35 @@ IceSSL::TransceiverI::write(IceInternal::Buffer& buf)
             }
             case SSL_ERROR_SYSCALL:
             {
-                if(ret == -1)
+                if(IceInternal::interrupted())
                 {
-                    if(IceInternal::interrupted())
-                    {
-                        continue;
-                    }
-
-                    if(IceInternal::noBuffers() && packetSize > 1024)
-                    {
-                        packetSize /= 2;
-                        continue;
-                    }
-
-                    if(IceInternal::wouldBlock())
-                    {
-                        assert(SSL_want_write(_ssl));
-                        return IceInternal::SocketOperationWrite;
-                    }
-
-                    if(IceInternal::connectionLost())
-                    {
-                        ConnectionLostException ex(__FILE__, __LINE__);
-                        ex.error = IceInternal::getSocketErrno();
-                        throw ex;
-                    }
+                    continue;
                 }
-                if(ret == 0)
+
+                if(IceInternal::noBuffers() && packetSize > 1024)
+                {
+                    packetSize /= 2;
+                    continue;
+                }
+
+                if(IceInternal::wouldBlock())
+                {
+                    assert(SSL_want_write(_ssl));
+                    return IceInternal::SocketOperationWrite;
+                }
+
+                if(IceInternal::connectionLost() || IceInternal::getSocketErrno() == 0)
                 {
                     ConnectionLostException ex(__FILE__, __LINE__);
-                    ex.error = 0;
+                    ex.error = IceInternal::getSocketErrno();
                     throw ex;
                 }
-
-                SocketException ex(__FILE__, __LINE__);
-                ex.error = IceInternal::getSocketErrno();
-                throw ex;
+                else
+                {
+                    SocketException ex(__FILE__, __LINE__);
+                    ex.error = IceInternal::getSocketErrno();
+                    throw ex;
+                }
             }
             case SSL_ERROR_SSL:
             {
@@ -493,43 +479,35 @@ IceSSL::TransceiverI::read(IceInternal::Buffer& buf, bool& hasMoreData)
             }
             case SSL_ERROR_SYSCALL:
             {
-                if(ret == -1)
+                if(IceInternal::interrupted())
                 {
-                    if(IceInternal::interrupted())
-                    {
-                        continue;
-                    }
-
-                    if(IceInternal::noBuffers() && packetSize > 1024)
-                    {
-                        packetSize /= 2;
-                        continue;
-                    }
-
-                    if(IceInternal::wouldBlock())
-                    {
-                        assert(SSL_want_read(_ssl));
-                        return IceInternal::SocketOperationRead;
-                    }
-
-                    if(IceInternal::connectionLost())
-                    {
-                        ConnectionLostException ex(__FILE__, __LINE__);
-                        ex.error = IceInternal::getSocketErrno();
-                        throw ex;
-                    }
+                    continue;
                 }
 
-                if(ret == 0)
+                if(IceInternal::noBuffers() && packetSize > 1024)
+                {
+                    packetSize /= 2;
+                    continue;
+                }
+
+                if(IceInternal::wouldBlock())
+                {
+                    assert(SSL_want_read(_ssl));
+                    return IceInternal::SocketOperationRead;
+                }
+
+                if(IceInternal::connectionLost() || IceInternal::getSocketErrno() == 0)
                 {
                     ConnectionLostException ex(__FILE__, __LINE__);
-                    ex.error = 0;
+                    ex.error = IceInternal::getSocketErrno();
                     throw ex;
                 }
-
-                SocketException ex(__FILE__, __LINE__);
-                ex.error = IceInternal::getSocketErrno();
-                throw ex;
+                else
+                {
+                    SocketException ex(__FILE__, __LINE__);
+                    ex.error = IceInternal::getSocketErrno();
+                    throw ex;
+                }
             }
             case SSL_ERROR_SSL:
             {

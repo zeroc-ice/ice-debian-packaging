@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -64,7 +64,7 @@ $(TESTLIBNAME): $(SLICE_OBJS)
 	$(AR) $(ARFLAGS) $(SLICE_OBJS) /out:$(TESTLIBNAME)
 
 $(CLIENT)$(EXT): $(COBJS) $(TESTLIBNAME)
-	$(LINK) $(LD_TESTFLAGS) $(CPDBFLAGS) $(COBJS) $(PREOUT)$@ $(PRELIBS)$(LIBS) $(OBJDIR)\libTestDerived.lib
+	$(LINK) /STACK:8388608 $(LD_TESTFLAGS) $(CPDBFLAGS) $(COBJS) $(PREOUT)$@ $(PRELIBS)$(LIBS) $(OBJDIR)\libTestDerived.lib
 	@if exist $@.manifest echo ^ ^ ^ Embedding manifest using $(MT) && \
 	    $(MT) -nologo -manifest $@.manifest -outputresource:$@;#1 && del /q $@.manifest
 

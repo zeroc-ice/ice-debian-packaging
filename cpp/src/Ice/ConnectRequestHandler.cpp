@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -151,15 +151,20 @@ Ice::ConnectionIPtr
 ConnectRequestHandler::getConnection()
 {
     Lock sync(*this);
-    if(_exception.get())
-    {
-        _exception->ice_throw();
-        return 0; // Keep the compiler happy.
-    }
-    else
+    //
+    // First check for the connection, it's important otherwise the user could first get a connection
+    // and then the exception if he tries to obtain the proxy cached connection mutiple times (the
+    // exception can be set after the connection is set if the flush of pending requests fails).
+    //
+    if(_connection)
     {
         return _connection;
     }
+    else if(_exception.get())
+    {
+        _exception->ice_throw();
+    }
+    return 0;
 }
 
 Ice::ConnectionIPtr
@@ -195,7 +200,7 @@ ConnectRequestHandler::setConnection(const Ice::ConnectionIPtr& connection, bool
 {
     {
         Lock sync(*this);
-        assert(!_exception.get() && !_connection);
+        assert(!_flushing && !_exception.get() && !_connection);
         _connection = connection;
         _compress = compress;
     }
@@ -219,17 +224,17 @@ ConnectRequestHandler::setConnection(const Ice::ConnectionIPtr& connection, bool
 void
 ConnectRequestHandler::setException(const Ice::LocalException& ex)
 {
-    Lock sync(*this);
-    assert(!_initialized && !_exception.get());
-    _exception.reset(ex.ice_clone());
-    _proxies.clear();
-    _proxy = 0; // Break cyclic reference count.
+    {
+        Lock sync(*this);
+        assert(!_flushing && !_initialized && !_exception.get());
+        _flushing = true; // Ensures request handler is removed before processing new requests.
+        _exception.reset(ex.ice_clone());
+    }
 
     //
-    // NOTE: remove the request handler *before* notifying the
-    // requests that the connection failed. It's important to ensure
-    // that future invocations will obtain a new connect request
-    // handler once invocations are notified.
+    // NOTE: remove the request handler *before* notifying the requests that the connection
+    // failed. It's important to ensure that future invocations will obtain a new connect
+    // request handler once invocations are notified.
     //
     try
     {
@@ -255,7 +260,14 @@ ConnectRequestHandler::setException(const Ice::LocalException& ex)
         }
     }
     _requests.clear();
-    notifyAll();
+
+    {
+        Lock sync(*this);
+        _flushing = false;
+        _proxies.clear();
+        _proxy = 0; // Break cyclic reference count.
+        notifyAll();
+    }
 }
 
 void
@@ -280,7 +292,7 @@ ConnectRequestHandler::initialized()
     }
     else
     {
-        while(_flushing && !_exception.get())
+        while(_flushing)
         {
             wait();
         }

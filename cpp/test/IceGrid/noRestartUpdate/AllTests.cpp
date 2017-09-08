@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -565,6 +565,9 @@ allTests(const Ice::CommunicatorPtr& communicator)
         service->name = "Service2";
         icebox->services[1].descriptor = ServiceDescriptorPtr::dynamicCast(service->ice_clone());
         service->name = "Service3";
+        // Test also with shared communicator because it uses different proxy name
+        // and thus different branches in code.
+        addProperty(icebox, "IceBox.UseSharedCommunicator.Service3", "1");
         icebox->services[2].descriptor = ServiceDescriptorPtr::dynamicCast(service->ice_clone());
 
         try

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -555,7 +555,7 @@ namespace Ice
         /// <returns>The Ice version.</returns>
         public static string stringVersion()
         {
-            return "3.6.3"; // "A.B.C", with A=major, B=minor, C=patch
+            return "3.6.4"; // "A.B.C", with A=major, B=minor, C=patch
         }
 
         /// <summary>
@@ -566,7 +566,7 @@ namespace Ice
         /// <returns>The Ice version.</returns>
         public static int intVersion()
         {
-            return 30603; // AABBCC, with AA=major, BB=minor, CC=patch
+            return 30604; // AABBCC, with AA=major, BB=minor, CC=patch
         }
 
         /// <summary>

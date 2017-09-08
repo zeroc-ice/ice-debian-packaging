@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -89,13 +89,6 @@ CPP_COMPILER=auto
 !include $(top_srcdir)\config\Make.common.rules.mak
 !endif
 
-#
-# With VC100, we want unique dll names by default
-#
-!if "$(CPP_COMPILER)" == "VC100" && "$(UNIQUE_DLL_NAMES)" == ""
-UNIQUE_DLL_NAMES        = yes
-!endif
-
 bindir			= $(top_srcdir)\bin
 libdir			= $(top_srcdir)\lib
 headerdir		= $(top_srcdir)\include
@@ -172,7 +165,7 @@ SSL_OS_LIBS             = advapi32.lib secur32.lib crypt32.lib ws2_32.lib
 
 PKG_DIR			= $(top_srcdir)\third-party-packages
 
-BZIP2_VERSION		= 1.0.6.2
+BZIP2_VERSION		= 1.0.6.7
 BZIP2_HOME		= $(PKG_DIR)\bzip2.$(PLATFORMTOOLSET)
 BZIP2_CPPFLAGS		= /I"$(BZIP2_HOME)\build\native\include"
 BZIP2_LDFLAGS		= /LIBPATH:"$(BZIP2_HOME)\build\native\lib\$(PLATFORM)\$(CONFIGURATION)"
@@ -206,7 +199,7 @@ NUGET 			= $(LOCALAPPDATA)\ZeroC\nuget\nuget.exe
 
 "$(NUGET)":
 	@if not exist "$(LOCALAPPDATA)\ZeroC\nuget" $(MKDIR) "$(LOCALAPPDATA)\ZeroC\nuget"
-	powershell -Command "(New-Object Net.WebClient).DownloadFile('http://nuget.org/nuget.exe', '$(NUGET)')"
+	powershell -Command "(New-Object Net.WebClient).DownloadFile('http://dist.nuget.org/win-x86-commandline/v3.4.4/NuGet.exe', '$(NUGET)')"
 
 $(BZIP2_NUPKG): "$(NUGET)"
 	@if not exist "$(PKG_DIR)" $(MKDIR) "$(PKG_DIR)"
@@ -231,7 +224,6 @@ $(EXPAT_NUPKG): "$(NUGET)"
 !endif
 
 !endif
-
 
 CPPFLAGS		= $(CPPFLAGS) -I"$(includedir)"
 ICECPPFLAGS		= -I"$(slicedir)"

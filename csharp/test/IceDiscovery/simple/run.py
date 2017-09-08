@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -30,7 +30,7 @@ args += " --IceDiscovery.Timeout=50"
 args += " --IceDiscovery.RetryCount=5"
 
 if TestUtil.isDarwin() and TestUtil.ipv6:
-   print("test not supported on OS X with IPv6")
+   print("test not supported on macOS with IPv6")
    sys.exit(0)
 
 if not TestUtil.ipv6:

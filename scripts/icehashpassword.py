@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -120,7 +120,8 @@ def main():
             usage()
             return 2
 
-    encryptfn = passScheme.encrypt
+    # passlib 1.7 renamed encrypt to hash
+    encryptfn = passScheme.hash if hasattr(passScheme, "hash") else passScheme.encrypt
 
     args = []
     if sys.stdout.isatty():

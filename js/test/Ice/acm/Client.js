@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -279,7 +279,7 @@
         runTestCase: function(adapter, proxy)
         {
             var self = this;
-            return Ice.Promise.delay(1500).then(function()
+            return Ice.Promise.delay(2000).then(function()
                                                 {
                                                     test(self._heartbeat === 0);
                                                     test(self._closed);

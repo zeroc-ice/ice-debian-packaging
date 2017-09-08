@@ -1,14 +1,14 @@
-# Building Ice for Python on Linux and OS X
+# Building Ice for Python on Linux and macOS
 
 This page describes how to build and install Ice for Python from source code on
-Linux and OS X. If you prefer, you can also download [binary distributions][1]
+Linux and macOS. If you prefer, you can also download [binary distributions][1]
 for the supported platforms.
 
 ## Python Build Requirements
 
 ### Operating Systems and Compilers
 
-Ice for Python is expected to build and run properly on OS X and any recent
+Ice for Python is expected to build and run properly on macOS and any recent
 Linux distribution for x86 and x86_64, and was extensively tested using the
 operating systems and compiler versions listed for our [supported platforms][2].
 
@@ -62,5 +62,5 @@ After a successful build, you can run the tests as follows:
 If everything worked out, you should see lots of `ok` messages. In case of a
 failure, the tests abort with `failed`.
 
-[1]: https://zeroc.com/download.html
-[2]: https://doc.zeroc.com/display/Ice36/Supported+Platforms+for+Ice+3.6.3
+[1]: https://zeroc.com/downloads/ice
+[2]: https://doc.zeroc.com/display/Ice36/Supported+Platforms+for+Ice+and+Ice+Touch+3.6.4
