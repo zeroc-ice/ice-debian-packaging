@@ -1,4 +1,4 @@
-\zeroc-ice (3.6.4-1) unstable; urgency=medium
+zeroc-ice (3.6.4-buster-1) unstable; urgency=medium
 
   * Removed icegridgui patch, no longer necessary with 3.6.4
   * Set iceBuilderClassPath to use the local Ice Builder plug-in
