@@ -1,0 +1,15 @@
+--- a/config/Make.common.rules
++++ b/config/Make.common.rules
+@@ -145,9 +145,9 @@
+ #
+ ifneq ($(wildcard /etc/debian_version),)
+     HOST_ARCH          	= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+-    DEB_HOST_MULTIARCH 	?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+-    lp64suffix		?= /$(DEB_HOST_MULTIARCH)
+-    lp32suffix		?= /$(DEB_HOST_MULTIARCH)
++    DEB_HOST_MULTIARCH 	= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
++    lp64suffix		= /$(DEB_HOST_MULTIARCH)
++    lp32suffix		= /$(DEB_HOST_MULTIARCH)
+ endif
+ 
+ 
