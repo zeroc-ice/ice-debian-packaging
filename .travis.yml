@@ -1,6 +1,9 @@
 sudo: required
 language: generic
 
+env:
+  - TRAVIS_DEBIAN_DISTRIBUTION=stable
+
 services:
   - docker
 
@@ -10,3 +13,4 @@ script:
 branches:
   except:
     - /^debian\/\d/
+    - /^upstream.*/
