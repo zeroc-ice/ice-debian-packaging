@@ -1,3 +1,10 @@
+zeroc-ice (3.6.4-2+buster) UNRELEASED; urgency=medium
+
+  * Fix build failure with SID debian.travis.net image
+  * Fix bogus loop in getpwnam_r system call
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Mon, 20 Nov 2017 09:56:10 +0100
+
 zeroc-ice (3.6.4-1+buster) unstable; urgency=medium
 
   * Removed icegridgui patch, no longer necessary with 3.6.4
