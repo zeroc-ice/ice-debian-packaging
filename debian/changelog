@@ -1,8 +1,9 @@
 zeroc-ice (3.6.4-2) UNRELEASED; urgency=medium
 
   * Don't enable IceGrid and Glacier2 services on install
+  * Fix bogus loop in getpwnam_r system call
 
- -- Benoit Foucher <benoit@zeroc.com>  Fri, 17 Nov 2017 11:07:43 +0200
+ -- José Gutiérrez de la Concha <jose@zeroc.com> Mon, 20 Nov 2017 13:04:23 +0100
 
 zeroc-ice (3.6.4-1) unstable; urgency=medium
 
