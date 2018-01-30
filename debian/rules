@@ -18,7 +18,7 @@ include /usr/share/dpkg/default.mk
 export JAVA_HOME=/usr/lib/jvm/default-java
 
 export GRADLE		= gradle
-export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
+export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
 			  --info \
 			  --console plain \
 			  --offline \
