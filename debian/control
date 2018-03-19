@@ -74,11 +74,14 @@ Description: Ice for Java run-time libraries.
 
 
 Package: libzeroc-ice-java
-Depends: libzeroc-ice3.7-java (= ${binary:Version}), zeroc-ice-compilers (= ${binary:Version}), ${misc:Depends}
+Depends: libzeroc-ice3.7-java (= ${binary:Version}),
+         zeroc-ice-compilers (>= ${source:Version}),
+         zeroc-ice-compilers (<< ${source:Version}.1~),
+         ${misc:Depends}
 Architecture: all
 Priority: extra
 Section: oldlibs
-Description: libzeroc-ice-java transitional package
+Description: transitional package libzeroc-ice-java
  This is a transitional package for libzeroc-ice-java. It can safely be removed.
 
 Package: libzeroc-ice3.7
