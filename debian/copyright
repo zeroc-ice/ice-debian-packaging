@@ -2,7 +2,7 @@ Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: ZeroC Ice
 Upstream-Contact: ZeroC Info <info@zeroc.com>
 Source: https://github.com/zeroc-ice/
-Files-Excluded: */gradle/GRADLE_LICENSE */gradle/wrapper */gradlew*
+Files-Excluded: */gradle/GRADLE_LICENSE */gradle/wrapper */gradlew* cpp/src/IceUtil/ConvertUTF.*
 
 Files: *
 Copyright: 2003-2017 ZeroC, Inc.
@@ -12,11 +12,6 @@ Files: debian/*
 Copyright: 2003-2017 ZeroC, Inc.
            2016 Ondřej Surý
 License: GPL-2.0+exceptions
-
-Files: cpp/src/IceUtil/ConvertUTF.cpp
-       cpp/src/IceUtil/ConvertUTF.h
-Copyright: 2001-2004 Unicode, Inc.
-License: Unicode
 
 Files: cpp/src/Slice/MD5I.cpp
        cpp/src/Slice/MD5I.h
