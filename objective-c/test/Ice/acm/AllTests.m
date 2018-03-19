@@ -178,6 +178,7 @@
 
     _cond = [[NSCondition alloc] init];
     _logger = [[LoggerI alloc] init];
+    _thread = nil;
 
     _clientACMTimeout = -1;
     _clientACMClose = -1;
@@ -196,6 +197,7 @@
 {
     [_cond release];
     [_logger release];
+    [_thread release];
     [super dealloc];
 }
 #endif
@@ -358,6 +360,7 @@
 {
     [_cond lock];
     [_test run];
+    _test = nil; // Break cyclic reference count
     _called = YES;
     [_cond signal];
     [_cond unlock];
@@ -380,6 +383,12 @@
 @end
 
 @implementation InvocationHeartbeatTest
++(id) testCase:(id<TestACMRemoteCommunicatorPrx>)com
+{
+    id tc = [super testCase:com];
+    [tc setServerACM:1 close:-1 heartbeat:-1]; // Faster ACM to make sure we receive enough ACM heartbeats
+    return tc;
+}
 +(NSString*) getName
 {
       return @"invocation heartbeat";
@@ -391,7 +400,7 @@
     [_cond lock];
     @try
     {
-        test(_heartbeat >= 2);
+        test(_heartbeat >= 6);
     }
     @finally
     {
@@ -486,8 +495,8 @@
 +(id) testCase:(id<TestACMRemoteCommunicatorPrx>)com
 {
     id tc = [super testCase:com];
-    [tc setClientACM:2 close:1 heartbeat:0]; // Only close on idle.
-    [tc setServerACM:2 close:2 heartbeat:0]; // Disable heartbeat on invocations
+    [tc setClientACM:1 close:1 heartbeat:0]; // Only close on idle.
+    [tc setServerACM:1 close:2 heartbeat:0]; // Disable heartbeat on invocations
     return tc;
 }
 +(NSString*) getName
@@ -497,7 +506,7 @@
 -(void) runTestCase:(id<TestACMRemoteObjectAdapterPrx>)adapter proxy:(id<TestACMTestIntfPrx>)proxy
 {
     // No close on invocation, the call should succeed this time.
-    [proxy sleep:4];
+    [proxy sleep:3];
 
     [_cond lock];
     @try
@@ -522,7 +531,7 @@
 +(id) testCase:(id<TestACMRemoteCommunicatorPrx>)com
 {
     id tc = [super testCase:com];
-    [tc setClientACM:2 close:1 heartbeat:0]; // Only close on idle.
+    [tc setClientACM:1 close:1 heartbeat:0]; // Only close on idle.
     return tc;
 }
 +(NSString*) getName
@@ -559,7 +568,7 @@
 +(id) testCase:(id<TestACMRemoteCommunicatorPrx>)com
 {
     id tc = [super testCase:com];
-    [tc setClientACM:2 close:2 heartbeat:0]; // Only close on invocation
+    [tc setClientACM:1 close:2 heartbeat:0]; // Only close on invocation
     return tc;
 }
 +(NSString*) getName
@@ -595,7 +604,7 @@
 +(id) testCase:(id<TestACMRemoteCommunicatorPrx>)com
 {
     id tc = [super testCase:com];
-    [tc setClientACM:2 close:3 heartbeat:0]; // Only close on idle and invocation
+    [tc setClientACM:1 close:3 heartbeat:0]; // Only close on idle and invocation
     return tc;
 }
 +(NSString*) getName
@@ -645,7 +654,7 @@
 +(id) testCase:(id<TestACMRemoteCommunicatorPrx>)com
 {
     id tc = [super testCase:com];
-    [tc setClientACM:2 close:4 heartbeat:0]; // Only close on idle and invocation
+    [tc setClientACM:1 close:4 heartbeat:0]; // Only close on idle and invocation
     return tc;
 }
 +(NSString*) getName
@@ -684,7 +693,7 @@
 +(id) testCase:(id<TestACMRemoteCommunicatorPrx>)com
 {
     id tc = [super testCase:com];
-    [tc setServerACM:2 close:-1 heartbeat:2]; // Enable server heartbeats.
+    [tc setServerACM:1 close:-1 heartbeat:2]; // Enable server heartbeats.
     return tc;
 }
 +(NSString*) getName
@@ -694,7 +703,7 @@
 -(void) runTestCase:(id<TestACMRemoteObjectAdapterPrx>)adapter proxy:(id<TestACMTestIntfPrx>)proxy
 {
     [_cond lock];
-    [_cond waitUntilDate:[NSDate dateWithTimeIntervalSinceNow:4]];
+    [_cond waitUntilDate:[NSDate dateWithTimeIntervalSinceNow:3]];
     [_cond unlock];
 
     [_cond lock];
@@ -719,7 +728,7 @@
 +(id) testCase:(id<TestACMRemoteCommunicatorPrx>)com
 {
     id tc = [super testCase:com];
-    [tc setServerACM:2 close:-1 heartbeat:3]; // Enable server heartbeats.
+    [tc setServerACM:1 close:-1 heartbeat:3]; // Enable server heartbeats.
     return tc;
 }
 +(NSString*) getName
@@ -733,7 +742,7 @@
         [proxy ice_ping];
 
         [_cond lock];
-        [_cond waitUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.4]];
+        [_cond waitUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.3]];
         [_cond unlock];
     }
 

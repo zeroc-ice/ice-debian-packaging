@@ -136,7 +136,8 @@
             {
                 test(!prx.ice_getEncodingVersion().equals(Ice.Encoding_1_0));
                 test(obj instanceof Ice.UnknownSlicedValue);
-                test(obj.getUnknownTypeId() == "::Test::SUnknown");
+                test(obj.ice_id() == "::Test::SUnknown");
+                test(obj.ice_getSlicedData() !== null);
                 return prx.checkSUnknown(obj);
             },
             ex =>
@@ -569,7 +570,7 @@
             ex =>
             {
                 test(ex instanceof Test.BaseException);
-                test(ex.ice_name() == "Test::BaseException");
+                test(ex.ice_id() == "::Test::BaseException");
                 test(ex.sbe == "sbe");
                 test(ex.pb !== null);
                 test(ex.pb.sb == "sb");
@@ -583,7 +584,7 @@
             ex =>
             {
                 test(ex instanceof Test.DerivedException);
-                test(ex.ice_name() == "Test::DerivedException");
+                test(ex.ice_id() == "::Test::DerivedException");
                 test(ex.sbe == "sbe");
                 test(ex.pb !== null);
                 test(ex.pb.sb == "sb1");
@@ -604,7 +605,7 @@
             ex =>
             {
                 test(ex instanceof Test.DerivedException);
-                test(ex.ice_name() == "Test::DerivedException");
+                test(ex.ice_id() == "::Test::DerivedException");
                 test(ex.sbe == "sbe");
                 test(ex.pb !== null);
                 test(ex.pb.sb == "sb1");
@@ -625,7 +626,7 @@
             ex =>
             {
                 test(ex instanceof Test.BaseException);
-                test(ex.ice_name() == "Test::BaseException");
+                test(ex.ice_id() == "::Test::BaseException");
                 test(ex.sbe == "sbe");
                 test(ex.pb !== null);
                 test(ex.pb.sb == "sb d2");
@@ -791,7 +792,15 @@
                     {
                         if(!prx.ice_getEncodingVersion().equals(Ice.Encoding_1_0))
                         {
+                            let slicedData = p.ice_getSlicedData();
+                            test(slicedData !== null);
+                            test(slicedData.slices.length === 1);
+                            test(slicedData.slices[0].typeId == "::Test::PSUnknown");
                             return prx.ice_encodingVersion(Ice.Encoding_1_0).checkPBSUnknown(p);
+                        }
+                        else
+                        {
+                            test(p.ice_getSlicedData() === null);
                         }
                     });
             }

@@ -11,7 +11,7 @@
 
 #include <Ice/BuiltinSequences.ice>
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build", "python:pkgdir:Ice"]]
 [["cpp:include:list"]]
 
 #ifndef __SLICE2JAVA_COMPAT__
@@ -56,8 +56,7 @@ enum LogMessageType
      *
      **/
     ErrorMessage
-};
-
+}
 
 /**
  *
@@ -65,7 +64,6 @@ enum LogMessageType
  *
  **/
 sequence<LogMessageType> LogMessageTypeSeq;
-
 
 /**
  *
@@ -103,8 +101,7 @@ struct LogMessage
      *
      **/
     string message;
-};
-
+}
 
 /**
  *
@@ -113,7 +110,6 @@ struct LogMessage
  **/
 ["cpp:type:std::list<LogMessage>"]
 sequence<LogMessage> LogMessageSeq;
-
 
 /**
  *
@@ -139,11 +135,10 @@ interface RemoteLogger
      **/
     void init(string prefix, LogMessageSeq logMessages);
 
-
     /**
      *
      * Log a {@link LogMessage}. Note that log may be called by {@link LoggerAdmin}
-     * before {@link #init}.
+     * before {@link RemoteLogger#init}.
      *
      * @param message The message to log.
      *
@@ -151,8 +146,7 @@ interface RemoteLogger
      *
      **/
     void log(LogMessage message);
-};
-
+}
 
 /**
  *
@@ -163,7 +157,7 @@ interface RemoteLogger
  **/
 exception RemoteLoggerAlreadyAttachedException
 {
-};
+}
 
 /**
  *
@@ -231,6 +225,6 @@ interface LoggerAdmin
      *
      **/
     LogMessageSeq getLog(LogMessageTypeSeq messageTypes, StringSeq traceCategories, int messageMax, out string prefix);
-};
+}
 
-};
+}

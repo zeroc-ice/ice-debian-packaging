@@ -12,6 +12,7 @@ namespace IceInternal
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Threading;
+    using System.Threading.Tasks;
 
     public delegate void ThreadPoolWorkItem();
     public delegate void AsyncCallback(object state);
@@ -154,7 +155,7 @@ namespace IceInternal
         internal readonly EventHandler _handler;
     }
 
-    public sealed class ThreadPool
+    public sealed class ThreadPool : System.Threading.Tasks.TaskScheduler
     {
         public ThreadPool(Instance instance, string prefix, int timeout)
         {
@@ -486,6 +487,31 @@ namespace IceInternal
             return _serialize;
         }
 
+        protected sealed override void QueueTask(System.Threading.Tasks.Task task)
+        {
+            dispatch(() => { TryExecuteTask(task); }, null, _dispatcher != null);
+        }
+
+        protected sealed override bool TryExecuteTaskInline(System.Threading.Tasks.Task task, bool taskWasPreviouslyQueued)
+        {
+            if(!taskWasPreviouslyQueued)
+            {
+                dispatchFromThisThread(() => { TryExecuteTask(task); }, null);
+                return true;
+            }
+            return false;
+        }
+
+        protected sealed override bool TryDequeue(System.Threading.Tasks.Task task)
+        {
+            return false;
+        }
+
+        protected sealed override IEnumerable<System.Threading.Tasks.Task> GetScheduledTasks()
+        {
+            return new System.Threading.Tasks.Task[0];
+        }
+
         private void run(WorkerThread thread)
         {
             ThreadPoolWorkItem workItem = null;
@@ -787,6 +813,11 @@ namespace IceInternal
                 _state = s;
             }
 
+            public Thread getThread()
+            {
+                return _thread;
+            }
+
             public void join()
             {
                 _thread.Join();
@@ -879,5 +910,4 @@ namespace IceInternal
 
         private Queue<ThreadPoolWorkItem> _workItems;
     }
-
 }

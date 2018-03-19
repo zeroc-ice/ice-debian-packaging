@@ -149,7 +149,7 @@ class DistinguishedNameI : public IceSSL::DistinguishedName
 {
 public:
 
-    DistinguishedNameI(X509_name_st* name) : 
+    DistinguishedNameI(X509_name_st* name) :
         IceSSL::DistinguishedName(IceSSL::RFC2253::parseStrict(convertX509NameToString(name)))
     {
         unescape();
@@ -349,7 +349,11 @@ OpenSSLCertificateI::OpenSSLCertificateI(x509_st* cert) : _cert(cert)
 {
     if(!_cert)
     {
+#ifdef ICE_CPP11_MAPPING
+        throw invalid_argument("Invalid certificate reference");
+#else
         throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, "Invalid certificate reference");
+#endif
     }
 }
 
@@ -437,7 +441,7 @@ string
 OpenSSLCertificateI::encode() const
 {
     BIO* out = BIO_new(BIO_s_mem());
-    int i = PEM_write_bio_X509_AUX(out, _cert);
+    int i = PEM_write_bio_X509(out, _cert);
     if(i <= 0)
     {
         BIO_free(out);
@@ -559,7 +563,7 @@ IceSSL::OpenSSL::Certificate::load(const std::string& file)
         throw CertificateReadException(__FILE__, __LINE__, "error opening file");
     }
 
-    x509_st* x = PEM_read_bio_X509_AUX(cert, ICE_NULLPTR, ICE_NULLPTR, ICE_NULLPTR);
+    x509_st* x = PEM_read_bio_X509(cert, ICE_NULLPTR, ICE_NULLPTR, ICE_NULLPTR);
     if(x == ICE_NULLPTR)
     {
         BIO_free(cert);
@@ -573,7 +577,7 @@ IceSSL::OpenSSL::CertificatePtr
 IceSSL::OpenSSL::Certificate::decode(const std::string& encoding)
 {
     BIO *cert = BIO_new_mem_buf(static_cast<void*>(const_cast<char*>(&encoding[0])), static_cast<int>(encoding.size()));
-    x509_st* x = PEM_read_bio_X509_AUX(cert, ICE_NULLPTR, ICE_NULLPTR, ICE_NULLPTR);
+    x509_st* x = PEM_read_bio_X509(cert, ICE_NULLPTR, ICE_NULLPTR, ICE_NULLPTR);
     if(x == ICE_NULLPTR)
     {
         BIO_free(cert);

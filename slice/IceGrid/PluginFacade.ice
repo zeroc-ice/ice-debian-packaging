@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEGRID_API", "objc:header-dir:objc", "objc:dll-export:ICEGRID_API"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEGRID_API", "objc:header-dir:objc", "objc:dll-export:ICEGRID_API", "python:pkgdir:IceGrid"]]
 [["cpp:include:IceGrid/Config.h"]]
 
 #include <Ice/BuiltinSequences.ice>
@@ -55,7 +55,7 @@ local interface ReplicaGroupFilter
      *
      **/
     Ice::StringSeq filter(string replicaGroupId, Ice::StringSeq adapterIds, Ice::Connection con, Ice::Context ctx);
-};
+}
 
 /**
  *
@@ -88,8 +88,7 @@ local interface TypeFilter
      *
      **/
     Ice::ObjectProxySeq filter(string type, Ice::ObjectProxySeq proxies, Ice::Connection con, Ice::Context ctx);
-};
-
+}
 
 /**
  *
@@ -318,6 +317,6 @@ local interface RegistryPluginFacade
      *
      **/
     bool removeTypeFilter(string type, TypeFilter filter);
-};
+}
 
-};
+}

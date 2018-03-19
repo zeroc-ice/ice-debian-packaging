@@ -1611,10 +1611,10 @@ IceInternal::RoutableReference::getConnectionNoRouterInfo(const GetConnectionCal
                     {
                         TraceLevelsPtr traceLvls = _reference->getInstance()->traceLevels();
                         if(traceLvls->retry >= 2)
-                            {
+                        {
                             Trace out(_reference->getInstance()->initializationData().logger, traceLvls->retryCat);
                             out << "connection to cached endpoints failed\n"
-                                << "removing endpoints from cache and trying one more time\n" << ex;
+                                << "removing endpoints from cache and trying again\n" << ex;
                         }
                         _reference->getConnectionNoRouterInfo(_callback); // Retry.
                         return;
@@ -1634,7 +1634,6 @@ IceInternal::RoutableReference::getConnectionNoRouterInfo(const GetConnectionCal
             const GetConnectionCallbackPtr _callback;
             const bool _cached;
         };
-
 
         virtual void
         setEndpoints(const vector<EndpointIPtr>& endpoints, bool cached)

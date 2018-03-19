@@ -57,7 +57,7 @@ protected:
 // responsible for the handling of the output stream and the child
 // invocation observer.
 //
-class ICE_API OutgoingAsyncBase : virtual public OutgoingAsyncCompletionCallback,
+class ICE_API OutgoingAsyncBase : public virtual OutgoingAsyncCompletionCallback,
 #ifdef ICE_CPP11_MAPPING
                                   public std::enable_shared_from_this<OutgoingAsyncBase>
 #else
@@ -101,14 +101,14 @@ public:
 
     virtual void throwLocalException() const;
 
-    virtual bool waitForResponse();
-    virtual Ice::InputStream* startReadParams();
-    virtual void endReadParams();
-    virtual void readEmptyParams();
-    virtual void readParamEncaps(const ::Ice::Byte*&, ::Ice::Int&);
-    virtual void throwUserException();
+    virtual bool _waitForResponse();
+    virtual Ice::InputStream* _startReadParams();
+    virtual void _endReadParams();
+    virtual void _readEmptyParams();
+    virtual void _readParamEncaps(const ::Ice::Byte*&, ::Ice::Int&);
+    virtual void _throwUserException();
 
-    virtual void scheduleCallback(const CallbackPtr&);
+    virtual void _scheduleCallback(const CallbackPtr&);
 #endif
 
     void attachRemoteObserver(const Ice::ConnectionInfoPtr& c, const Ice::EndpointPtr& endpt, Ice::Int requestId)
@@ -139,7 +139,7 @@ protected:
 
     bool sentImpl(bool);
     bool exceptionImpl(const Ice::Exception&);
-    bool responseImpl(bool);
+    bool responseImpl(bool, bool);
 
     void cancel(const Ice::LocalException&);
     void checkCanceled();
@@ -229,7 +229,7 @@ protected:
     void invokeImpl(bool);
     bool sentImpl(bool);
     bool exceptionImpl(const Ice::Exception&);
-    bool responseImpl(bool);
+    bool responseImpl(bool, bool);
 
     virtual void runTimerTask();
 
@@ -311,7 +311,7 @@ namespace IceInternal
 
 #ifdef ICE_CPP11_MAPPING
 
-class ICE_API LambdaInvoke : virtual public OutgoingAsyncCompletionCallback
+class ICE_API LambdaInvoke : public virtual OutgoingAsyncCompletionCallback
 {
 public:
 
@@ -336,7 +336,7 @@ protected:
 };
 
 template<typename Promise>
-class PromiseInvoke : virtual public OutgoingAsyncCompletionCallback
+class PromiseInvoke : public virtual OutgoingAsyncCompletionCallback
 {
 public:
 
@@ -721,7 +721,7 @@ private:
     Callback _sent;
 };
 
-class CallbackCompletion : virtual public OutgoingAsyncCompletionCallback
+class CallbackCompletion : public virtual OutgoingAsyncCompletionCallback
 {
 public:
 

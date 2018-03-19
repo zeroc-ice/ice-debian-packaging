@@ -30,7 +30,7 @@ public:
     BackgroundI(const BackgroundControllerIPtr&);
 
 private:
-    
+
     BackgroundControllerIPtr _controller;
 };
 
@@ -38,25 +38,24 @@ class BackgroundControllerI : public Test::BackgroundController, IceUtil::Monito
 {
 public:
 
-
     virtual void pauseCall(ICE_IN(std::string), const Ice::Current&);
     virtual void resumeCall(ICE_IN(std::string), const Ice::Current&);
     virtual void checkCallPause(const Ice::Current&);
 
     virtual void holdAdapter(const Ice::Current&);
     virtual void resumeAdapter(const Ice::Current&);
-    
+
     virtual void initializeSocketOperation(int, const Ice::Current&);
     virtual void initializeException(bool, const Ice::Current&);
 
     virtual void readReady(bool, const Ice::Current&);
     virtual void readException(bool, const Ice::Current&);
-    
+
     virtual void writeReady(bool, const Ice::Current&);
     virtual void writeException(bool, const Ice::Current&);
 
     virtual void buffered(bool, const Ice::Current&);
-    
+
     BackgroundControllerI(const Ice::ObjectAdapterPtr&, const ConfigurationPtr&);
 
 private:

@@ -11,21 +11,23 @@
 #import <TestCommon.h>
 #import <objects/TestI.h>
 
-// Note that the factory must not autorelease the
-// returned objects.
+#if defined(__clang__) && __has_feature(objc_arc)
+static ICEValueFactory factory = ^ICEObject* (NSString* type) NS_RETURNS_RETAINED
+#else
 static ICEValueFactory factory = ^ICEObject* (NSString* type)
+#endif
 {
     if([type isEqualToString:@"::Test::I"])
     {
-        return ICE_AUTORELEASE([[TestObjectsI alloc] init]);
+        return [[TestObjectsI alloc] init];
     }
     else if([type isEqualToString:@"::Test::J"])
     {
-        return ICE_AUTORELEASE([[TestObjectsJI alloc] init]);
+        return [[TestObjectsJI alloc] init];
     }
     else if([type isEqualToString:@"::Test::H"])
     {
-        return ICE_AUTORELEASE([[TestObjectsHI alloc] init]);
+        return [[TestObjectsHI alloc] init];
     }
     else
     {
@@ -68,6 +70,7 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     ICEregisterIceSSL(YES);
+    ICEregisterIceWS(YES);
 #if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
     ICEregisterIceIAP(YES);
 #endif

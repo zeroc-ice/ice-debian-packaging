@@ -79,7 +79,6 @@ isConstexprType(const TypePtr& type)
     }
 }
 
-
 string
 getDeprecateSymbol(const ContainedPtr& p1, const ContainedPtr& p2)
 {
@@ -571,7 +570,6 @@ Slice::Gen::generate(const UnitPtr& p)
     printGeneratedHeader(H, _base + ".ice");
     printHeader(C);
     printGeneratedHeader(C, _base + ".ice");
-
 
     string s = _base + "." + _headerExtension;;
     if(_include.size())
@@ -1195,7 +1193,11 @@ Slice::Gen::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
 
         if(preserved && !basePreserved)
         {
-            H << sp << nl << "virtual void _write(::Ice::OutputStream*) const;";
+            H << sp;
+            H << nl << "virtual ::Ice::SlicedDataPtr ice_getSlicedData() const;";
+
+            H << sp;
+            H << nl << "virtual void _write(::Ice::OutputStream*) const;";
             H << nl << "virtual void _read(::Ice::InputStream*);";
 
             string baseName = base ? fixKwd(base->scoped()) : string("::Ice::UserException");
@@ -1216,6 +1218,12 @@ Slice::Gen::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
         {
 
             H << sp << nl << "::Ice::SlicedDataPtr _slicedData;";
+
+            C << sp;
+            C << nl << "::Ice::SlicedDataPtr" << nl << scoped.substr(2) << "::ice_getSlicedData() const";
+            C << sb;
+            C << nl << "return _slicedData;";
+            C << eb;
 
             C << sp << nl << "void" << nl << scoped.substr(2) << "::_write(::Ice::OutputStream* ostr) const";
             C << sb;
@@ -1879,7 +1887,6 @@ Slice::Gen::ProxyVisitor::visitOperation(const OperationPtr& p)
     ParamDeclList inParams;
     ParamDeclList outParams;
 
-
     vector<string> outEndArgs;
 
     for(ParamDeclList::const_iterator q = paramList.begin(); q != paramList.end(); ++q)
@@ -2055,7 +2062,7 @@ Slice::Gen::ProxyVisitor::visitOperation(const OperationPtr& p)
     C << sb;
     if(p->returnsData())
     {
-        C << nl << "::Ice::AsyncResult::check(result, this, " << flatName << ");";
+        C << nl << "::Ice::AsyncResult::_check(result, this, " << flatName << ");";
 
         //
         // COMPILERFIX: It's necessary to generate the allocate code here before
@@ -2064,11 +2071,11 @@ Slice::Gen::ProxyVisitor::visitOperation(const OperationPtr& p)
         // and Windows 64 bits when compiled with optimization (see bug 4400).
         //
         writeAllocateCode(C, ParamDeclList(), p, true, _useWstring | TypeContextAMIEnd);
-        C << nl << "if(!result->waitForResponse())";
+        C << nl << "if(!result->_waitForResponse())";
         C << sb;
         C << nl << "try";
         C << sb;
-        C << nl << "result->throwUserException();";
+        C << nl << "result->_throwUserException();";
         C << eb;
         //
         // Generate a catch block for each legal user exception.
@@ -2096,17 +2103,17 @@ Slice::Gen::ProxyVisitor::visitOperation(const OperationPtr& p)
         C << eb;
         if(ret || !outParams.empty())
         {
-            C << nl << "::Ice::InputStream* istr = result->startReadParams();";
+            C << nl << "::Ice::InputStream* istr = result->_startReadParams();";
             writeUnmarshalCode(C, outParams, p, true, _useWstring | TypeContextAMIEnd);
             if(p->returnsClasses(false))
             {
                 C << nl << "istr->readPendingValues();";
             }
-            C << nl << "result->endReadParams();";
+            C << nl << "result->_endReadParams();";
         }
         else
         {
-            C << nl << "result->readEmptyParams();";
+            C << nl << "result->_readEmptyParams();";
         }
         if(ret)
         {
@@ -2126,12 +2133,12 @@ Slice::Gen::ProxyVisitor::visitOperation(const OperationPtr& p)
         C << sp << nl << "void IceProxy" << scope << "_iceI_end_" << name << spar << outParamsDeclEndAMI
           << "const ::Ice::AsyncResultPtr& result" << epar;
         C << sb;
-        C << nl << "::Ice::AsyncResult::check(result, this, " << flatName << ");";
-        C << nl << "if(!result->waitForResponse())";
+        C << nl << "::Ice::AsyncResult::_check(result, this, " << flatName << ");";
+        C << nl << "if(!result->_waitForResponse())";
         C << sb;
         C << nl << "try";
         C << sb;
-        C << nl << "result->throwUserException();";
+        C << nl << "result->_throwUserException();";
         C << eb;
         //
         // Generate a catch block for each legal user exception.
@@ -2160,17 +2167,17 @@ Slice::Gen::ProxyVisitor::visitOperation(const OperationPtr& p)
 
         if(ret || !outParams.empty())
         {
-            C << nl << "::Ice::InputStream* istr = result->startReadParams();";
+            C << nl << "::Ice::InputStream* istr = result->_startReadParams();";
             writeUnmarshalCode(C, outParams, p, true, _useWstring | TypeContextAMIPrivateEnd);
             if(p->returnsClasses(false))
             {
                 C << nl << "istr->readPendingValues();";
             }
-            C << nl << "result->endReadParams();";
+            C << nl << "result->_endReadParams();";
         }
         else
         {
-            C << nl << "result->readEmptyParams();";
+            C << nl << "result->_readEmptyParams();";
         }
         C << eb;
     }
@@ -2694,6 +2701,8 @@ Slice::Gen::ObjectVisitor::visitClassDefEnd(const ClassDefPtr& p)
 
         if(preserved && !basePreserved)
         {
+            H << sp << nl << "virtual ::Ice::SlicedDataPtr ice_getSlicedData() const;";
+
             H << sp;
             H << nl << "virtual void _iceWrite(::Ice::OutputStream*) const;";
             H << nl << "virtual void _iceRead(::Ice::InputStream*);";
@@ -2709,6 +2718,12 @@ Slice::Gen::ObjectVisitor::visitClassDefEnd(const ClassDefPtr& p)
 
         if(preserved && !basePreserved)
         {
+            C << sp;
+            C << nl << "::Ice::SlicedDataPtr" << nl << scoped.substr(2) << "::ice_getSlicedData() const";
+            C << sb;
+            C << nl << "return _iceSlicedData;";
+            C << eb;
+
             C << sp;
             C << nl << "void" << nl << scoped.substr(2) << "::_iceWrite(::Ice::OutputStream* ostr) const";
             C << sb;
@@ -3346,7 +3361,7 @@ Slice::Gen::ObjectVisitor::emitOneShotConstructor(const ClassDefPtr& p)
         DataMemberList dataMembers = p->dataMembers();
 
         int typeContext = p->isLocal() ? (_useWstring | TypeContextLocal) : _useWstring;
-        
+
         for(DataMemberList::const_iterator q = allDataMembers.begin(); q != allDataMembers.end(); ++q)
         {
 
@@ -4858,7 +4873,6 @@ Slice::Gen::MetaDataVisitor::validate(const SyntaxTreeBasePtr& cont, const Strin
     return newMetaData;
 }
 
-
 void
 Slice::Gen::normalizeMetaData(const UnitPtr& u, bool cpp11)
 {
@@ -4972,7 +4986,6 @@ Slice::Gen::NormalizeMetaDataVisitor::visitConst(const ConstPtr& p)
 {
     p->setMetaData(normalize(p->getMetaData()));
 }
-
 
 StringList
 Slice::Gen::NormalizeMetaDataVisitor::normalize(const StringList& metaData)
@@ -5208,7 +5221,7 @@ Slice::Gen::Cpp11DeclVisitor::visitClassDecl(const ClassDeclPtr& p)
     }
 
     H << nl << "class " << fixKwd(p->name()) << ';';
-    if(p->isInterface() || (def && !def->allOperations().empty()))
+    if(!p->isLocal() && (p->isInterface() || (def && !def->allOperations().empty())))
     {
         H << nl << "class " << p->name() << "Prx;";
     }
@@ -5521,7 +5534,6 @@ Slice::Gen::Cpp11TypesVisitor::visitExceptionStart(const ExceptionPtr& p)
     H << sp;
     H << nl << _dllMemberExport << "static const ::std::string& ice_staticId();";
 
-
     C << sp << nl << "const ::std::string&" << nl << scoped.substr(2) << "::ice_staticId()";
     C << sb;
     //
@@ -5574,10 +5586,19 @@ Slice::Gen::Cpp11TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
 
         if(preserved && !basePreserved)
         {
-            H << sp << nl << _dllMemberExport << "virtual void _write(::Ice::OutputStream*) const override;";
+            H << sp;
+            H << nl << _dllMemberExport << "virtual ::std::shared_ptr<::Ice::SlicedData> ice_getSlicedData() const override;";
+            H << sp;
+            H << nl << _dllMemberExport << "virtual void _write(::Ice::OutputStream*) const override;";
             H << nl << _dllMemberExport << "virtual void _read(::Ice::InputStream*) override;";
 
             H << sp << nl << "::std::shared_ptr<::Ice::SlicedData> _slicedData;";
+
+            C << sp;
+            C << nl << "::std::shared_ptr<::Ice::SlicedData>" << nl << scoped.substr(2) << "::ice_getSlicedData() const";
+            C << sb;
+            C << nl << "return _slicedData;";
+            C << eb;
 
             C << sp << nl << "void" << nl << scoped.substr(2) << "::_write(::Ice::OutputStream* ostr) const";
             C << sb;
@@ -5999,7 +6020,6 @@ Slice::Gen::Cpp11ProxyVisitor::visitOperation(const OperationPtr& p)
     H << "context" << epar << ";";
     H << eb;
 
-
     //
     // Lambda based asynchronous operation
     //
@@ -6333,7 +6353,7 @@ Slice::Gen::Cpp11ObjectVisitor::emitDataMember(const DataMemberPtr& p)
     ClassDefPtr cl = ClassDefPtr::dynamicCast(container);
     if(cl->isLocal())
     {
-        typeContext |= TypeContextLocal; 
+        typeContext |= TypeContextLocal;
     }
 
     H << nl << typeToString(p->type(), p->optional(), p->getMetaData(), typeContext) << ' ' << name;
@@ -6408,12 +6428,41 @@ Slice::Gen::Cpp11LocalObjectVisitor::visitClassDefStart(const ClassDefPtr& p)
     {
         return false;
     }
+
+    string name = fixKwd(p->name());
+
     if(p->isDelegate())
     {
+        int typeCtx = _useWstring | TypeContextLocal | TypeContextCpp11;
+
+        // Generate alias
+        H << sp << nl << "using " << name << " = ";
+
+        // A delegate only has one operation
+        OperationPtr op = p->allOperations().front();
+        TypePtr ret = op->returnType();
+        string retS = returnTypeToString(ret, op->returnIsOptional(), op->getMetaData(), typeCtx);
+
+        H << "::std::function<" << retS << "(";
+
+        ParamDeclList paramList = op->parameters();
+        for(ParamDeclList::iterator q = paramList.begin(); q != paramList.end(); ++q)
+        {
+            if((*q)->isOutParam())
+            {
+                H << outputTypeToString((*q)->type(), (*q)->optional(), (*q)->getMetaData(), typeCtx);
+            }
+            else
+            {
+                H << inputTypeToString((*q)->type(), (*q)->optional(), (*q)->getMetaData(), typeCtx);
+            }
+            H << (IceUtilInternal::distance(q, paramList.end()) == 1  ? "" : ", ");
+        }
+        H << ")>;";
+
         return false;
     }
 
-    string name = fixKwd(p->name());
     string scope = fixKwd(p->scope());
     string scoped = fixKwd(p->scoped());
     ClassList bases = p->bases();
@@ -6434,12 +6483,13 @@ Slice::Gen::Cpp11LocalObjectVisitor::visitClassDefStart(const ClassDefPtr& p)
         bool virtualInheritance = p->isInterface();
         while(q != bases.end())
         {
+            H << "public ";
             if(virtualInheritance || (*q)->isInterface())
             {
                 H << "virtual ";
             }
 
-            H << "public " << fixKwd((*q)->scoped());
+            H << fixKwd((*q)->scoped());
             if(++q != bases.end())
             {
                 H << ',' << nl;
@@ -6588,7 +6638,7 @@ Slice::Gen::Cpp11LocalObjectVisitor::visitOperation(const OperationPtr& p)
     int typeCtx = _useWstring | TypeContextLocal | TypeContextCpp11;
     TypePtr ret = p->returnType();
     string retS = returnTypeToString(ret, p->returnIsOptional(), p->getMetaData(),
-                                     typeCtx | TypeContextCpp11);
+                                     typeCtx);
 
     string params = "(";
     string paramsDecl = "(";
@@ -6647,9 +6697,6 @@ Slice::Gen::Cpp11LocalObjectVisitor::visitOperation(const OperationPtr& p)
 
     string deprecateSymbol = getDeprecateSymbol(p, cl);
 
-    H << sp;
-    H << nl << deprecateSymbol << "virtual " << retS << ' ' << fixKwd(name) << params << isConst << noExcept << " = 0;";
-
     if(cl->hasMetaData("async-oneway") || p->hasMetaData("async-oneway"))
     {
         vector<string> paramsDeclAMI;
@@ -6671,6 +6718,13 @@ Slice::Gen::Cpp11LocalObjectVisitor::visitOperation(const OperationPtr& p)
         }
 
         H << sp;
+        H << nl << deprecateSymbol << "virtual " << retS << ' ' << fixKwd(name) << spar << paramsDeclAMI << epar
+                << isConst << noExcept;
+        H << sb;
+        H << nl << name << "Async" << spar << paramsArgAMI << epar << ".get();";
+        H << eb;
+
+        H << sp;
         H << nl << "virtual ::std::function<void()>";
         H << nl << name << "Async(";
         H.useCurrentPosAsIndent();
@@ -6690,10 +6744,10 @@ Slice::Gen::Cpp11LocalObjectVisitor::visitOperation(const OperationPtr& p)
         H << nl << "template<template<typename> class P = ::std::promise>";
         H << nl << deprecateSymbol << "auto " << name << "Async" << spar << paramsDeclAMI << epar;
         H.inc();
-        H << nl << "-> decltype(::std::declval<P<bool>>().get_future())";
+        H << nl << "-> decltype(::std::declval<P<void>>().get_future())";
         H.dec();
         H << sb;
-        H << nl << "using Promise = P<bool>;";
+        H << nl << "using Promise = P<void>;";
         H << nl << "auto promise = ::std::make_shared<Promise>();";
 
         H << nl << name << "Async(";
@@ -6710,14 +6764,19 @@ Slice::Gen::Cpp11LocalObjectVisitor::visitOperation(const OperationPtr& p)
         H << sb;
         H << nl << "promise->set_exception(::std::move(ex));";
         H << eb << ",";
-        H << nl << "[promise](bool b)";
+        H << nl << "[promise](bool)";
         H << sb;
-        H << nl << "promise->set_value(b);";
+        H << nl << "promise->set_value();";
         H << eb << ");";
         H.restoreIndent();
 
         H << nl << "return promise->get_future();";
         H << eb;
+    }
+    else
+    {
+        H << sp;
+        H << nl << deprecateSymbol << "virtual " << retS << ' ' << fixKwd(name) << params << isConst << noExcept << " = 0;";
     }
 }
 
@@ -7282,6 +7341,14 @@ Slice::Gen::Cpp11ValueVisitor::visitClassDefEnd(const ClassDefPtr& p)
 
     if(preserved && !basePreserved)
     {
+        H << sp << nl << "virtual ::std::shared_ptr<::Ice::SlicedData> ice_getSlicedData() const override;";
+
+        C << sp;
+        C << nl << "::std::shared_ptr<::Ice::SlicedData>" << nl << scoped.substr(2) << "::ice_getSlicedData() const";
+        C << sb;
+        C << nl << "return _iceSlicedData;";
+        C << eb;
+
         H << sp;
         H << nl << "virtual void _iceWrite(::Ice::OutputStream*) const override;";
         H << nl << "virtual void _iceRead(::Ice::InputStream*) override;";
@@ -7468,7 +7535,7 @@ Slice::Gen::Cpp11ObjectVisitor::emitOneShotConstructor(const ClassDefPtr& p)
     {
         vector<string> allParamDecls;
         DataMemberList dataMembers = p->dataMembers();
-        
+
         int typeContext = _useWstring | TypeContextCpp11;
         if(p->isLocal())
         {
@@ -7640,7 +7707,6 @@ Slice::Gen::Cpp11StreamVisitor::visitEnum(const EnumPtr& p)
         H << eb << ";" << nl;
     }
 }
-
 
 Slice::Gen::Cpp11CompatibilityVisitor::Cpp11CompatibilityVisitor(Output& h, Output&, const string& dllExport) :
     H(h),

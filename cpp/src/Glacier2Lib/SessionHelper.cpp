@@ -41,7 +41,7 @@ public:
 
 private:
 
-    const Glacier2::SessionFactoryHelperPtr _factory;
+    const SessionFactoryHelperPtr _factory;
 };
 ICE_DEFINE_PTR(SessionThreadCallbackPtr, SessionThreadCallback);
 
@@ -72,7 +72,6 @@ public:
         _callback(callback)
     {
     }
-
 
     virtual
     void run()
@@ -286,10 +285,6 @@ Glacier2::SessionPrxPtr
 SessionHelperI::session() const
 {
     IceUtil::Mutex::Lock sync(_mutex);
-    if(!_session)
-    {
-        throw new Glacier2::SessionNotExistException();
-    }
     return _session;
 }
 
@@ -307,12 +302,12 @@ SessionHelperI::objectAdapter()
     return internalObjectAdapter();
 }
 
-
 Glacier2::SessionHelper::~SessionHelper()
 {
     // Out of line to avoid weak vtable
 }
 
+#ifndef ICE_CPP11_MAPPING
 bool
 Glacier2::SessionHelper::operator==(const Glacier2::SessionHelper& other) const
 {
@@ -324,6 +319,7 @@ Glacier2::SessionHelper::operator!=(const Glacier2::SessionHelper& other) const
 {
     return this != &other;
 }
+#endif
 
 Ice::ObjectAdapterPtr
 SessionHelperI::internalObjectAdapter()
@@ -344,7 +340,6 @@ Glacier2::SessionCallback::~SessionCallback()
 {
     // Out of line to avoid weak vtable
 }
-
 
 namespace
 {
@@ -622,7 +617,6 @@ private:
     const string _finder;
 };
 
-
 class DispatchCallThread : public IceUtil::Thread
 {
 
@@ -874,9 +868,9 @@ SessionHelperI::dispatchCallbackAndWait(const Ice::DispatcherCallPtr& call, cons
         IceUtilInternal::CountDownLatch cdl(1);
         Ice::DispatcherCallPtr callWait = new DispatcherCallWait(cdl, call);
 #ifdef ICE_CPP11_MAPPING
-        _initData.dispatcher([call]()
+        _initData.dispatcher([callWait]()
             {
-                call->run();
+                callWait->run();
             },
             conn);
 #else
@@ -1038,7 +1032,11 @@ Glacier2::SessionFactoryHelper::setProtocol(const string& protocol)
        protocol != "ws" &&
        protocol != "wss")
     {
+#ifdef ICE_CPP11_MAPPING
+        throw invalid_argument("Unknown protocol `" + protocol + "'");
+#else
         throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, "Unknown protocol `" + protocol + "'");
+#endif
     }
     _protocol = protocol;
 }
@@ -1093,7 +1091,7 @@ Glacier2::SessionFactoryHelper::getInitializationData() const
 }
 
 void
-Glacier2::SessionFactoryHelper::setConnectContext(map<string, string> context)
+Glacier2::SessionFactoryHelper::setConnectContext(const map<string, string>& context)
 {
     IceUtil::Mutex::Lock sync(_mutex);
     _context = context;

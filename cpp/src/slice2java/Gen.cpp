@@ -113,7 +113,6 @@ bool isValue(const TypePtr& type)
     return (b && b->usesClasses()) || cl;
 }
 
-
 // Returns java.util.OptionalXXX.ofYYY depending on the type
 string ofFactory(const TypePtr& type)
 {
@@ -1475,53 +1474,6 @@ Slice::JavaVisitor::writeDispatch(Output& out, const ClassDefPtr& p)
         out << nl << "throw new "
             << "com.zeroc.Ice.OperationNotExistException(current.id, current.facet, current.operation);";
         out << eb;
-
-        //
-        // Check if we need to generate ice_operationAttributes()
-        //
-
-        map<string, int> attributesMap;
-        for(OperationList::iterator r = allOps.begin(); r != allOps.end(); ++r)
-        {
-            int attributes = (*r)->attributes();
-            if(attributes != 0)
-            {
-                attributesMap.insert(map<string, int>::value_type((*r)->name(), attributes));
-            }
-        }
-
-        if(!attributesMap.empty())
-        {
-            out << sp << nl << "final static int[] _iceOperationAttributes =";
-            out << sb;
-            for(StringList::const_iterator q = allOpNames.begin(); q != allOpNames.end();)
-            {
-                int attributes = 0;
-                string opName = *q;
-                map<string, int>::iterator it = attributesMap.find(opName);
-                if(it != attributesMap.end())
-                {
-                    attributes = it->second;
-                }
-                out << nl << attributes;
-                if(++q != allOpNames.end())
-                {
-                    out << ',';
-                }
-                out  << " // " << opName;
-            }
-            out << eb << ';';
-
-            out << sp << nl << "@Override" << nl << "default int ice_operationAttributes(String operation)";
-            out << sb;
-            out << nl << "int pos = java.util.Arrays.binarySearch(_iceOps, operation);";
-            out << nl << "if(pos < 0)";
-            out << sb;
-            out << nl << "return -1;";
-            out << eb;
-            out << sp << nl << "return _iceOperationAttributes[pos];";
-            out << eb;
-        }
     }
 }
 
@@ -1546,6 +1498,13 @@ Slice::JavaVisitor::writeMarshaling(Output& out, const ClassDefPtr& p)
 
     if(preserved && !basePreserved)
     {
+        out << sp;
+        out << nl << "@Override";
+        out << nl << "public com.zeroc.Ice.SlicedData ice_getSlicedData()";
+        out << sb;
+        out << nl << "return _iceSlicedData;";
+        out << eb;
+
         out << sp;
         out << nl << "@Override";
         out << nl << "public void _iceWrite(com.zeroc.Ice.OutputStream ostr)";
@@ -2496,9 +2455,18 @@ Slice::Gen::TypesVisitor::visitClassDefStart(const ClassDefPtr& p)
         {
             out << " extends com.zeroc.Ice.Value";
         }
-        else
+
+        if(p->isLocal())
         {
-            implements.push_back("java.lang.Cloneable");
+            if(!baseClass)
+            {
+                implements.push_back("java.lang.Cloneable");
+            }
+
+            for(ClassList::const_iterator q = bases.begin(); q != bases.end(); ++q)
+            {
+                implements.push_back(getAbsolute(*q, package));
+            }
         }
 
         if(!implements.empty())
@@ -3166,6 +3134,13 @@ Slice::Gen::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
 
         if(preserved && !basePreserved)
         {
+            out << sp;
+            out << nl << "@Override";
+            out << nl << "public com.zeroc.Ice.SlicedData ice_getSlicedData()";
+            out << sb;
+            out << nl << "return _slicedData;";
+            out << eb;
+
             out << sp;
             out << nl << "@Override";
             out << nl << "public void _write(com.zeroc.Ice.OutputStream ostr)";
@@ -4343,7 +4318,6 @@ Slice::Gen::HelperVisitor::visitSequence(const SequencePtr& p)
     writeSequenceMarshalUnmarshalCode(out, package, p, "v", false, iter, false);
     out << nl << "return v;";
     out << eb;
-
 
     static const char* builtinTable[] = { "Byte", "Bool", "Short", "Int", "Long", "Float", "Double", "String" };
 

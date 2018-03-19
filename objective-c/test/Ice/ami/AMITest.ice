@@ -10,6 +10,7 @@
 #pragma once
 
 #include <Ice/BuiltinSequences.ice>
+#include <Ice/Identity.ice>
 
 ["objc:prefix:TestAMI"]
 module Test
@@ -17,7 +18,7 @@ module Test
 
 exception TestIntfException
 {
-};
+}
 
 ["objc:scoped"]
 enum CloseMode
@@ -25,7 +26,12 @@ enum CloseMode
     Forcefully,
     Gracefully,
     GracefullyWithWait
-};
+}
+
+interface PingReply
+{
+    void reply();
+}
 
 interface TestIntf
 {
@@ -45,12 +51,30 @@ interface TestIntf
 
     bool supportsAMD();
     bool supportsFunctionalTests();
-};
+
+    void pingBiDir(Ice::Identity id);
+}
 
 interface TestIntfController
 {
     void holdAdapter();
     void resumeAdapter();
-};
+}
 
-};
+module Outer
+{
+
+["objc:prefix:TestAMITestOuterInner"]
+module Inner
+{
+
+interface TestIntf
+{
+    int op(int i, out int j);
+}
+
+}
+
+}
+
+}

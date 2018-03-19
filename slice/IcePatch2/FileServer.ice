@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEPATCH2_API", "objc:header-dir:objc"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEPATCH2_API", "objc:header-dir:objc", "python:pkgdir:IcePatch2"]]
 [["cpp:include:IcePatch2/Config.h"]]
 
 #include <IcePatch2/FileInfo.ice>
@@ -44,7 +44,7 @@ sequence<Ice::ByteSeq> ByteSeqSeq;
  **/
 exception PartitionOutOfRangeException
 {
-};
+}
 
 /**
  *
@@ -59,7 +59,7 @@ exception FileAccessException
      *
      **/
     string reason;
-};
+}
 
 /**
  *
@@ -69,7 +69,7 @@ exception FileAccessException
  **/
 exception FileSizeRangeException extends FileAccessException
 {
-};
+}
 
 /**
  *
@@ -180,6 +180,6 @@ interface FileServer
     ["amd", "nonmutating", "cpp:const", "cpp:array"]
     idempotent Ice::ByteSeq getLargeFileCompressed(string path, long pos, int num)
         throws FileAccessException;
-};
+}
 
-};
+}

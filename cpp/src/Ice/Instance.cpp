@@ -188,7 +188,6 @@ private:
     const InstancePtr _instance;
 };
 
-
 //
 // Timer specialization which supports the thread observer
 //
@@ -1103,7 +1102,6 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
             }
         }
 
-
         if(!_initData.logger)
         {
             string logfile = _initData.properties->getProperty("Ice.LogFile");
@@ -1129,7 +1127,7 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
             else
             {
                 _initData.logger = getProcessLogger();
-                if(ICE_DYNAMIC_CAST(Logger, _initData.logger))
+                if(ICE_DYNAMIC_CAST(LoggerI, _initData.logger))
                 {
                     _initData.logger = ICE_MAKE_SHARED(LoggerI, _initData.properties->getProperty("Ice.ProgramName"), "", logStdErrConvert);
                 }
@@ -1222,7 +1220,6 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
         {
             throw InitializationException(__FILE__, __LINE__, "The value for Ice.ToStringMode must be Unicode, ASCII or Compat");
         }
-
 
         //
         // Client ACM enabled by default. Server ACM disabled by default.
@@ -1351,20 +1348,10 @@ IceInternal::Instance::finishSetup(int& argc, const char* argv[], const Ice::Com
     pluginManagerImpl->loadPlugins(argc, argv);
 
     //
-    // Add WS and WSS endpoint factories if TCP/SSL factories are installed.
+    // Initialize the endpoint factories once all the plugins are loaded. This gives
+    // the opportunity for the endpoint factories to find underyling factories.
     //
-    EndpointFactoryPtr tcpFactory = _endpointFactoryManager->get(TCPEndpointType);
-    if(tcpFactory)
-    {
-        ProtocolInstancePtr instance = new ProtocolInstance(communicator, WSEndpointType, "ws", false);
-        _endpointFactoryManager->add(new WSEndpointFactory(instance, tcpFactory->clone(instance, 0)));
-    }
-    EndpointFactoryPtr sslFactory = _endpointFactoryManager->get(SSLEndpointType);
-    if(sslFactory)
-    {
-        ProtocolInstancePtr instance = new ProtocolInstance(communicator, WSSEndpointType, "wss", true);
-        _endpointFactoryManager->add(new WSEndpointFactory(instance, sslFactory->clone(instance, 0)));
-    }
+    _endpointFactoryManager->initialize();
 
     //
     // Reset _stringConverter and _wstringConverter, in case a plugin changed them
@@ -1799,7 +1786,6 @@ IceInternal::Instance::updateThreadObservers()
     {
     }
 }
-
 
 BufSizeWarnInfo
 IceInternal::Instance::getBufSizeWarn(Short type)

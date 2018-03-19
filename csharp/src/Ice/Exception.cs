@@ -26,7 +26,7 @@ namespace IceInternal
             if(v is Ice.UnknownSlicedValue)
             {
                 Ice.UnknownSlicedValue usv = (Ice.UnknownSlicedValue)v;
-                throw new Ice.NoValueFactoryException("", usv.getUnknownTypeId());
+                throw new Ice.NoValueFactoryException("", usv.ice_id());
             }
 
             string type = v.ice_id();
@@ -149,18 +149,18 @@ namespace Ice
     }
 
     /// <summary>
-    /// Base class for local exceptions.
+    /// Base class for Ice run-time exceptions.
     /// </summary>
     [Serializable]
     public abstract class LocalException : Exception
     {
         /// <summary>
-        /// Creates a default-initialized local exception.
+        /// Creates a default-initialized Ice run-time exception.
         /// </summary>
         public LocalException() {}
 
         /// <summary>
-        /// Creates a default-initialized local exception and sets the InnerException
+        /// Creates a default-initialized Ice run-time exception and sets the InnerException
         /// property to the passed exception.
         /// </summary>
         /// <param name="ex">The inner exception.</param>
@@ -175,18 +175,19 @@ namespace Ice
     }
 
     /// <summary>
-    /// Base class for Ice run-time exceptions.
+    /// Base class for Ice system exceptions.
+    /// Ice system exceptions are currently Ice internal, non-documented exceptions.
     /// </summary>
     [Serializable]
     public abstract class SystemException : Exception
     {
         /// <summary>
-        /// Creates a default-initialized run-time exception.
+        /// Creates a default-initialized system exception.
         /// </summary>
         public SystemException() {}
 
         /// <summary>
-        /// Creates a default-initialized run-time exception and sets the InnerException
+        /// Creates a default-initialized system exception and sets the InnerException
         /// property to the passed exception.
         /// </summary>
         /// <param name="ex">The inner exception.</param>
@@ -224,6 +225,16 @@ namespace Ice
         /// <param name="info">Holds the serialized object data about the exception being thrown.</param>
         /// <param name="context">Contains contextual information about the source or destination.</param>
         protected UserException(SerializationInfo info, StreamingContext context) : base(info, context) {}
+
+        /// <summary>
+        /// Returns the sliced data if the exception has a preserved-slice base class and has been sliced during
+        /// un-marshaling, null is returned otherwise.
+        /// </summary>
+        /// <returns>The sliced data or null.</returns>
+        public virtual Ice.SlicedData ice_getSlicedData()
+        {
+            return null;
+        }
 
         public virtual void iceWrite(OutputStream ostr)
         {

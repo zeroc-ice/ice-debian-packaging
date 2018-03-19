@@ -771,7 +771,7 @@ Slice::JavaOutput::printHeader()
     static const char* header =
 "// **********************************************************************\n"
 "//\n"
-"// Copyright (c) 2003-2016 ZeroC, Inc. All rights reserved.\n"
+"// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.\n"
 "//\n"
 "// This copy of Ice is licensed to you under the terms described in the\n"
 "// ICE_LICENSE file included in this distribution.\n"
@@ -1167,7 +1167,7 @@ Slice::JavaCompatGenerator::typeToString(const TypePtr& type,
         "???",
         "???"
     };
-    
+
     if(local)
     {
         for(StringList::const_iterator i = metaData.begin(); i != metaData.end(); ++i)
@@ -3218,7 +3218,6 @@ Slice::JavaCompatGenerator::sequenceHasHolder(const SequencePtr& p) const
     return true;
 }
 
-
 JavaOutput*
 Slice::JavaCompatGenerator::createOutput()
 {
@@ -3614,7 +3613,7 @@ Slice::JavaGenerator::typeToString(const TypePtr& type,
         "???",
         "???"
     };
-    
+
     if(local)
     {
         for(StringList::const_iterator i = metaData.begin(); i != metaData.end(); ++i)

@@ -85,7 +85,6 @@ private:
 };
 typedef IceUtil::Handle<PingThread> PingThreadPtr;
 
-
 void
 allTests(const Ice::CommunicatorPtr& communicator)
 {
@@ -375,7 +374,6 @@ allTests(const Ice::CommunicatorPtr& communicator)
     }
     cout << "ok" << endl;
 
-
     cout << "testing server enable... " << flush;
     try
     {
@@ -482,7 +480,6 @@ allTests(const Ice::CommunicatorPtr& communicator)
             test(dynamic_cast<Ice::NoEndpointException*>(ex.get()));
         }
         threads.resize(0);
-
 
         try
         {
@@ -602,7 +599,6 @@ allTests(const Ice::CommunicatorPtr& communicator)
     }
     cout << "ok" << endl;
 
-
     cout << "testing temporary disable on failure... " << flush;
     try
     {
@@ -699,11 +695,19 @@ allTests(const Ice::CommunicatorPtr& communicator)
             cerr << ex.reason << endl;
             test(false);
         }
-        for(int i = 0; i < nServers; ++i)
+        try
         {
-            ostringstream id;
-            id << "server-" << i;
-            admin->startServer(id.str());
+            for(int i = 0; i < nServers; ++i)
+            {
+                ostringstream id;
+                id << "server-" << i;
+                admin->startServer(id.str());
+            }
+        }
+        catch(const IceGrid::ServerStartException& ex)
+        {
+            cerr << ex.reason << endl;
+            test(false);
         }
         for(int i = 0; i < nServers; ++i)
         {

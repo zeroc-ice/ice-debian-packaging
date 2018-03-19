@@ -24,7 +24,7 @@ namespace Ice
 
 class LocalException;
 
-};
+}
 
 namespace IceInternal
 {
@@ -46,7 +46,6 @@ private:
 
     IceInternal::UniquePtr<Ice::LocalException> _ex;
 };
-
 
 class CancellationHandler
 #ifndef ICE_CPP11_MAPPING

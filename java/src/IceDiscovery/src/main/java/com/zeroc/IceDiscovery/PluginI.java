@@ -86,7 +86,8 @@ public class PluginI implements com.zeroc.Ice.Plugin
             _locatorAdapter.addWithUUID(locatorRegistry));
 
         com.zeroc.Ice.ObjectPrx lookupPrx = _communicator.stringToProxy("IceDiscovery/Lookup -d:" + lookupEndpoints);
-        lookupPrx = lookupPrx.ice_collocationOptimized(false); // No collocation optimization for the multicast proxy!
+        // No collocation optimization for the multicast proxy!
+        lookupPrx = lookupPrx.ice_collocationOptimized(false).ice_router(null);
 
         //
         // Add lookup and lookup reply Ice objects
@@ -94,8 +95,9 @@ public class PluginI implements com.zeroc.Ice.Plugin
         LookupI lookup = new LookupI(locatorRegistry, LookupPrx.uncheckedCast(lookupPrx), properties);
         _multicastAdapter.add(lookup, com.zeroc.Ice.Util.stringToIdentity("IceDiscovery/Lookup"));
 
-        com.zeroc.Ice.ObjectPrx lookupReply = _replyAdapter.addWithUUID(new LookupReplyI(lookup)).ice_datagram();
-        lookup.setLookupReply(LookupReplyPrx.uncheckedCast(lookupReply));
+        _replyAdapter.addDefaultServant(new LookupReplyI(lookup), "");
+        final com.zeroc.Ice.Identity id = new com.zeroc.Ice.Identity("dummy", "");
+        lookup.setLookupReply(LookupReplyPrx.uncheckedCast(_replyAdapter.createProxy(id).ice_datagram()));
 
         //
         // Setup locator on the communicator.
@@ -113,12 +115,21 @@ public class PluginI implements com.zeroc.Ice.Plugin
     @Override
     public void destroy()
     {
-        _multicastAdapter.destroy();
-        _replyAdapter.destroy();
-        _locatorAdapter.destroy();
-        // Restore original default locator proxy, if the user didn't change it in the meantime
+        if(_multicastAdapter != null)
+        {
+            _multicastAdapter.destroy();
+        }
+        if(_replyAdapter != null)
+        {
+            _replyAdapter.destroy();
+        }
+        if(_locatorAdapter != null)
+        {
+            _locatorAdapter.destroy();
+        }
         if(_communicator.getDefaultLocator().equals(_locator))
         {
+            // Restore original default locator proxy, if the user didn't change it in the meantime
             _communicator.setDefaultLocator(_defaultLocator);
         }
     }

@@ -26,7 +26,21 @@ function Init()
         json: "application/json",
     };
 
-    var TestData = {};
+    var TestData = {
+        cssDeps: [
+            "https://cdnjs.cloudflare.com/ajax/libs/foundation/5.3.3/css/foundation.min.css",
+            "https://cdnjs.cloudflare.com/ajax/libs/animo.js/1.0.3/animate-animo.min.css"
+        ],
+        jsDeps: [
+            "https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js",
+            "https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js",
+            "https://cdnjs.cloudflare.com/ajax/libs/foundation/5.3.3/js/foundation.min.js",
+            "https://cdnjs.cloudflare.com/ajax/libs/spin.js/2.3.2/spin.min.js",
+            "https://cdnjs.cloudflare.com/ajax/libs/URI.js/1.18.10/URI.min.js",
+            "https://cdnjs.cloudflare.com/ajax/libs/animo.js/1.0.3/animo.min.js",
+            "/assets/jquery.spin.js"
+        ]
+    };
 
     var languages = [{value: "cpp", name: "C++"}, {value: "java", name: "Java"}]
     if(process.platform == "win32")
@@ -35,9 +49,13 @@ function Init()
     }
 
     var libraries = ["/lib/Ice.js", "/lib/Ice.min.js",
-                    "/lib/Glacier2.js", "/lib/Glacier2.min.js",
-                    "/lib/IceStorm.js", "/lib/IceStorm.min.js",
-                    "/lib/IceGrid.js", "/lib/IceGrid.min.js",];
+                     "/lib/Glacier2.js", "/lib/Glacier2.min.js",
+                     "/lib/IceStorm.js", "/lib/IceStorm.min.js",
+                     "/lib/IceGrid.js", "/lib/IceGrid.min.js",
+                     "/lib/es5/Ice.js", "/lib/es5/Ice.min.js",
+                     "/lib/es5/Glacier2.js", "/lib/es5/Glacier2.min.js",
+                     "/lib/es5/IceStorm.js", "/lib/es5/IceStorm.min.js",
+                     "/lib/es5/IceGrid.js", "/lib/es5/IceGrid.min.js"];
 
     TestData.TestSuites = fs.readFileSync(path.join(__dirname, "..", "test", "Common", "TestSuites.json"), "utf8");
     var TestSuites = JSON.parse(TestData.TestSuites);
@@ -139,6 +157,11 @@ function Init()
                                 "/test/Common/TestSuite.js",
                                 "/test/es5/Common/Controller.js"
                             ].concat(testSuite.files);
+
+                            TestData.scripts = TestData.scripts.map(function(f)
+                                {
+                                    return f.replace("/lib/Glacier2.js", "/lib/es5/Glacier2.js");
+                                });
                         }
                         else
                         {
@@ -188,7 +211,7 @@ function Init()
             var testSuite = TestSuites[m];
             if(testSuite)
             {
-                scripts = scripts.concat(TestSuites[m].files.map(function(f) {
+                TestData.scripts = scripts.concat(TestSuites[m].files.map(function(f) {
                     if(f.indexOf("/") === -1)
                     {
                         return "/test/" + matchController[1] + "/" + f;
@@ -205,10 +228,10 @@ function Init()
             }
             else
             {
-                scripts = scripts.concat(fs.readdirSync(testpath).filter(function(f) { return path.extname(f) === ".js"; }))
+                TestData.scripts = scripts.concat(fs.readdirSync(testpath).filter(function(f) { return path.extname(f) === ".js"; }))
             }
             res.writeHead(200, {"Content-Type": "text/html"});
-            res.end(controller.render({ "scripts" : scripts }))
+            res.end(controller.render(TestData))
             console.log("HTTP/200 (Ok) " + req.method + " " + req.url.pathname);
         }
         else
@@ -231,6 +254,7 @@ function Init()
             }
 
             var filePath = req.url.pathname;
+            var sourceMap;
             if(filePath.indexOf("es5/") !== -1 && path.extname(filePath) != ".js")
             {
                 // We only host JS files in the es5 subdirectory, other files
@@ -238,14 +262,15 @@ function Init()
                 filePath = filePath.replace("es5/", "")
             }
             filePath = path.resolve(path.join(basePath, filePath))
-
+            if(iceLib)
+            {
+                sourceMap = req.url.pathname.replace(".js", ".js.map");
+            }
             //
             // If OPTIMIZE is set resolve Ice libraries to the corresponding minified
             // versions.
             //
-            // NOTE: only used minified versions with ES5 for now, they aren't supported with ES6 yet.
-            //
-            if(process.env.OPTIMIZE == "yes" && filePath.indexOf("es5/") !== -1)
+            if(process.env.OPTIMIZE == "yes")
             {
                 if(iceLib && filePath.substr(-7) !== ".min.js")
                 {
@@ -273,12 +298,12 @@ function Init()
                                 fs.stat(filePath,
                                         function(err, stats)
                                         {
-                                            doRequest(err, stats, filePath);
+                                            doRequest(err, stats, filePath, sourceMap);
                                         });
                             }
                             else
                             {
-                                doRequest(err, stats, filePath + ".gz");
+                                doRequest(err, stats, filePath + ".gz", sourceMap);
                             }
                         });
             }
@@ -287,11 +312,11 @@ function Init()
                 fs.stat(filePath,
                             function(err, stats)
                             {
-                                doRequest(err, stats, filePath);
+                                doRequest(err, stats, filePath, sourceMap);
                             });
             }
 
-            var doRequest = function(err, stats, filePath)
+            var doRequest = function(err, stats, filePath, sourceMap)
             {
                 if(err)
                 {
@@ -344,6 +369,11 @@ function Init()
                             "Content-Length": stats.size,
                             "Etag": hash.digest("hex")
                         };
+
+                        if(sourceMap)
+                        {
+                            headers["X-SourceMap"] = sourceMap;
+                        }
 
                         if(path.extname(filePath).slice(1) == "gz")
                         {

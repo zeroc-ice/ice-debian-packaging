@@ -320,7 +320,8 @@ public class AllTests
 
         // Input string with various pitfalls
         id = com.zeroc.Ice.Util.stringToIdentity("\\342\\x82\\254\\60\\x9\\60\\");
-        test(id.name.equals("€0\t0\\") && id.category.isEmpty());
+        // Use the Unicode value instead of a literal Euro symbol
+        test(id.name.equals("\u20ac0\t0\\") && id.category.isEmpty());
 
         try
         {
@@ -343,10 +344,11 @@ public class AllTests
         }
 
         // Testing bytes 127 (\x7F, \177) and €
-        id = new com.zeroc.Ice.Identity("test", "\177€");
+        // Use the Unicode value instead of a literal Euro symbol
+        id = new com.zeroc.Ice.Identity("test", "\177\u20ac");
 
         idStr = com.zeroc.Ice.Util.identityToString(id, com.zeroc.Ice.ToStringMode.Unicode);
-        test(idStr.equals("\\u007f€/test"));
+        test(idStr.equals("\\u007f\u20ac/test"));
         id2 = com.zeroc.Ice.Util.stringToIdentity(idStr);
         test(id.equals(id2));
         test(com.zeroc.Ice.Util.identityToString(id).equals(idStr));
@@ -417,7 +419,7 @@ public class AllTests
 
         property = propertyPrefix + ".Locator";
         test(b1.ice_getLocator() == null);
-        prop.setProperty(property, "locator:default -p 10000");
+        prop.setProperty(property, "locator:tcp -p 10000");
         b1 = communicator.propertyToProxy(propertyPrefix);
         test(b1.ice_getLocator() != null && b1.ice_getLocator().ice_getIdentity().name.equals("locator"));
         prop.setProperty(property, "");
@@ -432,7 +434,7 @@ public class AllTests
         // Now retest with an indirect proxy.
         prop.setProperty(propertyPrefix, "test");
         property = propertyPrefix + ".Locator";
-        prop.setProperty(property, "locator:default -p 10000");
+        prop.setProperty(property, "locator:tcp -p 10000");
         b1 = communicator.propertyToProxy(propertyPrefix);
         test(b1.ice_getLocator() != null && b1.ice_getLocator().ice_getIdentity().name.equals("locator"));
         prop.setProperty(property, "");
@@ -456,7 +458,7 @@ public class AllTests
 
         property = propertyPrefix + ".Router";
         test(b1.ice_getRouter() == null);
-        prop.setProperty(property, "router:default -p 10000");
+        prop.setProperty(property, "router:tcp -p 10000");
         b1 = communicator.propertyToProxy(propertyPrefix);
         test(b1.ice_getRouter() != null && b1.ice_getRouter().ice_getIdentity().name.equals("router"));
         prop.setProperty(property, "");
@@ -728,9 +730,9 @@ public class AllTests
         test(!compObj.ice_timeout(10).equals(compObj.ice_timeout(20)));
 
         com.zeroc.Ice.LocatorPrx loc1 =
-            com.zeroc.Ice.LocatorPrx.uncheckedCast(communicator.stringToProxy("loc1:default -p 10000"));
+            com.zeroc.Ice.LocatorPrx.uncheckedCast(communicator.stringToProxy("loc1:tcp -p 10000"));
         com.zeroc.Ice.LocatorPrx loc2 =
-            com.zeroc.Ice.LocatorPrx.uncheckedCast(communicator.stringToProxy("loc2:default -p 10000"));
+            com.zeroc.Ice.LocatorPrx.uncheckedCast(communicator.stringToProxy("loc2:tcp -p 10000"));
         test(compObj.ice_locator(null).equals(compObj.ice_locator(null)));
         test(compObj.ice_locator(loc1).equals(compObj.ice_locator(loc1)));
         test(!compObj.ice_locator(loc1).equals(compObj.ice_locator(null)));
@@ -738,9 +740,9 @@ public class AllTests
         test(!compObj.ice_locator(loc1).equals(compObj.ice_locator(loc2)));
 
         com.zeroc.Ice.RouterPrx rtr1 =
-            com.zeroc.Ice.RouterPrx.uncheckedCast(communicator.stringToProxy("rtr1:default -p 10000"));
+            com.zeroc.Ice.RouterPrx.uncheckedCast(communicator.stringToProxy("rtr1:tcp -p 10000"));
         com.zeroc.Ice.RouterPrx rtr2 =
-            com.zeroc.Ice.RouterPrx.uncheckedCast(communicator.stringToProxy("rtr2:default -p 10000"));
+            com.zeroc.Ice.RouterPrx.uncheckedCast(communicator.stringToProxy("rtr2:tcp -p 10000"));
         test(compObj.ice_router(null).equals(compObj.ice_router(null)));
         test(compObj.ice_router(rtr1).equals(compObj.ice_router(rtr1)));
         test(!compObj.ice_router(rtr1).equals(compObj.ice_router(null)));

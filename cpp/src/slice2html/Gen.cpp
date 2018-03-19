@@ -1941,7 +1941,6 @@ TOCGenerator::symbols() const
     return _symbols;
 }
 
-
 void
 TOCGenerator::writeEntry(const ContainedPtr& c)
 {
@@ -2977,7 +2976,7 @@ Slice::EnumGenerator::generate(const EnumPtr& e)
 }
 
 Slice::PageVisitor::PageVisitor(const Files& files) :
-	_files(files)
+    _files(files)
 {
 }
 

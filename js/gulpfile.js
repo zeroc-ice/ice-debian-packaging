@@ -8,7 +8,6 @@
 // **********************************************************************
 
 var babel       = require("gulp-babel"),
-    bower       = require("bower"),
     bundle      = require("./gulp/bundle"),
     concat      = require('gulp-concat'),
     del         = require("del"),
@@ -23,10 +22,12 @@ var babel       = require("gulp-babel"),
     open        = require("gulp-open"),
     path        = require('path'),
     paths       = require('vinyl-paths'),
+    pump        = require('pump'),
+    rollup      = require("rollup").rollup,
     sourcemaps  = require('gulp-sourcemaps'),
     spawn       = require("child_process").spawn,
-    uglify      = require("gulp-uglify"),
-    rollup      = require("rollup").rollup;
+    uglify      = require('uglify-js'),
+    minifier    = require('gulp-uglify/minifier');
 
 var sliceDir   = path.resolve(__dirname, '..', 'slice');
 
@@ -59,13 +60,13 @@ function slice2js(options) {
     {
         if(!platform || (platform.toLowerCase() != "win32" && platform.toLowerCase() != "x64"))
         {
-            console.log("Error: CPP_PLATFORM environment variable must be set to `Win32' or `x64', in order to locate slice2js.exe");
+            console.log("Error: --cppPlatform must be set to `Win32' or `x64', in order to locate slice2js.exe");
             process.exit(1);
         }
 
         if(!configuration || (configuration.toLowerCase() != "debug" && configuration.toLowerCase() != "release"))
         {
-            console.log("Error: CPP_CONFIGURATION environment variable must be set to `Debug' or `Release', in order to locate slice2js.exe");
+            console.log("Error: --cppConfiguration must be set to `Debug' or `Release', in order to locate slice2js.exe");
             process.exit(1);
         }
     }
@@ -113,95 +114,44 @@ var tests = [
     "test/Slice/macros"
 ];
 
-var common = {
-    "scripts": [
-        "bower_components/foundation/js/vendor/modernizr.js",
-        "bower_components/foundation/js/vendor/jquery.js",
-        "bower_components/foundation/js/foundation.min.js",
-        "bower_components/nouislider/distribute/jquery.nouislider.all.js",
-        "bower_components/animo.js/animo.js",
-        "bower_components/spin.js/spin.js",
-        "bower_components/spin.js/jquery.spin.js",
-        "bower_components/URIjs/src/URI.js",
-        "bower_components/highlightjs/highlight.pack.js",
-        "assets/icejs.js"
-    ],
-    "styles": [
-        "bower_components/foundation/css/foundation.css",
-        "bower_components/animo.js/animate+animo.css",
-        "bower_components/highlightjs/styles/vs.css",
-        "bower_components/nouislider/distribute/jquery.nouislider.min.css",
-        "assets/icejs.css"
-    ]
-};
-
 gulp.task("common:slice", [],
-    function(){
-        return gulp.src(["../scripts/Controller.ice"])
-            .pipe(slice2js({dest: "test/Common"}))
-            .pipe(gulp.dest("test/Common"));
+    function(cb){
+        pump([
+            gulp.src(["../scripts/Controller.ice"]),
+            slice2js({dest: "test/Common"}),
+            gulp.dest("test/Common")], cb);
     });
 
 gulp.task("common:slice-babel", ["common:slice"],
-    function(){
-        return gulp.src(["test/Common/Controller.js", "test/Common/ControllerI.js", "test/Common/ControllerWorker.js"])
-            .pipe(babel({compact: false}))
-            .pipe(gulp.dest("test/es5/Common"));
-    });
-
-gulp.task("common:slice:clean", [],
-    function(){
-        del(["test/Common/Controller.js", "test/Common/.depend", "test/es5/Common/Controller.js"]);
-    });
-
-gulp.task("common:js", ["bower"],
-    function(){
-        return gulp.src(common.scripts)
-            .pipe(newer("assets/common.js"))
-            .pipe(concat("common.js"))
-            .pipe(gulp.dest("assets"))
-            .pipe(gzip())
-            .pipe(gulp.dest("assets"));
-    });
-
-gulp.task("common:css", ["bower"],
-    function(){
-        return gulp.src(common.styles)
-            .pipe(newer("assets/common.css"))
-            .pipe(concat("common.css"))
-            .pipe(cleancss())
-            .pipe(gulp.dest("assets"))
-            .pipe(gzip())
-            .pipe(gulp.dest("assets"));
-    });
-
-gulp.task("common:js-babel", [],
-    function(){
-        return gulp.src("test/Common/Common.js")
-                   .pipe(babel({compact: false}))
-                   .pipe(gulp.dest("test/es5/Common/"));
+    function(cb){
+        pump([
+            gulp.src(["test/Common/Controller.js",
+                      "test/Common/ControllerI.js",
+                      "test/Common/ControllerWorker.js"]),
+            babel({compact: false}),
+            gulp.dest("test/es5/Common")], cb);
     });
 
 gulp.task("common:clean", [],
     function(){
-        del(["assets/common.css", "assets/common.js"]);
+        del(["test/Common/Controller.js",
+             "test/Common/.depend",
+             "test/es5/Common/Controller.js"]);
     });
 
 gulp.task("import:slice2js", [],
-    function(){
-        return gulp.src(["test/Ice/import/Demo/Point.ice",
-                         "test/Ice/import/Demo/Circle.ice",
-                         "test/Ice/import/Demo/Square.ice",
-                         "test/Ice/import/Demo/Canvas.ice"])
-            .pipe(slice2js(
-                {dest: "test/Ice/import/Demo",
-                 args:["-Itest/Ice/import"]}))
-            .pipe(gulp.dest("test/Ice/import/Demo"));
+    function(cb){
+        pump([
+            gulp.src(["test/Ice/import/Demo/Point.ice",
+                      "test/Ice/import/Demo/Circle.ice",
+                      "test/Ice/import/Demo/Square.ice",
+                      "test/Ice/import/Demo/Canvas.ice"]),
+            slice2js({ dest: "test/Ice/import/Demo", args:["-Itest/Ice/import"]}),
+            gulp.dest("test/Ice/import/Demo")], cb);
     });
 
 gulp.task("import:bundle", ["import:slice2js"],
-    function()
-    {
+    function(){
         return rollup({
             entry: "test/Ice/import/main.js",
             external: "ice"
@@ -214,8 +164,7 @@ gulp.task("import:bundle", ["import:slice2js"],
     });
 
 gulp.task("import:clean", [],
-    function()
-    {
+    function() {
         del(["test/Ice/import/Demo/Point.js",
              "test/Ice/import/Demo/Circle.js",
              "test/Ice/import/Demo/Square.js",
@@ -232,47 +181,41 @@ function testBabelCleanTask(name) { return testCleanTask(name) + "-babel"; }
 tests.forEach(
     function(name){
         gulp.task(testTask(name), (useBinDist ? [] : ["ice-module"]),
-            function(){
-                return gulp.src(path.join(name, "*.ice"))
-                    .pipe(
-                        slice2js({
-                            args: ["-I" + name],
-                            dest: name
-                        }))
-                    .pipe(gulp.dest(name));
+            function(cb){
+                pump([
+                    gulp.src(path.join(name, "*.ice")),
+                    slice2js({ args: ["-I" + name], dest: name }),
+                    gulp.dest(name)], cb);
             });
 
         gulp.task(testBabelTask(name), [testTask(name)],
-            function(){
-                return gulp.src([path.join(name, "*.js")])
-                    .pipe(babel({compact: false}))
-                    .pipe(gulp.dest(name.replace("test/", "test/es5/")));
+            function(cb){
+                pump([
+                    gulp.src([path.join(name, "*.js")]),
+                    babel({compact: false}),
+                    gulp.dest(name.replace("test/", "test/es5/"))], cb);
             });
 
         gulp.task(testCleanDependTask(name), [],
-            function(){
-                return gulp.src(path.join(name, ".depend"))
-                    .pipe(paths(del));
+            function(cb){
+                pump([gulp.src(path.join(name, ".depend")), paths(del)], cb);
             });
 
         gulp.task(testCleanTask(name), [testCleanDependTask(name)],
-            function(){
-                return gulp.src(path.join(name, "*.ice"))
-                    .pipe(extreplace(".js"))
-                    .pipe(paths(del));
+            function(cb){
+                pump([gulp.src(path.join(name, "*.ice")), extreplace(".js"), paths(del)], cb);
             });
 
         gulp.task(testBabelCleanTask(name), [testCleanTask(name)],
-            function(){
-                var s = name.replace("test/", "test/es5/");
-                return gulp.src([path.join(s, "*.js")]).pipe(paths(del));
+            function(cb){
+                pump([gulp.src([path.join(name.replace("test/", "test/es5/"), "*.js")]), paths(del)], cb);
             });
     });
 
 gulp.task("test", tests.map(testBabelTask).concat(
-    ["common:slice-babel", "common:js", "common:js-babel", "common:css", "import:bundle"]));
+    ["common:slice-babel", "import:bundle"]));
 
-gulp.task("test:clean", tests.map(testBabelCleanTask).concat(["common:slice:clean", "import:clean"]));
+gulp.task("test:clean", tests.map(testBabelCleanTask).concat(["common:clean", "import:clean"]));
 
 //
 // Tasks to build IceJS Distribution
@@ -282,6 +225,7 @@ var libs = ["Ice", "Glacier2", "IceStorm", "IceGrid"];
 
 function generateTask(name){ return name.toLowerCase() + ":generate"; }
 function libTask(name){ return name.toLowerCase() + ":lib"; }
+function minLibTask(name){ return name.toLowerCase() + ":lib-min"; }
 function babelTask(name){ return name.toLowerCase() + ":babel"; }
 function babelLibTask(name){ return libTask(name) + "-babel";}
 function babelMinLibTask(name){ return libTask(name) + "-babel-min"; }
@@ -357,76 +301,86 @@ libs.forEach(
         var sources = JSON.parse(fs.readFileSync(path.join(srcDir(lib), "sources.json"), {encoding: "utf8"}));
 
         gulp.task(generateTask(lib),
-            function(){
-                return gulp.src(sources.slice.map(sliceFile))
-                    .pipe(slice2js({dest: srcDir(lib)}))
-                    .pipe(gulp.dest(srcDir(lib)));
+            function(cb){
+                pump([
+                    gulp.src(sources.slice.map(sliceFile)),
+                    slice2js({dest: srcDir(lib)}),
+                    gulp.dest(srcDir(lib))], cb);
             });
 
         gulp.task(libTask(lib), [generateTask(lib)],
-            function(){
-                return gulp.src(libSources(lib, sources))
-                    .pipe(sourcemaps.init())
-                    .pipe(
-                        bundle(
-                            {
-                                srcDir: srcDir(lib),
-                                modules: sources.modules,
-                                target: libFile(lib)
-                            }))
-                    .pipe(sourcemaps.write("../lib", {sourceRoot:"/src", addComment: false}))
-                    .pipe(gulp.dest("lib"))
-                    .pipe(gzip())
-                    .pipe(gulp.dest("lib"));
+            function(cb){
+                pump([
+                    gulp.src(libSources(lib, sources)),
+                    sourcemaps.init(),
+                    bundle(
+                        {
+                            srcDir: srcDir(lib),
+                            modules: sources.modules,
+                            target: libFile(lib)
+                        }),
+                    sourcemaps.write("../lib", {sourceRoot:"/src", addComment: false}),
+                    gulp.dest("lib"),
+                    gzip(),
+                    gulp.dest("lib")], cb);
+            });
+
+        gulp.task(minLibTask(lib), [libTask(lib)],
+            function(cb){
+                pump([
+                    gulp.src(libFile(lib)),
+                    newer(libFileMin(lib)),
+                    sourcemaps.init({loadMaps: false}),
+                    minifier({compress:false}, uglify),
+                    extreplace(".min.js"),
+                    sourcemaps.write(".", {includeContent: false, addComment: false}),
+                    gulp.dest("lib"),
+                    gzip(),
+                    gulp.dest("lib")], cb);
             });
 
         gulp.task(babelTask(lib), [generateTask(lib)],
-            function(){
-                return gulp.src(path.join("src", lib, "*.js"))
-                    .pipe(babel({compact:false}))
-                    .pipe(gulp.dest(path.join("src", "es5", lib)));
+            function(cb){
+                pump([
+                    gulp.src(path.join("src", lib, "*.js")),
+                    newer(path.join("src", "es5", lib)),
+                    babel({compact:false}),
+                    gulp.dest(path.join("src", "es5", lib))], cb);
             });
 
         gulp.task(babelLibTask(lib), [libTask(lib)],
-            function(){
-                return gulp.src(libFile(lib))
-                    .pipe(newer(babelLibFile(lib)))
-                    .pipe(sourcemaps.init())
-                    .pipe(babel({compact:false}))
-                    .pipe(sourcemaps.write("."))
-                    .pipe(gulp.dest("lib/es5"))
-                    .pipe(gzip())
-                    .pipe(gulp.dest("lib/es5"));
+            function(cb){
+                pump([
+                    gulp.src(libFile(lib)),
+                    newer(babelLibFile(lib)),
+                    sourcemaps.init(),
+                    babel({compact:false}),
+                    sourcemaps.write("."),
+                    gulp.dest("lib/es5"),
+                    gzip(),
+                    gulp.dest("lib/es5")], cb);
             });
 
         gulp.task(babelMinLibTask(lib), [babelLibTask(lib)],
-            function(){
-                return gulp.src(babelLibFile(lib))
-                    .pipe(newer(babelLibFileMin(lib)))
-                    .pipe(sourcemaps.init({loadMaps:true, sourceRoot:"./"}))
-                    .pipe(uglify({compress:false}))
-                    .pipe(extreplace(".min.js"))
-                    .pipe(sourcemaps.write(".", {includeContent: false, addComment: false}))
-                    .pipe(gulp.dest("lib/es5"))
-                    .pipe(gzip())
-                    .pipe(gulp.dest("lib/es5"));
+            function(cb){
+                pump([
+                    gulp.src(babelLibFile(lib)),
+                    newer(babelLibFileMin(lib)),
+                    minifier({compress:false}, uglify),
+                    extreplace(".min.js"),
+                    sourcemaps.write(".", {includeContent: false, addComment: false}),
+                    gulp.dest("lib/es5"),
+                    gzip(),
+                    gulp.dest("lib/es5")], cb);
             });
 
         gulp.task(libCleanTask(lib), [], function(){ del(libGeneratedFiles(lib, sources)); });
     });
 
-gulp.task("bower", [],
-    function(cb){
-        bower.commands.install().on("end", function(){ cb(); });
-    });
-
-gulp.task("dist:libs", ["bower"],
-    function(){
-        return gulp.src(["bower_components/ice/lib/*", "bower_components/ice/lib/**/*"])
-            .pipe(gulp.dest("lib"));
-    });
-
-gulp.task("dist", useBinDist ? ["dist:libs"] : libs.map(libTask).concat(libs.map(babelMinLibTask)).concat(libs.map(babelTask)));
+gulp.task("dist", useBinDist ? [] :
+    libs.map(libTask).concat(libs.map(minLibTask))
+                     .concat(libs.map(babelMinLibTask))
+                     .concat(libs.map(babelTask)));
 gulp.task("dist:clean", libs.map(libCleanTask));
 
 function runTestsWithBrowser(url)
@@ -475,20 +429,31 @@ function runTestsWithBrowser(url)
     return gulp.src("").pipe(open({uri: url}));
 }
 
-gulp.task("test:run-with-browser", useBinDist ? ["test"] : ["build"],
+gulp.task("test:browser", useBinDist ? ["test"] : ["build"],
     function(url){
         return runTestsWithBrowser("http://127.0.0.1:8080/test/Ice/acm/index.html");
     });
 
-gulp.task("test:run-with-browser-es5", useBinDist ? ["test"] : ["build"],
+gulp.task("test:browser-es5", useBinDist ? ["test"] : ["build"],
     function(url){
         return runTestsWithBrowser("http://127.0.0.1:8080/test/es5/Ice/acm/index.html");
     });
 
-gulp.task("test:run-with-node", (useBinDist ? ["test"] : ["build"]),
+gulp.task("test:node", (useBinDist ? ["test"] : ["build"]),
     function(){
-        var p  = require("child_process").spawn("python", ["allTests.py", "--all"], {stdio: "inherit"});
-        p.on("error", function(err)
+        var args = ["allTests.py", "--all"];
+        if(platform)
+        {
+            args = args.concat(["--cpp-platform", platform]);
+        }
+        if(configuration)
+        {
+            args = args.concat(["--cpp-config", configuration]);
+        }
+
+        var p = require("child_process").spawn("python", args, {stdio: "inherit"});
+        p.on("error",
+            function(err)
             {
                 if(err.message == "spawn python ENOENT")
                 {
@@ -500,6 +465,7 @@ gulp.task("test:run-with-node", (useBinDist ? ["test"] : ["build"]),
                     throw err;
                 }
             });
+
         process.on(process.platform == "win32" ? "SIGBREAK" : "SIGINT",
             function()
             {
@@ -512,56 +478,51 @@ gulp.task("test:run-with-node", (useBinDist ? ["test"] : ["build"]),
     });
 
 gulp.task("lint:html", ["build"],
-    function(){
-        return gulp.src(["**/*.html",
-                         "!bower_components/**/*.html",
-                         "!node_modules/**/*.html",
-                         "!test/**/index.html"])
-            .pipe(jshint.extract("auto"))
-            .pipe(jshint())
-            .pipe(jshint.reporter('default'));
+    function(cb){
+        pump([
+            gulp.src(["**/*.html",
+                      "!node_modules/**/*.html",
+                      "!test/**/index.html"]),
+            jshint.extract("auto"),
+            jshint(),
+            jshint.reporter('default')], cb);
     });
 
 gulp.task("lint:js", ["build"],
-    function(){
-        return gulp.src(["gulpfile.js",
-                         "gulp/**/*.js",
-                         "src/**/*.js",
-                         "src/**/browser/*.js",
-                         "test/**/*.js",
-                         "!src/es5/**/*.js",
-                         "!test/es5/**/**/*.js",
-                         "!**/Client.min.js"])
-            .pipe(jshint())
-            .pipe(jshint.reporter("default"));
+    function(cb){
+        pump([
+            gulp.src(["gulpfile.js",
+                      "gulp/**/*.js",
+                      "src/**/*.js",
+                      "src/**/browser/*.js",
+                      "test/**/*.js",
+                      "!src/es5/**/*.js",
+                      "!test/es5/**/**/*.js",
+                      "!**/Client.min.js"]),
+            jshint(),
+            jshint.reporter("default")], cb);
     });
-
 
 var buildDepends = ["dist", "test"];
 var cleanDepends = ["test:clean", "common:clean"];
 
 if(!useBinDist)
 {
-gulp.task("ice-module:package", ["dist"],
-    function()
-    {
-        return gulp.src(['package.json']).pipe(
-            gulp.dest(path.join("node_modules", "ice")));
-    });
-gulp.task("ice-module", ["ice-module:package"],
-    function()
-    {
-        gulp.src(['src/**/*']).pipe(
-               gulp.dest(path.join("node_modules", "ice", "src")));
-    });
-    buildDepends.push("ice-module");
+    gulp.task("ice-module:package", ["dist"],
+        function(cb){
+            pump([gulp.src(['package.json']), gulp.dest(path.join("node_modules", "ice"))], cb);
+        });
+    gulp.task("ice-module", ["ice-module:package"],
+        function(cb){
+            pump([gulp.src(['src/**/*']), gulp.dest(path.join("node_modules", "ice", "src"))], cb);
+        });
+        buildDepends.push("ice-module");
 
-gulp.task("ice-module:clean", [],
-    function()
-    {
-        return gulp.src(['node_modules/ice']).pipe(paths(del));
-    });
-    cleanDepends.push("ice-module:clean");
+    gulp.task("ice-module:clean", [],
+        function(cb){
+            pump([gulp.src(['node_modules/ice']), paths(del)], cb);
+        });
+        cleanDepends.push("ice-module:clean");
 }
 
 gulp.task("lint", ["lint:js", "lint:html"]);

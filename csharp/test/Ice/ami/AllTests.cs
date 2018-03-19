@@ -16,6 +16,49 @@ using Test;
 
 public class AllTests : TestCommon.AllTests
 {
+    public class PingReplyI : Test.PingReplyDisp_
+    {
+        public override void reply(Ice.Current current)
+        {
+            lock(this)
+            {
+                ++_replies;
+                System.Threading.Monitor.Pulse(this);
+            }
+        }
+
+        public void reset()
+        {
+            lock(this)
+            {
+                 _replies = 0;
+            }
+        }
+
+        public bool waitReply(int expectedReplies, long timeout)
+        {
+            lock(this)
+            {
+                long end = IceInternal.Time.currentMonotonicTimeMillis() + timeout;
+                while(_replies < expectedReplies)
+                {
+                    int delay = (int)(end - IceInternal.Time.currentMonotonicTimeMillis());
+                    if(delay > 0)
+                    {
+                        System.Threading.Monitor.Wait(this, delay);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                return _replies == expectedReplies;
+            }
+        }
+
+        private int _replies = 0;
+    }
+
     private class Cookie
     {
         public Cookie(int i)
@@ -1242,7 +1285,6 @@ public class AllTests : TestCommon.AllTests
             {
             }
 
-
             try
             {
                 r = ((Test.TestIntfPrx)p.ice_oneway()).begin_opWithResult();
@@ -1300,7 +1342,7 @@ public class AllTests : TestCommon.AllTests
                 ((Test.TestIntfPrx)p.ice_oneway()).opWithResultAsync();
                 test(false);
             }
-            catch(System.ArgumentException)
+            catch(Ice.TwowayOnlyException)
             {
             }
 
@@ -1934,11 +1976,12 @@ public class AllTests : TestCommon.AllTests
         }
         WriteLine("ok");
 
-        Write("testing unexpected exceptions from callback... ");
+        Write("testing unexpected exceptions... ");
         Flush();
         {
             Test.TestIntfPrx q = Test.TestIntfPrxHelper.uncheckedCast(p.ice_adapterId("dummy"));
-            ThrowType[] throwEx = new ThrowType[]{ ThrowType.LocalException, ThrowType.UserException,
+            ThrowType[] throwEx = new ThrowType[]{ ThrowType.LocalException,
+                                                   ThrowType.UserException,
                                                    ThrowType.OtherException };
 
             for(int i = 0; i < 3; ++i)
@@ -1951,34 +1994,28 @@ public class AllTests : TestCommon.AllTests
                 p.begin_op().whenCompleted(cb.op, null);
                 cb.check();
 
-                q.begin_op().whenCompleted(cb.op, cb.ex);
-                cb.check();
-
-                p.begin_op().whenCompleted(cb.noOp, cb.ex).whenSent(cb.sent);
-                cb.check();
-
-                q.begin_op().whenCompleted(cb.ex);
-                cb.check();
-            }
-        }
-        WriteLine("ok");
-
-        Write("testing unexpected exceptions from callback with lambda... ");
-        Flush();
-        {
-            Test.TestIntfPrx q = Test.TestIntfPrxHelper.uncheckedCast(p.ice_adapterId("dummy"));
-            ThrowType[] throwEx = new ThrowType[]{ ThrowType.LocalException, ThrowType.UserException,
-                                                   ThrowType.OtherException };
-
-            for(int i = 0; i < 3; ++i)
-            {
-                Thrower cb = new Thrower(throwEx[i]);
-
                 p.begin_op().whenCompleted(
                     () =>
                     {
                         cb.op();
                     }, null);
+                cb.check();
+
+                try
+                {
+                    p.opAsync().ContinueWith(
+                        (t) =>
+                        {
+                            cb.op();
+                        }).Wait();
+                    test(false);
+                }
+                catch(AggregateException)
+                {
+                }
+                cb.check();
+
+                q.begin_op().whenCompleted(cb.op, cb.ex);
                 cb.check();
 
                 q.begin_op().whenCompleted(
@@ -1990,6 +2027,41 @@ public class AllTests : TestCommon.AllTests
                     {
                         cb.ex(ex);
                     });
+                cb.check();
+
+                q.begin_op().whenCompleted(cb.ex);
+                cb.check();
+
+                q.begin_op().whenCompleted(
+                    (Ice.Exception ex) =>
+                    {
+                        cb.ex(ex);
+                    });
+                cb.check();
+
+                try
+                {
+                    q.opAsync().ContinueWith(
+                        (t) =>
+                        {
+                            try
+                            {
+                                t.Wait();
+                                test(false);
+                            }
+                            catch(AggregateException ex)
+                            {
+                                cb.ex((Ice.Exception)ex.InnerException);
+                            }
+                        }).Wait();
+                    test(false);
+                }
+                catch(AggregateException)
+                {
+                }
+                cb.check();
+
+                p.begin_op().whenCompleted(cb.noOp, cb.ex).whenSent(cb.sent);
                 cb.check();
 
                 p.begin_op().whenCompleted(
@@ -2008,11 +2080,10 @@ public class AllTests : TestCommon.AllTests
                     });
                 cb.check();
 
-                q.begin_op().whenCompleted(
-                    (Ice.Exception ex) =>
+                p.opAsync(progress: new Progress(sentSynchronously =>
                     {
-                        cb.ex(ex);
-                    });
+                        cb.sent(sentSynchronously);
+                    })).Wait();
                 cb.check();
             }
         }
@@ -2031,10 +2102,12 @@ public class AllTests : TestCommon.AllTests
                 //
                 test(p.opBatchCount() == 0);
                 TestIntfPrx b1 = (TestIntfPrx)p.ice_batchOneway();
-                b1.opBatch();
+                Ice.AsyncResult r = b1.begin_opBatch();
+                test(r.IsCompleted);
+                test(!r.isSent());
                 b1.opBatch();
                 FlushCallback cb = new FlushCallback(cookie);
-                Ice.AsyncResult r = b1.begin_ice_flushBatchRequests(cb.completedAsync, cookie);
+                r = b1.begin_ice_flushBatchRequests(cb.completedAsync, cookie);
                 r.whenSent(cb.sentAsync);
                 cb.check();
                 test(r.isSent());
@@ -2117,7 +2190,8 @@ public class AllTests : TestCommon.AllTests
                 test(p.opBatchCount() == 0);
                 TestIntfPrx b1 = (TestIntfPrx)p.ice_batchOneway();
                 b1.opBatch();
-                b1.opBatch();
+                var bf = b1.opBatchAsync();
+                test(bf.IsCompleted);
                 FlushCallback cb = new FlushCallback();
                 System.Threading.Tasks.Task t = b1.ice_flushBatchRequestsAsync(
                     progress: new Progress(sentSynchronously =>
@@ -3502,7 +3576,6 @@ public class AllTests : TestCommon.AllTests
                     test(!r2.isSent() && r2.isCompleted_());
                 }
 
-
                 testController.holdAdapter();
                 try
                 {
@@ -3704,6 +3777,92 @@ public class AllTests : TestCommon.AllTests
             }
             WriteLine("ok");
         }
+
+        Write("testing ice_scheduler... ");
+        Flush();
+        {
+            p.ice_pingAsync().ContinueWith(
+                (t) =>
+                {
+                    test(Thread.CurrentThread.Name == null ||
+                         !Thread.CurrentThread.Name.Contains("Ice.ThreadPool.Client"));
+                }).Wait();
+
+            p.ice_pingAsync().ContinueWith(
+                (t) =>
+                {
+                    test(Thread.CurrentThread.Name.Contains("Ice.ThreadPool.Client"));
+                }, p.ice_scheduler()).Wait();
+
+            {
+                TaskCompletionSource<int> s1 = new TaskCompletionSource<int>();
+                TaskCompletionSource<int> s2 = new TaskCompletionSource<int>();
+                Task t1 = s1.Task;
+                Task t2 = s2.Task;
+                Task t3 = null;
+                Task t4 = null;
+                p.ice_pingAsync().ContinueWith(
+                    (t) =>
+                    {
+                        test(Thread.CurrentThread.Name.Contains("Ice.ThreadPool.Client"));
+                        //
+                        // t1 Continuation run in the thread that completes it.
+                        //
+                        var id = Thread.CurrentThread.ManagedThreadId;
+                        t3 = t1.ContinueWith(prev =>
+                            {
+                                test(id == Thread.CurrentThread.ManagedThreadId);
+                            },
+                            CancellationToken.None,
+                            TaskContinuationOptions.ExecuteSynchronously,
+                            p.ice_scheduler());
+                        s1.SetResult(1);
+
+                        //
+                        // t2 completed from the main thread
+                        //
+                        t4 = t2.ContinueWith(prev =>
+                            {
+                                test(id != Thread.CurrentThread.ManagedThreadId);
+                                test(Thread.CurrentThread.Name == null ||
+                                     !Thread.CurrentThread.Name.Contains("Ice.ThreadPool.Client"));
+                            },
+                            CancellationToken.None,
+                            TaskContinuationOptions.ExecuteSynchronously,
+                            p.ice_scheduler());
+                    }, p.ice_scheduler()).Wait();
+                s2.SetResult(1);
+                Task.WaitAll(t1, t2, t3, t4);
+            }
+
+            if(!collocated)
+            {
+                Ice.ObjectAdapter adapter = communicator.createObjectAdapter("");
+                PingReplyI replyI = new PingReplyI();
+                Test.PingReplyPrx reply = Test.PingReplyPrxHelper.uncheckedCast(adapter.addWithUUID(replyI));
+                adapter.activate();
+
+                p.ice_getConnection().setAdapter(adapter);
+                p.pingBiDir(reply.ice_getIdentity());
+                replyI.waitReply(1, 100);
+                adapter.destroy();
+            }
+        }
+        WriteLine("ok");
+
+        Write("testing result struct... ");
+        Flush();
+        {
+            var q = Test.Outer.Inner.TestIntfPrxHelper.uncheckedCast(
+                communicator.stringToProxy("test2:" + app.getTestEndpoint(0)));
+            q.opAsync(1).ContinueWith(t =>
+                {
+                    var r = t.Result;
+                    test(r.returnValue == 1);
+                    test(r.j == 1);
+                }).Wait();
+        }
+        WriteLine("ok");
 
         p.shutdown();
     }

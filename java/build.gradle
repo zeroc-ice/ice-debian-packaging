@@ -8,6 +8,8 @@
 // **********************************************************************
 
 subprojects {
+    project.ext.topSrcDir = "$rootProject.projectDir/.."
+
     project.version = iceVersion
     project.group = "com.zeroc"
 
@@ -37,6 +39,9 @@ subprojects {
 
         mavenCentral()
 
+        //
+        // The thirdparty repository is required on macOS for appblunder
+        //
         maven {
             url 'https://repo.zeroc.com/nexus/content/repositories/thirdparty'
         }
@@ -51,6 +56,7 @@ subprojects {
     tasks.withType(JavaCompile) {
         options.compilerArgs << "-Xlint:unchecked" << "-Xlint:-options"
         options.encoding = "UTF-8"
+        options.deprecation = true
     }
 
     idea.module {
@@ -77,5 +83,5 @@ dist.dependsOn(project(":IceGridGUI").assemble)
 // the version of gradle needed to build Ice.
 //
 task wrapper(type: Wrapper) {
-    gradleVersion = "2.14"
+    gradleVersion = "4.0.1"
 }

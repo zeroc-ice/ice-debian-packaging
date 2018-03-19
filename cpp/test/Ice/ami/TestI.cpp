@@ -14,7 +14,7 @@ using namespace std;
 using namespace Ice;
 
 TestIntfI::TestIntfI() :
-    _batchCount(0)
+    _batchCount(0), _shutdown(false)
 {
 }
 
@@ -111,14 +111,34 @@ TestIntfI::startDispatchAsync(std::function<void()> response, std::function<void
                               const Ice::Current&)
 {
     IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
-    _pending.push_back(move(response));
+    if(_shutdown)
+    {
+        response();
+        return;
+    }
+    else if(_pending)
+    {
+        _pending();
+    }
+    _pending = move(response);
 }
 #else
 void
 TestIntfI::startDispatch_async(const Test::AMD_TestIntf_startDispatchPtr& cb, const Ice::Current&)
 {
     IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
-    _pending.push_back(cb);
+    if(_shutdown)
+    {
+        // Ignore, this can occur with the forcefull connection close test, shutdown can be dispatch
+        // before start dispatch.
+        cb->ice_response();
+        return;
+    }
+    else if(_pending)
+    {
+        _pending->ice_response();
+    }
+    _pending = cb;
 }
 #endif
 
@@ -126,38 +146,37 @@ void
 TestIntfI::finishDispatch(const Ice::Current& current)
 {
     IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
+    if(_shutdown)
+    {
+        return;
+    }
+    else if(_pending) // Pending might not be set yet if startDispatch is dispatch out-of-order
+    {
 #ifdef ICE_CPP11_MAPPING
-    for(vector<function<void()>>::iterator p = _pending.begin(); p != _pending.end(); ++p)
-    {
-        (*p)();
-    }
+        _pending();
+        _pending = nullptr;
 #else
-    for(vector<Test::AMD_TestIntf_startDispatchPtr>::iterator p = _pending.begin(); p != _pending.end(); ++p)
-    {
-        (*p)->ice_response();
-    }
+        _pending->ice_response();
+        _pending = 0;
 #endif
-    _pending.clear();
+    }
 }
 
 void
 TestIntfI::shutdown(const Ice::Current& current)
 {
-    //
-    // Just in case a request arrived late.
-    //
     IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
+    _shutdown = true;
+    if(_pending)
+    {
 #ifdef ICE_CPP11_MAPPING
-    for(vector<function<void()>>::iterator p = _pending.begin(); p != _pending.end(); ++p)
-    {
-        (*p)();
-    }
+        _pending();
+        _pending = nullptr;
 #else
-    for(vector<Test::AMD_TestIntf_startDispatchPtr>::iterator p = _pending.begin(); p != _pending.end(); ++p)
-    {
-        (*p)->ice_response();
-    }
+        _pending->ice_response();
+        _pending = 0;
 #endif
+    }
     current.adapter->getCommunicator()->shutdown();
 }
 
@@ -174,6 +193,12 @@ TestIntfI::supportsFunctionalTests(const Ice::Current&)
 }
 
 void
+TestIntfI::pingBiDir(ICE_IN(Ice::Identity) id, const Ice::Current& current)
+{
+    ICE_UNCHECKED_CAST(Test::PingReplyPrx, current.con->createProxy(id))->reply();
+}
+
+void
 TestIntfControllerI::holdAdapter(const Ice::Current&)
 {
     _adapter->hold();
@@ -187,4 +212,11 @@ TestIntfControllerI::resumeAdapter(const Ice::Current&)
 
 TestIntfControllerI::TestIntfControllerI(const Ice::ObjectAdapterPtr& adapter) : _adapter(adapter)
 {
+}
+
+Ice::Int
+TestIntfII::op(Ice::Int i, Ice::Int& j, const Ice::Current&)
+{
+    j = i;
+    return i;
 }

@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|ARM">
       <Configuration>Debug</Configuration>
@@ -99,7 +99,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
   <PropertyGroup Label="IceBuilder">
-    <IceBuilderHeaderOutputDir>$(Ice_SrcRootDir)\include\generated\uwp\$(Platform)\$(Configuration)\IceStorm\</IceBuilderHeaderOutputDir>
+    <IceBuilderHeaderOutputDir>$(IceSrcRootDir)\include\generated\uwp\$(Platform)\$(Configuration)\IceStorm\</IceBuilderHeaderOutputDir>
     <IceBuilderBaseDirectoryForGeneratedInclude>IceStorm</IceBuilderBaseDirectoryForGeneratedInclude>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

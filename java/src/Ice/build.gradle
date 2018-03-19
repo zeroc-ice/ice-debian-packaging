@@ -7,10 +7,8 @@
 //
 // **********************************************************************
 
-//sourceCompatibility = iceSourceCompatibility
-//targetCompatibility = iceTargetCompatibility
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = iceSourceCompatibility
+targetCompatibility = iceTargetCompatibility
 
 project.ext.displayName = "Ice"
 project.ext.description = "Ice is a comprehensive RPC framework that helps you build distributed applications" +
@@ -19,13 +17,13 @@ project.ext.description = "Ice is a comprehensive RPC framework that helps you b
 slice {
     java {
         stream {
-            files = [file("$sliceDir/Ice/BuiltinSequences.ice")]
+            files = [file("$project.ext.topSrcDir/slice/Ice/BuiltinSequences.ice")]
         }
         nostream {
-            files = fileTree(dir: "$sliceDir", includes:['Ice/*.ice'],
+            files = fileTree(dir: "$project.ext.topSrcDir/slice", includes:['Ice/*.ice'],
                 excludes:['Ice/*F.ice', 'Ice/BuiltinSequences.ice'])
         }
     }
 }
 
-apply from: "$rootProject.projectDir/gradle/library.gradle"
+apply from: "$project.ext.topSrcDir/java/gradle/library.gradle"

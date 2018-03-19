@@ -13,7 +13,8 @@ class TestIntfI(Test.TestIntf):
     def __init__(self):
         self._cond = threading.Condition()
         self._batchCount = 0
-        self._pending = []
+        self._pending = None
+        self._shutdown = False
 
     def op(self, current=None):
         pass
@@ -51,31 +52,46 @@ class TestIntfI(Test.TestIntf):
         time.sleep(ms / 1000.0)
 
     def startDispatch(self, current=None):
-        f = Ice.Future()
         with self._cond:
-            self._pending.append(f)
-        return f
+            if self._shutdown:
+                # Ignore, this can occur with the forcefull connection close test, shutdown can be dispatch
+                # before start dispatch.
+                v = Ice.Future()
+                v.set_result(None)
+                return v
+            elif self._pending:
+                self._pending.set_result(None)
+            self._pending = Ice.Future()
+            return self._pending
 
     def finishDispatch(self, current=None):
         with self._cond:
-            for f in self._pending:
-                f.set_result(None)
-            self._pending = []
+            if self._shutdown:
+                return
+            elif self._pending: # Pending might not be set yet if startDispatch is dispatch out-of-order
+                self._pending.set_result(None)
+                self._pending = None
 
     def shutdown(self, current=None):
-        #
-        # Just in case a request arrived late.
-        #
         with self._cond:
-            for f in self._pending:
-                f.set_result(None)
-        current.adapter.getCommunicator().shutdown()
+            self._shutdown = True
+            if self._pending:
+                self._pending.set_result(None)
+                self._pending = None
+            current.adapter.getCommunicator().shutdown()
 
     def supportsAMD(self, current=None):
         return True
 
     def supportsFunctionalTests(self, current=None):
         return False
+
+    def pingBiDir(self, id, current = None):
+        Test.PingReplyPrx.uncheckedCast(current.con.createProxy(id)).reply()
+
+class TestIntfII(Test.Outer.Inner.TestIntf):
+    def op(self, i, current):
+        return (i, i)
 
 class TestIntfControllerI(Test.TestIntfController):
     def __init__(self, adapter):

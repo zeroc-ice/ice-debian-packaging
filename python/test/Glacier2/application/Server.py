@@ -21,9 +21,8 @@ class CallbackI(Test.Callback):
         current.adapter.getCommunicator().shutdown()
 
 class Server(Ice.Application):
-    
+
     def run(self, args):
-        print(args)
         self.communicator().getProperties().setProperty("DeactivatedAdapter.Endpoints", "default -p 12011")
         self.communicator().createObjectAdapter("DeactivatedAdapter")
 

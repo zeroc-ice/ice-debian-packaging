@@ -46,13 +46,16 @@ public:
     virtual bool supportsAMD(const Ice::Current&);
     virtual bool supportsFunctionalTests(const Ice::Current&);
 
+    virtual void pingBiDir(ICE_IN(Ice::Identity), const Ice::Current&);
+
 private:
 
     int _batchCount;
+    bool _shutdown;
 #ifdef ICE_CPP11_MAPPING
-    std::vector<std::function<void()>> _pending;
+    std::function<void()> _pending;
 #else
-    std::vector<Test::AMD_TestIntf_startDispatchPtr> _pending;
+    Test::AMD_TestIntf_startDispatchPtr _pending;
 #endif
 };
 
@@ -68,6 +71,13 @@ public:
 private:
 
     Ice::ObjectAdapterPtr _adapter;
+};
+
+class TestIntfII : public virtual Test::Outer::Inner::TestIntf
+{
+public:
+
+    Ice::Int op(Ice::Int, Ice::Int&, const Ice::Current&);
 };
 
 #endif

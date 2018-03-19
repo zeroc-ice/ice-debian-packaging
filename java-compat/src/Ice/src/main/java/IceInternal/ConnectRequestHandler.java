@@ -118,7 +118,7 @@ public class ConnectRequestHandler
     {
         synchronized(this)
         {
-            assert(_exception == null && _connection == null);
+            assert(!_flushing && _exception == null && _connection == null);
             _connection = connection;
             _compress = compress;
         }
@@ -140,19 +140,20 @@ public class ConnectRequestHandler
     }
 
     @Override
-    public synchronized void
+    public void
     setException(final Ice.LocalException ex)
     {
-        assert(!_initialized && _exception == null);
-        _exception = ex;
-        _proxies.clear();
-        _proxy = null; // Break cyclic reference count.
+        synchronized(this)
+        {
+            assert(!_flushing && !_initialized && _exception == null);
+            _flushing = true; // Ensures request handler is removed before processing new requests.
+            _exception = ex;
+        }
 
         //
-        // NOTE: remove the request handler *before* notifying the
-        // requests that the connection failed. It's important to ensure
-        // that future invocations will obtain a new connect request
-        // handler once invocations are notified.
+        // NOTE: remove the request handler *before* notifying the requests that the connection
+        // failed. It's important to ensure that future invocations will obtain a new connect
+        // request handler once invocations are notified.
         //
         try
         {
@@ -171,7 +172,14 @@ public class ConnectRequestHandler
             }
         }
         _requests.clear();
-        notifyAll();
+
+        synchronized(this)
+        {
+            _flushing = false;
+            _proxies.clear();
+            _proxy = null; // Break cyclic reference count.
+            notifyAll();
+        }
     }
 
     //
@@ -224,7 +232,7 @@ public class ConnectRequestHandler
             // only true for a short period of time.
             //
             boolean interrupted = false;
-            while(_flushing && _exception == null)
+            while(_flushing)
             {
                 try
                 {
@@ -290,7 +298,7 @@ public class ConnectRequestHandler
     {
         synchronized(this)
         {
-            assert(_connection != null && !_initialized);
+            assert(!_flushing && _connection != null && !_initialized);
 
             //
             // We set the _flushing flag to true to prevent any additional queuing. Callers

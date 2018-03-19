@@ -16,7 +16,7 @@ if not slice_dir:
     print(sys.argv[0] + ': Slice directory not found.')
     sys.exit(1)
 
-Ice.loadSlice('"-I' + slice_dir + '" TestAMD.ice')
+Ice.loadSlice('"-I' + slice_dir + '" Test.ice')
 import Test
 
 def test(b):
@@ -169,7 +169,7 @@ try:
     initData.properties = Ice.createProperties(sys.argv)
     initData.properties.setProperty("Ice.Warn.Dispatch", "0")
     initData.properties.setProperty("Ice.Warn.Connections", "0");
-    initData.properties.setProperty("TestAdapter.Endpoints", "default -p 12010:udp")
+    initData.properties.setProperty("TestAdapter.Endpoints", "default -p 12010")
     initData.properties.setProperty("Ice.MessageSizeMax", "10")
     initData.properties.setProperty("TestAdapter2.Endpoints", "default -p 12011")
     initData.properties.setProperty("TestAdapter2.MessageSizeMax", "0")

@@ -7,7 +7,7 @@
 #
 # **********************************************************************
 
-import sys, os
+import sys, os, time
 from Util import *
 
 #
@@ -22,11 +22,26 @@ class Executor:
         self.mainThreadQueue = []
         self.queueLength = 0
         self.failure = False
+        self.interrupted = False
         self.continueOnFailure = continueOnFailure
         self.lock = threading.Lock()
 
-    def submit(self, testsuite):
-        if testsuite.isMainThreadOnly() or self.workers == 0:
+    def submit(self, testsuite, crossMappings, driver):
+        mainThreadOnly = testsuite.isMainThreadOnly(driver) or self.workers == 0
+
+        #
+        # If the test supports workers and we are cross testing, ensure that all the cross
+        # testing mappings support workers as well.
+        #
+        if not mainThreadOnly:
+            for cross in crossMappings:
+                if cross:
+                    t = cross.findTestSuite(testsuite)
+                    if t and t.isMainThreadOnly(driver):
+                        mainThreadOnly = True
+                        break
+
+        if mainThreadOnly:
             self.mainThreadQueue.append(testsuite)
         else:
             self.queue.append(testsuite)
@@ -41,6 +56,10 @@ class Executor:
                 return None
             self.queueLength -= 1
             return (queue.pop(0), total - self.queueLength)
+
+    def isInterrupted(self):
+        with self.lock:
+            return self.interrupted
 
     def runTestSuites(self, driver, total, results, mainThread=False):
         while True:
@@ -125,6 +144,7 @@ class Executor:
         except KeyboardInterrupt:
             with self.lock:
                 self.failure = True
+                self.interrupted = True
             if threads:
                 print("Terminating (waiting for worker threads to terminate)...")
             raise
@@ -232,7 +252,7 @@ class RemoteTestCaseRunner(TestCaseRunner):
                 return current.serverTestCase.startServerSide(self.getConfig(current))
             except Test.Common.TestCaseFailedException as ex:
                 current.result.writeln(ex.output)
-                raise RuntimeError("test failed")
+                raise RuntimeError("test failed:\n" + str(ex))
         except:
             current.serverTestCase.destroy()
             current.serverTestCase = None
@@ -339,6 +359,8 @@ class LocalDriver(Driver):
 
         self.results = []
         self.threadlocal = threading.local()
+        self.loopCount = 1
+        self.executor = Executor(self.threadlocal, self.workers, self.continueOnFailure)
 
     def run(self, mappings, testSuiteIds):
 
@@ -349,7 +371,6 @@ class LocalDriver(Driver):
             self.runner = TestCaseRunner()
 
         while True:
-            executor = Executor(self.threadlocal, self.workers, self.continueOnFailure)
             for mapping in mappings:
                 testsuites = self.runner.getTestSuites(mapping, testSuiteIds)
 
@@ -376,14 +397,16 @@ class LocalDriver(Driver):
                         continue
                     elif isinstance(self.runner, RemoteTestCaseRunner) and not testsuite.isMultiHost():
                         continue
-                    executor.submit(testsuite)
+                    self.executor.submit(testsuite, Mapping.getAll() if self.allCross else [self.cross], self)
 
             #
             # Run all the tests and wait for the executor to complete.
             #
             now = time.time()
 
-            results = executor.runUntilCompleted(self, self.start)
+            results = self.executor.runUntilCompleted(self, self.start)
+
+            Expect.cleanup() # Cleanup processes which might still be around
 
             failures = [r for r in results if not r.isSuccess()]
             m, s = divmod(time.time() - now, 60)
@@ -396,6 +419,8 @@ class LocalDriver(Driver):
             if self.showDurations:
                 for r in sorted(results, key = lambda r : r.getDuration()):
                     print("- {0} took {1:02.2f} seconds".format(r.testsuite, r.getDuration()))
+
+            self.loopCount += 1
 
             if len(failures) > 0:
                 print("{0} succeeded and {1} failed:".format(len(results) - len(failures), len(failures)))
@@ -416,13 +441,22 @@ class LocalDriver(Driver):
                     return 0
 
     def runTestSuite(self, current):
-        current.result.writeln("*** [{0}/{1}] Running {2}/{3} tests ***".format(current.index,
-                                                                                current.total,
-                                                                                current.testsuite.getMapping(),
-                                                                                current.testsuite))
+        if self.loop:
+            current.result.write("*** [{0}/{1} loop={2}] ".format(current.index, current.total, self.loopCount))
+        else:
+            current.result.write("*** [{0}/{1}] ".format(current.index, current.total))
+        current.result.writeln("Running {0}/{1} tests ***".format(current.testsuite.getMapping(), current.testsuite))
+
         success = False
         try:
-            current.testsuite.setup(current)
+            try:
+                current.result.started("setup")
+                current.testsuite.setup(current)
+                current.result.succeeded("setup")
+            except Exception as ex:
+                current.result.failed("setup", traceback.format_exc())
+                raise
+
             for testcase in current.testsuite.getTestCases():
                 config = current.config
                 try:
@@ -437,7 +471,13 @@ class LocalDriver(Driver):
                     current.config = config
             success = True
         finally:
-            current.testsuite.teardown(current, success)
+            try:
+                current.result.started("teardown")
+                current.testsuite.teardown(current, success)
+                current.result.succeeded("teardown")
+            except Exception as ex:
+                current.result.failed("teardown", traceback.format_exc())
+                raise
 
     def runClientServerTestCase(self, current):
 
@@ -468,14 +508,14 @@ class LocalDriver(Driver):
                     current.writeln("skipped, no server available for `{0}' mapping".format(cross))
                 continue
 
-            current.writeln("[ running {0} test ]".format(current.testcase))
+            current.writeln("[ running {0} test - {1} ]".format(current.testcase, time.strftime("%x %X")))
             if not self.all:
                 current.config = current.config.cloneRunnable(current)
             confStr = str(current.config)
             if confStr:
                 current.writeln("- Config: {0}".format(confStr))
             if cross:
-                current.writeln("- Mappings: {0}/{1}".format(client.getMapping(), server.getMapping()))
+                current.writeln("- Mappings: {0},{1}".format(client.getMapping(), server.getMapping()))
             if not current.config.canRun(current) or not current.testcase.canRun(current):
                 current.writeln("skipped, not supported with this configuration")
                 return
@@ -491,7 +531,7 @@ class LocalDriver(Driver):
     def runTestCase(self, current):
         if not self.cross and not self.allCross:
             if not current.testcase.getParent():
-                current.writeln("[ running {0} test ]".format(current.testcase))
+                current.writeln("[ running {0} test - {1} ]".format(current.testcase, time.strftime("%x %X")))
                 if not self.all:
                     current.config = current.config.cloneRunnable(current)
                 confStr = str(current.config)
@@ -505,6 +545,9 @@ class LocalDriver(Driver):
 
     def isWorkerThread(self):
         return hasattr(self.threadlocal, "num")
+
+    def isInterrupted(self):
+        return self.executor.isInterrupted()
 
     def getTestPort(self, portnum):
         # Return a port number in the range 14100-14199 for the first thread, 14200-14299 for the

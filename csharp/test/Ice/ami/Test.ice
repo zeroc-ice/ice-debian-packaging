@@ -10,20 +10,26 @@
 #pragma once
 
 #include <Ice/BuiltinSequences.ice>
+#include <Ice/Identity.ice>
 
 module Test
 {
 
 exception TestIntfException
 {
-};
+}
 
 enum CloseMode
 {
     Forcefully,
     Gracefully,
     GracefullyWithWait
-};
+}
+
+interface PingReply
+{
+    void reply();
+}
 
 interface TestIntf
 {
@@ -48,12 +54,29 @@ interface TestIntf
     ["amd"] int opWithResultAsyncDispatch();
     ["amd"] void opWithUEAsyncDispatch()
         throws TestIntfException;
-};
+
+    void pingBiDir(Ice::Identity id);
+}
 
 interface TestIntfController
 {
     void holdAdapter();
     void resumeAdapter();
-};
+}
 
-};
+module Outer
+{
+
+module Inner
+{
+
+interface TestIntf
+{
+    int op(int i, out int j);
+}
+
+}
+
+}
+
+}

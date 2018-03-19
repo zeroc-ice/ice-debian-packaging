@@ -240,7 +240,6 @@ public class Client extends test.Util.Application
         return rs;
     }
 
-
     @Override
     protected Ice.InitializationData getInitData(Ice.StringSeqHolder argsH)
     {
@@ -257,6 +256,3 @@ public class Client extends test.Util.Application
         System.exit(status);
     }
 }
-
-
-

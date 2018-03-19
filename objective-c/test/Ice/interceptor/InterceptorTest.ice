@@ -16,11 +16,11 @@ module Test
 exception InvalidInputException
 {
     string reason;
-};
+}
 
 local exception RetryException
 {
-};
+}
 
 interface MyObject
 {
@@ -45,9 +45,9 @@ interface MyObject
     int notExistAdd(int x, int y);
 
     //
-    // Raise system exception
+    // Raise Ice local exception
     //
     int badSystemAdd(int x, int y);
-};
+}
 
-};
+}

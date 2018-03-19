@@ -570,7 +570,7 @@ class ObjectPrx
     {
         if(!this.ice_isTwoway())
         {
-            throw new Error("`" + name + "' can only be called with a twoway proxy");
+            throw new Ice.TwowayOnlyException(name);
         }
     }
 
@@ -743,7 +743,7 @@ class ObjectPrx
                         }
                     }
                 }
-                r.reject(new Ice.UnknownUserException(ex.ice_name()));
+                r.reject(new Ice.UnknownUserException(ex.ice_id()));
                 return false;
             }
             else

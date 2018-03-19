@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEGRID_API", "objc:header-dir:objc", "objc:dll-export:ICEGRID_API", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEGRID_API", "objc:header-dir:objc", "objc:dll-export:ICEGRID_API", "js:ice-build", "python:pkgdir:IceGrid"]]
 [["cpp:include:IceGrid/Config.h"]]
 
 #ifndef __SLICE2JAVA_COMPAT__
@@ -28,7 +28,7 @@ module IceGrid
  **/
 exception UserAccountNotFoundException
 {
-};
+}
 
 /**
  *
@@ -57,6 +57,6 @@ interface UserAccountMapper
      **/
     string getUserAccount(string user)
         throws UserAccountNotFoundException;
-};
+}
 
-};
+}

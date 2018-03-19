@@ -71,6 +71,18 @@ class Ice_Value
     {
         return "::Ice::Object";
     }
+
+    public function ice_getSlicedData()
+    {
+        if(property_exists($this, '_ice_slicedData'))
+        {
+            return $this->_ice_slicedData;
+        }
+        else
+        {
+            return null;
+        }
+    }
 }
 
 class Ice_InterfaceByValue extends Ice_Value
@@ -79,7 +91,7 @@ class Ice_InterfaceByValue extends Ice_Value
     {
         $this->id =$id;
     }
-    
+
     public function ice_id()
     {
         return $this->id;
@@ -116,7 +128,10 @@ class Ice_UnknownSlicedValue extends Ice_Value
     {
     }
 
-    public $unknownTypeId;
+    public function ice_id()
+    {
+        return $this->unknownTypeId;
+    }
 }
 
 $Ice__t_UnknownSlicedValue = IcePHP_defineClass('::Ice::UnknownSlicedValue', 'Ice_UnknownSlicedValue', -1, true, false, $Ice__t_Value, null);
