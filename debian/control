@@ -1,6 +1,6 @@
 Source: zeroc-ice
 Section: devel
-Priority: extra
+Priority: optional
 Maintainer: José Gutiérrez de la Concha <jose@zeroc.com>
 Uploaders: Ondřej Surý <ondrej@debian.org>
 Build-Depends-Indep: openjdk-8-jdk,
@@ -76,7 +76,7 @@ Description: Ice for Java run-time libraries.
 Package: libzeroc-ice-java
 Depends: libzeroc-ice3.7-java (= ${binary:Version}), zeroc-ice-compilers (= ${binary:Version}), ${misc:Depends}
 Architecture: all
-Priority: extra
+Priority: optional
 Section: oldlibs
 Description: libzeroc-ice-java transitional package
  This is a transitional package for libzeroc-ice-java. It can safely be removed.
@@ -300,7 +300,7 @@ Description: IceGrid Admin graphical client
 Package: zeroc-ice-utils-java
 Depends: zeroc-icegridgui, ${misc:Depends}
 Architecture: all
-Priority: extra
+Priority: optional
 Section: oldlibs
 Description: zeroc-icegridgui transitional package
  This is a transitional package for zeroc-icegridgui. It can safely be removed.
