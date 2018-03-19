@@ -146,7 +146,7 @@ ConnectRequestHandler::setConnection(const Ice::ConnectionIPtr& connection, bool
 {
     {
         Lock sync(*this);
-        assert(!_exception && !_connection);
+        assert(!_flushing && !_exception && !_connection);
         _connection = connection;
         _compress = compress;
     }
@@ -170,18 +170,17 @@ ConnectRequestHandler::setConnection(const Ice::ConnectionIPtr& connection, bool
 void
 ConnectRequestHandler::setException(const Ice::LocalException& ex)
 {
-    Lock sync(*this);
-    assert(!_initialized && !_exception);
-    ICE_SET_EXCEPTION_FROM_CLONE(_exception, ex.ice_clone());
-
-    _proxies.clear();
-    _proxy = 0; // Break cyclic reference count.
+    {
+        Lock sync(*this);
+        assert(!_flushing && !_initialized && !_exception);
+        _flushing = true; // Ensures request handler is removed before processing new requests.
+        ICE_SET_EXCEPTION_FROM_CLONE(_exception, ex.ice_clone());
+    }
 
     //
-    // NOTE: remove the request handler *before* notifying the
-    // requests that the connection failed. It's important to ensure
-    // that future invocations will obtain a new connect request
-    // handler once invocations are notified.
+    // NOTE: remove the request handler *before* notifying the requests that the connection
+    // failed. It's important to ensure that future invocations will obtain a new connect
+    // request handler once invocations are notified.
     //
     try
     {
@@ -192,7 +191,6 @@ ConnectRequestHandler::setException(const Ice::LocalException& ex)
         // Ignore
     }
 
-
     for(deque<ProxyOutgoingAsyncBasePtr>::const_iterator p = _requests.begin(); p != _requests.end(); ++p)
     {
         if((*p)->exception(ex))
@@ -200,9 +198,15 @@ ConnectRequestHandler::setException(const Ice::LocalException& ex)
             (*p)->invokeExceptionAsync();
         }
     }
-
     _requests.clear();
-    notifyAll();
+
+    {
+        Lock sync(*this);
+        _flushing = false;
+        _proxies.clear();
+        _proxy = 0; // Break cyclic reference count.
+        notifyAll();
+    }
 }
 
 void
@@ -227,7 +231,7 @@ ConnectRequestHandler::initialized()
     }
     else
     {
-        while(_flushing && !_exception)
+        while(_flushing)
         {
             wait();
         }

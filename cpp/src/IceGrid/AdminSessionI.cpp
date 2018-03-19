@@ -22,7 +22,6 @@ using namespace IceGrid;
 namespace
 {
 
-
 class SubscriberForwarderI : public Ice::BlobjectArrayAsync
 {
     class CallbackI: public IceUtil::Shared
@@ -606,4 +605,3 @@ AdminSSLSessionManagerI::create(const Glacier2::SSLInfo& info,
 
     return _factory->createGlacier2Session(userDN, ctl);
 }
-

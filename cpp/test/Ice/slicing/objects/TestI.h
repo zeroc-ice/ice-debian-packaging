@@ -18,6 +18,7 @@ class TestI : public virtual Test::TestIntf
 public:
 
     TestI();
+    ~TestI();
 
     virtual ::Ice::ValuePtr SBaseAsObject(const ::Ice::Current&);
     virtual ::Test::SBasePtr SBaseAsSBase(const ::Ice::Current&);
@@ -90,10 +91,16 @@ public:
     virtual void throwPreservedException_async(const ::Test::AMD_TestIntf_throwPreservedExceptionPtr&,
                                                const ::Ice::Current&);
 #endif
-    
+
     virtual void useForward(::Test::ForwardPtr&, const ::Ice::Current&);
 
     virtual void shutdown(const ::Ice::Current&);
+
+private:
+
+#ifdef ICE_CPP11_MAPPING
+    std::vector<std::shared_ptr<Ice::Value>> _values;
+#endif
 };
 
 #endif

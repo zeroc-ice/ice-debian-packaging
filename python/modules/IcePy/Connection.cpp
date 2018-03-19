@@ -31,6 +31,11 @@ namespace
 // P = sizeof(void*), L = sizeof(long)
 template<int P, int L> struct Hasher;
 
+#ifndef _WIN64
+//
+// COMPILERFIX: With Windows 64 the templates bellow will produce trucation warnings,
+// we ifdef them out as they are never used with Windows 64.
+//
 template<>
 struct Hasher<4, 4>
 {
@@ -48,6 +53,7 @@ struct Hasher<8, 8>
         return reinterpret_cast<long>(ptr);
     }
 };
+#endif
 
 template<>
 struct Hasher<8, 4>
@@ -529,8 +535,6 @@ connectionFlushBatchRequestsAsync(ConnectionObject* self, PyObject* args, PyObje
 
     try
     {
-        AllowThreads allowThreads; // Release Python's global interpreter lock during remote invocations.
-
         result = (*self->connection)->begin_flushBatchRequests(cb, callback);
     }
     catch(const Ice::Exception& ex)
@@ -615,8 +619,6 @@ connectionBeginFlushBatchRequests(ConnectionObject* self, PyObject* args, PyObje
     Ice::AsyncResultPtr result;
     try
     {
-        AllowThreads allowThreads; // Release Python's global interpreter lock during remote invocations.
-
         if(callback)
         {
             result = (*self->connection)->begin_flushBatchRequests(cb, callback);
@@ -798,8 +800,6 @@ connectionBeginHeartbeat(ConnectionObject* self, PyObject* args, PyObject* kwds)
     Ice::AsyncResultPtr result;
     try
     {
-        AllowThreads allowThreads; // Release Python's global interpreter lock during remote invocations.
-
         if(cb)
         {
             result = (*self->connection)->begin_heartbeat(cb);
@@ -907,7 +907,6 @@ connectionSetACM(ConnectionObject* self, PyObject* args)
 
     try
     {
-        AllowThreads allowThreads; // Release Python's global interpreter lock during blocking invocations.
         (*self->connection)->setACM(timeout, close, heartbeat);
     }
     catch(const Ice::Exception& ex)
@@ -935,7 +934,6 @@ connectionGetACM(ConnectionObject* self)
 
     try
     {
-        AllowThreads allowThreads; // Release Python's global interpreter lock during blocking invocations.
         acm = (*self->connection)->getACM();
     }
     catch(const Ice::Exception& ex)

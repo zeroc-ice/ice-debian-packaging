@@ -1095,6 +1095,11 @@ Database::getAdapterDirectProxy(const string& id, const Ice::EncodingVersion& en
 
     Ice::EndpointSeq endpoints;
     vector<AdapterInfo> infos = findByReplicaGroupId(txn, _adapters, _adaptersByGroupId, id);
+    if(infos.empty())
+    {
+        throw AdapterNotExistException(id);
+    }
+
     filterAdapterInfos("", id, _pluginFacade, con, ctx, infos);
     for(unsigned int i = 0; i < infos.size(); ++i)
     {
@@ -1108,8 +1113,7 @@ Database::getAdapterDirectProxy(const string& id, const Ice::EncodingVersion& en
     {
         return _communicator->stringToProxy("dummy:default")->ice_endpoints(endpoints);
     }
-
-    throw AdapterNotExistException(id);
+    return 0;
 }
 
 void
@@ -1774,7 +1778,6 @@ Database::getObjectByTypeOnLeastLoadedNode(const string& type, LoadSample sample
     }
     return min_element(objectsWithLoad.begin(), objectsWithLoad.end(), ObjectLoadCI())->first;
 }
-
 
 Ice::ObjectProxySeq
 Database::getObjectsByType(const string& type, const Ice::ConnectionPtr& con, const Ice::Context& ctx)

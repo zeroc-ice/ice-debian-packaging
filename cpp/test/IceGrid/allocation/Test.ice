@@ -15,8 +15,8 @@ module Test
 interface TestIntf
 {
     void shutdown();
-    
-    string getProperty(string name);
-};
 
-};
+    string getProperty(string name);
+}
+
+}

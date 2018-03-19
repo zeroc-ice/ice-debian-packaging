@@ -444,6 +444,7 @@ public class AllTests
         metrics.ice_connectionId("Con1").ice_ping();
 
         waitForCurrent(clientMetrics, "View", "Invocation", 0);
+        waitForCurrent(serverMetrics, "View", "Dispatch", 0);
 
         r = clientMetrics.getMetricsView("View");
         test(r.returnValue.get("Thread").length == threadCount);
@@ -473,7 +474,7 @@ public class AllTests
             test(r.returnValue.get("Connection").length == 2);
         }
         test(r.returnValue.get("Dispatch").length == 1);
-        test(r.returnValue.get("Dispatch")[0].current <= 1 && r.returnValue.get("Dispatch")[0].total == 5);
+        test(r.returnValue.get("Dispatch")[0].current == 0 && r.returnValue.get("Dispatch")[0].total == 5);
         test(r.returnValue.get("Dispatch")[0].id.indexOf("[ice_ping]") > 0);
 
         if(!collocated)
@@ -1161,14 +1162,14 @@ public class AllTests
 
         MetricsPrx metricsBatchOneway = metrics.ice_batchOneway();
         metricsBatchOneway.op();
-        metricsBatchOneway.opAsync();
-        //metricsBatchOneway.opAsync().waitForSent();
+        metricsBatchOneway.opAsync().join();
+        metricsBatchOneway.opAsync().whenComplete((response, ex) -> {});
 
         map = toMap(clientMetrics.getMetricsView("View").returnValue.get("Invocation"));
         test(map.size() == 1);
 
         im1 = (InvocationMetrics)map.get("op");
-        test(im1.current == 0 && im1.total == 2 && im1.failures == 0 && im1.retry == 0);
+        test(im1.current == 0 && im1.total == 3 && im1.failures == 0 && im1.retry == 0);
         test(im1.remotes.length == 0);
 
         testAttribute(clientMetrics, clientProps, "Invocation", "mode", "batch-oneway",

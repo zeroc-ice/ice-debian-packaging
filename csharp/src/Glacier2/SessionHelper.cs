@@ -29,7 +29,7 @@ public class SessionHelper
     /// the communicator.</param>
     /// <param name="finderStr">The stringified Ice.RouterFinder proxy.</param>
     /// <param name="useCallbacks">True if the session should create an object adapter for receiving callbacks.</param>
-    public SessionHelper(SessionCallback callback, Ice.InitializationData initData, string finderStr, bool useCallbacks)
+    internal SessionHelper(SessionCallback callback, Ice.InitializationData initData, string finderStr, bool useCallbacks)
     {
         _callback = callback;
         _initData = initData;
@@ -132,21 +132,15 @@ public class SessionHelper
     }
 
     /// <summary>
-    /// Returns the Glacier2 session proxy. If the session hasn't been
-    /// established yet, or the session has already been destroyed,
-    /// throws SessionNotExistException.
+    /// Returns the Glacier2 session proxy, or null if the session hasn't been
+    /// established yet or the session has already been destroyed.
     /// </summary>
-    /// <returns>The session proxy, or throws SessionNotExistException
-    /// if no session exists.</returns>
+    /// <returns>The session proxy, or null if no session exists.</returns>
     public Glacier2.SessionPrx
     session()
     {
         lock(this)
         {
-            if(_session == null)
-            {
-                throw new SessionNotExistException();
-            }
             return _session;
         }
     }
@@ -201,7 +195,7 @@ public class SessionHelper
     /// the exception.
     /// </summary>
     /// <param name="context">The request context to use when creating the session.</param>
-    public void
+    internal void
     connect(Dictionary<string, string> context)
     {
         lock(this)
@@ -222,7 +216,7 @@ public class SessionHelper
     /// <param name="username">The user name.</param>
     /// <param name="password">The password.</param>
     /// <param name="context">The request context to use when creating the session.</param>
-    public void
+    internal void
     connect(string username, string password, Dictionary<string, string> context)
     {
         lock(this)

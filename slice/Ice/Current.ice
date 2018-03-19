@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build", "python:pkgdir:Ice"]]
 
 #include <Ice/ObjectAdapterF.ice>
 #include <Ice/ConnectionF.ice>
@@ -83,7 +83,7 @@ enum OperationMode
      * recoverable error.
      */
     \Idempotent
-};
+}
 
 /**
  *
@@ -159,6 +159,6 @@ local struct Current
      *
      **/
     Ice::EncodingVersion encoding;
-};
+}
 
-};
+}

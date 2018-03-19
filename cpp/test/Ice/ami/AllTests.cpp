@@ -773,7 +773,7 @@ private:
 };
 typedef IceUtil::Handle<FlushExCallback> FlushExCallbackPtr;
 
-class CloseCallback : virtual public CallbackBase, virtual public Ice::CloseCallback
+class CloseCallback : public virtual CallbackBase, public virtual Ice::CloseCallback
 {
 public:
 
@@ -955,7 +955,6 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                 nullptr, nullptr, ctx);
             test(promise.get_future().get());
         }
-
 
         {
             p->ice_pingAsync(nullptr);
@@ -1298,7 +1297,6 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
             {
             }
         }
-
     }
     cout << "ok" << endl;
 
@@ -1409,7 +1407,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                     });
                 test(false);
             }
-            catch(const IceUtil::IllegalArgumentException&)
+            catch(const Ice::TwowayOnlyException&)
             {
             }
         }
@@ -1461,13 +1459,12 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
         {
         }
 
-
         try
         {
             p->ice_oneway()->opWithResultAsync().get();
             test(false);
         }
-        catch(const IceUtil::IllegalArgumentException&)
+        catch(const Ice::TwowayOnlyException&)
         {
         }
 
@@ -1841,7 +1838,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
         {
             test(p->opBatchCount() == 0);
             auto b1 = p->ice_batchOneway();
-            b1->opBatch();
+            b1->opBatchAsync().get();
             b1->opBatch();
             auto id = this_thread::get_id();
             promise<void> promise;
@@ -2386,6 +2383,40 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
         }
     }
 
+    {
+        cout << "testing result struct... " << flush;
+
+        auto q = Ice::uncheckedCast<Test::Outer::Inner::TestIntfPrx>(
+            communicator->stringToProxy("test2:" + getTestEndpoint(communicator, 0)));
+
+        promise<void> promise;
+        q->opAsync(1,
+            [&promise](int i, int j)
+                {
+                    test(i == j);
+                    promise.set_value();
+                },
+                [](const exception_ptr& ex)
+                {
+                    try
+                    {
+                        rethrow_exception(ex);
+                    }
+                    catch(const std::exception& exc)
+                    {
+                        cerr << exc.what() << endl;
+                    }
+                    test(false);
+                });
+        promise.get_future().get();
+
+        auto f = q->opAsync(1);
+        auto r = f.get();
+        test(r.returnValue == r.j);
+        test(r.returnValue == 1);
+        cout << "ok" << endl;
+    }
+
     p->shutdown();
 
 #else
@@ -2652,7 +2683,6 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
         catch(const Ice::NoEndpointException&)
         {
         }
-
 
         try
         {

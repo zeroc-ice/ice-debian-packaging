@@ -58,8 +58,7 @@ public class OutgoingAsync<T> extends ProxyOutgoingAsyncBaseI<T>
 
         if(twowayOnly && !_proxy.ice_isTwoway())
         {
-            throw new java.lang.IllegalArgumentException("`" + _operation +
-                                                         "' can only be called with a twoway proxy");
+            throw new com.zeroc.Ice.TwowayOnlyException(_operation);
         }
 
         if(format == null)
@@ -88,7 +87,7 @@ public class OutgoingAsync<T> extends ProxyOutgoingAsyncBaseI<T>
                 //
                 _sentSynchronously = true;
                 _proxy._getBatchRequestQueue().finishBatchRequest(_os, _proxy, _operation);
-                finished(true);
+                finished(true, false);
             }
             else
             {
@@ -106,6 +105,7 @@ public class OutgoingAsync<T> extends ProxyOutgoingAsyncBaseI<T>
         }
     }
 
+    @Override
     public T waitForResponse()
     {
         if(isBatch())
@@ -137,13 +137,13 @@ public class OutgoingAsync<T> extends ProxyOutgoingAsyncBaseI<T>
         }
         catch(InterruptedException ex)
         {
-            throw new OperationInterruptedException();
+            throw new OperationInterruptedException(ex);
         }
         catch(java.util.concurrent.ExecutionException ee)
         {
             try
             {
-                throw ee.getCause();
+                throw ee.getCause().fillInStackTrace();
             }
             catch(RuntimeException ex) // Includes LocalException
             {
@@ -157,20 +157,6 @@ public class OutgoingAsync<T> extends ProxyOutgoingAsyncBaseI<T>
             {
                 throw new UnknownException(ex);
             }
-        }
-    }
-
-    @Override
-    protected void markSent()
-    {
-        super.markSent();
-
-        if(!_proxy.ice_isTwoway())
-        {
-            //
-            // For a non-twoway proxy, the invocation is completed after it is sent.
-            //
-            complete(null);
         }
     }
 
@@ -219,13 +205,14 @@ public class OutgoingAsync<T> extends ProxyOutgoingAsyncBaseI<T>
     @Override
     protected void markCompleted()
     {
-        super.markCompleted();
-
         try
         {
-            if(_exception != null)
+            if(!_proxy.ice_isTwoway())
             {
-                completeExceptionally(_exception);
+                //
+                // For a non-twoway proxy, the invocation is completed after it is sent.
+                //
+                complete(null);
             }
             else if((_state & StateOK) > 0)
             {
@@ -384,7 +371,6 @@ public class OutgoingAsync<T> extends ProxyOutgoingAsyncBaseI<T>
     final private com.zeroc.Ice.EncodingVersion _encoding;
     private com.zeroc.Ice.InputStream _is;
 
-    private boolean _synchronous; // True if this AMI request is being used for a generated synchronous invocation.
     private Class<?>[] _userExceptions; // Valid user exceptions.
     private Unmarshaler<T> _unmarshal;
 }

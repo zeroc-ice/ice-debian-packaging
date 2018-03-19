@@ -16,6 +16,7 @@
 #include <Ice/Handle.h>
 #include <Ice/ObjectF.h>
 #include <Ice/ValueF.h>
+#include <Ice/SlicedDataF.h>
 
 namespace Ice
 {
@@ -50,7 +51,6 @@ public:
     static const std::string& ice_staticId();
 };
 
-
 //
 // Base class for all Ice user exceptions
 //
@@ -58,18 +58,19 @@ class ICE_API UserException : public IceUtil::Exception
 {
 public:
 
-    virtual void _write(::Ice::OutputStream*) const;
-    virtual void _read(::Ice::InputStream*);
-
-    virtual bool _usesClasses() const;
-
 #ifdef ICE_CPP11_MAPPING
     std::unique_ptr<UserException> ice_clone() const;
 #else
     virtual UserException* ice_clone() const = 0;
 #endif
+    virtual Ice::SlicedDataPtr ice_getSlicedData() const;
 
     static const std::string& ice_staticId();
+
+    virtual void _write(::Ice::OutputStream*) const;
+    virtual void _read(::Ice::InputStream*);
+
+    virtual bool _usesClasses() const;
 
 protected:
 
@@ -77,9 +78,11 @@ protected:
     virtual void _readImpl(::Ice::InputStream*) {}
 };
 
-
 //
 // Base class for all Ice system exceptions
+//
+// System exceptions are currently Ice internal, non-documented
+// exceptions.
 //
 class ICE_API SystemException : public IceUtil::Exception
 {

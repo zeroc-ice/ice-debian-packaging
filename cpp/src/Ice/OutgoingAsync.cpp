@@ -332,7 +332,7 @@ OutgoingAsyncBase::exceptionImpl(const Exception& ex)
 }
 
 bool
-OutgoingAsyncBase::responseImpl(bool ok)
+OutgoingAsyncBase::responseImpl(bool ok, bool invoke)
 {
     Lock sync(_m);
     if(ok)
@@ -347,10 +347,9 @@ OutgoingAsyncBase::responseImpl(bool ok)
     _m.notifyAll();
 #endif
 
-    bool invoke;
     try
     {
-        invoke = handleResponse(ok);
+        invoke &= handleResponse(ok);
     }
     catch(const Ice::Exception& ex)
     {
@@ -471,7 +470,7 @@ OutgoingAsyncBase::throwLocalException() const
 }
 
 bool
-OutgoingAsyncBase::waitForResponse()
+OutgoingAsyncBase::_waitForResponse()
 {
     Lock sync(_m);
     if(_state & EndCalled)
@@ -492,32 +491,32 @@ OutgoingAsyncBase::waitForResponse()
 }
 
 Ice::InputStream*
-OutgoingAsyncBase::startReadParams()
+OutgoingAsyncBase::_startReadParams()
 {
     _is.startEncapsulation();
     return &_is;
 }
 
 void
-OutgoingAsyncBase::endReadParams()
+OutgoingAsyncBase::_endReadParams()
 {
     _is.endEncapsulation();
 }
 
 void
-OutgoingAsyncBase::readEmptyParams()
+OutgoingAsyncBase::_readEmptyParams()
 {
     _is.skipEmptyEncapsulation();
 }
 
 void
-OutgoingAsyncBase::readParamEncaps(const ::Ice::Byte*& encaps, ::Ice::Int& sz)
+OutgoingAsyncBase::_readParamEncaps(const ::Ice::Byte*& encaps, ::Ice::Int& sz)
 {
     _is.readEncapsulation(encaps, sz);
 }
 
 void
-OutgoingAsyncBase::throwUserException()
+OutgoingAsyncBase::_throwUserException()
 {
     try
     {
@@ -532,23 +531,25 @@ OutgoingAsyncBase::throwUserException()
 }
 
 void
-OutgoingAsyncBase::scheduleCallback(const CallbackPtr& cb)
+OutgoingAsyncBase::_scheduleCallback(const CallbackPtr& cb)
 {
+    //
+    // NOTE: for internal use only. This should only be called when the invocation has
+    // completed. Accessing _cachedConnection is not safe otherwise.
+    //
+
     class WorkItem : public DispatchWorkItem
     {
     public:
 
-        WorkItem(const CallbackPtr& cb) : _cb(cb) {}
+        WorkItem(const ConnectionPtr& connection, const CallbackPtr& cb) :
+            DispatchWorkItem(connection), _cb(cb)
+        {
+        }
 
         virtual void run()
         {
-            try
-            {
-                _cb->run();
-            }
-            catch(...)
-            {
-            }
+            _cb->run();
         }
 
     private:
@@ -559,7 +560,7 @@ OutgoingAsyncBase::scheduleCallback(const CallbackPtr& cb)
     //
     // CommunicatorDestroyedException is the only exception that can propagate directly from this method.
     //
-    _instance->clientThreadPool()->dispatch(new WorkItem(cb));
+    _instance->clientThreadPool()->dispatch(new WorkItem(_cachedConnection, cb));
 }
 
 #endif
@@ -828,13 +829,13 @@ ProxyOutgoingAsyncBase::exceptionImpl(const Exception& ex)
 }
 
 bool
-ProxyOutgoingAsyncBase::responseImpl(bool ok)
+ProxyOutgoingAsyncBase::responseImpl(bool ok, bool invoke)
 {
     if(_proxy->_getReference()->getInvocationTimeout() != -1)
     {
         _instance->timer()->cancel(ICE_SHARED_FROM_THIS);
     }
-    return OutgoingAsyncBase::responseImpl(ok);
+    return OutgoingAsyncBase::responseImpl(ok, invoke);
 }
 
 void
@@ -904,9 +905,9 @@ OutgoingAsync::prepare(const string& operation, OperationMode mode, const Contex
 
     _os.write(static_cast<Byte>(_mode));
 
-#if defined(_MSC_VER) && (_MSC_VER == 1500)
+#if defined(_MSC_VER) && (_MSC_VER <= 1600)
     //
-    // COMPILERFIX VC90 get confused with namespaces and we need to
+    // COMPILERFIX VC90 and VC100 get confused with namespaces and we need to
     // defined both Ice::noExplicitContext and IceProxy::Ice::noExplicitContext
     // see comments in Ice/Proxy.h.
     //
@@ -1082,7 +1083,7 @@ OutgoingAsync::response()
             }
         }
 
-        return responseImpl(replyStatus == replyOK);
+        return responseImpl(replyStatus == replyOK, true);
     }
     catch(const Exception& ex)
     {
@@ -1128,8 +1129,8 @@ OutgoingAsync::invoke(const string& operation)
     {
         _sentSynchronously = true;
         _proxy->_getBatchRequestQueue()->finishBatchRequest(&_os, _proxy, operation);
-        responseImpl(true);
-        return; // Don't call sent/completed callback for batch AMI requests
+        responseImpl(true, false); // Don't call sent/completed callback for batch AMI requests
+        return;
     }
 
     //
@@ -1320,6 +1321,5 @@ GenericCallbackBase::~GenericCallbackBase()
 {
     // Out of line to avoid weak vtable
 }
-
 
 #endif

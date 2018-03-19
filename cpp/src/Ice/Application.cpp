@@ -10,7 +10,6 @@
 #include <Ice/Application.h>
 #include <Ice/LoggerI.h>
 #include <Ice/LoggerUtil.h>
-#include <IceUtil/CtrlCHandler.h>
 #include <Ice/ArgVector.h>
 
 #ifdef _WIN32
@@ -46,8 +45,8 @@ namespace
 //
 // Variables than can change while run() and communicator->destroy() are running!
 //
-bool _released = false;
-CtrlCHandlerCallback _previousCallback = 0;
+bool _released = true;
+CtrlCHandlerCallback _previousCallback = ICE_NULLPTR;
 
 //
 // Variables that are immutable during run() and until communicator->destroy() has returned;
@@ -248,7 +247,7 @@ Ice::Application::destroyOnInterrupt()
         if(_ctrlCHandler != 0)
         {
             Mutex::Lock lock(_mutex); // we serialize all the interrupt-setting
-            if(_ctrlCHandler->getCallback() == holdInterruptCallback)
+            if(!_released)
             {
                 _released = true;
                 _condVar.signal();
@@ -271,7 +270,7 @@ Ice::Application::shutdownOnInterrupt()
         if(_ctrlCHandler != 0)
         {
             Mutex::Lock lock(_mutex); // we serialize all the interrupt-setting
-            if(_ctrlCHandler->getCallback() == holdInterruptCallback)
+            if(!_released)
             {
                 _released = true;
                 _condVar.signal();
@@ -294,7 +293,7 @@ Ice::Application::ignoreInterrupt()
         if(_ctrlCHandler != 0)
         {
             Mutex::Lock lock(_mutex); // we serialize all the interrupt-setting
-            if(_ctrlCHandler->getCallback() == holdInterruptCallback)
+            if(!_released)
             {
                 _released = true;
                 _condVar.signal();
@@ -317,7 +316,7 @@ Ice::Application::callbackOnInterrupt()
         if(_ctrlCHandler != 0)
         {
             Mutex::Lock lock(_mutex); // we serialize all the interrupt-setting
-            if(_ctrlCHandler->getCallback() == holdInterruptCallback)
+            if(!_released)
             {
                 _released = true;
                 _condVar.signal();
@@ -340,11 +339,10 @@ Ice::Application::holdInterrupt()
         if(_ctrlCHandler != 0)
         {
             Mutex::Lock lock(_mutex); // we serialize all the interrupt-setting
-            if(_ctrlCHandler->getCallback() != holdInterruptCallback)
+            if(_released)
             {
-                _previousCallback = _ctrlCHandler->getCallback();
                 _released = false;
-                _ctrlCHandler->setCallback(holdInterruptCallback);
+                _previousCallback = _ctrlCHandler->setCallback(holdInterruptCallback);
             }
             // else, we were already holding signals
         }
@@ -364,7 +362,7 @@ Ice::Application::releaseInterrupt()
         if(_ctrlCHandler != 0)
         {
             Mutex::Lock lock(_mutex); // we serialize all the interrupt-setting
-            if(_ctrlCHandler->getCallback() == holdInterruptCallback)
+            if(!_released)
             {
                 //
                 // Note that it's very possible no signal is held;
@@ -502,7 +500,7 @@ Ice::Application::doMain(int argc, char* argv[], const InitializationData& initD
 void
 Ice::Application::holdInterruptCallback(int signal)
 {
-    CtrlCHandlerCallback callback = 0;
+    CtrlCHandlerCallback callback = ICE_NULLPTR;
     {
         Mutex::Lock lock(_mutex);
         while(!_released)
@@ -521,7 +519,7 @@ Ice::Application::holdInterruptCallback(int signal)
         callback = _ctrlCHandler->getCallback();
     }
 
-    if(callback != 0)
+    if(callback)
     {
         callback(signal);
     }

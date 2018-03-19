@@ -18,24 +18,9 @@ public class ProxyGetConnection extends ProxyOutgoingAsyncBaseI<com.zeroc.Ice.Co
     }
 
     @Override
-    protected boolean needCallback()
-    {
-        return true;
-    }
-
-    @Override
     protected void markCompleted()
     {
-        super.markCompleted();
-
-        if(_exception != null)
-        {
-            completeExceptionally(_exception);
-        }
-        else
-        {
-            complete(_cachedConnection);
-        }
+        complete(_cachedConnection);
     }
 
     @Override
@@ -50,7 +35,7 @@ public class ProxyGetConnection extends ProxyOutgoingAsyncBaseI<com.zeroc.Ice.Co
         throws RetryException
     {
         _cachedConnection = connection;
-        if(finished(true))
+        if(finished(true, true))
         {
             invokeCompletedAsync();
         }
@@ -60,7 +45,7 @@ public class ProxyGetConnection extends ProxyOutgoingAsyncBaseI<com.zeroc.Ice.Co
     @Override
     public int invokeCollocated(CollocatedRequestHandler handler)
     {
-        if(finished(true))
+        if(finished(true, true))
         {
             invokeCompletedAsync();
         }
@@ -70,37 +55,5 @@ public class ProxyGetConnection extends ProxyOutgoingAsyncBaseI<com.zeroc.Ice.Co
     public void invoke()
     {
         invokeImpl(true); // userThread = true
-    }
-
-    public com.zeroc.Ice.Connection waitForResponse()
-    {
-        if(Thread.interrupted())
-        {
-            throw new com.zeroc.Ice.OperationInterruptedException();
-        }
-
-        try
-        {
-            return get();
-        }
-        catch(InterruptedException ex)
-        {
-            throw new com.zeroc.Ice.OperationInterruptedException();
-        }
-        catch(java.util.concurrent.ExecutionException ee)
-        {
-            try
-            {
-                throw ee.getCause();
-            }
-            catch(RuntimeException ex) // Includes LocalException
-            {
-                throw ex;
-            }
-            catch(Throwable ex)
-            {
-                throw new com.zeroc.Ice.UnknownException(ex);
-            }
-        }
     }
 }

@@ -333,6 +333,10 @@ static NSString* ICEObject_ids[1] =
 -(void) ice_postUnmarshal
 {
 }
+-(id<ICESlicedData>) ice_getSlicedData
+{
+    return nil;
+}
 -(BOOL) ice_isA:(NSString*)typeId current:(ICECurrent*)current
 {
     NSAssert(NO, @"ice_isA requires override");
@@ -618,7 +622,7 @@ static NSString* ICEObject_all[4] =
     object_->__decRef();
     [super dealloc];
 }
-+(id) servantWrapperWithCxxObject:(Ice::Object*)arg
++(id) servantWrapperWithCxxObjectNoAutoRelease:(Ice::Object*)arg
 {
     @synchronized([ICEServantWrapper class])
     {
@@ -629,7 +633,7 @@ static NSString* ICEObject_all[4] =
         }
         else
         {
-            return [[(ICEServantWrapper*)[self alloc] initWithCxxObject:arg] autorelease];
+            return [(ICEServantWrapper*)[self alloc] initWithCxxObject:arg];
         }
     }
 }

@@ -36,9 +36,9 @@ const Context noExplicitContext;
 
 }
 
-#if defined(_MSC_VER) && (_MSC_VER == 1500)
+#if defined(_MSC_VER) && (_MSC_VER <= 1600)
 //
-// COMPILERFIX VC90 get confused with namespaces and complains that
+// COMPILERFIX VC90 and VC100 get confused with namespaces and complains that
 // ::Ice::noExplicitContext isn't defined in IceProxy namespace.
 //
 namespace IceProxy
@@ -124,7 +124,7 @@ AsyncStatus
 ProxyGetConnection::invokeRemote(const ConnectionIPtr& connection, bool, bool)
 {
     _cachedConnection = connection;
-    if(responseImpl(true))
+    if(responseImpl(true, true))
     {
         invokeResponseAsync();
     }
@@ -134,7 +134,7 @@ ProxyGetConnection::invokeRemote(const ConnectionIPtr& connection, bool, bool)
 AsyncStatus
 ProxyGetConnection::invokeCollocated(CollocatedRequestHandler*)
 {
-    if(responseImpl(true))
+    if(responseImpl(true, true))
     {
         invokeResponseAsync();
     }
@@ -239,12 +239,9 @@ Ice::ObjectPrx::_checkTwowayOnly(const string& name) const
     //
     if(!ice_isTwoway())
     {
-        throw IceUtil::IllegalArgumentException(__FILE__,
-                                                __LINE__,
-                                                "`" + name + "' can only be called with a twoway proxy");
+        throw Ice::TwowayOnlyException(__FILE__, __LINE__, name);
     }
 }
-
 
 shared_ptr<ObjectPrx>
 Ice::ObjectPrx::_newInstance() const
@@ -325,13 +322,13 @@ IceProxy::Ice::Object::_iceI_begin_ice_isA(const string& typeId,
 bool
 IceProxy::Ice::Object::end_ice_isA(const AsyncResultPtr& result)
 {
-    AsyncResult::check(result, this, ice_isA_name);
-    bool ok = result->waitForResponse();
+    AsyncResult::_check(result, this, ice_isA_name);
+    bool ok = result->_waitForResponse();
     if(!ok)
     {
         try
         {
-            result->throwUserException();
+            result->_throwUserException();
         }
         catch(const UserException& ex)
         {
@@ -339,17 +336,17 @@ IceProxy::Ice::Object::end_ice_isA(const AsyncResultPtr& result)
         }
     }
     bool ret;
-    ::Ice::InputStream* istr = result->startReadParams();
+    ::Ice::InputStream* istr = result->_startReadParams();
     istr->read(ret);
-    result->endReadParams();
+    result->_endReadParams();
     return ret;
 }
 
 AsyncResultPtr
 IceProxy::Ice::Object::_iceI_begin_ice_ping(const Context& ctx,
-                                        const ::IceInternal::CallbackBasePtr& del,
-                                        const ::Ice::LocalObjectPtr& cookie,
-                                        bool sync)
+                                            const ::IceInternal::CallbackBasePtr& del,
+                                            const ::Ice::LocalObjectPtr& cookie,
+                                            bool sync)
 {
     OutgoingAsyncPtr result = new CallbackOutgoing(this, ice_ping_name, del, cookie, sync);
     try
@@ -373,9 +370,9 @@ IceProxy::Ice::Object::end_ice_ping(const AsyncResultPtr& result)
 
 AsyncResultPtr
 IceProxy::Ice::Object::_iceI_begin_ice_ids(const Context& ctx,
-                                       const ::IceInternal::CallbackBasePtr& del,
-                                       const ::Ice::LocalObjectPtr& cookie,
-                                       bool sync)
+                                           const ::IceInternal::CallbackBasePtr& del,
+                                           const ::Ice::LocalObjectPtr& cookie,
+                                           bool sync)
 {
     _checkTwowayOnly(ice_ids_name, sync);
     OutgoingAsyncPtr result = new CallbackOutgoing(this, ice_ids_name, del, cookie, sync);
@@ -395,13 +392,13 @@ IceProxy::Ice::Object::_iceI_begin_ice_ids(const Context& ctx,
 vector<string>
 IceProxy::Ice::Object::end_ice_ids(const AsyncResultPtr& result)
 {
-    AsyncResult::check(result, this, ice_ids_name);
-    bool ok = result->waitForResponse();
+    AsyncResult::_check(result, this, ice_ids_name);
+    bool ok = result->_waitForResponse();
     if(!ok)
     {
         try
         {
-            result->throwUserException();
+            result->_throwUserException();
         }
         catch(const UserException& ex)
         {
@@ -409,17 +406,17 @@ IceProxy::Ice::Object::end_ice_ids(const AsyncResultPtr& result)
         }
     }
     vector<string> ret;
-    ::Ice::InputStream* istr = result->startReadParams();
+    ::Ice::InputStream* istr = result->_startReadParams();
     istr->read(ret, false);
-    result->endReadParams();
+    result->_endReadParams();
     return ret;
 }
 
 AsyncResultPtr
 IceProxy::Ice::Object::_iceI_begin_ice_id(const Context& ctx,
-                                      const ::IceInternal::CallbackBasePtr& del,
-                                      const ::Ice::LocalObjectPtr& cookie,
-                                      bool sync)
+                                          const ::IceInternal::CallbackBasePtr& del,
+                                          const ::Ice::LocalObjectPtr& cookie,
+                                          bool sync)
 {
     _checkTwowayOnly(ice_id_name, sync);
     OutgoingAsyncPtr result = new CallbackOutgoing(this, ice_id_name, del, cookie, sync);
@@ -439,13 +436,13 @@ IceProxy::Ice::Object::_iceI_begin_ice_id(const Context& ctx,
 string
 IceProxy::Ice::Object::end_ice_id(const AsyncResultPtr& result)
 {
-    AsyncResult::check(result, this, ice_id_name);
-    bool ok = result->waitForResponse();
+    AsyncResult::_check(result, this, ice_id_name);
+    bool ok = result->_waitForResponse();
     if(!ok)
     {
         try
         {
-            result->throwUserException();
+            result->_throwUserException();
         }
         catch(const UserException& ex)
         {
@@ -453,9 +450,9 @@ IceProxy::Ice::Object::end_ice_id(const AsyncResultPtr& result)
         }
     }
     string ret;
-    ::Ice::InputStream* istr = result->startReadParams();
+    ::Ice::InputStream* istr = result->_startReadParams();
     istr->read(ret, false);
-    result->endReadParams();
+    result->_endReadParams();
     return ret;
 }
 
@@ -481,12 +478,12 @@ IceProxy::Ice::Object::ice_invoke(const string& operation,
 
 AsyncResultPtr
 IceProxy::Ice::Object::_iceI_begin_ice_invoke(const string& operation,
-                                          OperationMode mode,
-                                          const vector<Byte>& inEncaps,
-                                          const Context& ctx,
-                                          const ::IceInternal::CallbackBasePtr& del,
-                                          const ::Ice::LocalObjectPtr& cookie,
-                                          bool sync)
+                                              OperationMode mode,
+                                              const vector<Byte>& inEncaps,
+                                              const Context& ctx,
+                                              const ::IceInternal::CallbackBasePtr& del,
+                                              const ::Ice::LocalObjectPtr& cookie,
+                                              bool sync)
 {
     pair<const Byte*, const Byte*> inPair;
     if(inEncaps.empty())
@@ -504,13 +501,13 @@ IceProxy::Ice::Object::_iceI_begin_ice_invoke(const string& operation,
 bool
 IceProxy::Ice::Object::end_ice_invoke(vector<Byte>& outEncaps, const AsyncResultPtr& result)
 {
-    AsyncResult::check(result, this, ice_invoke_name);
-    bool ok = result->waitForResponse();
+    AsyncResult::_check(result, this, ice_invoke_name);
+    bool ok = result->_waitForResponse();
     if(_reference->getMode() == Reference::ModeTwoway)
     {
         const Byte* v;
         Int sz;
-        result->readParamEncaps(v, sz);
+        result->_readParamEncaps(v, sz);
         vector<Byte>(v, v + sz).swap(outEncaps);
     }
     return ok;
@@ -518,12 +515,12 @@ IceProxy::Ice::Object::end_ice_invoke(vector<Byte>& outEncaps, const AsyncResult
 
 AsyncResultPtr
 IceProxy::Ice::Object::_iceI_begin_ice_invoke(const string& operation,
-                                          OperationMode mode,
-                                          const pair<const Byte*, const Byte*>& inEncaps,
-                                          const Context& ctx,
-                                          const ::IceInternal::CallbackBasePtr& del,
-                                          const ::Ice::LocalObjectPtr& cookie,
-                                          bool sync)
+                                              OperationMode mode,
+                                              const pair<const Byte*, const Byte*>& inEncaps,
+                                              const Context& ctx,
+                                              const ::IceInternal::CallbackBasePtr& del,
+                                              const ::Ice::LocalObjectPtr& cookie,
+                                              bool sync)
 {
     OutgoingAsyncPtr result = new CallbackOutgoing(this, ice_invoke_name, del, cookie, sync);
     try
@@ -542,12 +539,12 @@ IceProxy::Ice::Object::_iceI_begin_ice_invoke(const string& operation,
 bool
 IceProxy::Ice::Object::_iceI_end_ice_invoke(pair<const Byte*, const Byte*>& outEncaps, const AsyncResultPtr& result)
 {
-    AsyncResult::check(result, this, ice_invoke_name);
-    bool ok = result->waitForResponse();
+    AsyncResult::_check(result, this, ice_invoke_name);
+    bool ok = result->_waitForResponse();
     if(_reference->getMode() == Reference::ModeTwoway)
     {
         Int sz;
-        result->readParamEncaps(outEncaps.first, sz);
+        result->_readParamEncaps(outEncaps.first, sz);
         outEncaps.second = outEncaps.first + sz;
     }
     return ok;
@@ -555,7 +552,7 @@ IceProxy::Ice::Object::_iceI_end_ice_invoke(pair<const Byte*, const Byte*>& outE
 
 ::Ice::AsyncResultPtr
 IceProxy::Ice::Object::_iceI_begin_ice_flushBatchRequests(const ::IceInternal::CallbackBasePtr& del,
-                                                      const ::Ice::LocalObjectPtr& cookie)
+                                                          const ::Ice::LocalObjectPtr& cookie)
 {
     class ProxyFlushBatchAsyncWithCallback : public ProxyFlushBatchAsync, public CallbackCompletion
     {
@@ -591,29 +588,29 @@ IceProxy::Ice::Object::_iceI_begin_ice_flushBatchRequests(const ::IceInternal::C
 void
 IceProxy::Ice::Object::end_ice_flushBatchRequests(const AsyncResultPtr& result)
 {
-    AsyncResult::check(result, this, ice_flushBatchRequests_name);
-    result->waitForResponse();
+    AsyncResult::_check(result, this, ice_flushBatchRequests_name);
+    result->_waitForResponse();
 }
 
 void
 IceProxy::Ice::Object::_end(const ::Ice::AsyncResultPtr& result, const std::string& operation) const
 {
-    AsyncResult::check(result, this, operation);
-    bool ok = result->waitForResponse();
+    AsyncResult::_check(result, this, operation);
+    bool ok = result->_waitForResponse();
     if(_reference->getMode() == Reference::ModeTwoway)
     {
         if(!ok)
         {
             try
             {
-                result->throwUserException();
+                result->_throwUserException();
             }
             catch(const UserException& ex)
             {
                 throw UnknownUserException(__FILE__, __LINE__, ex.ice_id());
             }
         }
-        result->readEmptyParams();
+        result->_readEmptyParams();
     }
 }
 
@@ -641,7 +638,7 @@ IceProxy::Ice::Object::_newInstance() const
 
 AsyncResultPtr
 IceProxy::Ice::Object::_iceI_begin_ice_getConnection(const ::IceInternal::CallbackBasePtr& del,
-                                                 const ::Ice::LocalObjectPtr& cookie)
+                                                     const ::Ice::LocalObjectPtr& cookie)
 {
     class ProxyGetConnectionWithCallback :  public ProxyGetConnection, public CallbackCompletion
     {
@@ -677,8 +674,8 @@ IceProxy::Ice::Object::_iceI_begin_ice_getConnection(const ::IceInternal::Callba
 ConnectionPtr
 IceProxy::Ice::Object::end_ice_getConnection(const AsyncResultPtr& result)
 {
-    AsyncResult::check(result, this, ice_getConnection_name);
-    result->waitForResponse();
+    AsyncResult::_check(result, this, ice_getConnection_name);
+    result->_waitForResponse();
     return result->getConnection();
 }
 
@@ -852,7 +849,11 @@ ICE_OBJECT_PRX::ice_locatorCacheTimeout(Int newTimeout) const
     {
         ostringstream s;
         s << "invalid value passed to ice_locatorCacheTimeout: " << newTimeout;
+#ifdef ICE_CPP11_MAPPING
+        throw invalid_argument(s.str());
+#else
         throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, s.str());
+#endif
     }
     if(newTimeout == _reference->getLocatorCacheTimeout())
     {
@@ -1059,7 +1060,11 @@ ICE_OBJECT_PRX::ice_invocationTimeout(Int newTimeout) const
     {
         ostringstream s;
         s << "invalid value passed to ice_invocationTimeout: " << newTimeout;
+#ifdef ICE_CPP11_MAPPING
+        throw invalid_argument(s.str());
+#else
         throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, s.str());
+#endif
     }
     if(newTimeout == _reference->getInvocationTimeout())
     {
@@ -1201,7 +1206,11 @@ ICE_OBJECT_PRX::ice_timeout(int t) const
     {
         ostringstream s;
         s << "invalid value passed to ice_timeout: " << t;
+#ifdef ICE_CPP11_MAPPING
+        throw invalid_argument(s.str());
+#else
         throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, s.str());
+#endif
     }
     ReferencePtr ref = _reference->changeTimeout(t);
     if(ref == _reference)
@@ -1276,10 +1285,10 @@ ICE_OBJECT_PRX::setup(const ReferencePtr& ref)
 
 int
 ICE_OBJECT_PRX::_handleException(const Exception& ex,
-                                         const RequestHandlerPtr& handler,
-                                         OperationMode mode,
-                                         bool sent,
-                                         int& cnt)
+                                 const RequestHandlerPtr& handler,
+                                 OperationMode mode,
+                                 bool sent,
+                                 int& cnt)
 {
     _updateRequestHandler(handler, 0); // Clear the request handler
 
@@ -1366,7 +1375,7 @@ ICE_OBJECT_PRX::_setRequestHandler(const ::IceInternal::RequestHandlerPtr& handl
 
 void
 ICE_OBJECT_PRX::_updateRequestHandler(const ::IceInternal::RequestHandlerPtr& previous,
-                                              const ::IceInternal::RequestHandlerPtr& handler)
+                                      const ::IceInternal::RequestHandlerPtr& handler)
 {
     if(_reference->getCacheConnection() && previous)
     {

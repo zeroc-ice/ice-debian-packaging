@@ -206,6 +206,7 @@ public class AllTests
         {
             TestIntfPrx proxy = TestIntfPrx.uncheckedCast(_communicator.stringToProxy(
                 _adapter.getTestIntf().toString()));
+
             try
             {
                 proxy.ice_getConnection().setCloseCallback(con ->
@@ -294,12 +295,13 @@ public class AllTests
         public InvocationHeartbeatTest(Application app, RemoteCommunicatorPrx com, java.io.PrintWriter out)
         {
             super(app, "invocation heartbeat", com, out);
+            setServerACM(1, -1, -1); // Faster ACM to make sure we receive enough ACM heartbeats
         }
 
         public void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
         {
             proxy.sleep(4);
-            test(_heartbeat >= 2);
+            test(_heartbeat >= 6);
         }
     }
 
@@ -366,15 +368,15 @@ public class AllTests
         public InvocationHeartbeatCloseOnIdleTest(Application app, RemoteCommunicatorPrx com, java.io.PrintWriter out)
         {
             super(app, "invocation with no heartbeat and close on idle", com, out);
-            setClientACM(2, 1, 0); // Only close on idle.
-            setServerACM(2, 2, 0); // Disable heartbeat on invocations
+            setClientACM(1, 1, 0); // Only close on idle.
+            setServerACM(1, 2, 0); // Disable heartbeat on invocations
         }
 
         public void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
         {
             // No close on invocation, the call should succeed this
             // time.
-            proxy.sleep(4);
+            proxy.sleep(3);
 
             synchronized(this)
             {
@@ -389,7 +391,7 @@ public class AllTests
         public CloseOnIdleTest(Application app, RemoteCommunicatorPrx com, java.io.PrintWriter out)
         {
             super(app, "close on idle", com, out);
-            setClientACM(2, 1, 0); // Only close on idle
+            setClientACM(1, 1, 0); // Only close on idle
         }
 
         public void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
@@ -416,7 +418,7 @@ public class AllTests
         public CloseOnInvocationTest(Application app, RemoteCommunicatorPrx com, java.io.PrintWriter out)
         {
             super(app, "close on invocation", com, out);
-            setClientACM(2, 2, 0); // Only close on invocation
+            setClientACM(1, 2, 0); // Only close on invocation
         }
 
         public void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
@@ -442,7 +444,7 @@ public class AllTests
         public CloseOnIdleAndInvocationTest(Application app, RemoteCommunicatorPrx com, java.io.PrintWriter out)
         {
             super(app, "close on idle and invocation", com, out);
-            setClientACM(2, 3, 0); // Only close on idle and invocation
+            setClientACM(1, 3, 0); // Only close on idle and invocation
         }
 
         public void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
@@ -485,7 +487,7 @@ public class AllTests
         public ForcefulCloseOnIdleAndInvocationTest(Application app, RemoteCommunicatorPrx com, java.io.PrintWriter out)
         {
             super(app, "forceful close on idle and invocation", com, out);
-            setClientACM(2, 4, 0); // Only close on idle and invocation
+            setClientACM(1, 4, 0); // Only close on idle and invocation
         }
 
         public void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
@@ -511,14 +513,14 @@ public class AllTests
         public HeartbeatOnIdleTest(Application app, RemoteCommunicatorPrx com, java.io.PrintWriter out)
         {
             super(app, "heartbeat on idle", com, out);
-            setServerACM(2, -1, 2); // Enable server heartbeats.
+            setServerACM(1, -1, 2); // Enable server heartbeats.
         }
 
         public void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
         {
             try
             {
-                Thread.sleep(4000);
+                Thread.sleep(3000);
             }
             catch(java.lang.InterruptedException ex)
             {
@@ -536,7 +538,7 @@ public class AllTests
         public HeartbeatAlwaysTest(Application app, RemoteCommunicatorPrx com, java.io.PrintWriter out)
         {
             super(app, "heartbeat always", com, out);
-            setServerACM(2, -1, 3); // Enable server heartbeats.
+            setServerACM(1, -1, 3); // Enable server heartbeats.
         }
 
         public void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
@@ -546,7 +548,7 @@ public class AllTests
                 proxy.ice_ping();
                 try
                 {
-                    Thread.sleep(400);
+                    Thread.sleep(300);
                 }
                 catch(java.lang.InterruptedException ex)
                 {

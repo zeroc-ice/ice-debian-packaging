@@ -144,6 +144,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             comm.destroy();
@@ -169,6 +170,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -225,6 +227,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -246,6 +249,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -272,6 +276,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -329,6 +334,7 @@ public class AllTests
             }
             catch(Exception ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -358,6 +364,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -391,6 +398,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -421,6 +429,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -473,6 +482,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -495,6 +505,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -529,12 +540,13 @@ public class AllTests
                     }
                     catch(com.zeroc.Ice.LocalException ex)
                     {
+                        ex.printStackTrace();
                         test(false);
                     }
                     fact.destroyServer(server);
                     comm.destroy();
                 }
-                
+
                 //
                 // Target host does not match the certificate DNS altName
                 //
@@ -559,7 +571,7 @@ public class AllTests
                     fact.destroyServer(server);
                     comm.destroy();
                 }
-                
+
                 //
                 // Target host matches the certificate Common Name and the certificate does not
                 // include a DNS altName
@@ -579,12 +591,13 @@ public class AllTests
                     }
                     catch(com.zeroc.Ice.LocalException ex)
                     {
+                        ex.printStackTrace();
                         test(false);
                     }
                     fact.destroyServer(server);
                     comm.destroy();
                 }
-                
+
                 //
                 // Target host does not match the certificate Common Name and the certificate does not
                 // include a DNS altName
@@ -610,7 +623,7 @@ public class AllTests
                     fact.destroyServer(server);
                     comm.destroy();
                 }
-                
+
                 //
                 // Target host matches the certificate Common Name and the certificate has
                 // a DNS altName that does not matches the target host
@@ -636,11 +649,11 @@ public class AllTests
                     fact.destroyServer(server);
                     comm.destroy();
                 }
-                
+
                 //
                 // Test using 127.0.0.1 as target host
                 //
-                
+
                 //
                 // Target host matches the certificate IP altName
                 //
@@ -659,12 +672,13 @@ public class AllTests
                     }
                     catch(com.zeroc.Ice.LocalException ex)
                     {
+                        ex.printStackTrace();
                         test(false);
                     }
                     fact.destroyServer(server);
                     comm.destroy();
                 }
-                
+
                 //
                 // Target host does not match the certificate IP altName
                 //
@@ -689,7 +703,7 @@ public class AllTests
                     fact.destroyServer(server);
                     comm.destroy();
                 }
-                
+
                 //
                 // Target host is an IP addres that matches the CN and the certificate doesn't
                 // include an IP altName
@@ -736,6 +750,7 @@ public class AllTests
                     }
                     catch(com.zeroc.Ice.LocalException ex)
                     {
+                        ex.printStackTrace();
                         test(false);
                     }
                     fact.destroyServer(server);
@@ -801,6 +816,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -820,6 +836,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -839,6 +856,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -866,6 +884,7 @@ public class AllTests
                 }
                 catch(com.zeroc.Ice.LocalException ex)
                 {
+                    ex.printStackTrace();
                     test(false);
                 }
                 fact.destroyServer(server);
@@ -899,6 +918,7 @@ public class AllTests
                 }
                 catch(com.zeroc.Ice.LocalException ex)
                 {
+                    ex.printStackTrace();
                     test(false);
                 }
                 fact.destroyServer(server);
@@ -928,6 +948,7 @@ public class AllTests
                 }
                 catch(com.zeroc.Ice.LocalException ex)
                 {
+                    ex.printStackTrace();
                     test(false);
                 }
                 fact.destroyServer(server);
@@ -973,6 +994,7 @@ public class AllTests
                 }
                 catch(com.zeroc.Ice.LocalException ex)
                 {
+                    ex.printStackTrace();
                     test(false);
                 }
                 fact.destroyServer(server);
@@ -1010,6 +1032,7 @@ public class AllTests
                 }
                 catch(com.zeroc.Ice.LocalException ex)
                 {
+                    ex.printStackTrace();
                     test(false);
                 }
                 fact.destroyServer(server);
@@ -1026,6 +1049,7 @@ public class AllTests
                 }
                 catch(com.zeroc.Ice.LocalException ex)
                 {
+                    ex.printStackTrace();
                     test(false);
                 }
                 fact.destroyServer(server);
@@ -1066,6 +1090,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             test(verifier.invoked());
@@ -1089,6 +1114,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             test(verifier.invoked());
@@ -1121,6 +1147,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             test(verifier.invoked());
@@ -1174,6 +1201,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1239,6 +1267,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1272,6 +1301,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1304,6 +1334,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1335,6 +1366,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1358,6 +1390,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1385,6 +1418,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
         }
@@ -1412,6 +1446,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             comm.destroy();
@@ -1436,6 +1471,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             comm.destroy();
@@ -1479,6 +1515,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1503,6 +1540,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1524,6 +1562,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1555,6 +1594,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1587,6 +1627,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1621,6 +1662,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1652,6 +1694,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1677,6 +1720,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1719,6 +1763,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1740,6 +1785,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1781,6 +1827,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1821,6 +1868,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1921,6 +1969,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1941,6 +1990,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -1981,6 +2031,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -2001,6 +2052,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -2131,6 +2183,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -2173,6 +2226,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -2213,6 +2267,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -2241,6 +2296,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -2283,6 +2339,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -2349,6 +2406,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -2409,6 +2467,7 @@ public class AllTests
             }
             catch(com.zeroc.Ice.LocalException ex)
             {
+                ex.printStackTrace();
                 test(false);
             }
             fact.destroyServer(server);
@@ -2419,41 +2478,102 @@ public class AllTests
         out.print("testing system CAs... ");
         out.flush();
         {
+            //
+            // Retry a few times in case there are connectivity problems with demo.zeroc.com.
+            //
+            final int retryMax = 5;
+            final int retryDelay = 1000;
+            int retryCount = 0;
+
             initData = createClientProps(defaultProperties);
             initData.properties.setProperty("IceSSL.VerifyDepthMax", "4");
             initData.properties.setProperty("Ice.Override.Timeout", "5000"); // 5s timeout
             com.zeroc.Ice.Communicator comm = Util.initialize(initData);
             com.zeroc.Ice.ObjectPrx p = comm.stringToProxy("dummy:wss -h demo.zeroc.com -p 5064");
-            try
+            while(true)
             {
-                p.ice_ping();
-                test(false);
-            }
-            catch(com.zeroc.Ice.SecurityException ex)
-            {
-                // Expected, by default we don't check for system CAs.
-            }
-            catch(com.zeroc.Ice.LocalException ex)
-            {
-                test(false);
-            }
+                try
+                {
+                    p.ice_ping();
+                    test(false);
+                }
+                catch(com.zeroc.Ice.SecurityException ex)
+                {
+                    // Expected, by default we don't check for system CAs.
+                    break;
+                }
+                catch(com.zeroc.Ice.LocalException ex)
+                {
+                    if((ex instanceof com.zeroc.Ice.ConnectTimeoutException) ||
+                       (ex instanceof com.zeroc.Ice.SocketException) ||
+                       (ex instanceof com.zeroc.Ice.DNSException))
+                    {
+                        if(++retryCount < retryMax)
+                        {
+                            out.print("retrying... ");
+                            out.flush();
+                            try
+                            {
+                                Thread.sleep(retryDelay);
+                            }
+                            catch(InterruptedException e)
+                            {
+                                break;
+                            }
+                            continue;
+                        }
+                    }
 
+                    out.print("warning: unable to connect to demo.zeroc.com to check system CA\n");
+                    ex.printStackTrace();
+                    break;
+                }
+            }
+            comm.destroy();
+
+            retryCount = 0;
             initData = createClientProps(defaultProperties);
             initData.properties.setProperty("IceSSL.VerifyDepthMax", "4");
             initData.properties.setProperty("Ice.Override.Timeout", "5000"); // 5s timeout
             initData.properties.setProperty("IceSSL.UsePlatformCAs", "1");
             comm = Util.initialize(initData);
             p = comm.stringToProxy("dummy:wss -h demo.zeroc.com -p 5064");
-            try
+            while(true)
             {
-                com.zeroc.Ice.WSConnectionInfo info  = (com.zeroc.Ice.WSConnectionInfo)p.ice_getConnection().getInfo();
-                com.zeroc.IceSSL.ConnectionInfo sslinfo = (com.zeroc.IceSSL.ConnectionInfo)info.underlying;
-                test(sslinfo.verified);
-            }
-            catch(com.zeroc.Ice.LocalException ex)
-            {
-                ex.printStackTrace();
-                test(false);
+                try
+                {
+                    com.zeroc.Ice.WSConnectionInfo info =
+                        (com.zeroc.Ice.WSConnectionInfo)p.ice_getConnection().getInfo();
+                    com.zeroc.IceSSL.ConnectionInfo sslinfo = (com.zeroc.IceSSL.ConnectionInfo)info.underlying;
+                    test(sslinfo.verified);
+                    break;
+                }
+                catch(com.zeroc.Ice.LocalException ex)
+                {
+                    if((ex instanceof com.zeroc.Ice.ConnectTimeoutException) ||
+                       (ex instanceof com.zeroc.Ice.SocketException) ||
+                       (ex instanceof com.zeroc.Ice.DNSException))
+                    {
+                        if(++retryCount < retryMax)
+                        {
+                            out.print("retrying... ");
+                            out.flush();
+                            try
+                            {
+                                Thread.sleep(retryDelay);
+                            }
+                            catch(InterruptedException e)
+                            {
+                                break;
+                            }
+                            continue;
+                        }
+                    }
+
+                    out.print("warning: unable to connect to demo.zeroc.com to check system CA\n");
+                    ex.printStackTrace();
+                    break;
+                }
             }
             comm.destroy();
         }

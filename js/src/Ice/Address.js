@@ -6,7 +6,6 @@
 // ICE_LICENSE file included in this distribution.
 //
 // **********************************************************************
-    
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 

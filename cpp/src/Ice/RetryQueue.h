@@ -39,7 +39,6 @@ public:
 
     bool operator<(const RetryTask&) const;
 
-
 private:
 
     const InstancePtr _instance;
@@ -70,4 +69,3 @@ private:
 }
 
 #endif
-

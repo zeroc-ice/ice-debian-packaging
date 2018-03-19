@@ -31,6 +31,7 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     Ice::registerIceSSL(false);
+    Ice::registerIceWS(true);
 #endif
     try
     {
@@ -58,7 +59,7 @@ main(int argc, char* argv[])
         initData2.properties = initData.properties->clone();
         initData2.properties->setProperty("Ice.RetryIntervals", "0 1 10000");
         initData2.observer = getObserver();
-        Ice::CommunicatorHolder ich2 = Ice::initialize(initData2);
+        Ice::CommunicatorHolder ich2(initData2);
         return run(argc, argv, ich.communicator(), ich2.communicator());
     }
     catch(const Ice::Exception& ex)

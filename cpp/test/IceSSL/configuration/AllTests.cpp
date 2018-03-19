@@ -727,7 +727,6 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
     string sep = ":";
 #endif
 
-
 #ifdef ICE_USE_OPENSSL
     Ice::Long openSSLVersion;
     {
@@ -943,7 +942,6 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
 #  endif
             server->checkCert(clientCert->getSubjectDN(), clientCert->getIssuerDN());
 #endif
-
 
             //
             // Validate that we can get the connection info. Validate
@@ -2565,6 +2563,19 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
     //
 #ifndef ICE_OS_UWP
     cout << "testing ciphers... " << flush;
+    {
+        InitializationData initData;
+        initData.properties = createClientProps(defaultProps, p12, "c_rsa_ca1", "cacert1");
+        initData.properties->setProperty("IceSSL.Ciphers", "UNKNOWN");
+        try
+        {
+            initialize(initData);
+            test(false);
+        }
+        catch(const Ice::PluginInitializationException&)
+        {
+        }
+    }
 #  ifndef ICE_USE_SCHANNEL
     {
         //
@@ -2867,16 +2878,14 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
     //
     // No DSA support in Secure Transport / AIX 7.1
     //
-#  if !defined(ICE_USE_SECURE_TRANSPORT) && !defined(_AIX)
+#  if !defined(ICE_USE_SECURE_TRANSPORT) && !defined(_AIX) && !defined(ICE_USE_SCHANNEL)
     {
+        //
+        // DSA PEM keys are not supported with SChannel. Since Windows 10
+        // Creator Update DHE_DSS is also disabled by default so DSA keys
+        // can no longer be used.
+        //
 
-    //
-    // DSA PEM certificates are not supported with SChannel.
-    //
-#    ifdef ICE_USE_SCHANNEL
-    if(p12)
-    {
-#    endif
         //
         // Configure a server with RSA and DSA certificates.
         //
@@ -2897,8 +2906,9 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         {
             server->ice_ping();
         }
-        catch(const LocalException&)
+        catch(const LocalException& ex)
         {
+            cerr << ex << endl;
             test(false);
         }
         fact->destroyServer(server);
@@ -2934,11 +2944,7 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         }
         fact->destroyServer(server);
         comm->destroy();
-#    ifdef ICE_USE_SCHANNEL
-    }
-#    endif
 
-#    ifndef ICE_USE_SCHANNEL
         //
         // Next try a client with ADH. This should fail.
         //
@@ -2968,9 +2974,8 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         }
         fact->destroyServer(server);
         comm->destroy();
-#    endif
     }
-#    ifndef ICE_USE_SCHANNEL
+
     {
         //
         // Configure a server with RSA and a client with DSA. This should fail.
@@ -3007,8 +3012,7 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         fact->destroyServer(server);
         comm->destroy();
     }
-#    endif
-#  endif
+#   endif
     cout << "ok" << endl;
 #endif
 
@@ -4181,56 +4185,112 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
 
 #if !defined(_AIX) && !defined(ICE_OS_UWP) && !(defined(_WIN32) && defined(ICE_USE_OPENSSL))
     //
-    // On AIX 6.1, the default root certificates don't validate demo.zeroc.com
-    // UWP application manifest is not configure to use system CAs and IceSSL.UsePlatformCAs
+    // On AIX 6.1, the default root certificates don't validate demo.zeroc.com.
+    // UWP application manifest is not configured to use system CAs and IceSSL.UsePlatformCAs
     // is not supported with UWP.
-    // On Windows with OpenSSL there isn't any system CAs
+    // On Windows with OpenSSL there aren't any system CAs.
     //
     cout << "testing system CAs... " << flush;
     {
+        //
+        // Retry a few times in case there are connectivity problems with demo.zeroc.com.
+        //
+        const int retryMax = 5;
+        const int retryDelay = 1000;
+
         {
+            int retryCount = 0;
             InitializationData initData;
             initData.properties = createClientProps(defaultProps, false);
             initData.properties->setProperty("IceSSL.DefaultDir", "");
             initData.properties->setProperty("IceSSL.VerifyDepthMax", "4");
             initData.properties->setProperty("Ice.Override.Timeout", "5000"); // 5s timeout
+#   ifdef _WIN32
+            //
+            // BUGFIX: SChannel TLS 1.2 bug that affects Windows versions prior to Windows 10
+            // can cause SSL handshake errors when connecting to the remote zeroc server.
+            //
+            initData.properties->setProperty("IceSSL.Protocols", "TLS1_0,TLS1_1");
+#   endif
             CommunicatorPtr comm = initialize(initData);
             Ice::ObjectPrxPtr p = comm->stringToProxy("Glacier2/router:wss -h demo.zeroc.com -p 5064");
-            try
+            while(true)
             {
-                p->ice_ping();
-                test(false);
-            }
-            catch(const Ice::SecurityException&)
-            {
-                // Expected, by default we don't check for system CAs.
-            }
-            catch(const Ice::LocalException& ex)
-            {
-                cerr << "warning: unable to connect to demo.zeroc.com to check system CA:\n" << ex << endl;
+                try
+                {
+                    p->ice_ping();
+                    test(false);
+                }
+                catch(const Ice::SecurityException&)
+                {
+                    // Expected, by default we don't check for system CAs.
+                    break;
+                }
+                catch(const Ice::LocalException& ex)
+                {
+                    if((dynamic_cast<const Ice::ConnectTimeoutException*>(&ex)) ||
+                       (dynamic_cast<const Ice::SocketException*>(&ex)) ||
+                       (dynamic_cast<const Ice::DNSException*>(&ex)))
+                    {
+                        if(++retryCount < retryMax)
+                        {
+                            cout << "retrying... " << flush;
+                            IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(retryDelay));
+                            continue;
+                        }
+                    }
+
+                    cerr << "warning: unable to connect to demo.zeroc.com to check system CA:\n" << ex << endl;
+                    break;
+                }
             }
             comm->destroy();
         }
 
         {
+            int retryCount = 0;
             InitializationData initData;
             initData.properties = createClientProps(defaultProps, false);
             initData.properties->setProperty("IceSSL.DefaultDir", "");
             initData.properties->setProperty("IceSSL.VerifyDepthMax", "4");
             initData.properties->setProperty("Ice.Override.Timeout", "5000"); // 5s timeout
             initData.properties->setProperty("IceSSL.UsePlatformCAs", "1");
+#   ifdef _WIN32
+            //
+            // BUGFIX: SChannel TLS 1.2 bug that affects Windows versions prior to Windows 10
+            // can cause SSL handshake errors when connecting to the remote zeroc server.
+            //
+            initData.properties->setProperty("IceSSL.Protocols", "TLS1_0,TLS1_1");
+#   endif
             CommunicatorPtr comm = initialize(initData);
             Ice::ObjectPrxPtr p = comm->stringToProxy("Glacier2/router:wss -h demo.zeroc.com -p 5064");
+            while(true)
+            {
+                try
+                {
+                    Ice::WSConnectionInfoPtr info =
+                        ICE_DYNAMIC_CAST(Ice::WSConnectionInfo, p->ice_getConnection()->getInfo());
+                    IceSSL::ConnectionInfoPtr sslInfo = ICE_DYNAMIC_CAST(IceSSL::ConnectionInfo, info->underlying);
+                    test(sslInfo->verified);
+                    break;
+                }
+                catch(const Ice::LocalException& ex)
+                {
+                    if((dynamic_cast<const Ice::ConnectTimeoutException*>(&ex)) ||
+                       (dynamic_cast<const Ice::SocketException*>(&ex)) ||
+                       (dynamic_cast<const Ice::DNSException*>(&ex)))
+                    {
+                        if(++retryCount < retryMax)
+                        {
+                            cout << "retrying... " << flush;
+                            IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(retryDelay));
+                            continue;
+                        }
+                    }
 
-            try
-            {
-                Ice::WSConnectionInfoPtr info = ICE_DYNAMIC_CAST(Ice::WSConnectionInfo, p->ice_getConnection()->getInfo());
-                IceSSL::ConnectionInfoPtr sslInfo = ICE_DYNAMIC_CAST(IceSSL::ConnectionInfo, info->underlying);
-                test(sslInfo->verified);
-            }
-            catch(const Ice::LocalException& ex)
-            {
-                cerr << "warning: unable to connect to demo.zeroc.com to check system CA:\n" << ex << endl;
+                    cerr << "warning: unable to connect to demo.zeroc.com to check system CA:\n" << ex << endl;
+                    break;
+                }
             }
             comm->destroy();
         }

@@ -43,7 +43,7 @@ public class ProxyIceInvoke extends ProxyOutgoingAsyncBaseI<com.zeroc.Ice.Object
                 //
                 _sentSynchronously = true;
                 _proxy._getBatchRequestQueue().finishBatchRequest(_os, _proxy, _operation);
-                finished(true);
+                finished(true, false);
             }
             else
             {
@@ -70,49 +70,7 @@ public class ProxyIceInvoke extends ProxyOutgoingAsyncBaseI<com.zeroc.Ice.Object
             //
             return new com.zeroc.Ice.Object.Ice_invokeResult(true, new byte[0]);
         }
-
-        if(Thread.interrupted())
-        {
-            throw new OperationInterruptedException();
-        }
-
-        try
-        {
-            return get();
-        }
-        catch(InterruptedException ex)
-        {
-            throw new OperationInterruptedException();
-        }
-        catch(java.util.concurrent.ExecutionException ee)
-        {
-            try
-            {
-                throw ee.getCause();
-            }
-            catch(RuntimeException ex) // Includes LocalException
-            {
-                throw ex;
-            }
-            catch(Throwable ex)
-            {
-                throw new UnknownException(ex);
-            }
-        }
-    }
-
-    @Override
-    protected void markSent()
-    {
-        super.markSent();
-
-        if(!_proxy.ice_isTwoway())
-        {
-            //
-            // For a non-twoway proxy, the invocation is completed after it is sent.
-            //
-            complete(new com.zeroc.Ice.Object.Ice_invokeResult(true, new byte[0]));
-        }
+        return super.waitForResponse();
     }
 
     @Override
@@ -160,11 +118,12 @@ public class ProxyIceInvoke extends ProxyOutgoingAsyncBaseI<com.zeroc.Ice.Object
     @Override
     protected void markCompleted()
     {
-        super.markCompleted();
-
-        if(_exception != null)
+        if(!_proxy.ice_isTwoway())
         {
-            completeExceptionally(_exception);
+            //
+            // For a non-twoway proxy, the invocation is completed after it is sent.
+            //
+            complete(new com.zeroc.Ice.Object.Ice_invokeResult(true, new byte[0]));
         }
         else
         {

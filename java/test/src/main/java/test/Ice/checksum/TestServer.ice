@@ -19,8 +19,8 @@ module Test
 interface Checksum
 {
     idempotent Ice::SliceChecksumDict getSliceChecksums();
-    
-    void shutdown();
-};
 
-};
+    void shutdown();
+}
+
+}

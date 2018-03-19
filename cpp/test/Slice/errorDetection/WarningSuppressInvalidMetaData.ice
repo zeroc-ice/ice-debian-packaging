@@ -37,34 +37,34 @@ interface I
 {
     ["cpp:noexcept"]
     void op();
-    
+
     ["cpp:type:std::list< ::std::string>"]
     void op1();
-    
+
     ["cpp:view-type:std::experimental::string_view"]
     void op2();
-    
+
     ["cpp:array"]
     void op3();
-    
+
     ["cpp:range"]
     void op4();
-};
+}
 
 ["cpp:class", "cpp:comparable"]
 class C
 {
-};
+}
 
 ["cpp:const", "cpp:ice_print"]
 struct S
 {
     int i;
-};
+}
 
 ["cpp:virtual"]
 exception E
 {
-};
+}
 
-};
+}

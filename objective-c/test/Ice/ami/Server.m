@@ -25,6 +25,7 @@ run(id<ICECommunicator> communicator)
         = ICE_AUTORELEASE([[TestAMITestIntfControllerI alloc] initWithAdapter:adapter]);
 
     [adapter add:[TestAMITestIntfI testIntf] identity:[ICEUtil stringToIdentity:@"test"]];
+    [adapter add:[TestAMITestOuterInnerTestIntfI testIntf] identity:[ICEUtil stringToIdentity:@"test2"]];
     [adapter activate];
 
     [adapter2 add:testController identity:[ICEUtil stringToIdentity:@"testController"]];
@@ -45,6 +46,8 @@ main(int argc, char* argv[])
 {
 #ifdef ICE_STATIC_LIBS
     ICEregisterIceSSL(YES);
+    ICEregisterIceWS(YES);
+    ICEregisterIceUDP(YES);
 #if TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
     ICEregisterIceIAP(YES);
 #endif

@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "python:pkgdir:Ice"]]
 
 #ifndef __SLICE2JAVA_COMPAT__
 [["java:package:com.zeroc"]]
@@ -48,7 +48,7 @@ local interface ValueFactory
      *
      **/
     Value create(string type);
-};
+}
 
 /**
  *
@@ -122,6 +122,6 @@ local interface ValueFactoryManager
      *
      **/
     ["cpp:const"] ValueFactory find(string id);
-};
+}
 
-};
+}

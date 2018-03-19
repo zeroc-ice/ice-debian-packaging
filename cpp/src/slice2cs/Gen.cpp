@@ -407,7 +407,7 @@ Slice::CsVisitor::writeDispatch(const ClassDefPtr& p)
         emitGeneratedCodeAttribute();
     }
 
-    _out << nl << "private static readonly string[] _ids = ";
+    _out << nl << "private static readonly string[] _ids =";
     _out << sb;
     {
         StringList::const_iterator q = ids.begin();
@@ -774,7 +774,16 @@ Slice::CsVisitor::writeMarshaling(const ClassDefPtr& p)
         {
             emitGeneratedCodeAttribute();
         }
+        _out << nl << "public override Ice.SlicedData ice_getSlicedData()";
+        _out << sb;
+        _out << nl << "return iceSlicedData_;";
+        _out << eb;
 
+        _out << sp;
+        if(!p->isInterface())
+        {
+            emitGeneratedCodeAttribute();
+        }
         _out << nl << "public override void iceWrite(Ice.OutputStream ostr_)";
         _out << sb;
         _out << nl << "ostr_.startValue(iceSlicedData_);";
@@ -1424,7 +1433,6 @@ Slice::CsVisitor::splitComment(const ContainedPtr& p, StringList& summaryLines, 
     }
 }
 
-
 void
 Slice::CsVisitor::writeDocComment(const ContainedPtr& p, const string& deprecateReason, const string& extraParam)
 {
@@ -1447,7 +1455,11 @@ Slice::CsVisitor::writeDocComment(const ContainedPtr& p, const string& deprecate
 
     for(StringList::const_iterator i = summaryLines.begin(); i != summaryLines.end(); ++i)
     {
-        _out << nl << "/// " << *i;
+        _out << nl << "///";
+        if(!(*i).empty())
+        {
+            _out << " " << *i;
+        }
     }
 
     //
@@ -1485,7 +1497,11 @@ Slice::CsVisitor::writeDocComment(const ContainedPtr& p, const string& deprecate
             }
             else
             {
-                _out << nl << "/// " << *i;
+                _out << nl << "///";
+                if(!(*i).empty())
+                {
+                    _out << " " << *i;
+                }
             }
         }
     }
@@ -1500,7 +1516,7 @@ Slice::CsVisitor::writeDocComment(const ContainedPtr& p, const string& deprecate
         _out << nl << "/// " << extraParam;
     }
 
-    _out << nl;
+    _out << sp;
 }
 
 void
@@ -1522,7 +1538,11 @@ Slice::CsVisitor::writeDocCommentAMI(const OperationPtr& p, ParamDir paramType, 
     _out << nl << "/// <summary>";
     for(StringList::const_iterator i = summaryLines.begin(); i != summaryLines.end(); ++i)
     {
-        _out << nl << "/// " << *i;
+        _out << nl << "///";
+        if(!(*i).empty())
+        {
+            _out << " " << *i;
+        }
     }
 
     bool done = false;
@@ -1539,7 +1559,11 @@ Slice::CsVisitor::writeDocCommentAMI(const OperationPtr& p, ParamDir paramType, 
         }
         else
         {
-            _out << nl << "/// " << *i;
+            _out << nl << "///";
+            if(!(*i).empty())
+            {
+                _out << " " << *i;
+            }
         }
     }
     _out << nl << "/// </summary>";
@@ -1607,7 +1631,11 @@ Slice::CsVisitor::writeDocCommentAMI(const OperationPtr& p, ParamDir paramType, 
                 }
                 else
                 {
-                    _out << nl << "/// " << *i;
+                    _out << nl << "///";
+                    if(!(*i).empty())
+                    {
+                        _out << " " << *i;
+                    }
                 }
             }
         }
@@ -1643,7 +1671,11 @@ Slice::CsVisitor::writeDocCommentTaskAsyncAMI(const OperationPtr& p, const strin
     _out << nl << "/// <summary>";
     for(StringList::const_iterator i = summaryLines.begin(); i != summaryLines.end(); ++i)
     {
-        _out << nl << "/// " << *i;
+        _out << nl << "///";
+        if(!(*i).empty())
+        {
+            _out << " " << *i;
+        }
     }
 
     bool done = false;
@@ -1660,7 +1692,11 @@ Slice::CsVisitor::writeDocCommentTaskAsyncAMI(const OperationPtr& p, const strin
         }
         else
         {
-            _out << nl << "/// " << *i;
+            _out << nl << "///";
+            if(!(*i).empty())
+            {
+                _out << " " << *i;
+            }
         }
     }
     _out << nl << "/// </summary>";
@@ -1684,7 +1720,6 @@ Slice::CsVisitor::writeDocCommentTaskAsyncAMI(const OperationPtr& p, const strin
     {
         _out << nl << "/// " << extraParam3;
     }
-
 
     _out << nl << "/// <returns>The task object representing the asynchronous operation.</returns>";
 
@@ -1716,7 +1751,11 @@ Slice::CsVisitor::writeDocCommentAMD(const OperationPtr& p, const string& extraP
     _out << nl << "/// <summary>";
     for(StringList::const_iterator i = summaryLines.begin(); i != summaryLines.end(); ++i)
     {
-        _out << nl << "/// " << *i;
+        _out << nl << "///";
+        if(!(*i).empty())
+        {
+            _out << " " << *i;
+        }
     }
 
     bool done = false;
@@ -1733,7 +1772,11 @@ Slice::CsVisitor::writeDocCommentAMD(const OperationPtr& p, const string& extraP
         }
         else
         {
-            _out << nl << "/// " << *i;
+            _out << nl << "///";
+            if(!(*i).empty())
+            {
+                _out << " " << *i;
+            }
         }
     }
     _out << nl << "/// </summary>";
@@ -1810,7 +1853,12 @@ Slice::CsVisitor::writeDocCommentParam(const OperationPtr& p, ParamDir paramType
                         if(endpos == string::npos)
                         {
                             i = j;
-                            _out << nl << "/// " << *j++;
+                            string s = *j++;
+                            _out << nl << "///";
+                            if(!s.empty())
+                            {
+                                _out << " " << s;
+                            }
                         }
                         else
                         {
@@ -2346,7 +2394,7 @@ Slice::Gen::TypesVisitor::visitClassDefEnd(const ClassDefPtr& p)
 
     if(!p->isInterface() && !p->isLocal())
     {
-        _out << sp << nl;
+        _out << sp;
         _out << nl << "private const string _id = \""
              << p->scoped() << "\";";
 
@@ -2383,7 +2431,7 @@ Slice::Gen::TypesVisitor::visitOperation(const OperationPtr& p)
         _out << sp;
         if(isInterface)
         {
-            _out << nl;
+            _out << sp;
         }
 
         writeDocComment(p, getDeprecateReason(p, cl, "operation"));
@@ -2553,7 +2601,9 @@ Slice::Gen::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
     const bool hasDataMemberInitializers = requiresDataMemberInitializers(dataMembers);
     if(hasDataMemberInitializers)
     {
-        _out << sp << nl << "private void _initDM()";
+        _out << sp;
+        emitGeneratedCodeAttribute();
+        _out << nl << "private void _initDM()";
         _out << sb;
         writeDataMemberInitializers(dataMembers, DotNet::Exception);
         _out << eb;
@@ -2594,7 +2644,9 @@ Slice::Gen::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
     {
         if(!dataMembers.empty())
         {
-            _out << sp << nl << "private void _initDM" << spar << paramDecl << epar;
+            _out << sp;
+            emitGeneratedCodeAttribute();
+            _out << nl << "private void _initDM" << spar << paramDecl << epar;
             _out << sb;
             for(DataMemberList::const_iterator q = dataMembers.begin(); q != dataMembers.end(); ++q)
             {
@@ -2743,6 +2795,13 @@ Slice::Gen::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
 
         if(preserved && !basePreserved)
         {
+            _out << sp;
+            emitGeneratedCodeAttribute();
+            _out << nl << "public override Ice.SlicedData ice_getSlicedData()";
+            _out << sb;
+            _out << nl << "return slicedData_;";
+            _out << eb;
+
             _out << sp;
             emitGeneratedCodeAttribute();
             _out << nl << "public override void iceWrite(Ice.OutputStream ostr_)";
@@ -3067,7 +3126,7 @@ Slice::Gen::TypesVisitor::visitStructEnd(const StructPtr& p)
 
         if(isClass)
         {
-            _out << nl << nl << "private static readonly " << name << " _nullMarshalValue = new " << name << "();";
+            _out << sp << nl << "private static readonly " << name << " _nullMarshalValue = new " << name << "();";
         }
         _out << sp << nl << "#endregion"; // Marshalling support
     }
@@ -3351,26 +3410,54 @@ Slice::Gen::ResultVisitor::ResultVisitor(::IceUtilInternal::Output& out)
 {
 }
 
+namespace
+{
+
 bool
-Slice::Gen::ResultVisitor::visitModuleStart(const ModulePtr& p)
+hasResultType(const ModulePtr& p)
 {
     ClassList classes = p->classes();
     for(ClassList::const_iterator i = classes.begin(); i != classes.end(); ++i)
     {
         ClassDefPtr cl = *i;
-        OperationList operations = cl->operations();
-        for(OperationList::const_iterator j = operations.begin(); j != operations.end(); ++j)
+        if(!cl->isLocal())
         {
-            OperationPtr op = *j;
-            ParamDeclList outParams = op->outParameters();
-            TypePtr ret = op->returnType();
-            if(outParams.size() > 1 || (ret && outParams.size() > 0))
+            OperationList operations = cl->operations();
+            for(OperationList::const_iterator j = operations.begin(); j != operations.end(); ++j)
             {
-                _out << sp << nl << "namespace " << fixId(p->name());
-                _out << sb;
-                return true;
+                OperationPtr op = *j;
+                ParamDeclList outParams = op->outParameters();
+                TypePtr ret = op->returnType();
+                if(outParams.size() > 1 || (ret && outParams.size() > 0))
+                {
+                    return true;
+                }
             }
         }
+    }
+
+    ModuleList modules = p->modules();
+    for(ModuleList::const_iterator i = modules.begin(); i != modules.end(); ++i)
+    {
+        if(hasResultType(*i))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+}
+
+bool
+Slice::Gen::ResultVisitor::visitModuleStart(const ModulePtr& p)
+{
+    if(hasResultType(p))
+    {
+        _out << sp << nl << "namespace " << fixId(p->name());
+        _out << sb;
+        return true;
     }
     return false;
 }
@@ -3396,6 +3483,10 @@ void
 Slice::Gen::ResultVisitor::visitOperation(const OperationPtr& p)
 {
     ClassDefPtr cl = ClassDefPtr::dynamicCast(p->container());
+    if(cl->isLocal())
+    {
+        return;
+    }
     ParamDeclList outParams = p->outParameters();
     TypePtr ret = p->returnType();
 
@@ -3464,6 +3555,7 @@ Slice::Gen::ResultVisitor::visitOperation(const OperationPtr& p)
         string name = resultStructName(cl->name(), p->name(), true);
 
         _out << sp;
+        emitGeneratedCodeAttribute();
         _out << nl << "public struct " << name << " : Ice.MarshaledResult";
         _out << sb;
 
@@ -4085,6 +4177,11 @@ Slice::Gen::HelperVisitor::visitClassDefStart(const ClassDefPtr& p)
              << "bool synchronous" << epar;
         _out << sb;
 
+        string flatName = "_" + opName + "_name";
+        if(op->returnsData())
+        {
+            _out << nl << "iceCheckTwowayOnly(" << flatName << ");";
+        }
         if(returnTypeS.empty())
         {
             _out << nl << "var completed = "
@@ -4102,7 +4199,6 @@ Slice::Gen::HelperVisitor::visitClassDefStart(const ClassDefPtr& p)
 
         _out << eb;
 
-        string flatName = "_" + opName + "_name";
         _out << sp << nl << "private const string " << flatName << " = \"" << op->name() << "\";";
 
         //
@@ -4114,11 +4210,6 @@ Slice::Gen::HelperVisitor::visitClassDefStart(const ClassDefPtr& p)
              << "bool synchronous"
              << "IceInternal.OutgoingAsyncCompletionCallback completed" << epar;
         _out << sb;
-
-        if(op->returnsData())
-        {
-            _out << nl << "iceCheckAsyncTwowayOnly(" << flatName << ");";
-        }
 
         if(returnTypeS.empty())
         {
@@ -4361,6 +4452,10 @@ Slice::Gen::HelperVisitor::visitClassDefStart(const ClassDefPtr& p)
                 << epar;
         _out << sb;
 
+        if(op->returnsData())
+        {
+            _out << nl << "iceCheckAsyncTwowayOnly(" << flatName << ");";
+        }
         _out << nl << "var completed = new IceInternal.OperationAsyncResultCompletionCallback<" << delType;
         _out << ", " << (returnTypeS.empty() ? "object" : returnTypeS);
         _out << ">(";

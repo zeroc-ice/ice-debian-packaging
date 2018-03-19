@@ -12,7 +12,7 @@ import os, sys, traceback
 
 for toplevel in [".", "..", "../..", "../../..", "../../../.."]:
     toplevel = os.path.normpath(toplevel)
-    if os.path.exists(os.path.join(toplevel, "python", "Ice.py")):
+    if os.path.exists(os.path.join(toplevel, "python", "Ice", "__init__.py")):
         break
 else:
     raise RuntimeError("can't find toplevel directory!")
@@ -75,7 +75,7 @@ def testtypes():
     print("ok")
 
 def run(args, communicator):
-    communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010:udp")
+    communicator.getProperties().setProperty("TestAdapter.Endpoints", "default -p 12010")
     adapter = communicator.createObjectAdapter("TestAdapter")
     adapter.add(execI(), Ice.stringToIdentity("test"))
     adapter.activate()

@@ -28,6 +28,7 @@ public class Collocated : TestCommon.Application
         Ice.ObjectAdapter adapter2 = communicator().createObjectAdapter("ControllerAdapter");
 
         adapter.add(new TestI(), Ice.Util.stringToIdentity("test"));
+        adapter.add(new TestII(), Ice.Util.stringToIdentity("test2"));
         //adapter.activate(); // Collocated test doesn't need to activate the OA
         adapter2.add(new TestControllerI(adapter), Ice.Util.stringToIdentity("testController"));
         //adapter2.activate(); // Collocated test doesn't need to activate the OA
@@ -45,6 +46,11 @@ public class Collocated : TestCommon.Application
         // send() blocking after sending a given amount of data.
         //
         initData.properties.setProperty("Ice.TCP.SndSize", "50000");
+        //
+        // We use a client thread pool with more than one thread to test
+        // that task inlining works.
+        //
+        initData.properties.setProperty("Ice.ThreadPool.Client.Size", "5");
         return initData;
     }
 

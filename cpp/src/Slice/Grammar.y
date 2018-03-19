@@ -108,7 +108,6 @@ slice_error(const char* s)
 
 %%
 
-
 // ----------------------------------------------------------------------
 start
 // ----------------------------------------------------------------------
@@ -457,7 +456,7 @@ optional
             // Found
             cl.push_back(enumerators.front());
             scoped->v = enumerators.front()->scoped();
-            unit->warning(Deprecated, string("referencing enumerator `") + scoped->v 
+            unit->warning(Deprecated, string("referencing enumerator `") + scoped->v
                           + "' without its enumeration's scope is deprecated");
         }
         else if(enumerators.size() > 1)
@@ -475,7 +474,7 @@ optional
                 {
                     os << " or";
                 }
-                
+
                 os << " `" << (*p)->scoped() << "'";
             }
             unit->error(os.str());
@@ -708,7 +707,7 @@ class_id
     {
         unit->error("invalid compact id for class: value is out of range");
     }
-    else 
+    else
     {
         string typeId = unit->getTypeId(static_cast<int>(id));
         if(!typeId.empty() && !unit->ignRedefs())
@@ -737,7 +736,7 @@ class_id
             // Found
             cl.push_back(enumerators.front());
             scoped->v = enumerators.front()->scoped();
-            unit->warning(Deprecated, string("referencing enumerator `") + scoped->v 
+            unit->warning(Deprecated, string("referencing enumerator `") + scoped->v
                           + "' without its enumeration's scope is deprecated");
         }
         else if(enumerators.size() > 1)
@@ -755,7 +754,7 @@ class_id
                 {
                     os << " or";
                 }
-                
+
                 os << " `" << (*p)->scoped() << "'";
             }
             unit->error(os.str());
@@ -809,7 +808,7 @@ class_id
     {
         unit->error("invalid compact id for class: id must be a positive integer");
     }
-    else 
+    else
     {
         string typeId = unit->getTypeId(id);
         if(!typeId.empty() && !unit->ignRedefs())
@@ -1642,7 +1641,7 @@ enum_def
     $$ = $3;
 }
 |
-local_qualifier ICE_ENUM 
+local_qualifier ICE_ENUM
 {
     unit->error("missing enumeration name");
     BoolTokPtr local = BoolTokPtr::dynamicCast($1);

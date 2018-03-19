@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["cpp:header-ext:h", "cpp:dll-export:GLACIER2_API", "objc:header-dir:objc", "objc:dll-export:GLACIER2_API", "js:ice-build"]]
+[["cpp:header-ext:h", "cpp:dll-export:GLACIER2_API", "objc:header-dir:objc", "objc:dll-export:GLACIER2_API", "js:ice-build", "python:pkgdir:Glacier2"]]
 [["cpp:include:Glacier2/Config.h"]]
 
 #include <Glacier2/SSLInfo.ice>
@@ -37,7 +37,7 @@ exception PermissionDeniedException
      *
      **/
     string reason;
-};
+}
 
 /**
  *
@@ -69,7 +69,7 @@ interface PermissionsVerifier
     ["nonmutating", "cpp:const", "format:sliced"]
     idempotent bool checkPermissions(string userId, string password, out string reason)
         throws PermissionDeniedException;
-};
+}
 
 /**
  *
@@ -101,6 +101,6 @@ interface SSLPermissionsVerifier
     ["nonmutating", "cpp:const", "format:sliced"]
     idempotent bool authorize(SSLInfo info, out string reason)
         throws PermissionDeniedException;
-};
+}
 
-};
+}

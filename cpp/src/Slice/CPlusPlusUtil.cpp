@@ -67,7 +67,6 @@ toOptional(const string& s, int typeCtx)
     return result;
 }
 
-
 string
 stringTypeToString(const TypePtr& type, const StringList& metaData, int typeCtx)
 {
@@ -348,7 +347,6 @@ writeMarshalUnmarshalParams(Output& out, const ParamDeclList& params, const Oper
         }
     }
 
-
     if(!requiredParams.empty() || (op && op->returnType() && !op->returnIsOptional()))
     {
         if(cpp11)
@@ -513,7 +511,6 @@ Slice::ToIfdef::operator()(char c)
     }
 }
 
-
 void
 Slice::printHeader(Output& out)
 {
@@ -648,7 +645,7 @@ Slice::typeToString(const TypePtr& type, const StringList& metaData, int typeCtx
         "::std::shared_ptr<void>",
         "::std::shared_ptr<::Ice::Value>"
     };
-    
+
     if((typeCtx & TypeContextLocal) != 0)
     {
         for(StringList::const_iterator i = metaData.begin(); i != metaData.end(); ++i)
@@ -697,11 +694,11 @@ Slice::typeToString(const TypePtr& type, const StringList& metaData, int typeCtx
         {
             if(cl->definition() && cl->definition()->isDelegate())
             {
-                return classDefToDelegateString(cl->definition());
+                return fixKwd(cl->scoped());
             }
             else if(cl->isInterface() && !cl->isLocal())
             {
-                return "std::shared_ptr<::Ice::Value>";
+                return "::std::shared_ptr<::Ice::Value>";
             }
             else
             {
@@ -886,7 +883,7 @@ Slice::inputTypeToString(const TypePtr& type, bool optional, const StringList& m
         {
             if(cl->definition() && cl->definition()->isDelegate())
             {
-                return classDefToDelegateString(cl->definition(), typeCtx);
+                return fixKwd(cl->scoped());
             }
             else if(cl->isInterface() && !cl->isLocal())
             {
@@ -1047,7 +1044,7 @@ Slice::outputTypeToString(const TypePtr& type, bool optional, const StringList& 
         {
             if(cl->definition() && cl->definition()->isDelegate())
             {
-                return classDefToDelegateString(cl->definition(), typeCtx) + "&";
+                  return fixKwd(cl->scoped()) + "&";
             }
             else if(cl->isInterface() && !cl->isLocal())
             {
@@ -1191,14 +1188,14 @@ lookupKwd(const string& name)
     //
     static const string keywordList[] =
     {
-        "alignas", "alignof", "and", "and_eq", "asm", "auto", "bit_and", "bit_or", "bool", "break", 
-        "case", "catch", "char", "char16_t", "char32_t", "class", "compl", "const", "const_exptr", "const_cast", "continue", 
-        "decltype", "default", "delete", "do", "double", "dynamic_cast", 
-        "else", "enum", "explicit", "export", "extern", "false", "float", "for", "friend", 
+        "alignas", "alignof", "and", "and_eq", "asm", "auto", "bit_and", "bit_or", "bool", "break",
+        "case", "catch", "char", "char16_t", "char32_t", "class", "compl", "const", "const_exptr", "const_cast", "continue",
+        "decltype", "default", "delete", "do", "double", "dynamic_cast",
+        "else", "enum", "explicit", "export", "extern", "false", "float", "for", "friend",
         "goto", "if", "inline", "int", "long", "mutable", "namespace", "new", "noexcept", "not", "not_eq",
-        "operator", "or", "or_eq", "private", "protected", "public", "register", "reinterpret_cast", "return", 
-        "short", "signed", "sizeof", "static", "static_assert", "static_cast", "struct", "switch", 
-        "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename", 
+        "operator", "or", "or_eq", "private", "protected", "public", "register", "reinterpret_cast", "return",
+        "short", "signed", "sizeof", "static", "static_assert", "static_cast", "struct", "switch",
+        "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename",
         "union", "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq"
     };
     bool found =  binary_search(&keywordList[0],
@@ -1781,7 +1778,6 @@ Slice::inWstringModule(const SequencePtr& seq)
     return false;
 }
 
-
 string
 Slice::getDataMemberRef(const DataMemberPtr& p)
 {
@@ -1799,36 +1795,4 @@ Slice::getDataMemberRef(const DataMemberPtr& p)
     {
         return "(*" + name + ")";
     }
-}
-
-string
-Slice::classDefToDelegateString(const ClassDefPtr& cl, int typeCtx)
-{
-    assert(cl->isDelegate());
-
-    // A delegate only has one operation
-    OperationPtr op = cl->allOperations().front();
-
-    TypePtr ret = op->returnType();
-    string retS = returnTypeToString(ret, op->returnIsOptional(), op->getMetaData(), typeCtx);
-
-    string t = "::std::function<" + retS + "(";
-
-    ParamDeclList paramList = cl->allOperations().front()->parameters();
-    for(ParamDeclList::iterator q = paramList.begin(); q != paramList.end(); ++q)
-    {
-        if((*q)->isOutParam())
-        {
-            t += outputTypeToString((*q)->type(), (*q)->optional(), (*q)->getMetaData(), typeCtx);
-        }
-        else
-        {
-            t += inputTypeToString((*q)->type(), (*q)->optional(), (*q)->getMetaData(), typeCtx);
-        }
-
-        t += distance(q, paramList.end()) == 1  ? "" : ", ";
-    }
-
-    t += ")>";
-    return t;
 }

@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build", "python:pkgdir:Ice"]]
 
 #ifndef __SLICE2JAVA_COMPAT__
 [["java:package:com.zeroc"]]
@@ -42,7 +42,6 @@ interface Process
      **/
     void shutdown();
 
-
     /**
      *
      * Write a message on the process' stdout or stderr.
@@ -53,6 +52,6 @@ interface Process
      *
      **/
     void writeMessage(string message, int fd);
-};
+}
 
-};
+}

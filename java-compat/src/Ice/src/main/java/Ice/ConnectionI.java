@@ -315,7 +315,7 @@ public final class ConnectionI extends IceInternal.EventHandler
            (acm.heartbeat != ACMHeartbeat.HeartbeatOff && _writeStream.isEmpty() &&
             now >= (_acmLastActivity + acm.timeout / 4)))
         {
-            if(acm.heartbeat != ACMHeartbeat.HeartbeatOnInvocation || _dispatchCount > 0)
+            if(acm.heartbeat != ACMHeartbeat.HeartbeatOnDispatch || _dispatchCount > 0)
             {
                 sendHeartbeatNow();
             }
@@ -541,6 +541,10 @@ public final class ConnectionI extends IceInternal.EventHandler
     @Override
     synchronized public void setHeartbeatCallback(final HeartbeatCallback callback)
     {
+        if(_state >= StateClosed)
+        {
+            return;
+        }
         _heartbeatCallback = callback;
     }
 
@@ -550,7 +554,7 @@ public final class ConnectionI extends IceInternal.EventHandler
         end_heartbeat(begin_heartbeat());
     }
 
-    private static final String __heartbeat_name = "heartbeat";
+    private static final String _heartbeat_name = "heartbeat";
 
     @Override
     public AsyncResult begin_heartbeat()
@@ -571,22 +575,22 @@ public final class ConnectionI extends IceInternal.EventHandler
     }
 
     @Override
-    public AsyncResult begin_heartbeat(IceInternal.Functional_VoidCallback __responseCb,
-                                       final IceInternal.Functional_GenericCallback1<Ice.Exception> __exceptionCb,
-                                       IceInternal.Functional_BoolCallback __sentCb)
+    public AsyncResult begin_heartbeat(IceInternal.Functional_VoidCallback responseCb,
+                                       final IceInternal.Functional_GenericCallback1<Ice.Exception> exceptionCb,
+                                       IceInternal.Functional_BoolCallback sentCb)
     {
-        return begin_heartbeatInternal(new IceInternal.Functional_CallbackBase(false, __exceptionCb, __sentCb)
+        return begin_heartbeatInternal(new IceInternal.Functional_CallbackBase(false, exceptionCb, sentCb)
         {
             @Override
-            public final void _iceCompleted(AsyncResult __result)
+            public final void _iceCompleted(AsyncResult result)
             {
                 try
                 {
-                    __result.getConnection().end_heartbeat(__result);
+                    result.getConnection().end_heartbeat(result);
                 }
-                catch(Exception __ex)
+                catch(Exception ex)
                 {
-                    __exceptionCb.apply(__ex);
+                    exceptionCb.apply(ex);
                 }
             }
         });
@@ -681,7 +685,7 @@ public final class ConnectionI extends IceInternal.EventHandler
 
     private AsyncResult begin_heartbeatInternal(IceInternal.CallbackBase cb)
     {
-        HeartbeatAsync result = new HeartbeatAsync(this, _communicator, _instance, __heartbeat_name, cb);
+        HeartbeatAsync result = new HeartbeatAsync(this, _communicator, _instance, _heartbeat_name, cb);
         result.invoke();
         return result;
     }
@@ -689,7 +693,7 @@ public final class ConnectionI extends IceInternal.EventHandler
     @Override
     public void end_heartbeat(AsyncResult ir)
     {
-        HeartbeatAsync r = HeartbeatAsync.check(ir, this, __heartbeat_name);
+        HeartbeatAsync r = HeartbeatAsync.check(ir, this, _heartbeat_name);
         r.waitForResponseOrUserEx();
     }
 
@@ -805,50 +809,19 @@ public final class ConnectionI extends IceInternal.EventHandler
     @Override
     public void sendResponse(int requestId, final OutputStream os, final byte compressFlag, boolean amd)
     {
-        boolean queueResponse = false;
+        //
+        // We may be executing on the "main thread" (e.g., in Android together with a custom dispatcher)
+        // and therefore we have to defer network calls to a separate thread.
+        //
+        final boolean queueResponse = _instance.queueRequests();
 
         synchronized(this)
         {
-            assert (_state > StateNotValidated);
+            assert(_state > StateNotValidated);
 
-            try
+            if(!queueResponse)
             {
-                if(--_dispatchCount == 0)
-                {
-                    if(_state == StateFinished)
-                    {
-                        reap();
-                    }
-                    notifyAll();
-                }
-
-                if(_state >= StateClosed)
-                {
-                    assert (_exception != null);
-                    throw (Ice.LocalException) _exception.fillInStackTrace();
-                }
-
-                //
-                // We may be executing on the "main thread" (e.g., in Android together with a custom dispatcher)
-                // and therefore we have to defer network calls to a separate thread.
-                //
-                if(_instance.queueRequests())
-                {
-                    queueResponse = true;
-                }
-                else
-                {
-                    sendMessage(new OutgoingMessage(os, compressFlag != 0, true));
-
-                    if(_state == StateClosing && _dispatchCount == 0)
-                    {
-                        initiateShutdown();
-                    }
-                }
-            }
-            catch(LocalException ex)
-            {
-                setState(StateClosed, ex);
+                sendResponseImpl(os, compressFlag);
             }
         }
 
@@ -860,25 +833,39 @@ public final class ConnectionI extends IceInternal.EventHandler
                 public Void call()
                     throws Exception
                 {
-                    synchronized(ConnectionI.this)
-                    {
-                        try
-                        {
-                            sendMessage(new OutgoingMessage(os, compressFlag != 0, true));
-
-                            if(_state == StateClosing && _dispatchCount == 0)
-                            {
-                                initiateShutdown();
-                            }
-                        }
-                        catch(Ice.LocalException ex)
-                        {
-                            setState(StateClosed, ex);
-                        }
-                    }
+                    sendResponseImpl(os, compressFlag);
                     return null;
                 }
             });
+        }
+    }
+
+    private synchronized void sendResponseImpl(OutputStream os, byte compressFlag)
+    {
+        try
+        {
+            if(--_dispatchCount == 0)
+            {
+                if(_state == StateFinished)
+                {
+                    reap();
+                }
+                notifyAll();
+            }
+
+            if(_state < StateClosed)
+            {
+                sendMessage(new OutgoingMessage(os, compressFlag != 0, true));
+
+                if(_state == StateClosing && _dispatchCount == 0)
+                {
+                    initiateShutdown();
+                }
+            }
+        }
+        catch(LocalException ex)
+        {
+            setState(StateClosed, ex);
         }
     }
 

@@ -45,7 +45,6 @@ jar {
             ant,
             'javafx:com.sun.javafx.tools.ant')
 
-
     ant.taskdef(
             resource: 'com/sun/javafx/tools/ant/antlib.xml',
             uri: 'javafx:com.sun.javafx.tools.ant',
@@ -56,7 +55,7 @@ jar {
                 id: 'IceGridGUI',
                 name: 'IceGrid GUI',
                 mainClass: 'com.zeroc.IceGridGUI.Main',
-                fallbackClass: 'IceGridGUI.Fallback',
+                fallbackClass: 'com.zeroc.IceGridGUI.Fallback',
                 toolkit: 'swing')
 
         antfx.resources(id: 'IceGridGUI.resources') {

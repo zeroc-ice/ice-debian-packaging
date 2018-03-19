@@ -671,7 +671,7 @@ class ReferenceFactory
 
     checkForUnknownProperties(prefix)
     {
-        const unknownProps = [];
+        let unknownProps = [];
         //
         // Do not warn about unknown properties for Ice prefixes (Ice, Glacier2, etc.)
         //
@@ -684,14 +684,8 @@ class ReferenceFactory
         }
 
         let properties = this._instance.initializationData().properties.getPropertiesForPrefix(prefix + ".");
-        for(let key of properties.keys())
-        {
-            if(!suffixes.some(suffix => key === (prefix + "." + suffix)))
-            {
-                unknownProps.push(key);
-            }
-        }
-
+        unknownProps = unknownProps.concat(Array.from(properties.keys()).filter(
+            key => !suffixes.some(suffix => key === prefix + "." + suffix)));
         if(unknownProps.length > 0)
         {
             let message = [];
@@ -2112,7 +2106,7 @@ class RoutableReference extends Reference
                                         this.getInstance().initializationData().logger.trace(
                                             traceLevels.retryCat,
                                             "connection to cached endpoints failed\n" +
-                                            "removing endpoints from cache and trying one more time\n" +
+                                            "removing endpoints from cache and trying again\n" +
                                             ex.toString());
                                     }
                                     this.getConnectionNoRouterInfo(p); // Retry.

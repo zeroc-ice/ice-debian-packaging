@@ -25,7 +25,7 @@ class Config
     optional(5) bool ipv6;
     optional(6) StringSeq cprops;
     optional(7) StringSeq sprops;
-};
+}
 
 class OptionOverrides
 {
@@ -34,17 +34,17 @@ class OptionOverrides
     optional(3) BoolSeq serialize;
     optional(4) BoolSeq compress;
     optional(5) BoolSeq ipv6;
-};
+}
 
 exception TestCaseNotExistException
 {
     string reason;
-};
+}
 
 exception TestCaseFailedException
 {
     string output;
-};
+}
 
 interface TestCase
 {
@@ -58,7 +58,7 @@ interface TestCase
         throws TestCaseFailedException;
 
     void destroy();
-};
+}
 
 interface Controller
 {
@@ -68,22 +68,23 @@ interface Controller
     OptionOverrides getOptionOverrides();
 
     StringSeq getTestSuites(string mapping);
-};
+}
 
 exception ProcessFailedException
 {
     string reason;
-};
+}
 
 interface Process
 {
     void waitReady(int timeout)
         throws ProcessFailedException;
 
-    int waitSuccess(int timeout);
+    int waitSuccess(int timeout)
+        throws ProcessFailedException;
 
     string terminate();
-};
+}
 
 interface ProcessController
 {
@@ -91,13 +92,13 @@ interface ProcessController
         throws ProcessFailedException;
 
     string getHost(string protocol, bool ipv6);
-};
+}
 
 interface ProcessControllerRegistry
 {
     void setProcessController(ProcessController* controller);
-};
+}
 
-};
+}
 
-};
+}

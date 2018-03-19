@@ -37,6 +37,10 @@
     return slicedData_;
 }
 
+-(void) clear
+{
+    slicedData_->clear();
+}
 @end
 
 @implementation ICEUnknownSlicedValue
@@ -60,14 +64,14 @@
     [super dealloc];
 }
 
--(NSString*) getUnknownTypeId
-{
-    return [[unknownTypeId_ retain] autorelease];
-}
-
--(ICESlicedData*) getSlicedData
+-(id<ICESlicedData>) ice_getSlicedData
 {
     return [[slicedData_ retain] autorelease];
+}
+
+-(NSString*) ice_id
+{
+    return [[unknownTypeId_ retain] autorelease];
 }
 
 -(void) iceWrite:(id<ICEOutputStream>)os
@@ -86,4 +90,5 @@
     assert(!slicedData->slices.empty());
     unknownTypeId_ = toNSString(slicedData->slices[0]->typeId);
 }
+
 @end

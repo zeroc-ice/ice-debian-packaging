@@ -9,60 +9,91 @@ supported platforms.
 To build Ice for JavaScript you must have the following:
 
 - The `slice2js` compiler from Ice for C++. If you have not built Ice for C++
-  in this source distribution, refer to the [C++ build instructions](../cpp/BuildInstructions.md).
+  in this source distribution, refer to the
+  [C++ build instructions](../cpp/BuildInstructions.md).
 - Node.js 4.6 or later
 
 ## Building the JavaScript libraries and NodeJS packages
 
 Change to the Ice for JavaScript source subdirectory:
-
-    > cd js
+```
+cd js
+```
 
 Run these commands to build the libraries and tests:
+```
+npm install
+npm run build
+```
 
-    > npm install
-    > npm run gulp:build
+On Windows, you need to set the platform and configuration in order to locate
+`slice2js`. For example, if you have built C++ with the x64 Release configuration,
+you can use the following command to build JavaScript:
+```
+npm run build -- --cppPlatform x64 --cppConfiguration Release
+```
 
+Alternatively you can use the CPP_PLATFORM and CPP_CONFIGURATION environment
+variables:
+```
+set CPP_PLATFORM=x64
+set CPP_CONFIGURATION=Debug
+npm run build
+```
 ## Running the JavaScript Tests
 
-Python is required to run the test suite with Node.js. Additionally, the
-Glacier2 tests require the Python module `passlib`, which you can install
-with the command:
+Python is required to run the test suite. Additionally, the Glacier2 tests
+require the Python module `passlib`, which you can install with the command:
+```
+pip install passlib
+```
 
-    $ pip install passlib
+The scripts also require Ice for Python, you can build Ice for Python from
+[python](../python) folder of this source distribution or install the Python
+module `zeroc-ice`, using the following command:
+```
+  pip install zeroc-ice
+```
 
-To start the tests simply run:
-
-    > npm run gulp:test:run-with-node
+You can start the NodeJS tests with:
+```
+npm run test:node
+```
 
 If everything worked out, you should see lots of `ok` messages. In case of a
 failure, the tests abort with `failed`.
 
-To start the browser tests run:
+You can start the browser tests with:
+```
+npm run test:browser
+```
 
-    > npm run gulp:test:run-with-browser
+This opens the test page (http://127.0.0.1:8080) using the system's default
+browser. These tests require a web browser wtih ECMAScript 6 support, such as
+a recent version of Chrome, Firefox or Safari.
 
-This requires that you build the Java test controller from the Java subdirectory
-and test servers from C++, C# or Java. Follow the instructions from the
-corresponding language mapping to build the tests and the server controller.
+If you are using another web browser, such as Microsoft Edge or Internet
+Explorer, you should use instead:
+```
+npm run test:browser-es5
+```
 
-In macOS the first time you run the script, you will be prompted for your
+This runs a version of the test suite transpiled to ECMAScript 5 using [Babel][2].
+
+On macOS the first time you run the tests, you will be prompted for your
 password. This is necessary to configure the trust setting for the HTTP
 server certificate, which will enable you to connect to the HTTP server
 with SSL via your web browser.
-
-The test page (http://127.0.0.1:8080) will be opened using the system's default
-browser.
 
 ### Browser Information
 
 #### Self-Signed Certificate
 
 The browser-based tests allow you to choose whether to run the tests over
-non-secure WebSocket (WS) or secure WebSocket (WSS) connections. This
-distribution includes a self-signed certificate used for securing WSS
-connections, located in `certs/cacert.pem`. If you select WSS, the page
-will automatically reload if necessary to connect to HTTPS port 9090.
+non-secure WebSocket (WS) or secure WebSocket (WSS) connections. The WSS
+connections in these tests rely on a self-signed certificate, `cacert`,
+provided in the certs(../certs) directory.
+
 To successfully run the tests over WSS, additional action may be necessary
 depending on the browser you're using:
 
@@ -74,20 +105,22 @@ depending on the browser you're using:
    You'll see a warning saying "This Connection is Untrusted". Open Firefox's
    Preferences or Options dialog, click on the Advanced section, select the
    Certificates tab and click on the "View Certificates..." button. In the
-   Authorities tab, click the "Import..." button, navigate to the cacert.pem
+   Authorities tab, click the "Import..." button, navigate to the `cacert.pem`
    file, and add it as a certificate authority (CA) for trusting web sites.
-   After closing the dialogs, reload the test page to continue.
+   After closing the dialogs, reload the test page to continue. You should
+   uninstall this certificate after running the tests.
 
 - Internet Explorer and Microsoft Edge
    Run the management console (mmc.exe) and add the Certificates snap-in for
-   the computer account. In the console window, open the Certificates folder.
-   From the Action menu, choose All Tasks and Import. Navigate to the
-   cacert.pem file and import it into the Trusted Root Certification Authorities
-   store. Reload the test page to continue.
+   the computer account. Then select Console Root > Certificates (Local Computer)
+   \> Trusted Root Certificate Authorities. In the Action menu, choose All Tasks
+   and Import. Navigate to the `cacert.der` file and import it into the Trusted
+   Root Certificate Authorities. Reload the test page to continue. You should
+   uninstall this certificate after running the tests.
 
 #### Windows 8
 
-On Windows 8 and Windows 8.1, network isolation prevents Internet Explorer from
+On Windows 8, network isolation prevents Internet Explorer from
 connecting to 127.0.0.1. To work around this limitation, you'll need to disable
 Internet Explorer's "Protected Mode". Open the "Internet Options" dialog and in
 the "Security" settings tab, deselect the "Enable Protected Mode" checkbox.
@@ -100,8 +133,9 @@ the tests, and that the test certificate authority be installed on your device.
 
 First you'll need to generate new certificates to match the IP address of the
 computer hosting the tests:
-
-    > certs/makecerts.py [IP address]
+```
+certs/makecerts.py [IP address]
+```
 
 Next you must install the certificate authority on your device. The simplest way
 is to email the CA certificate (`certs/cacert.pem`) to yourself and then follow
@@ -123,16 +157,19 @@ Next go to _Settings -> Security -> Install from storage_, and choose
 
 ## Installing a Source Build
 
-After a successful build, you can generate an npm package by running the
+After a successful build, you can generate a package by running the
 following command:
+```
+npm pack
+```
 
-    > npm pack
-
-This will generate the file `ice-3.7b0.tgz`, which can be installed by running:
-
-    > npm install <path_to_file>/ice-3.7b0.tgz
+This will generate the file `ice-3.7.0.tgz`, which can be installed by running:
+```
+npm install <path_to_file>/ice-3.7.0.tgz
+```
 
 To use Ice for JavaScript with a browser, copy the appropriate JavaScript
 library files located in the `lib` directory to your web server.
 
-[1]: https://zeroc.com/download.html
+[1]: https://zeroc.com/distributions/ice
+[2]: https://babeljs.io

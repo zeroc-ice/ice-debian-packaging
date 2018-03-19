@@ -257,7 +257,7 @@ MainHelperI::waitReady(int timeout) const
     unique_lock<mutex> lock(_mutex);
     while(!_ready && !_completed)
     {
-        
+
         if(_condition.wait_for(lock, chrono::seconds(timeout)) == cv_status::timeout)
         {
             throw ProcessFailedException("timed out waiting for the process to be ready");
@@ -323,7 +323,7 @@ ProcessControllerI::ProcessControllerI(ViewController^ controller, string hostna
 
 shared_ptr<ProcessPrx>
 ProcessControllerI::start(string testSuite, string exe, StringSeq args, const Ice::Current& c)
-{   
+{
     ostringstream os;
     os << "starting " << testSuite << " " << exe << "... ";
     _controller->println(os.str());
@@ -346,6 +346,7 @@ ControllerHelper::ControllerHelper(ViewController^ controller)
     initData.properties = Ice::createProperties();
     initData.properties->setProperty("Ice.ThreadPool.Server.SizeMax", "10");
     initData.properties->setProperty("Ice.Default.Host", "127.0.0.1");
+    initData.properties->setProperty("Ice.Override.ConnectTimeout", "1000");
     //initData.properties->setProperty("Ice.Trace.Network", "3");
     //initData.properties->setProperty("Ice.Trace.Protocol", "1");
     initData.properties->setProperty("ControllerAdapter.AdapterId", Ice::generateUUID());
@@ -369,18 +370,33 @@ ControllerHelper::registerProcessController(ViewController^ controller,
                                             const shared_ptr<ProcessControllerRegistryPrx>& registry,
                                             const shared_ptr<ProcessControllerPrx>& processController)
 {
-    registry->setProcessControllerAsync(processController,
+    registry->ice_pingAsync(
         [this, controller, adapter, registry, processController]()
         {
             auto connection = registry->ice_getCachedConnection();
             connection->setAdapter(adapter);
             connection->setACM(5, Ice::ACMClose::CloseOff, Ice::ACMHeartbeat::HeartbeatAlways);
             connection->setCloseCallback([=](const shared_ptr<Ice::Connection>&)
-            {
-                controller->println("connection with process controller registry closed");
-                std::this_thread::sleep_for(2s);
-                registerProcessController(controller, adapter, registry, processController);
-            });
+                {
+                    controller->println("connection with process controller registry closed");
+                    std::this_thread::sleep_for(2s);
+                    registerProcessController(controller, adapter, registry, processController);
+                });
+
+            registry->setProcessControllerAsync(processController, nullptr,
+                [controller](exception_ptr e)
+                {
+                    try
+                    {
+                        rethrow_exception(e);
+                    }
+                    catch(const std::exception& ex)
+                    {
+                        ostringstream os;
+                        os << "unexpected exception while connecting to process controller registry:\n" << ex.what();
+                        controller->println(os.str());
+                    }
+                });
         },
         [this, controller, adapter, registry, processController](exception_ptr e)
         {

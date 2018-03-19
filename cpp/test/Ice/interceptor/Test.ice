@@ -17,12 +17,12 @@ module Test
 exception InvalidInputException
 {
     string message;
-};
+}
 
 ["cpp:ice_print"]
 local exception RetryException
 {
-};
+}
 
 interface MyObject
 {
@@ -69,18 +69,17 @@ interface MyObject
     // Raise user exception
     //
     ["amd"] int amdBadAdd(int x, int y) throws InvalidInputException;
-    
+
     //
     // Raise ONE
     //
     ["amd"] int amdNotExistAdd(int x, int y);
-    
+
     //
     // Raise system exception
     //
     ["amd"] int amdBadSystemAdd(int x, int y);
 
-};
+}
 
-
-};
+}

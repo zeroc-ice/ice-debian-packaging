@@ -17,9 +17,8 @@ struct Square
     Point p2;
     Point p3;
     Point p4;
-};
+}
 
+}
 
-};
-
-};
+}
