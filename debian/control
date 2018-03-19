@@ -3,7 +3,7 @@ Section: devel
 Priority: extra
 Maintainer: José Gutiérrez de la Concha <jose@zeroc.com>
 Uploaders: Ondřej Surý <ondrej@debian.org>
-Build-Depends-Indep: default-jdk,
+Build-Depends-Indep: openjdk-8-jdk,
                      gradle (>= 2),
                      gradle-ice-builder-plugin (>= 1.3.13),
                      libjgoodies-forms-java (>= 1.6.0),
