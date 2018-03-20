@@ -1,1 +1,2 @@
 install-file-mode.diff
+classpath-contains-relative-path.diff
