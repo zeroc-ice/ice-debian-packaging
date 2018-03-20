@@ -121,10 +121,12 @@ override_dh_auto_clean-arch:
 
 override_dh_auto_clean-indep:
 	$(MAKE) $(MAKEOPTS) LANGUAGES=cpp distclean
-	#
-	# Don't fail if gradle is missing
-	#
-	-$(MAKE) $(MAKEOPTS) LANGUAGES="java java-compat" clean
+#
+# Don't fail if gradle isn't present
+#
+ifeq ($(shell type $(GRADLE) > /dev/null 2>&1 && echo 0),0)
+	$(MAKE) $(MAKEOPTS) LANGUAGES="java java-compat" clean
+endif
 	rm -rf java/.gradle
 	rm -rf java-compat/.gradle
 	rm -rf $(CURDIR)/.gradle
