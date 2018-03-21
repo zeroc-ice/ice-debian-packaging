@@ -2,8 +2,9 @@ sudo: required
 language: generic
 
 env:
-  - TRAVIS_DEBIAN_DISTRIBUTION=unstable
-  - DEB_BUILD_OPTIONS=notest
+  global:
+    - TRAVIS_DEBIAN_DISTRIBUTION=unstable
+    - DEB_BUILD_OPTIONS=notest
 
 services:
   - docker
