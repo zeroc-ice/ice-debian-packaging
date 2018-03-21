@@ -1,3 +1,11 @@
+zeroc-ice (3.7.0-2) unstable; urgency=medium
+
+  * Do not hardcode the lib arch directory
+  * Fix icebox install on i386 builds
+  * Do not install dbus and bluetooth on unsupported platforms
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Wed, 21 Mar 2018 17:19:48 +0100
+
 zeroc-ice (3.7.0-1) unstable; urgency=medium
 
   * Updated version to 3.7.0
