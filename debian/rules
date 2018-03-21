@@ -150,6 +150,7 @@ override_dh_systemd_enable:
 override_dh_install:
 	install -d -m 0755 $(DESTDIR)/usr/bin
 	install -m 0755 debian/zeroc-icegridgui.icegridgui $(DESTDIR)/usr/bin/icegridgui
+	install -d -m 0755 $(DESTDIR)/usr/share/man/man1
 	install -m 0644 debian/zeroc-icegridgui.icegridgui.1 $(DESTDIR)/usr/share/man/man1/icegridgui.1
 	install -d -m 0755 $(DESTDIR)/etc/
 
