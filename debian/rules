@@ -50,12 +50,6 @@ export PYTHON3DIR 	:= $(shell python3 -c "import sys;print('python{0}.{1}'.forma
 
 export VERSION   := $(shell echo $(DEB_VERSION_UPSTREAM) | sed -e 's,^\([.0-9|.a-z]*\).*,\1,')
 
-ifeq ($(DEB_HOST_ARCH_CPU),i386)
-export ICEBOX := icebox32
-else
-export ICEBOX := icebox
-endif
-
 DESTDIR=$(CURDIR)/debian/tmp
 ifeq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	OPTIMIZE=yes
