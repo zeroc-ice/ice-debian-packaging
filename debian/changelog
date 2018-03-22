@@ -1,3 +1,10 @@
+zeroc-ice (3.7.0-4) unstable; urgency=medium
+
+  * Fix nocheck support
+  * python-zeroc-ice: Install fails
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Thu, 22 Mar 2018 16:25:46 +0000
+
 zeroc-ice (3.7.0-3) unstable; urgency=medium
 
   * Fix package build failure when using --build=all
