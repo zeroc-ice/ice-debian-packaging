@@ -53,6 +53,8 @@ export VERSION   := $(shell echo $(DEB_VERSION_UPSTREAM) | sed -e 's,^\([.0-9|.a
 DESTDIR=$(CURDIR)/debian/tmp
 ifeq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	OPTIMIZE=yes
+else
+	OPTIMIZE=no
 endif
 
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
@@ -66,73 +68,81 @@ endif
 
 DHARGS	= --parallel --with maven_repo_helper --with systemd --with php --with python3 --with python2 --with javahelper
 
-MAKEOPTS = OPTIMIZE=$(OPTIMIZE) V=1 prefix=/usr DESTDIR=$(DESTDIR)
-
-ifneq ($(filter notest nocheck,$(DEB_BUILD_OPTIONS)),)
-BUILDTARGET = srcs
-endif
+MAKEOPTS = V=1 prefix=/usr DESTDIR=$(DESTDIR)
 
 %:
 	dh $@ $(DHARGS)
 
 override_dh_auto_build-arch:
-	$(MAKE) $(MAKEOPTS) LANGUAGES=cpp CONFIGS="shared cpp11-shared static cpp11-static" $(BUILDTARGET)
+	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) LANGUAGES=cpp CONFIGS="shared cpp11-shared static cpp11-static" srcs
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	$(MAKE) $(MAKEOPTS) OPTIMIZE=no LANGUAGES=cpp CONFIGS="shared cpp11-shared" tests
+endif
 	for v in $(PHP_VERSIONS); do \
 	  cp -a php php-$${v}; \
-	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v}; \
+	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) -C php-$${v}; \
 	done
 	for v in $(PYTHON_VERSIONS); do \
 	  cp -a python python-$${v}; \
-	  $(MAKE) $(MAKEOPTS) PYTHON=python$${v} -C python-$${v}; \
+	  $(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) PYTHON=python$${v} -C python-$${v}; \
 	done
 
 override_dh_auto_build-indep:
-	$(MAKE) $(MAKEOPTS) -C cpp slice2java
-	$(MAKE) $(MAKEOPTS) LANGUAGES="java java-compat" $(BUILDTARGET)
+	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) -C cpp slice2java
+	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) LANGUAGES="java java-compat" srcs
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	$(MAKE) $(MAKEOPTS) LANGUAGES="java java-compat" tests
+endif
 
 override_dh_auto_install-arch:
-	$(MAKE) $(MAKEOPTS) LANGUAGES=cpp CONFIGS="shared cpp11-shared static cpp11-static" install
+	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) LANGUAGES=cpp CONFIGS="shared cpp11-shared static cpp11-static" install
 	for v in $(PHP_VERSIONS); do \
-	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) -C php-$${v} install; \
+	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) -C php-$${v} install; \
 	done
 	for v in $(PYTHON_VERSIONS); do \
-	  $(MAKE) $(MAKEOPTS) PYTHON=python$${v} -C python-$${v} install; \
+	  $(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) PYTHON=python$${v} -C python-$${v} install; \
 	done
 	rm -rf $(addprefix $(DESTDIR)/,$(INSTALL_EXCLUDE))
 
 override_dh_auto_install-indep:
-	$(MAKE) $(MAKEOPTS) LANGUAGES="java java-compat" install
+	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) LANGUAGES="java java-compat" install
 	rm -rf $(DESTDIR)/usr/share/java/*-sources.jar
 
 override_dh_auto_clean-arch:
-	$(MAKE) $(MAKEOPTS) LANGUAGES=cpp CONFIGS="shared cpp11-shared static cpp11-static" distclean
+	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) LANGUAGES=cpp CONFIGS="shared cpp11-shared static cpp11-static" distclean
 	for v in $(PHP_VERSIONS); do \
 	  rm -rf php-$${v}; \
 	done
 	for v in $(PYTHON_VERSIONS); do \
 	  rm -rf python-$${v}; \
 	done
+	#
+	# This files are left behind by 3.7.0 see ICE-8759
+	#
+	rm -f cpp/test/Slice/errorDetection/tmp/*
 
 override_dh_auto_clean-indep:
-	$(MAKE) $(MAKEOPTS) LANGUAGES=cpp distclean
+	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) LANGUAGES=cpp distclean
 #
 # Don't fail if gradle isn't present
 #
 ifeq ($(shell type $(GRADLE) > /dev/null 2>&1 && echo 0),0)
-	$(MAKE) $(MAKEOPTS) LANGUAGES="java java-compat" clean
+	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) LANGUAGES="java java-compat" clean
 endif
 	rm -rf java/.gradle
 	rm -rf java-compat/.gradle
 	rm -rf $(CURDIR)/.gradle
 
 override_dh_auto_test-arch:
-ifeq ($(filter nocheck notest,$(DEB_BUILD_OPTIONS)),)
-	-$(MAKE) $(MAKEOPTS) -C cpp test
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	-python cpp/allTests.py --rfilter=IceUtil/stacktrace
+	-python cpp/allTests.py --config=cpp11-shared --rfilter=IceUtil/stacktrace
 endif
 
 override_dh_auto_test-indep:
-ifeq ($(filter nocheck notest,$(DEB_BUILD_OPTIONS)),)
-	-$(MAKE) $(MAKEOPTS) -C java test
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	-python java/allTests.py
+	-python java-compat/allTests.py
 endif
 
 override_dh_clean:
