@@ -137,8 +137,8 @@ endif
 
 override_dh_auto_test-indep:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	-python java/allTests.py
-	-python java-compat/allTests.py
+	-python java/allTests.py --rfilter Glacier2 --rfilter IceGrid
+	-python java-compat/allTests.py --rfilter Glacier2 --rfilter IceGrid
 endif
 
 override_dh_clean:
