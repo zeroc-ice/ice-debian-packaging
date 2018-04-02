@@ -15,7 +15,7 @@ export DH_OPTIONS
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/default.mk
 
-export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-$(DEB_BUILD_ARCH)/
+export JAVA_HOME=/usr/lib/jvm/default-java/
 
 export GRADLE		= gradle
 export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \

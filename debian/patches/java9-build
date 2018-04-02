@@ -1,0 +1,352 @@
+--- a/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/ArrayMapField.java
++++ b/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/ArrayMapField.java
+@@ -173,17 +173,16 @@
+             getCellEditor().stopCellEditing();
+         }
+         @SuppressWarnings("unchecked")
+-        java.util.Vector<java.util.Vector<String>> vector =
+-            _model.getDataVector();
++        java.util.Vector<java.util.Vector> vector = _model.getDataVector();
+ 
+         java.util.TreeMap<String, String[]> result = new java.util.TreeMap<>();
+ 
+-        for(java.util.Vector<String> row : vector)
++        for(java.util.Vector row : vector)
+         {
+             //
+             // Eliminate rows with null or empty keys
+             //
+-            String key = row.elementAt(0);
++            String key = row.elementAt(0).toString();
+             if(key != null)
+             {
+                 key = key.trim();
+@@ -192,7 +191,7 @@
+                     String[] val = new String[_vectorSize - 1];
+                     for(int i = 1; i < _vectorSize; ++i)
+                     {
+-                        val[i - 1] = row.elementAt(i);
++                        val[i - 1] = row.elementAt(i).toString();
+                         if(val[i - 1] == null)
+                         {
+                             val[i - 1] = "";
+--- a/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/Communicator.java
++++ b/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/Communicator.java
+@@ -23,9 +23,10 @@
+ abstract class Communicator extends TreeNode implements DescriptorHolder
+ {
+     @Override
+-    public Enumeration<Object> children()
++    @SuppressWarnings("unchecked")
++    public Enumeration<javax.swing.tree.TreeNode> children()
+     {
+-        return new Enumeration<Object>()
++        return new Enumeration<javax.swing.tree.TreeNode>()
+             {
+                 @Override
+                 public boolean hasMoreElements()
+@@ -47,7 +48,7 @@
+                 }
+ 
+                 @Override
+-                public Object nextElement()
++                public javax.swing.tree.TreeNode nextElement()
+                 {
+                     try
+                     {
+@@ -67,7 +68,7 @@
+                 }
+ 
+                 private int _index = 0;
+-                private java.util.Iterator _p = _childListArray[0].iterator();
++                private java.util.Iterator<javax.swing.tree.TreeNode> _p = _childListArray[0].iterator();
+             };
+     }
+ 
+--- a/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/ListTreeNode.java
++++ b/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/ListTreeNode.java
+@@ -21,9 +21,9 @@
+ abstract class ListTreeNode extends TreeNode
+ {
+     @Override
+-    public Enumeration<Object> children()
++    public Enumeration<javax.swing.tree.TreeNode> children()
+     {
+-        return new Enumeration<Object>()
++        return new Enumeration<javax.swing.tree.TreeNode>()
+             {
+                 @Override
+                 public boolean hasMoreElements()
+@@ -32,7 +32,7 @@
+                 }
+ 
+                 @Override
+-                public Object nextElement()
++                public javax.swing.tree.TreeNode nextElement()
+                 {
+                     return _p.next();
+                 }
+--- a/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/Node.java
++++ b/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/Node.java
+@@ -48,34 +48,31 @@
+     }
+ 
+     @Override
+-    public Enumeration<Object> children()
++    public Enumeration<javax.swing.tree.TreeNode> children()
+     {
+-        return new Enumeration<Object>()
++        return new Enumeration<javax.swing.tree.TreeNode>()
+             {
+                 @Override
+                 public boolean hasMoreElements()
+                 {
+-                    if(!_p.hasNext())
+-                    {
+-                        if(!_iteratingOverServers)
+-                        {
+-                            _p = _servers.iterator();
+-                            _iteratingOverServers = true;
+-                            return _p.hasNext();
+-                        }
+-                        return false;
+-                    }
+-                    return true;
++                    return _p.hasNext() || _q.hasNext();
+                 }
+ 
+                 @Override
+-                public Object nextElement()
++                public javax.swing.tree.TreeNode nextElement()
+                 {
+-                    return _p.next();
++                    if(_p.hasNext())
++                    {
++                        return _p.next();
++                    }
++                    else
++                    {
++                        return (javax.swing.tree.TreeNode)_q.next();
++                    }
+                 }
+ 
+-                private java.util.Iterator _p = _propertySets.iterator();
+-                private boolean _iteratingOverServers = false;
++                private java.util.Iterator<PropertySet> _p = _propertySets.iterator();
++                private java.util.Iterator<Server> _q = _servers.iterator();
+             };
+     }
+ 
+--- a/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/ParameterValuesField.java
++++ b/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/ParameterValuesField.java
+@@ -124,18 +124,17 @@
+             getCellEditor().stopCellEditing();
+         }
+ 
+-        java.util.Vector<java.util.Vector<String>> vector =
+-            _model.getDataVector();
++        java.util.Vector<java.util.Vector> vector = _model.getDataVector();
+ 
+-        for(java.util.Vector<String> row : vector)
++        for(java.util.Vector row : vector)
+         {
+             //
+             // Eliminate rows with null or empty names
+             //
+-            String name = row.elementAt(0);
++            String name = row.elementAt(0).toString();
+             assert name != null;
+ 
+-            String val = row.elementAt(1);
++            String val = row.elementAt(1).toString();
+ 
+             //
+             // Eliminate entries with default or not set value
+--- a/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/ParametersField.java
++++ b/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/ParametersField.java
+@@ -144,15 +144,14 @@
+             getCellEditor().stopCellEditing();
+         }
+         @SuppressWarnings("unchecked")
+-        java.util.Vector<java.util.Vector<String>> vector =
+-            _model.getDataVector();
++        java.util.Vector<java.util.Vector> vector = _model.getDataVector();
+ 
+-        for(java.util.Vector<String> row : vector)
++        for(java.util.Vector row : vector)
+         {
+             //
+             // Eliminate rows with null or empty names
+             //
+-            String name = row.elementAt(0);
++            String name = row.elementAt(0).toString();
+             if(name != null)
+             {
+                 name = name.trim();
+@@ -161,7 +160,7 @@
+                 {
+                     names.add(name);
+ 
+-                    String val = row.elementAt(1);
++                    String val = row.elementAt(1).toString();
+ 
+                     //
+                     // Eliminate entries with "default" value
+--- a/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/PropertiesField.java
++++ b/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/PropertiesField.java
+@@ -225,31 +225,30 @@
+             getCellEditor().stopCellEditing();
+         }
+         @SuppressWarnings("unchecked")
+-        java.util.Vector<java.util.Vector<String>> vector =
+-            _model.getDataVector();
++        java.util.Vector<java.util.Vector> vector = _model.getDataVector();
+ 
+         java.util.LinkedList<PropertyDescriptor> result = new java.util.LinkedList<>(_hiddenProperties);
+ 
+-        for(java.util.Vector<String> row : vector)
++        for(java.util.Vector row : vector)
+         {
+-             //
+-             // Eliminate rows with null or empty keys
+-             //
+-             String key = row.elementAt(0);
+-             if(key != null)
+-             {
+-                 key = key.trim();
+-                 if(!key.equals(""))
+-                 {
+-                     String val = row.elementAt(1);
+-                     if(val == null)
+-                     {
+-                         val = "";
+-                     }
++            //
++            // Eliminate rows with null or empty keys
++            //
++            String key = row.elementAt(0).toString();
++            if(key != null)
++            {
++                key = key.trim();
++                if(!key.equals(""))
++                {
++                    String val = row.elementAt(1).toString();
++                    if(val == null)
++                    {
++                        val = "";
++                    }
+ 
+-                     result.add(new PropertyDescriptor(key, val));
+-                 }
+-             }
++                    result.add(new PropertyDescriptor(key, val));
++                }
++            }
+         }
+         return result;
+     }
+--- a/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/SimpleMapField.java
++++ b/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/Application/SimpleMapField.java
+@@ -156,30 +156,29 @@
+             getCellEditor().stopCellEditing();
+         }
+         @SuppressWarnings("unchecked")
+-        java.util.Vector<java.util.Vector<String>> vector =
+-            _model.getDataVector();
++        java.util.Vector<java.util.Vector> vector = _model.getDataVector();
+ 
+         java.util.TreeMap<String, String> result = new java.util.TreeMap<>();
+ 
+-        for(java.util.Vector<String> row : vector)
++        for(java.util.Vector row : vector)
+         {
+              //
+              // Eliminate rows with null or empty keys
+              //
+-             String key = row.elementAt(0);
+-             if(key != null)
+-             {
+-                 key = key.trim();
+-                 if(!key.equals(""))
+-                 {
+-                     String val = row.elementAt(1);
+-                     if(val == null)
+-                     {
+-                         val = "";
+-                     }
+-                     result.put(key, val);
+-                 }
+-             }
++            String key = row.elementAt(0).toString();
++            if(key != null)
++            {
++                key = key.trim();
++                if(!key.equals(""))
++                {
++                    String val = row.elementAt(1).toString();
++                    if(val == null)
++                    {
++                        val = "";
++                    }
++                    result.put(key, val);
++                }
++            }
+         }
+         return result;
+     }
+--- a/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/LiveDeployment/Communicator.java
++++ b/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/LiveDeployment/Communicator.java
+@@ -26,9 +26,10 @@
+     // Children-related overrides
+     //
+     @Override
+-    public Enumeration<Object> children()
++    @SuppressWarnings("unchecked")
++    public Enumeration<javax.swing.tree.TreeNode> children()
+     {
+-        return new Enumeration<Object>()
++        return new Enumeration<javax.swing.tree.TreeNode>()
+             {
+                 @Override
+                 public boolean hasMoreElements()
+@@ -50,7 +51,7 @@
+                 }
+ 
+                 @Override
+-                public Object nextElement()
++                public javax.swing.tree.TreeNode nextElement()
+                 {
+                     try
+                     {
+@@ -70,7 +71,7 @@
+                 }
+ 
+                 private int _index = 0;
+-                private java.util.Iterator _p = _childrenArray[0].iterator();
++                private java.util.Iterator<javax.swing.tree.TreeNode> _p = _childrenArray[0].iterator();
+             };
+     }
+ 
+--- a/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/TreeNodeBase.java
++++ b/java/src/IceGridGUI/src/main/java/com/zeroc/IceGridGUI/TreeNodeBase.java
+@@ -30,9 +30,9 @@
+     }
+ 
+     @Override
+-    public Enumeration<Object> children()
++    public Enumeration<javax.swing.tree.TreeNode> children()
+     {
+-        return new Enumeration<Object>()
++        return new Enumeration<javax.swing.tree.TreeNode>()
+             {
+                 @Override
+                 public boolean hasMoreElements()
+@@ -41,7 +41,7 @@
+                 }
+ 
+                 @Override
+-                public Object nextElement()
++                public javax.swing.tree.TreeNode nextElement()
+                 {
+                     throw new java.util.NoSuchElementException();
+                 }
