@@ -1,3 +1,13 @@
+zeroc-ice (3.7.0-5) unstable; urgency=medium
+
+  * Add python-passlib package required to run test
+  * Filter out test that require arch services
+  * Use latest standards version
+  * Add openssl dependency required for IceSSL/configuration test
+  * Build Java packages with the default JDK
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Mon, 02 Apr 2018 15:05:04 +0000
+
 zeroc-ice (3.7.0-4) unstable; urgency=medium
 
   * Fix nocheck support
