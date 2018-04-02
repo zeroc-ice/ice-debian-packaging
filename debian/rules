@@ -135,14 +135,14 @@ endif
 
 override_dh_auto_test-arch:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	-python cpp/allTests.py --rfilter=IceUtil/stacktrace
-	-python cpp/allTests.py --config=cpp11-shared --rfilter=IceUtil/stacktrace
+	-python cpp/allTests.py --rfilter=IceUtil/stacktrace --rfilter IceGrid/simple --rfilter IceDiscovery
+	-python cpp/allTests.py --config=cpp11-shared --rfilter=IceUtil/stacktrace --rfilter IceGrid/simple --rfilter IceDiscovery
 endif
 
 override_dh_auto_test-indep:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	-python java/allTests.py --rfilter Glacier2 --rfilter IceGrid
-	-python java-compat/allTests.py --rfilter Glacier2 --rfilter IceGrid
+	-python java/allTests.py --rfilter Glacier2 --rfilter IceGrid --rfilter IceDiscovery
+	-python java-compat/allTests.py --rfilter Glacier2 --rfilter IceGrid --rfilter IceDiscovery
 endif
 
 override_dh_clean:
