@@ -62,8 +62,7 @@ Multi-Arch: foreign
 Section: java
 Replaces: libzeroc-ice-java (<< 3.7.0~)
 Breaks: libzeroc-ice-java (<< 3.7.0~)
-Depends: default-jdk | openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer,
-         ${misc:Depends}
+Depends: ${misc:Depends}
 Description: Ice for Java run-time libraries.
  This package contains Ice for Java run-time libraries.
  .
@@ -283,7 +282,7 @@ Multi-Arch: foreign
 Section: admin
 Replaces: zeroc-ice-utils-java (<< 3.7.0~)
 Breaks: zeroc-ice-utils-java (<= 3.7.0~)
-Depends: default-jre | default-jdk | openjdk-7-jdk | openjdk-8-jdk | oracle-java7-installer | oracle-java8-installer | openjdk-7-jre | openjdk-8-jre,
+Depends: default-jre,
          libzeroc-ice3.7-java (= ${source:Version}),
          ${java:Depends},
          ${misc:Depends}
