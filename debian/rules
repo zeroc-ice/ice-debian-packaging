@@ -33,11 +33,6 @@ export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
 			  -PjarsClassPath=true
 
 #
-# This is required to enable dbgsym packages in Ubuntu
-#
-export DH_BUILD_DDEBS	= 1
-
-#
 # These files are not installed with any debian package.
 #
 INSTALL_EXCLUDE		= usr/bin/slice2confluence
