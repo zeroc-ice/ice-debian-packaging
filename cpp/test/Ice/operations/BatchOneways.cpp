@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -199,7 +199,16 @@ batchOneways(const Test::MyClassPrxPtr& p)
         ic->destroy();
     }
 
-    if(batch->ice_getConnection() &&
+    bool supportsCompress = true;
+    try
+    {
+        supportsCompress = p->supportsCompress();
+    }
+    catch(const Ice::OperationNotExistException&)
+    {
+    }
+
+    if(supportsCompress && batch->ice_getConnection() &&
        p->ice_getCommunicator()->getProperties()->getProperty("Ice.Override.Compress") == "")
     {
         Ice::ObjectPrxPtr prx = batch->ice_getConnection()->createProxy(batch->ice_getIdentity())->ice_batchOneway();

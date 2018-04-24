@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -24,8 +24,9 @@ ZEND_DECLARE_MODULE_GLOBALS(ice)
 
 //
 // BUGFIX Avoid narrowing conversion warnings with ZEND_BEGIN_ARG_INFO_EX usage
+// in PHP >= 5.4
 //
-#if ZEND_MODULE_API_NO >= 20121212
+#if ZEND_MODULE_API_NO >= 20100525
 ZEND_BEGIN_ARG_INFO_EX(Ice_initialize_arginfo, 1, ZEND_RETURN_VALUE, static_cast<zend_uint>(-1))
 ZEND_END_ARG_INFO()
 

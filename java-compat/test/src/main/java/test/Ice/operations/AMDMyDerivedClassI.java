@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -97,6 +97,14 @@ public final class AMDMyDerivedClassI extends _MyDerivedClassDisp
 
         current.adapter.getCommunicator().shutdown();
         cb.ice_response();
+    }
+
+    @Override
+    synchronized public void
+    supportsCompress_async(AMD_MyClass_supportsCompress cb,
+                           Ice.Current current)
+    {
+        cb.ice_response(true);
     }
 
     @Override

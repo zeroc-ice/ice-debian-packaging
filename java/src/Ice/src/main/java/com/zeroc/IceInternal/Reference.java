@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -78,6 +78,12 @@ public abstract class Reference implements Cloneable
         return _invocationTimeout;
     }
 
+    public java.util.Optional<Boolean>
+    getCompress()
+    {
+        return _overrideCompress ? java.util.Optional.of(_compress) : java.util.Optional.empty();
+    }
+
     public final com.zeroc.Ice.Communicator
     getCommunicator()
     {
@@ -94,7 +100,9 @@ public abstract class Reference implements Cloneable
     public abstract com.zeroc.Ice.EndpointSelectionType getEndpointSelection();
     public abstract int getLocatorCacheTimeout();
     public abstract String getConnectionId();
+    public abstract java.util.OptionalInt getTimeout();
     public abstract com.zeroc.IceInternal.ThreadPool getThreadPool();
+    public abstract com.zeroc.Ice.ConnectionI getConnection();
 
     //
     // The change* methods (here and in derived classes) create
@@ -217,6 +225,7 @@ public abstract class Reference implements Cloneable
 
     public abstract Reference changeTimeout(int newTimeout);
     public abstract Reference changeConnectionId(String connectionId);
+    public abstract Reference changeConnection(com.zeroc.Ice.ConnectionI connection);
 
     @Override
     public synchronized int

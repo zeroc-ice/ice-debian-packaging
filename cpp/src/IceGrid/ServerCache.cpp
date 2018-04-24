@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -162,9 +162,7 @@ ServerCache::get(const string& id) const
     ServerEntryPtr entry = getImpl(id);
     if(!entry)
     {
-        ServerNotExistException ex;
-        ex.id = id;
-        throw ex;
+        throw ServerNotExistException(id);
     }
     return entry;
 }

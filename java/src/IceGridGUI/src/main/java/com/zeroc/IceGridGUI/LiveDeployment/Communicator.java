@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -26,9 +26,10 @@ abstract public class Communicator extends TreeNode
     // Children-related overrides
     //
     @Override
-    public Enumeration<Object> children()
+    @SuppressWarnings("unchecked")
+    public Enumeration<javax.swing.tree.TreeNode> children()
     {
-        return new Enumeration<Object>()
+        return new Enumeration<javax.swing.tree.TreeNode>()
             {
                 @Override
                 public boolean hasMoreElements()
@@ -50,7 +51,7 @@ abstract public class Communicator extends TreeNode
                 }
 
                 @Override
-                public Object nextElement()
+                public javax.swing.tree.TreeNode nextElement()
                 {
                     try
                     {
@@ -70,7 +71,7 @@ abstract public class Communicator extends TreeNode
                 }
 
                 private int _index = 0;
-                private java.util.Iterator _p = _childrenArray[0].iterator();
+                private java.util.Iterator<javax.swing.tree.TreeNode> _p = _childrenArray[0].iterator();
             };
     }
 

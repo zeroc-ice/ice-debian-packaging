@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,7 +8,7 @@
 // **********************************************************************
 
 #pragma once
-[["ice-prefix", "cpp:header-ext:h", "objc:header-dir:objc", "python:pkgdir:IceLocatorDiscovery"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:doxygen:include:IceLocatorDiscovery/IceLocatorDiscovery.h", "objc:header-dir:objc", "python:pkgdir:IceLocatorDiscovery"]]
 
 #include <Ice/Locator.ice>
 

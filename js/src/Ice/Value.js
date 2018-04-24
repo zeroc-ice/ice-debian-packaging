@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -18,8 +18,6 @@ Ice._ModuleRegistry.require(module,
         "../Ice/StreamHelpers",
         "../Ice/OptionalFormat"
     ]);
-
-const ids = ["::Ice::Object"];
 
 Ice.Value = class
 {
@@ -127,7 +125,7 @@ const writeImpl = function(obj, os, type)
     os.startSlice(type.ice_staticId(),
                   Object.prototype.hasOwnProperty.call(type, '_iceCompactId') ? type._iceCompactId : -1 ,
                   Object.getPrototypeOf(type) === Ice.Value);
-    if(type.prototype._iceWriteMemberImpl)
+    if(type.prototype.hasOwnProperty('_iceWriteMemberImpl'))
     {
         type.prototype._iceWriteMemberImpl.call(obj, os);
     }
@@ -149,7 +147,7 @@ const readImpl = function(obj, is, type)
     }
 
     is.startSlice();
-    if(type.prototype._iceReadMemberImpl)
+    if(type.prototype.hasOwnProperty('_iceReadMemberImpl'))
     {
         type.prototype._iceReadMemberImpl.call(obj, is);
     }

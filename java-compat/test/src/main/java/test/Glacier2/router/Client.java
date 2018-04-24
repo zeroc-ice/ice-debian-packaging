@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -37,7 +37,7 @@ public class Client extends test.Util.Application
         {
             out.print("testing stringToProxy for router... ");
             out.flush();
-            routerBase = communicator().stringToProxy("Glacier2/router:" + getTestEndpoint(10));
+            routerBase = communicator().stringToProxy("Glacier2/router:" + getTestEndpoint(50));
             out.println("ok");
         }
 
@@ -55,7 +55,7 @@ public class Client extends test.Util.Application
             out.print("testing router finder... ");
             out.flush();
             Ice.RouterFinderPrx finder = Ice.RouterFinderPrxHelper.uncheckedCast(
-                communicator().stringToProxy("Ice/RouterFinder:" + getTestEndpoint(10)));
+                communicator().stringToProxy("Ice/RouterFinder:" + getTestEndpoint(50)));
             test(finder.getRouter().ice_getIdentity().equals(router.ice_getIdentity()));
             out.println("ok");
         }
@@ -186,6 +186,20 @@ public class Client extends test.Util.Application
             out.print("pinging server after session creation... ");
             out.flush();
             base.ice_ping();
+            out.println("ok");
+        }
+
+        {
+            out.print("pinging object with client endpoint... ");
+            out.flush();
+            Ice.ObjectPrx baseC = communicator().stringToProxy("collocated:" + getTestEndpoint(50));
+            try
+            {
+                baseC.ice_ping();
+            }
+            catch(Ice.ObjectNotExistException ex)
+            {
+            }
             out.println("ok");
         }
 
@@ -425,7 +439,7 @@ public class Client extends test.Util.Application
 
             {
                 out.print("testing stringToProxy for process object... ");
-                processBase = communicator().stringToProxy("Glacier2/admin -f Process:" + getTestEndpoint(11));
+                processBase = communicator().stringToProxy("Glacier2/admin -f Process:" + getTestEndpoint(51));
                 out.println("ok");
             }
 

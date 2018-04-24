@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -27,8 +27,7 @@ projects :=
 $(foreach t,$(wildcard $(lang_srcdir)/src/slice2*),$(eval $(call create-translator-project,$(call project,$t))))
 include $(foreach p,$(load_first),src/$p/Makefile.mk)
 include $(filter-out $(foreach p,$(load_first),%/src/$p/Makefile.mk),$(shell find $(lang_srcdir)/src -name Makefile.mk))
-
-$(call make-projects,$(projects),make-cpp-src-project)
+$(call make-projects,$(projects),make-cpp-src-project,,$(filter all cpp,$(ICE_BIN_DIST)))
 
 #
 # Now, create and load test projects.
@@ -40,4 +39,4 @@ $(foreach t,$(tests),$(eval $(call create-cpp-test-project,$(t))))
 $(call make-projects,$(projects),make-cpp-test-project)
 
 install:: | $(DESTDIR)$(install_configdir)
-	$(Q)$(INSTALL) $(lang_srcdir)/config/templates.xml $(DESTDIR)$(install_configdir)
+	$(Q)$(call install-data,templates.xml,$(lang_srcdir)/config,$(install_configdir))

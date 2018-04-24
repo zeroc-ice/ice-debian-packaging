@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -21,9 +21,9 @@ import com.zeroc.IceGridGUI.*;
 abstract class ListTreeNode extends TreeNode
 {
     @Override
-    public Enumeration<Object> children()
+    public Enumeration<javax.swing.tree.TreeNode> children()
     {
-        return new Enumeration<Object>()
+        return new Enumeration<javax.swing.tree.TreeNode>()
             {
                 @Override
                 public boolean hasMoreElements()
@@ -32,7 +32,7 @@ abstract class ListTreeNode extends TreeNode
                 }
 
                 @Override
-                public Object nextElement()
+                public javax.swing.tree.TreeNode nextElement()
                 {
                     return _p.next();
                 }

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -36,7 +36,12 @@ namespace IceInternal
                 timeoutProperty = prefix + ".Timeout";
             }
 
-            timeout = p.getPropertyAsIntWithDefault(timeoutProperty, dflt.timeout / 1000) * 1000;
+            timeout = p.getPropertyAsIntWithDefault(timeoutProperty, dflt.timeout / 1000) * 1000; // To milliseconds
+            if(timeout < 0)
+            {
+                l.warning("invalid value for property `" + timeoutProperty + "', default value will be used instead");
+                timeout = dflt.timeout;
+            }
 
             int hb = p.getPropertyAsIntWithDefault(prefix + ".Heartbeat", (int)dflt.heartbeat);
             if(hb >= (int)Ice.ACMHeartbeat.HeartbeatOff && hb <= (int)Ice.ACMHeartbeat.HeartbeatAlways)

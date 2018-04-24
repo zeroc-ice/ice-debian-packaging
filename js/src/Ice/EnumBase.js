@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -101,10 +101,11 @@ Slice.defineEnum = function(enumerators)
     let maxValue = 0;
     let firstEnum = null;
 
-    for(let idx in enumerators)
+    for(const idx in enumerators)
     {
-        let e = enumerators[idx][0], value = enumerators[idx][1];
-        let enumerator = new type(e, value);
+        const e = enumerators[idx][0];
+        const value = enumerators[idx][1];
+        const enumerator = new type(e, value);
         enums[value] = enumerator;
         if(!firstEnum)
         {

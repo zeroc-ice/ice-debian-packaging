@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -194,7 +194,7 @@ DescriptorHandler::startElement(const string& name, const IceXML::Attributes& at
                 }
                 catch(const DeploymentException& ex)
                 {
-                    throw ex.reason;
+                    throw runtime_error(ex.reason);
                 }
             }
             else
@@ -468,13 +468,9 @@ DescriptorHandler::startElement(const string& name, const IceXML::Attributes& at
 
         attributes.checkUnknownAttributes();
     }
-    catch(const string& reason)
+    catch(const exception& ex)
     {
-        error(reason);
-    }
-    catch(const char* reason)
-    {
-        error(reason);
+        error(ex.what());
     }
 
     //
@@ -690,13 +686,9 @@ DescriptorHandler::endElement(const string& name, int line, int column)
             _inDistrib = false;
         }
     }
-    catch(const string& reason)
+    catch(const exception& ex)
     {
-        error(reason);
-    }
-    catch(const char* reason)
-    {
-        error(reason);
+        error(ex.what());
     }
 
     //

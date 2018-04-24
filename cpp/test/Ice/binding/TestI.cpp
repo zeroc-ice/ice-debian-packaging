@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -29,20 +29,32 @@ RemoteCommunicatorI::createObjectAdapter(const string& name, const string& endpt
 {
     Ice::CommunicatorPtr com = current.adapter->getCommunicator();
     const string defaultProtocol = com->getProperties()->getProperty("Ice.Default.Protocol");
-
-    string endpoints = endpts;
-    if(defaultProtocol != "bt")
+    int retry = 5;
+    while(true)
     {
-        if(endpoints.find("-p") == string::npos)
+        try
         {
-            endpoints = getTestEndpoint(com, _nextPort++, endpoints);
+            string endpoints = endpts;
+            if(defaultProtocol != "bt")
+            {
+                if(endpoints.find("-p") == string::npos)
+                {
+                    endpoints = getTestEndpoint(com, _nextPort++, endpoints);
+                }
+            }
+            com->getProperties()->setProperty(name + ".ThreadPool.Size", "1");
+            ObjectAdapterPtr adapter = com->createObjectAdapterWithEndpoints(name, endpoints);
+            return ICE_UNCHECKED_CAST(RemoteObjectAdapterPrx,
+                                      current.adapter->addWithUUID(ICE_MAKE_SHARED(RemoteObjectAdapterI, adapter)));
+        }
+        catch(const Ice::SocketException&)
+        {
+            if(--retry == 0)
+            {
+                throw;
+            }
         }
     }
-
-    com->getProperties()->setProperty(name + ".ThreadPool.Size", "1");
-    ObjectAdapterPtr adapter = com->createObjectAdapterWithEndpoints(name, endpoints);
-    return ICE_UNCHECKED_CAST(RemoteObjectAdapterPrx,
-                              current.adapter->addWithUUID(ICE_MAKE_SHARED(RemoteObjectAdapterI, adapter)));
 }
 
 #ifdef ICE_CPP11_MAPPING

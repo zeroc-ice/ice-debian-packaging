@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -125,9 +125,7 @@ IceInternal::TcpAcceptor::startAccept()
                 ICE_NULLPTR,
                 ICE_NULLPTR) == SOCKET_ERROR)
     {
-        SocketException ex(__FILE__, __LINE__);
-        ex.error = getSocketErrno();
-        throw ex;
+        throw SocketException(__FILE__, __LINE__, getSocketErrno());
     }
 
     assert(_acceptFd == INVALID_SOCKET);
@@ -137,9 +135,7 @@ IceInternal::TcpAcceptor::startAccept()
     {
         if(!wouldBlock())
         {
-            SocketException ex(__FILE__, __LINE__);
-            ex.error = getSocketErrno();
-            throw ex;
+            throw SocketException(__FILE__, __LINE__, getSocketErrno());
         }
     }
 }
@@ -160,18 +156,14 @@ IceInternal::TcpAcceptor::accept()
 {
     if(_acceptFd == INVALID_SOCKET)
     {
-        SocketException ex(__FILE__, __LINE__);
-        ex.error = _acceptError;
-        throw ex;
+        throw SocketException(__FILE__, __LINE__, _acceptError);
     }
     if(setsockopt(_acceptFd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&_acceptFd, sizeof(_acceptFd)) ==
        SOCKET_ERROR)
     {
         closeSocketNoThrow(_acceptFd);
         _acceptFd = INVALID_SOCKET;
-        SocketException ex(__FILE__, __LINE__);
-        ex.error = getSocketErrno();
-        throw ex;
+        throw SocketException(__FILE__, __LINE__, getSocketErrno());
     }
 
     SOCKET fd = _acceptFd;

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -980,10 +980,7 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
                     FILE* file = IceUtilInternal::freopen(stdOutFilename, "a", stdout);
                     if(file == 0)
                     {
-                        FileException ex(__FILE__, __LINE__);
-                        ex.path = stdOutFilename;
-                        ex.error = getSystemErrno();
-                        throw ex;
+                        throw FileException(__FILE__, __LINE__, getSystemErrno(), stdOutFilename);
                     }
                 }
 
@@ -992,10 +989,7 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
                     FILE* file = IceUtilInternal::freopen(stdErrFilename, "a", stderr);
                     if(file == 0)
                     {
-                        FileException ex(__FILE__, __LINE__);
-                        ex.path = stdErrFilename;
-                        ex.error = getSystemErrno();
-                        throw ex;
+                        throw FileException(__FILE__, __LINE__, getSystemErrno(), stdErrFilename);
                     }
                 }
 
@@ -1023,43 +1017,34 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
                     struct passwd pwbuf;
                     vector<char> buffer(4096); // 4KB initial buffer
                     struct passwd *pw;
-                    int err = getpwnam_r(newUser.c_str(), &pwbuf, &buffer[0], buffer.size(), &pw);
-                    while(err == ERANGE && buffer.size() < 1024 * 1024) // Limit buffer to 1MB
+                    int err;
+                    while((err =  getpwnam_r(newUser.c_str(), &pwbuf, &buffer[0], buffer.size(), &pw)) == ERANGE &&
+                          buffer.size() < 1024 * 1024) // Limit buffer to 1M
                     {
                         buffer.resize(buffer.size() * 2);
                     }
                     if(err != 0)
                     {
-                        Ice::SyscallException ex(__FILE__, __LINE__);
-                        ex.error = err;
-                        throw ex;
+                        throw Ice::SyscallException(__FILE__, __LINE__, err);
                     }
                     else if(pw == 0)
                     {
-                        InitializationException ex(__FILE__, __LINE__);
-                        ex.reason ="unknown user account `" + newUser + "'";
-                        throw ex;
+                        throw InitializationException(__FILE__, __LINE__, "unknown user account `" + newUser + "'");
                     }
 
                     if(setgid(pw->pw_gid) == -1)
                     {
-                        SyscallException ex(__FILE__, __LINE__);
-                        ex.error = getSystemErrno();
-                        throw ex;
+                        throw SyscallException(__FILE__, __LINE__, getSystemErrno());
                     }
 
                     if(initgroups(pw->pw_name, pw->pw_gid) == -1)
                     {
-                        SyscallException ex(__FILE__, __LINE__);
-                        ex.error = getSystemErrno();
-                        throw ex;
+                        throw SyscallException(__FILE__, __LINE__, getSystemErrno());
                     }
 
                     if(setuid(pw->pw_uid) == -1)
                     {
-                        SyscallException ex(__FILE__, __LINE__);
-                        ex.error = getSystemErrno();
-                        throw ex;
+                        throw SyscallException(__FILE__, __LINE__, getSystemErrno());
                     }
                 }
 #endif
@@ -1073,9 +1058,7 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
                 WSADATA data;
                 if(WSAStartup(version, &data) != 0)
                 {
-                    SocketException ex(__FILE__, __LINE__);
-                    ex.error = getSocketErrno();
-                    throw ex;
+                    throw SocketException(__FILE__, __LINE__, getSocketErrno());
                 }
 #endif
 
@@ -1221,13 +1204,9 @@ IceInternal::Instance::Instance(const CommunicatorPtr& communicator, const Initi
             throw InitializationException(__FILE__, __LINE__, "The value for Ice.ToStringMode must be Unicode, ASCII or Compat");
         }
 
-        //
-        // Client ACM enabled by default. Server ACM disabled by default.
-        //
-#ifndef ICE_OS_UWP
         const_cast<ImplicitContextIPtr&>(_implicitContext) =
             ImplicitContextI::create(_initData.properties->getProperty("Ice.ImplicitContext"));
-#endif
+
         _routerManager = new RouterManager;
 
         _locatorManager = new LocatorManager(_initData.properties);

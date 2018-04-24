@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -370,6 +370,17 @@ allTests(const Ice::CommunicatorPtr& communicator)
     }
     cout << "ok" << endl;
 
+    cout << "setting G... " << flush;
+    GPtr g = ICE_MAKE_SHARED(G, s, "g");
+    try
+    {
+        initial->setG(g);
+    }
+    catch(const Ice::OperationNotExistException&)
+    {
+    }
+    cout << "ok" << endl;
+
     cout << "setting I... " << flush;
     initial->setI(i);
     initial->setI(j);
@@ -392,7 +403,13 @@ allTests(const Ice::CommunicatorPtr& communicator)
     int depth = 0;
     try
     {
-        for(; depth <= 2000; ++depth)
+#if defined(NDEBUG) || !defined(__APPLE__)
+        const int maxDepth = 2000;
+#else
+        // With debug, marshalling a graph of 2000 elements can cause a stack overflow on macOS
+        const int maxDepth = 1500;
+#endif
+        for(; depth <= maxDepth; ++depth)
         {
             p->v = ICE_MAKE_SHARED(Recursive);
             p = p->v;

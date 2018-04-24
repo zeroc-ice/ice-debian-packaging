@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -1685,8 +1685,7 @@ Slice::GeneratorBase::readFile(const string& file, string& part1, string& part2)
 
     if(!foundTitle)
     {
-        string err = "no TITLE marker in `" + file + "'";
-        throw err;
+        throw logic_error("no TITLE marker in `" + file + "'");
     }
 
     ostringstream p2;

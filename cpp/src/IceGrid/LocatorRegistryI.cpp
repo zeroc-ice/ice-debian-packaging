@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -424,6 +424,16 @@ LocatorRegistryI::setAdapterDirectProxy(const LocatorRegistryI::AdapterSetDirect
             catch(const AdapterExistsException&)
             {
                 // Continue
+            }
+            catch(const DeploymentException& ex)
+            {
+                const TraceLevelsPtr traceLevels = _database->getTraceLevels();
+                if(traceLevels->locator > 0)
+                {
+                    Ice::Trace out(traceLevels->logger, traceLevels->locatorCat);
+                    out << "couldn't register adapter `" << adapterId << "' endpoints with master:\n" << ex.reason;
+                }
+                throw Ice::AdapterNotFoundException();
             }
         }
         else

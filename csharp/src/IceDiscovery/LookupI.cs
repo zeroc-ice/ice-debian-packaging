@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -160,7 +160,7 @@ namespace IceDiscovery
                 {
                     lookup_.adapterRequestException(this, ex.InnerException);
                 }
-            });
+            }, lookup.ice_scheduler());
         }
 
         private void sendResponse(Ice.ObjectPrx proxy)
@@ -218,7 +218,7 @@ namespace IceDiscovery
                 {
                     lookup_.objectRequestException(this, ex.InnerException);
                 }
-            });
+            }, lookup.ice_scheduler());
         }
     };
 

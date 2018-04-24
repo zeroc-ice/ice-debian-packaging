@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -41,7 +41,7 @@ main(int argc, char* argv[])
 int
 AttackClient::run(int, char**)
 {
-    ObjectPrx routerBase = communicator()->stringToProxy("Glacier2/router:" + getTestEndpoint(communicator(), 10));
+    ObjectPrx routerBase = communicator()->stringToProxy("Glacier2/router:" + getTestEndpoint(communicator(), 50));
     Glacier2::RouterPrx router = Glacier2::RouterPrx::checkedCast(routerBase);
     test(router);
     communicator()->setDefaultRouter(router);
@@ -148,7 +148,7 @@ AttackClient::run(int, char**)
     }
 
     ObjectPrx processBase = communicator()->stringToProxy("Glacier2/admin -f Process:" +
-                                                          getTestEndpoint(communicator(), 11));
+                                                          getTestEndpoint(communicator(), 51));
     Ice::ProcessPrx process = Ice::ProcessPrx::checkedCast(processBase);
     test(process);
     process->shutdown();

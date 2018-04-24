@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -667,7 +667,10 @@ IceInternal::WSTransceiver::startWrite(Buffer& buf)
     {
         if(_writeBuffer.i < _writeBuffer.b.end())
         {
-            _delegate->startWrite(_writeBuffer);
+            if(_delegate->startWrite(_writeBuffer))
+            {
+                return buf.b.size() == _writePayloadLength; // Return true only if we've written the whole buffer.
+            }
             return false;
         }
         else
@@ -1315,9 +1318,7 @@ IceInternal::WSTransceiver::preRead(Buffer& buf)
                 }
                 else
                 {
-                    ConnectionLostException ex(__FILE__, __LINE__);
-                    ex.error = 0;
-                    throw ex;
+                    throw ConnectionLostException(__FILE__, __LINE__, 0);
                 }
             }
             case OP_PING:
@@ -1535,7 +1536,7 @@ IceInternal::WSTransceiver::preWrite(Buffer& buf)
         // For an outgoing connection, each message must be masked with a random
         // 32-bit value, so we copy the entire message into the internal buffer
         // for writing. For incoming connections, we just copy the start of the
-        // message in the internal buffer after the hedaer. If the message is
+        // message in the internal buffer after the header. If the message is
         // larger, the reminder is sent directly from the message buffer to avoid
         // copying.
         //
@@ -1620,9 +1621,7 @@ IceInternal::WSTransceiver::postWrite(Buffer& buf)
                 }
                 else
                 {
-                    ConnectionLostException ex(__FILE__, __LINE__);
-                    ex.error = 0;
-                    throw ex;
+                    throw ConnectionLostException(__FILE__, __LINE__, 0);
                 }
             }
             else if(_state == StateClosed)

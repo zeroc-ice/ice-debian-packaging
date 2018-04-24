@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -102,7 +102,7 @@ IceRuby::ValueFactoryManager::add(const Ice::ValueFactoryPtr& f, const string& i
 }
 
 Ice::ValueFactoryPtr
-IceRuby::ValueFactoryManager::find(const string& id) const
+IceRuby::ValueFactoryManager::find(const string& id) const ICE_NOEXCEPT
 {
     Lock lock(*this);
 

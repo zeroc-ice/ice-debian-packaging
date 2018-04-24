@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,46 +9,38 @@
 
 (function(module, require, exports)
 {
-    var Ice = require("ice").Ice;
-    var Test = require("Test").Test;
-    var TestI = require("TestI");
+    const Ice = require("ice").Ice;
+    const Test = require("Test").Test;
+    const TestI = require("TestI");
 
-    var DI = TestI.DI;
-    var FI = TestI.FI;
-    var HI = TestI.HI;
-    var EmptyI = TestI.EmptyI;
+    const DI = TestI.DI;
+    const FI = TestI.FI;
+    const HI = TestI.HI;
+    const EmptyI = TestI.EmptyI;
 
-    var test = function(b)
+    function test(value)
     {
-        if(!b)
+        if(!value)
         {
+            throw new Error("test failed");
+        }
+    }
+
+    async function run(out, initData, ready)
+    {
+        let communicator;
+        try
+        {
+            let echo;
             try
             {
-                throw new Error("test failed");
-            }
-            catch(err)
-            {
-                throw err;
-            }
-        }
-    };
+                communicator = Ice.initialize(initData);
+                echo = await Test.EchoPrx.checkedCast(communicator.stringToProxy("__echo:default -p 12010"));
 
-    var run = function(out, id, ready)
-    {
-        var communicator = Ice.initialize(id);
-        var adapter;
-        var echo = Test.EchoPrx.uncheckedCast(communicator.stringToProxy("__echo:default -p 12010"));
-
-        return Ice.Promise.try(
-            function()
-            {
                 out.write("testing facet registration exceptions... ");
-                return communicator.createObjectAdapter("");
-            }
-        ).then(
-            function(adapter)
-            {
-                var obj = new EmptyI();
+                let adapter = await communicator.createObjectAdapter("");
+
+                let obj = new EmptyI();
                 adapter.add(obj, Ice.stringToIdentity("d"));
                 adapter.addFacet(obj, Ice.stringToIdentity("d"), "facetABCD");
                 try
@@ -60,6 +52,7 @@
                 {
                     test(ex instanceof Ice.AlreadyRegisteredException);
                 }
+
                 adapter.removeFacet(Ice.stringToIdentity("d"), "facetABCD");
                 try
                 {
@@ -73,15 +66,15 @@
                 out.writeLine("ok");
 
                 out.write("testing removeAllFacets... ");
-                var obj1 = new EmptyI();
-                var obj2 = new EmptyI();
+                let obj1 = new EmptyI();
+                let obj2 = new EmptyI();
                 adapter.addFacet(obj1, Ice.stringToIdentity("id1"), "f1");
                 adapter.addFacet(obj2, Ice.stringToIdentity("id1"), "f2");
-                var obj3 = new EmptyI();
+                let obj3 = new EmptyI();
                 adapter.addFacet(obj1, Ice.stringToIdentity("id2"), "f1");
                 adapter.addFacet(obj2, Ice.stringToIdentity("id2"), "f2");
                 adapter.addFacet(obj3, Ice.stringToIdentity("id2"), "");
-                var fm = adapter.removeAllFacets(Ice.stringToIdentity("id1"));
+                let fm = adapter.removeAllFacets(Ice.stringToIdentity("id1"));
                 test(fm.size === 2);
                 test(fm.get("f1") === obj1);
                 test(fm.get("f2") === obj2);
@@ -101,37 +94,42 @@
                 test(fm.get("") === obj3);
                 out.writeLine("ok");
 
-                return adapter.deactivate();
-            }
-        ).then(() =>
-            {
-                return communicator.createObjectAdapter("");
-            }
-        ).then(adpt =>
-            {
-                adapter = adpt;
-                var di = new DI();
+                await adapter.deactivate();
+                adapter = await communicator.createObjectAdapter("");
+
+                let di = new DI();
                 adapter.add(di, Ice.stringToIdentity("d"));
                 adapter.addFacet(di, Ice.stringToIdentity("d"), "facetABCD");
-                var fi = new FI();
+                let fi = new FI();
                 adapter.addFacet(fi, Ice.stringToIdentity("d"), "facetEF");
-                var hi = new HI();
+                let hi = new HI();
                 adapter.addFacet(hi, Ice.stringToIdentity("d"), "facetGH");
-                return echo.setConnection();
-            }
-        ).then(() =>
-            {
+                await echo.setConnection();
                 echo.ice_getCachedConnection().setAdapter(adapter);
-                adapter.activate();
                 ready.resolve();
-                return communicator.waitForShutdown();
+                await communicator.waitForShutdown();
             }
-        ).then(() =>
+            catch(ex)
             {
-                return echo.shutdown();
+                ready.reject(ex);
             }
-        ).finally(() => communicator.destroy());
-    };
+            finally
+            {
+                if(echo)
+                {
+                    await echo.shutdown();
+                }
+            }
+        }
+        finally
+        {
+            if(communicator)
+            {
+                await communicator.destroy();
+            }
+        }
+    }
+
     exports._server = run;
 }
 (typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? module : undefined,

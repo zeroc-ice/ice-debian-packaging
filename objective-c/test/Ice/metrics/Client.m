@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -48,7 +48,6 @@ main(int argc, char* argv[])
             [initData.properties setProperty:@"Ice.Admin.InstanceName" value:@"client"];
             [initData.properties setProperty:@"Ice.Admin.DelayCreation" value:@"1"];
             [initData.properties setProperty:@"Ice.Warn.Connections" value:@"0"];
-            [initData.properties setProperty:@"Ice.MessageSizeMax" value:@"50000"];
 
             [initData.properties setProperty:@"IceMX.Metrics.Debug.GroupBy" value:@"id"];
             [initData.properties setProperty:@"IceMX.Metrics.Parent.GroupBy" value:@"parent"];

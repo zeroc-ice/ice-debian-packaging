@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -241,6 +241,14 @@ def allTests(communicator)
     end
     puts "ok"
 
+    print "setting G... "
+    STDOUT.flush
+    begin
+        initial.setG(Test::G.new(Test::S.new("hello"), "g"))
+    rescue Ice::OperationNotExistException
+    end
+    puts "ok"
+
     print "setting I... "
     STDOUT.flush
     initial.setI(i)
@@ -262,7 +270,7 @@ def allTests(communicator)
     p = top;
     depth = 0;
     begin
-        while depth <= 1000
+        while depth <= 700
             p.v = Test::Recursive.new
             p = p.v;
             if (depth < 10 && (depth % 10) == 0) || \

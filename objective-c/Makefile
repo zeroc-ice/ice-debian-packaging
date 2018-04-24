@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -24,7 +24,7 @@ $(eval $(call load-dependencies,$(addprefix $(top_srcdir)/cpp/src/,Ice IceSSL Ic
 #
 projects :=
 include $(shell find $(lang_srcdir)/src -name Makefile.mk)
-$(call make-projects,$(projects),make-objc-src-project)
+$(call make-projects,$(projects),make-objc-src-project,,$(filter all obj%c,$(ICE_BIN_DIST)))
 
 #
 # Now, create and load test projects.

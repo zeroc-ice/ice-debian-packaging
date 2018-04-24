@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -39,7 +39,6 @@ public class Client extends test.Util.Application
         initData.properties.setProperty("Ice.Admin.InstanceName", "client");
         initData.properties.setProperty("Ice.Admin.DelayCreation", "1");
         initData.properties.setProperty("Ice.Warn.Connections", "0");
-        initData.properties.setProperty("Ice.MessageSizeMax", "50000");
         initData.properties.setProperty("Ice.Default.Host", "127.0.0.1");
 
         initData.observer = _observer;

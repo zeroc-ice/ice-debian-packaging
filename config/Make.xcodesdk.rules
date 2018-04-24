@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -78,12 +78,6 @@ $1[$2-$3]_clean:
 $1:: $1[$2-$3]
 $1_clean:: $1[$2-$3]_clean
 
-endef
-
-#
-# $(call create-xcode-project-targets,$1=project)
-#
-define create-xcode-project-targets
 endef
 
 #

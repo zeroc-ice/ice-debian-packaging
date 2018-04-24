@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -418,6 +418,32 @@ class ObjectPrx
             throw new Error("invalid value passed to ice_timeout: " + t);
         }
         const ref = this._reference.changeTimeout(t);
+        if(ref.equals(this._reference))
+        {
+            return this;
+        }
+        else
+        {
+            return this._newInstance(ref);
+        }
+    }
+
+    ice_getTimeout()
+    {
+        return this._reference.getTimeout();
+    }
+
+    ice_fixed(connection)
+    {
+        if(connection === null)
+        {
+            throw new Error("invalid null connection passed to ice_fixed");
+        }
+        if(!(connection instanceof Ice.ConnectionI))
+        {
+            throw new Error("invalid connection passed to ice_fixed");
+        }
+        const ref = this._reference.changeConnection(connection);
         if(ref.equals(this._reference))
         {
             return this;
@@ -855,7 +881,7 @@ class ObjectPrx
             return true;
         }
 
-        for(let i in this._implements)
+        for(const i in this._implements)
         {
             if(this._implements[i]._instanceof(T))
             {

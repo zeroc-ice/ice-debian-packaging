@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -2375,6 +2375,7 @@ public class AllTests : TestCommon.AllTests
                             }));
 
                     cb.check();
+                    t.Wait();
                     test(t.IsCompleted);
                     test(p.waitForBatch(2));
                 }
@@ -2630,6 +2631,7 @@ public class AllTests : TestCommon.AllTests
                                 cb.sent(sentSynchronously);
                             }));
                     cb.check();
+                    t.Wait();
                     test(t.IsCompleted);
                     test(p.waitForBatch(2));
                 }
@@ -2652,6 +2654,7 @@ public class AllTests : TestCommon.AllTests
                                 cb.sent(sentSynchronously);
                             }));
                     cb.check(); // Exceptions are ignored!
+                    t.Wait();
                     test(t.IsCompleted);
                     test(p.opBatchCount() == 0);
                 }
@@ -2680,6 +2683,7 @@ public class AllTests : TestCommon.AllTests
                                 cb.sent(sentSynchronously);
                             }));
                     cb.check();
+                    t.Wait();
                     test(t.IsCompleted);
                     test(p.waitForBatch(4));
                 }
@@ -2709,6 +2713,7 @@ public class AllTests : TestCommon.AllTests
                                 cb.sent(sentSynchronously);
                             }));
                     cb.check(); // Exceptions are ignored!
+                    t.Wait();
                     test(t.IsCompleted);
                     test(p.waitForBatch(1));
                 }
@@ -2738,6 +2743,7 @@ public class AllTests : TestCommon.AllTests
                                 cb.sent(sentSynchronously);
                             }));
                     cb.check(); // Exceptions are ignored!
+                    t.Wait();
                     test(t.IsCompleted);
                     test(p.opBatchCount() == 0);
                 }

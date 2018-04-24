@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -121,7 +121,7 @@ class ImplicitContextI
             else
             {
                 ctx = new Context(this._context);
-                for(let [key, value] of prxContext)
+                for(const [key, value] of prxContext)
                 {
                     ctx.set(key, value);
                 }

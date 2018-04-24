@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -43,7 +43,7 @@ class EndpointI
 
         for(let i = 0; i < args.length;)
         {
-            let option = args[i++];
+            const option = args[i++];
             if(option.length < 2 || option.charAt(0) != '-')
             {
                 unknown.push(option);
@@ -72,6 +72,7 @@ class EndpointI
             args.push(unknown[i]);
         }
     }
+
     //
     // Compare endpoints for sorting purposes
     //

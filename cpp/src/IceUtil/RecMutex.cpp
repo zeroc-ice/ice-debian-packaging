@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -125,11 +125,7 @@ IceUtil::RecMutex::init(const MutexProtocol protocol)
         throw ThreadSyscallException(__FILE__, __LINE__, rc);
     }
 
-#if defined(__linux) && !defined(__USE_UNIX98)
-    rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
-#else
     rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-#endif
     assert(rc == 0);
     if(rc != 0)
     {

@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -9,8 +9,6 @@
 
 top_srcdir      := ..
 lang_srcdir     := $(top_srcdir)/$(notdir $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST))))))
-
-ifeq ($(filter all ruby,$(ICE_BIN_DIST)),)
 
 include $(top_srcdir)/config/Make.rules
 
@@ -25,6 +23,8 @@ $(eval $(call load-translator-dependencies,$(top_srcdir)/cpp/src/slice2rb))
 #
 include $(lang_srcdir)/config/Make.rules
 
+ifeq ($(filter all ruby,$(ICE_BIN_DIST)),)
+
 #
 # Load Makefile.mk fragments
 #
@@ -38,7 +38,7 @@ $(call make-projects,$(projects))
 
 install:: | $(DESTDIR)$(install_rubydir)
 	$(E) "Installing generated code"
-	$(Q)$(INSTALL) $(lang_srcdir)/ruby/*.rb $(DESTDIR)$(install_rubydir)
+	$(Q)$(INSTALL) -m 644 $(lang_srcdir)/ruby/*.rb $(DESTDIR)$(install_rubydir)
 
 $(eval $(call make-ruby-package,$(slicedir),$(lang_srcdir)/ruby,Ice))
 $(eval $(call make-ruby-package,$(slicedir),$(lang_srcdir)/ruby,Glacier2))

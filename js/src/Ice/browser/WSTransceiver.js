@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -11,10 +11,7 @@ const Ice = require("../Ice/ModuleRegistry").Ice;
 Ice._ModuleRegistry.require(module,
     [
         "../Ice/Debug",
-        "../Ice/ExUtil",
-        "../Ice/Network",
         "../Ice/SocketOperation",
-        "../Ice/Connection",
         "../Ice/Exception",
         "../Ice/LocalException",
         "../Ice/Timer",
@@ -29,15 +26,11 @@ const IceSSL = Ice._ModuleRegistry.module("IceSSL");
 // We need to check for Edge browser as it might include Chrome in its user agent.
 //
 const IsChrome = navigator.userAgent.indexOf("Edge/") === -1 &&
-               navigator.userAgent.indexOf("Chrome/") !== -1;
+                 navigator.userAgent.indexOf("Chrome/") !== -1;
+const IsSafari = (/^((?!chrome).)*safari/i).test(navigator.userAgent);
 
 const Debug = Ice.Debug;
-const ExUtil = Ice.ExUtil;
-const Network = Ice.Network;
 const SocketOperation = Ice.SocketOperation;
-const Conn = Ice.Connection;
-const LocalException = Ice.LocalException;
-const SocketException = Ice.SocketException;
 const Timer = Ice.Timer;
 
 const StateNeedConnect = 0;
@@ -58,7 +51,7 @@ class WSTransceiver
 
     writeReadyTimeout()
     {
-        var t = Math.round(this._writeReadyTimeout);
+        const t = Math.round(this._writeReadyTimeout);
         this._writeReadyTimeout +=  (this._writeReadyTimeout >= 5 ? 5 : 0.2);
         return Math.min(t, 25);
     }
@@ -121,8 +114,8 @@ class WSTransceiver
         this._registered = true;
         if(this._hasBytesAvailable || this._exception)
         {
-            this._bytesAvailableCallback();
             this._hasBytesAvailable = false;
+            Timer.setTimeout(() => this._bytesAvailableCallback(), 0);
         }
     }
 
@@ -153,7 +146,7 @@ class WSTransceiver
         // NOTE: when this workaround is no longer necessary, don't forget removing the
         // StateClosePending state.
         //
-        if(IsChrome && this._fd.readyState === WebSocket.CONNECTING)
+        if((IsChrome || IsSafari) && this._fd.readyState === WebSocket.CONNECTING)
         {
             this._state = StateClosePending;
             return;
@@ -190,27 +183,27 @@ class WSTransceiver
         }
         Debug.assert(this._fd);
 
-        var transceiver = this;
-        var cb = function()
-        {
-            if(transceiver._fd)
-            {
-                if(transceiver._fd.bufferedAmount + packetSize <= transceiver._maxSendPacketSize)
-                {
-                    transceiver._bytesWrittenCallback(0, 0);
-                }
-                else
-                {
-                    Timer.setTimeout(cb, transceiver.writeReadyTimeout());
-                }
-            }
-        };
+        const cb = () =>
+              {
+                  if(this._fd)
+                  {
+                      const packetSize = this._maxSendPacketSize > 0 && byteBuffer.remaining > this._maxSendPacketSize ?
+                            this._maxSendPacketSize : byteBuffer.remaining;
+                      if(this._fd.bufferedAmount + packetSize <= this._maxSendPacketSize)
+                      {
+                          this._bytesWrittenCallback(0, 0);
+                      }
+                      else
+                      {
+                          Timer.setTimeout(cb, this.writeReadyTimeout());
+                      }
+                  }
+              };
 
-        var i = byteBuffer.position;
         while(true)
         {
-            var packetSize = (this._maxSendPacketSize > 0 && byteBuffer.remaining > this._maxSendPacketSize) ?
-                this._maxSendPacketSize : byteBuffer.remaining;
+            const packetSize = this._maxSendPacketSize > 0 && byteBuffer.remaining > this._maxSendPacketSize ?
+                  this._maxSendPacketSize : byteBuffer.remaining;
             if(byteBuffer.remaining === 0)
             {
                 break;
@@ -222,9 +215,20 @@ class WSTransceiver
                 return false;
             }
             this._writeReadyTimeout = 0;
-            var slice = byteBuffer.b.slice(byteBuffer.position, byteBuffer.position + packetSize);
+            const slice = byteBuffer.b.slice(byteBuffer.position, byteBuffer.position + packetSize);
             this._fd.send(slice);
-            byteBuffer.position = byteBuffer.position + packetSize;
+            byteBuffer.position += packetSize;
+
+            //
+            // TODO: WORKAROUND for Safari issue. The websocket accepts all the
+            // data (bufferedAmount is always 0). We relinquish the control here
+            // to ensure timeouts work properly.
+            //
+            if(IsSafari && byteBuffer.remaining > 0)
+            {
+                Timer.setTimeout(cb, this.writeReadyTimeout());
+                return false;
+            }
         }
         return true;
     }
@@ -243,9 +247,8 @@ class WSTransceiver
             return false; // No data available.
         }
 
-        var avail = this._readBuffers[0].byteLength - this._readPosition;
+        let avail = this._readBuffers[0].byteLength - this._readPosition;
         Debug.assert(avail > 0);
-        var remaining = byteBuffer.remaining;
 
         while(byteBuffer.remaining > 0)
         {
@@ -255,7 +258,7 @@ class WSTransceiver
             }
 
             new Uint8Array(byteBuffer.b).set(new Uint8Array(this._readBuffers[0], this._readPosition, avail),
-                                                byteBuffer.position);
+                                             byteBuffer.position);
 
             byteBuffer.position += avail;
             this._readPosition += avail;
@@ -290,8 +293,8 @@ class WSTransceiver
     getInfo()
     {
         Debug.assert(this._fd !== null);
-        var info = new Ice.WSConnectionInfo();
-        var tcpinfo = new Ice.TCPConnectionInfo();
+        const info = new Ice.WSConnectionInfo();
+        const tcpinfo = new Ice.TCPConnectionInfo();
         tcpinfo.localAddress = "";
         tcpinfo.localPort = -1;
         tcpinfo.remoteAddress = this._addr.host;
@@ -367,9 +370,8 @@ class WSTransceiver
 
     static createOutgoing(instance, secure, addr, resource)
     {
-        var transceiver = new WSTransceiver(instance);
-
-        var url = secure ? "wss" : "ws";
+        const transceiver = new WSTransceiver(instance);
+        let url = secure ? "wss" : "ws";
         url += "://" + addr.host;
         if(addr.port !== 80)
         {
@@ -383,7 +385,6 @@ class WSTransceiver
         transceiver._state = StateNeedConnect;
         transceiver._secure = secure;
         transceiver._exception = null;
-
         return transceiver;
     }
 }

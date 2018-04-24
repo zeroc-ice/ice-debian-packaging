@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -10,6 +10,7 @@
 package test.Ice.acm;
 
 import java.io.PrintWriter;
+import java.util.concurrent.CountDownLatch;
 
 import test.Ice.acm.Test.RemoteCommunicatorPrx;
 import test.Ice.acm.Test.RemoteCommunicatorPrxHelper;
@@ -315,7 +316,7 @@ public class AllTests
         public void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
         {
             proxy.sleep(4);
-            test(_heartbeat >= 6);
+            test(_heartbeat >= 4);
         }
     }
 
@@ -611,23 +612,33 @@ public class AllTests
 
         public void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
         {
+            Ice.Connection con = proxy.ice_getConnection();
+
+            try
+            {
+                con.setACM(new Ice.IntOptional(-19), null, null);
+                test(false);
+            }
+            catch(IllegalArgumentException ex)
+            {
+            }
+
             Ice.ACM acm = new Ice.ACM();
-            acm = proxy.ice_getCachedConnection().getACM();
+            acm = con.getACM();
             test(acm.timeout == 15);
             test(acm.close == Ice.ACMClose.CloseOnIdleForceful);
             test(acm.heartbeat == Ice.ACMHeartbeat.HeartbeatOff);
 
-            proxy.ice_getCachedConnection().setACM(null, null, null);
-            acm = proxy.ice_getCachedConnection().getACM();
+            con.setACM(null, null, null);
+            acm = con.getACM();
             test(acm.timeout == 15);
             test(acm.close == Ice.ACMClose.CloseOnIdleForceful);
             test(acm.heartbeat == Ice.ACMHeartbeat.HeartbeatOff);
 
-            proxy.ice_getCachedConnection().setACM(
-                new Ice.IntOptional(1),
-                new Ice.Optional<Ice.ACMClose>(Ice.ACMClose.CloseOnInvocationAndIdle),
-                new Ice.Optional<Ice.ACMHeartbeat>(Ice.ACMHeartbeat.HeartbeatAlways));
-            acm = proxy.ice_getCachedConnection().getACM();
+            con.setACM(new Ice.IntOptional(1),
+                       new Ice.Optional<Ice.ACMClose>(Ice.ACMClose.CloseOnInvocationAndIdle),
+                       new Ice.Optional<Ice.ACMHeartbeat>(Ice.ACMHeartbeat.HeartbeatAlways));
+            acm = con.getACM();
             test(acm.timeout == 1);
             test(acm.close == Ice.ACMClose.CloseOnInvocationAndIdle);
             test(acm.heartbeat == Ice.ACMHeartbeat.HeartbeatAlways);
@@ -635,6 +646,62 @@ public class AllTests
             // Make sure the client sends few heartbeats to the server
             proxy.startHeartbeatCount();
             proxy.waitForHeartbeatCount(2);
+
+            final CountDownLatch f1 = new CountDownLatch(1);
+            con.setCloseCallback(new Ice.CloseCallback()
+                {
+                    @Override
+                    public void closed(Ice.Connection con)
+                    {
+                        f1.countDown();
+                    }
+                });
+
+            con.close(Ice.ConnectionClose.Gracefully);
+            try
+            {
+                f1.await();
+            }
+            catch(Exception ex)
+            {
+                test(false);
+            }
+
+            try
+            {
+                con.throwException();
+                test(false);
+            }
+            catch(Ice.ConnectionManuallyClosedException ex)
+            {
+            }
+
+            final CountDownLatch f2 = new CountDownLatch(1);
+            con.setCloseCallback(new Ice.CloseCallback()
+                {
+                    @Override
+                    public void closed(Ice.Connection con)
+                    {
+                        f2.countDown();
+                    }
+                });
+            try
+            {
+                f2.await();
+            }
+            catch(Exception ex)
+            {
+                test(false);
+            }
+
+            con.setHeartbeatCallback(new Ice.HeartbeatCallback()
+                {
+                    @Override
+                    public void heartbeat(Ice.Connection con)
+                    {
+                        test(false);
+                    }
+                });
         }
     }
 

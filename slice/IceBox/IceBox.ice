@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,7 +9,7 @@
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEBOX_API", "objc:header-dir:objc", "python:pkgdir:IceBox"]]
+[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEBOX_API", "cpp:doxygen:include:IceBox/IceBox.h", "objc:header-dir:objc", "python:pkgdir:IceBox"]]
 [["cpp:include:IceBox/Config.h"]]
 
 #include <Ice/BuiltinSequences.ice>
@@ -186,8 +186,7 @@ interface ServiceManager
 
     /**
      *
-     * Shut down all services. This causes {@link Service#stop} to be
-     * invoked on all configured services.
+     * Shut down all services. This causes stop to be invoked on all configured services.
      *
      **/
     void shutdown();

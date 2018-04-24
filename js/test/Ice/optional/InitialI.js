@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,16 +9,8 @@
 
 (function(module, require, exports)
 {
-    var Ice = require("ice").Ice;
-    var Test = require("Test").Test;
-
-    var test = function(b)
-    {
-        if(!b)
-        {
-            throw new Error("test failed");
-        }
-    };
+    const Ice = require("ice").Ice;
+    const Test = require("Test").Test;
 
     class InitialI extends Test.Initial
     {
@@ -34,7 +26,7 @@
 
         opOptionalException(a, b, o, current)
         {
-            var ex = new Test.OptionalException();
+            const ex = new Test.OptionalException();
             if(a !== undefined)
             {
                 ex.a = a;
@@ -56,7 +48,7 @@
 
         opDerivedException(a, b, o, current)
         {
-            var ex = new Test.DerivedException();
+            const ex = new Test.DerivedException();
             if(a !== undefined)
             {
                 ex.a = a;
@@ -84,7 +76,7 @@
 
         opRequiredException(a, b, o, current)
         {
-            var ex = new Test.RequiredException();
+            const ex = new Test.RequiredException();
             if(a !== undefined)
             {
                 ex.a = a;

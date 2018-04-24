@@ -1,28 +1,22 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
 #
 # **********************************************************************
 
-ifneq ($(filter debian ubuntu yocto poky,$(linux_id)),)
-
 #
-# Only build the IceBT plugin if pkg-config, BlueZ and D-Bus requirements are
-# installed.
+# Only build the IceBT plugin if Bluetooth system libraries are available (Bluez/DBus)
 #
-ifeq ($(shell pkg-config --exists bluez dbus-1 2> /dev/null && echo yes),yes)
+ifneq ($(IceBT_system_libs),)
 $(project)_libraries    := IceBT
 
 IceBT_targetdir         := $(libdir)
 IceBT_dependencies      := Ice
 IceBT_cppflags          := -DICEBT_API_EXPORTS $(shell pkg-config --cflags dbus-1)
 IceBT_sliceflags        := --include-dir IceBT
-IceBT_system_libs       = $(IceSSL_system_libs) $(shell pkg-config --libs dbus-1)
 
 projects += $(project)
-endif
-
 endif

@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/zeroc-ice/ice.svg?branch=master)](https://travis-ci.org/zeroc-ice/ice) [![Join the chat at https://gitter.im/zeroc-ice/ice](https://badges.gitter.im/zeroc-ice/ice.svg)](https://gitter.im/zeroc-ice/ice?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Build Status](https://travis-ci.org/zeroc-ice/ice.svg?branch=3.7)](https://travis-ci.org/zeroc-ice/ice) [![Join the chat at https://gitter.im/zeroc-ice/ice](https://badges.gitter.im/zeroc-ice/ice.svg)](https://gitter.im/zeroc-ice/ice?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # Ice - Comprehensive RPC Framework
 
@@ -21,6 +21,7 @@ Ice supports the following programming languages:
 - C++
 - Java
 - JavaScript
+- MATLAB
 - Objective-C
 - PHP
 - Python
@@ -69,8 +70,11 @@ Ice runs on a wide range of platforms:
 - `master`
   Primary development branch (unstable, frequently updated)
 
+- `3.7`
+  Ice 3.7.x plus various patches (stable, frequently updated)
+
 - `3.6`
-  Ice 3.6.x plus various patches (stable, frequently updated)
+  Ice 3.6.x plus various patches (stable)
 
 - `3.5`
   Ice 3.5.1 plus various patches (stable)
@@ -99,10 +103,10 @@ If you purchase a commercial or closed-source license for Ice, you must comply
 with the terms and conditions listed in the associated license agreement; the
 GPL v2 terms and conditions do not apply.
 
-The Ice software itself remains the same: the only difference between an open-
-source Ice and a commercial Ice are the license terms.
+The Ice software itself remains the same: the only difference between an open-source
+Ice and a commercial Ice are the license terms.
 
 ## Documentation
 
-- [Ice Release Notes](https://doc.zeroc.com/display/Rel/Ice+3.7.0+Release+Notes)
+- [Ice Release Notes](https://doc.zeroc.com/display/Rel/Ice+3.7.1+Release+Notes)
 - [Ice Manual](https://doc.zeroc.com/display/Ice37/Home)

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -166,7 +166,7 @@ final class UdpTransceiver implements Transceiver
         }
 
         assert(ret == buf.b.limit());
-        buf.b.position(buf.b.limit());
+        buf.position(buf.b.limit());
         return SocketOperation.None;
     }
 
@@ -182,7 +182,7 @@ final class UdpTransceiver implements Transceiver
 
         final int packetSize = java.lang.Math.min(_maxPacketSize, _rcvSize - _udpOverhead);
         buf.resize(packetSize, true);
-        buf.b.position(0);
+        buf.position(0);
 
         int ret = 0;
         while(true)
@@ -233,7 +233,7 @@ final class UdpTransceiver implements Transceiver
         }
 
         buf.resize(ret, true);
-        buf.b.position(ret);
+        buf.position(ret);
 
         return SocketOperation.None;
     }
@@ -527,6 +527,7 @@ final class UdpTransceiver implements Transceiver
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected synchronized void finalize()
         throws Throwable

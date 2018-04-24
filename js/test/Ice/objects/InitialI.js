@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICEthis._LICENSE file included in this distribution.
@@ -9,16 +9,8 @@
 
 (function(module, require, exports)
 {
-    var Ice = require("ice").Ice;
-    var Test = require("Test").Test;
-
-    var test = function(b)
-    {
-        if(!b)
-        {
-            throw new Error("test failed");
-        }
-    };
+    const Ice = require("ice").Ice;
+    const Test = require("Test").Test;
 
     class BI extends Test.B
     {
@@ -270,6 +262,10 @@
         throwEDerived(current)
         {
             throw new Test.EDerived(new Test.A1("a1"), new Test.A1("a2"), new Test.A1("a3"), new Test.A1("a4"));
+        }
+
+        setG(theG, current)
+        {
         }
 
         setI(theI, current)

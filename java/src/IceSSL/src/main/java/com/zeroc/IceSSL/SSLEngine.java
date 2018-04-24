@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -126,7 +126,7 @@ class SSLEngine
 
             try
             {
-                _verifier = (CertificateVerifier)cls.newInstance();
+                _verifier = (CertificateVerifier)cls.getDeclaredConstructor().newInstance();
             }
             catch(Throwable ex)
             {
@@ -161,7 +161,7 @@ class SSLEngine
 
             try
             {
-                _passwordCallback = (PasswordCallback)cls.newInstance();
+                _passwordCallback = (PasswordCallback)cls.getDeclaredConstructor().newInstance();
             }
             catch(Throwable ex)
             {

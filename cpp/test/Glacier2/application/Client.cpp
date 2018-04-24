@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -120,14 +120,14 @@ main(int argc, char* argv[])
     Application app;
     Ice::InitializationData initData = getTestInitData(argc, argv);
     initData.properties->setProperty("Ice.Warn.Connections", "0");
-    initData.properties->setProperty("Ice.Default.Router", "Glacier2/router:" + getTestEndpoint(initData.properties, 10));
+    initData.properties->setProperty("Ice.Default.Router", "Glacier2/router:" + getTestEndpoint(initData.properties, 50));
     int status = app.main(argc, argv, initData);
 
     initData.properties->setProperty("Ice.Default.Router", "");
     Ice::CommunicatorPtr communicator = Ice::initialize(initData);
 
     cout << "testing stringToProxy for process object... " << flush;
-    Ice::ObjectPrxPtr processBase = communicator->stringToProxy("Glacier2/admin -f Process:" + getTestEndpoint(communicator, 11));
+    Ice::ObjectPrxPtr processBase = communicator->stringToProxy("Glacier2/admin -f Process:" + getTestEndpoint(communicator, 51));
     cout << "ok" << endl;
 
     cout << "testing checked cast for admin object... " << flush;

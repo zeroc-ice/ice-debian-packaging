@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -454,12 +454,6 @@ public class AllTests : TestCommon.AllTests
                 }
                 catch(Ice.ConnectionLostException)
                 {
-                }
-                catch(Ice.ConnectionTimeoutException)
-                {
-                    // TODO: WORKAROUND for ICE-8118, it some takes 2 minutes to get the ReceivedAsync completed
-                    // callback when the connection is forcefully closed by the server. It appears to be an issue
-                    // with .NET.
                 }
             }
             catch(Ice.ConnectionRefusedException)
