@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -449,7 +449,7 @@ Slice::ObjCVisitor::getParams(const OperationPtr& op, bool internal) const
         string typeString;
         if((*q)->isOutParam())
         {
-            typeString = outTypeToString(type, (*q)->optional(), false, true);
+            typeString = outTypeToString(type, (*q)->optional(), true, true);
         }
         else
         {
@@ -524,7 +524,7 @@ Slice::ObjCVisitor::getUnmarshalParams(const OperationPtr& op, bool internal) co
             {
                 result += " " + getParamId(*q);
             }
-            result += ":(" + outTypeToString(type, (*q)->optional(), false, true) + ")" + getParamName(*q, internal);
+            result += ":(" + outTypeToString(type, (*q)->optional(), true, true) + ")" + getParamName(*q, internal);
         }
     }
     return result;
@@ -578,6 +578,10 @@ Slice::ObjCVisitor::getResponseCBSig(const OperationPtr& op) const
             }
             result += outTypeToString(type, (*q)->optional());
         }
+    }
+    if(result.empty())
+    {
+        result = "void";
     }
     return "void(^)(" + result + ")";
 }
@@ -868,7 +872,7 @@ Slice::Gen::printHeader(Output& o)
     static const char* header =
 "// **********************************************************************\n"
 "//\n"
-"// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.\n"
+"// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.\n"
 "//\n"
 "// This copy of Ice is licensed to you under the terms described in the\n"
 "// ICE_LICENSE file included in this distribution.\n"

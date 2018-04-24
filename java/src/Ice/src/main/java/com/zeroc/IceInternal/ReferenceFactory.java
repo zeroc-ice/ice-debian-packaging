@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -56,8 +56,12 @@ public final class ReferenceFactory
             "", // Facet
             fixedConnection.endpoint().datagram() ? Reference.ModeDatagram : Reference.ModeTwoway,
             fixedConnection.endpoint().secure(),
+            com.zeroc.Ice.Util.Protocol_1_0,
             _instance.defaultsAndOverrides().defaultEncoding,
-            fixedConnection);
+            fixedConnection,
+            -1,
+            null,
+            java.util.Optional.empty());
     }
 
     public Reference

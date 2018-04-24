@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -170,12 +170,12 @@ class LookupI implements Lookup
         @Override
         protected void invokeWithLookup(String domainId, LookupPrx lookup, LookupReplyPrx lookupReply)
         {
-            lookup.findAdapterByIdAsync(domainId, _id, lookupReply).whenComplete((v, ex) -> {
+            lookup.findAdapterByIdAsync(domainId, _id, lookupReply).whenCompleteAsync((v, ex) -> {
                 if(ex != null)
                 {
                     adapterRequestException(AdapterRequest.this, ex);
                 }
-            });
+            }, lookup.ice_executor());
         }
 
         private void sendResponse(com.zeroc.Ice.ObjectPrx proxy)
@@ -228,12 +228,12 @@ class LookupI implements Lookup
         @Override
         protected void invokeWithLookup(String domainId, LookupPrx lookup, LookupReplyPrx lookupReply)
         {
-            lookup.findObjectByIdAsync(domainId, _id, lookupReply).whenComplete((v, ex) -> {
+            lookup.findObjectByIdAsync(domainId, _id, lookupReply).whenCompleteAsync((v, ex) -> {
                 if(ex != null)
                 {
                     objectRequestException(ObjectRequest.this, ex);
                 }
-            });
+            }, lookup.ice_executor());
         }
     }
 

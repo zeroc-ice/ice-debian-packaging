@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -115,26 +115,7 @@ int main(int argc, char* argv[])
 
     string filename = "StackTrace.";
 
-#if defined(__APPLE__)
-    bool binDist = false;
-    const char* s = getenv("ICE_BIN_DIST");
-    if(s && *s != '\0')
-    {
-        binDist = (string(s).find("all") != std::string::npos) || (string(s).find("cpp") != std::string::npos);
-    }
-
-    if(binDist)
-    {
-        if(!optimized)
-        {
-            filename += "debug-";
-        }
-        filename += "bindist";
-    }
-    else if(optimized)
-#else
     if(optimized)
-#endif
     {
         filename += "release";
 #if defined(_MSC_VER)

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -66,6 +66,13 @@ public final class MyDerivedClassI extends _MyDerivedClassDisp
     shutdown(Ice.Current current)
     {
         current.adapter.getCommunicator().shutdown();
+    }
+
+    @Override
+    public boolean
+    supportsCompress(Ice.Current current)
+    {
+        return IceInternal.BZip2.supported();
     }
 
     @Override

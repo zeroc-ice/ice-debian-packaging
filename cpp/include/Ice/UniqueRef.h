@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -47,7 +47,11 @@ public:
 
     void reset(R ref = 0)
     {
-        assert(ref == 0 || ref != _ref);
+        //
+        // Support "self-reset" for CF objects. This is useful if CF allocation methods return
+        // the same object with an increased reference count.
+        //
+        //assert(ref == 0 || ref != _ref);
 
         if(_ref != 0)
         {

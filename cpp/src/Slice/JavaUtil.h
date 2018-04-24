@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -98,7 +98,7 @@ protected:
                                   const std::string& = std::string()) const;
 
     //
-    // Returns the package prefix for a give Slice file.
+    // Returns the package prefix of a Contained entity.
     //
     std::string getPackagePrefix(const ContainedPtr&) const;
 
@@ -107,6 +107,7 @@ protected:
     //
     std::string getPackage(const ContainedPtr&) const;
 
+    std::string getAbsolute(const std::string&, const std::string&) const;
     //
     // Returns the Java name for a Contained entity. If the optional
     // package argument matches the entity's package name, then the
@@ -222,7 +223,6 @@ private:
 
     std::string _dir;
     ::IceUtilInternal::Output* _out;
-    mutable std::map<std::string, std::string> _filePackagePrefix;
 };
 
 class JavaGenerator : private ::IceUtil::noncopyable
@@ -264,7 +264,7 @@ protected:
                                   const std::string& = std::string()) const;
 
     //
-    // Returns the package prefix for a give Slice file.
+    // Returns the package prefix of a Contained entity.
     //
     std::string getPackagePrefix(const ContainedPtr&) const;
 
@@ -272,6 +272,12 @@ protected:
     // Returns the Java package of a Contained entity.
     //
     std::string getPackage(const ContainedPtr&) const;
+
+    //
+    // Returns the Java type without a package if the package
+    // matches the current package
+    //
+    std::string getAbsolute(const std::string&, const std::string&) const;
 
     //
     // Returns the Java name for a Contained entity. If the optional
@@ -390,7 +396,6 @@ private:
 
     std::string _dir;
     ::IceUtilInternal::Output* _out;
-    mutable std::map<std::string, std::string> _filePackagePrefix;
 };
 
 }

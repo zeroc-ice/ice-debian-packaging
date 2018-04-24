@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -32,6 +32,8 @@ public:
 #endif
 
     virtual void shutdown(const Ice::Current&);
+
+    virtual bool supportsCompress(const Ice::Current&);
 
     virtual void opVoid(const Ice::Current&);
 

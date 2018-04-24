@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -696,6 +696,9 @@ allTests(const Ice::CommunicatorPtr& communicator, bool)
 
     // Clear the second half of the optional parameters
     MultiOptionalPtr mo8 = ICE_MAKE_SHARED(MultiOptional, *mo5);
+#ifndef ICE_CPP11_MAPPING
+    mo8->ice_collectable(true);
+#endif
     mo8->b = IceUtil::None;
     mo8->d = IceUtil::None;
     mo8->f = IceUtil::None;

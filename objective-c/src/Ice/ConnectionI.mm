@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you  the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -446,7 +446,17 @@ private:
         hb = (Ice::ACMHeartbeat)intValue;
     }
 
-    CONNECTION->setACM(to, c, hb);
+    NSException* nsex;
+    try
+    {
+        CONNECTION->setACM(to, c, hb);
+        return;
+    }
+    catch(const std::exception& ex)
+    {
+        nsex = toObjCException(ex);
+    }
+    @throw nsex;
 }
 -(ICEACM*) getACM
 {

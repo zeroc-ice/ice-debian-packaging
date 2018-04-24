@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -17,7 +17,6 @@ Ice._ModuleRegistry.require(module,
         "../Ice/ImplicitContextI",
         "../Ice/IdentityUtil",
         "../Ice/LocatorManager",
-        "../Ice/Logger",
         "../Ice/ObjectAdapterFactory",
         "../Ice/ValueFactoryManagerI",
         "../Ice/OutgoingConnectionFactory",
@@ -37,10 +36,9 @@ Ice._ModuleRegistry.require(module,
         "../Ice/Exception",
         "../Ice/ProcessLogger",
         "../Ice/ACM",
-        "../Ice/ToStringMode"
+        "../Ice/ToStringMode",
+        "../Ice/EndpointInfo"
     ]);
-
-const IceSSL = Ice._ModuleRegistry.require(module, ["../Ice/EndpointInfo"]).IceSSL;
 
 const AsyncResultBase = Ice.AsyncResultBase;
 const Debug = Ice.Debug;
@@ -48,7 +46,6 @@ const DefaultsAndOverrides = Ice.DefaultsAndOverrides;
 const EndpointFactoryManager = Ice.EndpointFactoryManager;
 const ImplicitContextI = Ice.ImplicitContextI;
 const LocatorManager = Ice.LocatorManager;
-const Logger = Ice.Logger;
 const ObjectAdapterFactory = Ice.ObjectAdapterFactory;
 const ValueFactoryManagerI = Ice.ValueFactoryManagerI;
 const OutgoingConnectionFactory = Ice.OutgoingConnectionFactory;

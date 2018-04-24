@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -115,7 +115,7 @@ addClassInfoByName(const ClassInfoPtr& p TSRMLS_DC)
 {
     assert(!getClassInfoByName(p->name TSRMLS_CC));
 #ifdef ICEPHP_USE_NAMESPACES
-    assert(name[0] == '\\');
+    assert(p->name[0] == '\\');
 #endif
 
     ClassInfoMap* m = reinterpret_cast<ClassInfoMap*>(ICE_G(nameToClassInfoMap));
@@ -2765,7 +2765,7 @@ IcePHP::ProxyInfo::define(zval* b, zval* i TSRMLS_DC)
 {
     if(b)
     {
-        TypeInfoPtr p = Wrapper<TypeInfoPtr>::value(b);
+        TypeInfoPtr p = Wrapper<TypeInfoPtr>::value(b TSRMLS_CC);
         const_cast<ProxyInfoPtr&>(base) = ProxyInfoPtr::dynamicCast(p);
         assert(base);
     }

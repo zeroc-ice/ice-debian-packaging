@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -96,6 +96,17 @@ MyDerivedClassI::shutdownAsync(function<void()> response,
 
     current.adapter->getCommunicator()->shutdown();
     response();
+}
+
+void
+MyDerivedClassI::supportsCompressAsync(std::function<void(bool)> response,
+                                       std::function<void(std::exception_ptr)>, const Ice::Current&)
+{
+#if defined(ICE_OS_UWP)
+    response(false);
+#else
+    response(true);
+#endif
 }
 
 void
@@ -1069,6 +1080,17 @@ MyDerivedClassI::shutdown_async(const Test::AMD_MyClass_shutdownPtr& cb, const I
 
     current.adapter->getCommunicator()->shutdown();
     cb->ice_response();
+}
+
+void
+MyDerivedClassI::supportsCompress_async(const Test::AMD_MyClass_supportsCompressPtr& cb,
+                                        const Ice::Current&)
+{
+#if defined(ICE_OS_UWP)
+    cb->ice_response(false);
+#else
+    cb->ice_response(true);
+#endif
 }
 
 void

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -84,7 +84,7 @@ parseRule(const PropertiesPtr& properties, const string& name)
         }
         catch(const std::exception&)
         {
-            throw "invalid regular expression `" + p->second + "' for `" + p->first + "'";
+            throw invalid_argument("invalid regular expression `" + p->second + "' for `" + p->first + "'");
         }
     }
     return regexps;
@@ -314,11 +314,6 @@ MetricsViewI::addOrUpdateMap(const PropertiesPtr& properties, const string& mapN
     {
         ::Ice::Warning warn(logger);
         warn << "unexpected exception while creating metrics map:\n" << ex;
-    }
-    catch(const string& msg)
-    {
-        ::Ice::Warning warn(logger);
-        warn << msg;
     }
     return true;
 }

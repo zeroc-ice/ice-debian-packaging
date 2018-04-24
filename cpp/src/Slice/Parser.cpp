@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -280,6 +280,62 @@ Slice::DefinitionContext::initSuppressedWarnings()
 }
 
 // ----------------------------------------------------------------------
+// Comment
+// ----------------------------------------------------------------------
+
+bool
+Slice::Comment::isDeprecated() const
+{
+    return _isDeprecated;
+}
+
+StringList
+Slice::Comment::deprecated() const
+{
+    return _deprecated;
+}
+
+StringList
+Slice::Comment::overview() const
+{
+    return _overview;
+}
+
+StringList
+Slice::Comment::misc() const
+{
+    return _misc;
+}
+
+StringList
+Slice::Comment::seeAlso() const
+{
+    return _seeAlso;
+}
+
+StringList
+Slice::Comment::returns() const
+{
+    return _returns;
+}
+
+map<string, StringList>
+Slice::Comment::parameters() const
+{
+    return _parameters;
+}
+
+map<string, StringList>
+Slice::Comment::exceptions() const
+{
+    return _exceptions;
+}
+
+Slice::Comment::Comment()
+{
+}
+
+// ----------------------------------------------------------------------
 // SyntaxTreeBase
 // ----------------------------------------------------------------------
 
@@ -538,6 +594,330 @@ Slice::Contained::comment() const
     return _comment;
 }
 
+namespace
+{
+
+void
+trimLines(StringList& l)
+{
+    //
+    // Remove empty trailing lines.
+    //
+    while(!l.empty() && l.back().empty())
+    {
+        l.pop_back();
+    }
+}
+
+StringList
+splitComment(const string& c, bool stripMarkup)
+{
+    string comment = c;
+
+    if(stripMarkup)
+    {
+        //
+        // Strip HTML markup and javadoc links.
+        //
+        string::size_type pos = 0;
+        do
+        {
+            pos = comment.find('<', pos);
+            if(pos != string::npos)
+            {
+                string::size_type endpos = comment.find('>', pos);
+                if(endpos == string::npos)
+                {
+                    break;
+                }
+                comment.erase(pos, endpos - pos + 1);
+            }
+        }
+        while(pos != string::npos);
+
+        const string link = "{@link";
+        pos = 0;
+        do
+        {
+            pos = comment.find(link, pos);
+            if(pos != string::npos)
+            {
+                comment.erase(pos, link.size() + 1); // Erase trailing white space too.
+                string::size_type endpos = comment.find('}', pos);
+                if(endpos != string::npos)
+                {
+                    string ident = comment.substr(pos, endpos - pos);
+                    comment.erase(pos, endpos - pos + 1);
+
+                    //
+                    // Replace links of the form {@link Type#member} with "Type.member".
+                    //
+                    string::size_type hash = ident.find('#');
+                    string rest;
+                    if(hash != string::npos)
+                    {
+                        rest = ident.substr(hash + 1);
+                        ident = ident.substr(0, hash);
+                        if(!ident.empty())
+                        {
+                            if(!rest.empty())
+                            {
+                                ident += "." + rest;
+                            }
+                        }
+                        else if(!rest.empty())
+                        {
+                            ident = rest;
+                        }
+                    }
+
+                    comment.insert(pos, ident);
+                }
+            }
+        }
+        while(pos != string::npos);
+    }
+
+    StringList result;
+
+    string::size_type pos = 0;
+    string::size_type nextPos;
+    while((nextPos = comment.find_first_of('\n', pos)) != string::npos)
+    {
+        result.push_back(IceUtilInternal::trim(string(comment, pos, nextPos - pos)));
+        pos = nextPos + 1;
+    }
+    string lastLine = IceUtilInternal::trim(string(comment, pos));
+    if(!lastLine.empty())
+    {
+        result.push_back(lastLine);
+    }
+
+    trimLines(result);
+
+    return result;
+}
+
+bool
+parseCommentLine(const string& l, const string& tag, bool namedTag, string& name, string& doc)
+{
+    doc.clear();
+
+    if(l.find(tag) == 0)
+    {
+        const string ws = " \t";
+
+        if(namedTag)
+        {
+            string::size_type n = l.find_first_not_of(ws, tag.size());
+            if(n == string::npos)
+            {
+                return false; // Malformed line, ignore it.
+            }
+            string::size_type end = l.find_first_of(ws, n);
+            if(end == string::npos)
+            {
+                return false; // Malformed line, ignore it.
+            }
+            name = l.substr(n, end - n);
+            n = l.find_first_not_of(ws, end);
+            if(n != string::npos)
+            {
+                doc = l.substr(n);
+            }
+        }
+        else
+        {
+            name.clear();
+
+            string::size_type n = l.find_first_not_of(ws, tag.size());
+            if(n == string::npos)
+            {
+                return false; // Malformed line, ignore it.
+            }
+            doc = l.substr(n);
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+}
+
+CommentPtr
+Slice::Contained::parseComment(bool stripMarkup) const
+{
+    CommentPtr comment = new Comment;
+
+    comment->_isDeprecated = false;
+
+    //
+    // First check metadata for a deprecated tag.
+    //
+    string deprecateMetadata;
+    if(findMetaData("deprecate", deprecateMetadata))
+    {
+        comment->_isDeprecated = true;
+        if(deprecateMetadata.find("deprecate:") == 0 && deprecateMetadata.size() > 10)
+        {
+            comment->_deprecated.push_back(IceUtilInternal::trim(deprecateMetadata.substr(10)));
+        }
+    }
+
+    if(!comment->_isDeprecated && _comment.empty())
+    {
+        return 0;
+    }
+
+    //
+    // Split up the comment into lines.
+    //
+    StringList lines = splitComment(_comment, stripMarkup);
+
+    StringList::const_iterator i;
+    for(i = lines.begin(); i != lines.end(); ++i)
+    {
+        const string l = *i;
+        if(l[0] == '@')
+        {
+            break;
+        }
+        comment->_overview.push_back(l);
+    }
+
+    enum State { StateMisc, StateParam, StateThrows, StateReturn, StateDeprecated };
+    State state = StateMisc;
+    string name;
+    const string ws = " \t";
+    const string paramTag = "@param";
+    const string throwsTag = "@throws";
+    const string exceptionTag = "@exception";
+    const string returnTag = "@return";
+    const string deprecatedTag = "@deprecated";
+    const string seeTag = "@see";
+    for(; i != lines.end(); ++i)
+    {
+        const string l = IceUtilInternal::trim(*i);
+        string line;
+        if(parseCommentLine(l, paramTag, true, name, line))
+        {
+            if(!line.empty())
+            {
+                state = StateParam;
+                StringList sl;
+                sl.push_back(line); // The first line of the description.
+                comment->_parameters[name] = sl;
+            }
+        }
+        else if(parseCommentLine(l, throwsTag, true, name, line))
+        {
+            if(!line.empty())
+            {
+                state = StateThrows;
+                StringList sl;
+                sl.push_back(line); // The first line of the description.
+                comment->_exceptions[name] = sl;
+            }
+        }
+        else if(parseCommentLine(l, exceptionTag, true, name, line))
+        {
+            if(!line.empty())
+            {
+                state = StateThrows;
+                StringList sl;
+                sl.push_back(line); // The first line of the description.
+                comment->_exceptions[name] = sl;
+            }
+        }
+        else if(parseCommentLine(l, seeTag, false, name, line))
+        {
+            if(!line.empty())
+            {
+                comment->_seeAlso.push_back(line);
+            }
+        }
+        else if(parseCommentLine(l, returnTag, false, name, line))
+        {
+            if(!line.empty())
+            {
+                state = StateReturn;
+                comment->_returns.push_back(line); // The first line of the description.
+            }
+        }
+        else if(parseCommentLine(l, deprecatedTag, false, name, line))
+        {
+            comment->_isDeprecated = true;
+            if(!line.empty())
+            {
+                state = StateDeprecated;
+                comment->_deprecated.push_back(line); // The first line of the description.
+            }
+        }
+        else if(!l.empty())
+        {
+            if(l[0] == '@')
+            {
+                //
+                // Treat all other tags as miscellaneous comments.
+                //
+                state = StateMisc;
+            }
+
+            switch(state)
+            {
+                case StateMisc:
+                {
+                    comment->_misc.push_back(l);
+                    break;
+                }
+                case StateParam:
+                {
+                    assert(!name.empty());
+                    StringList sl;
+                    if(comment->_parameters.find(name) != comment->_parameters.end())
+                    {
+                        sl = comment->_parameters[name];
+                    }
+                    sl.push_back(l);
+                    comment->_parameters[name] = sl;
+                    break;
+                }
+                case StateThrows:
+                {
+                    assert(!name.empty());
+                    StringList sl;
+                    if(comment->_exceptions.find(name) != comment->_exceptions.end())
+                    {
+                        sl = comment->_exceptions[name];
+                    }
+                    sl.push_back(l);
+                    comment->_exceptions[name] = sl;
+                    break;
+                }
+                case StateReturn:
+                {
+                    comment->_returns.push_back(l);
+                    break;
+                }
+                case StateDeprecated:
+                {
+                    comment->_deprecated.push_back(l);
+                    break;
+                }
+            }
+        }
+    }
+
+    trimLines(comment->_overview);
+    trimLines(comment->_deprecated);
+    trimLines(comment->_misc);
+    trimLines(comment->_returns);
+
+    return comment;
+}
+
 int
 Slice::Contained::includeLevel() const
 {
@@ -677,7 +1057,6 @@ Slice::Container::destroy()
 ModulePtr
 Slice::Container::createModule(const string& name)
 {
-    checkIdentifier(name);
     ContainedList matches = _unit->findContents(thisScope() + name);
     matches.sort(); // Modules can occur many times...
     matches.unique(); // ... but we only want one instance of each.
@@ -730,8 +1109,6 @@ Slice::Container::createModule(const string& name)
 ClassDefPtr
 Slice::Container::createClassDef(const string& name, int id, bool intf, const ClassList& bases, bool local)
 {
-    checkIdentifier(name);
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     for(ContainedList::const_iterator p = matches.begin(); p != matches.end(); ++p)
     {
@@ -812,20 +1189,15 @@ Slice::Container::createClassDef(const string& name, int id, bool intf, const Cl
     // definition. This way the code generator can rely on always
     // having a class declaration available for lookup.
     //
-    ClassDeclPtr decl = createClassDecl(name, intf, local, false);
+    ClassDeclPtr decl = createClassDecl(name, intf, local);
     def->_declaration = decl;
 
     return def;
 }
 
 ClassDeclPtr
-Slice::Container::createClassDecl(const string& name, bool intf, bool local, bool checkName)
+Slice::Container::createClassDecl(const string& name, bool intf, bool local)
 {
-    if (checkName)
-    {
-        checkIdentifier(name);
-    }
-
     ClassDefPtr def;
 
     ContainedList matches = _unit->findContents(thisScope() + name);
@@ -915,8 +1287,6 @@ Slice::Container::createClassDecl(const string& name, bool intf, bool local, boo
 ExceptionPtr
 Slice::Container::createException(const string& name, const ExceptionPtr& base, bool local, NodeType nt)
 {
-    checkIdentifier(name);
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -967,8 +1337,6 @@ Slice::Container::createException(const string& name, const ExceptionPtr& base, 
 StructPtr
 Slice::Container::createStruct(const string& name, bool local, NodeType nt)
 {
-    checkIdentifier(name);
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -1012,8 +1380,6 @@ SequencePtr
 Slice::Container::createSequence(const string& name, const TypePtr& type, const StringList& metaData, bool local,
                                  NodeType nt)
 {
-    checkIdentifier(name);
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -1069,8 +1435,6 @@ Slice::Container::createDictionary(const string& name, const TypePtr& keyType, c
                                    const TypePtr& valueType, const StringList& valueMetaData, bool local,
                                    NodeType nt)
 {
-    checkIdentifier(name);
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -1143,8 +1507,6 @@ Slice::Container::createDictionary(const string& name, const TypePtr& keyType, c
 EnumPtr
 Slice::Container::createEnum(const string& name, bool local, NodeType nt)
 {
-    checkIdentifier(name);
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -1213,8 +1575,6 @@ Slice::Container::createConst(const string name, const TypePtr& constType, const
                               const SyntaxTreeBasePtr& valueType, const string& value, const string& literal,
                               NodeType nt)
 {
-    checkIdentifier(name);
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -2559,74 +2919,6 @@ Slice::Container::Container(const UnitPtr& unit) :
 {
 }
 
-void
-Slice::Container::checkIdentifier(const string& name) const
-{
-    //
-    // Weed out identifiers with reserved suffixes.
-    //
-    static const string suffixBlacklist[] = { "Helper", "Holder", "Prx", "Ptr" };
-    for(size_t i = 0; i < sizeof(suffixBlacklist) / sizeof(*suffixBlacklist); ++i)
-    {
-        if(name.find(suffixBlacklist[i], name.size() - suffixBlacklist[i].size()) != string::npos)
-        {
-            _unit->error("illegal identifier `" + name + "': `" + suffixBlacklist[i] + "' suffix is reserved");
-        }
-    }
-
-    //
-    // Check for illegal underscores.
-    //
-    if(name.find('_') == 0)
-    {
-        _unit->error("illegal leading underscore in identifier `" + name + "'");
-    }
-    else if(name.rfind('_') == name.size() - 1)
-    {
-        _unit->error("illegal trailing underscore in identifier `" + name + "'");
-    }
-    else if(name.find("__") != string::npos)
-    {
-        _unit->error("illegal double underscore in identifier `" + name + "'");
-    }
-    else if(_unit->currentIncludeLevel() == 0 && !_unit->allowUnderscore() && name.find('_') != string::npos)
-    {
-        //
-        // For rules controlled by a translator option, we don't complain about included files.
-        //
-
-        DefinitionContextPtr dc = _unit->currentDefinitionContext();
-        assert(dc);
-        if(dc->findMetaData("underscore") != "underscore") // no "underscore" global metadata
-        {
-            _unit->error("illegal underscore in identifier `" + name + "'");
-        }
-    }
-
-    //
-    // For rules controlled by a translator option, we don't complain about included files.
-    //
-    if(_unit->currentIncludeLevel() == 0 && !_unit->allowIcePrefix())
-    {
-        DefinitionContextPtr dc = _unit->currentDefinitionContext();
-        assert(dc);
-        if(dc->findMetaData("ice-prefix") != "ice-prefix") // no "ice-prefix" global metadata
-        {
-            if(name.size() >= 3)
-            {
-                string prefix3;
-                prefix3 += ::tolower(static_cast<unsigned char>(name[0]));
-                prefix3 += ::tolower(static_cast<unsigned char>(name[1]));
-                prefix3 += ::tolower(static_cast<unsigned char>(name[2]));
-                if(prefix3 == "ice")
-                {
-                    _unit->error("illegal identifier `" + name + "': `" + name.substr(0, 3) + "' prefix is reserved");
-                }
-            }
-        }
-    }
-}
-
 bool
 Slice::Container::checkInterfaceAndLocal(const string& name, bool defined,
                                          bool intf, bool intfOther,
@@ -3014,8 +3306,6 @@ Slice::Container::validateConstant(const string& name, const TypePtr& type, Synt
 EnumeratorPtr
 Slice::Container::validateEnumerator(const string& name)
 {
-    checkIdentifier(name);
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -3421,8 +3711,6 @@ Slice::ClassDef::createOperation(const string& name,
                                  int tag,
                                  Operation::Mode mode)
 {
-    checkIdentifier(name);
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -3533,8 +3821,6 @@ Slice::ClassDef::createDataMember(const string& name, const TypePtr& type, bool 
                                   const SyntaxTreeBasePtr& defaultValueType, const string& defaultValue,
                                   const string& defaultLiteral)
 {
-    checkIdentifier(name);
-
     assert(!isInterface());
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
@@ -4082,8 +4368,6 @@ Slice::Exception::createDataMember(const string& name, const TypePtr& type, bool
                                    const SyntaxTreeBasePtr& defaultValueType, const string& defaultValue,
                                    const string& defaultLiteral)
 {
-    checkIdentifier(name);
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {
@@ -5289,8 +5573,6 @@ Slice::Operation::hasMarshaledResult() const
 ParamDeclPtr
 Slice::Operation::createParamDecl(const string& name, const TypePtr& type, bool isOutParam, bool optional, int tag)
 {
-    checkIdentifier(name);
-
     ContainedList matches = _unit->findContents(thisScope() + name);
     if(!matches.empty())
     {

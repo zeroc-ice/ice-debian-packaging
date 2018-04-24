@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -889,6 +889,7 @@ communicatorBeginFlushBatchRequests(CommunicatorObject* self, PyObject* args, Py
     PyObject* compressBatchType = lookupType("Ice.CompressBatch");
     if(!PyObject_IsInstance(compressBatch, reinterpret_cast<PyObject*>(compressBatchType)))
     {
+        PyErr_Format(PyExc_ValueError, STRCAST("expected an Ice.CompressBatch enumerator"));
         return 0;
     }
 

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -156,6 +156,11 @@ public final class InitialI implements Initial
     public void throwEDerived(com.zeroc.Ice.Current current) throws EDerived
     {
         throw new EDerived(new A1("a1"), new A1("a2"), new A1("a3"), new A1("a4"));
+    }
+
+    @Override
+    public void setG(G theG, com.zeroc.Ice.Current current)
+    {
     }
 
     @Override

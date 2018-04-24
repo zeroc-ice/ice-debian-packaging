@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -20,7 +20,7 @@ FileUserAccountMapperI::FileUserAccountMapperI(const string& filename)
     ifstream file(IceUtilInternal::streamFilename(filename).c_str()); // filename is a UTF-8 string
     if(!file)
     {
-        throw "cannot open `" + filename + "' for reading: " + strerror(errno);
+        throw runtime_error("cannot open `" + filename + "' for reading: " + strerror(errno));
     }
 
     const string delim = " \t\r\n";

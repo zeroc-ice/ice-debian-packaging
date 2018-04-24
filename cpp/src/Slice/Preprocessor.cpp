@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -602,6 +602,7 @@ Slice::Preprocessor::printMakefileDependencies(ostream& out, Language lang, cons
         case SliceXML:
             break;
         case Java:
+        case MATLAB:
         {
             //
             // We want to shift the files left one position, so that

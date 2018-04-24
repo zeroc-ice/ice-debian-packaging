@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -221,9 +221,7 @@ public:
         _source = RegisterEventSourceW(0, stringToWstring(mangleSource(source), _stringConverter).c_str());
         if(_source == 0)
         {
-            SyscallException ex(__FILE__, __LINE__);
-            ex.error = GetLastError();
-            throw ex;
+            throw SyscallException(__FILE__, __LINE__, GetLastError());
         }
     }
 
@@ -248,9 +246,7 @@ public:
 
         if(err != ERROR_SUCCESS)
         {
-            SyscallException ex(__FILE__, __LINE__);
-            ex.error = err;
-            throw ex;
+            throw SyscallException(__FILE__, __LINE__, err);
         }
 
         //
@@ -261,9 +257,7 @@ public:
         if(!GetModuleFileNameW(_module, path, _MAX_PATH))
         {
             RegCloseKey(hKey);
-            SyscallException ex(__FILE__, __LINE__);
-            ex.error = GetLastError();
-            throw ex;
+            throw SyscallException(__FILE__, __LINE__, GetLastError());
         }
 
         //
@@ -287,9 +281,7 @@ public:
         if(err != ERROR_SUCCESS)
         {
             RegCloseKey(hKey);
-            SyscallException ex(__FILE__, __LINE__);
-            ex.error = err;
-            throw ex;
+            throw SyscallException(__FILE__, __LINE__, err);
         }
 
         RegCloseKey(hKey);
@@ -306,9 +298,7 @@ public:
             stringToWstring(createKey(source), stringConverter).c_str());
         if(err != ERROR_SUCCESS)
         {
-            SyscallException ex(__FILE__, __LINE__);
-            ex.error = err;
-            throw ex;
+            throw SyscallException(__FILE__, __LINE__, err);
         }
     }
 
@@ -516,6 +506,11 @@ Ice::Service::shutdown()
             //
             // Expected if the service communicator is being destroyed.
             //
+        }
+        catch(const Ice::Exception& ex)
+        {
+            ServiceWarning warn(this);
+            warn << "exception during shutdown:\n" << ex;
         }
         catch(const std::exception& ex)
         {
@@ -846,6 +841,11 @@ Ice::Service::run(int argc, const char* const argv[], const InitializationData& 
                 status = EXIT_SUCCESS;
             }
         }
+    }
+    catch(const Ice::Exception& ex)
+    {
+        ServiceError err(this);
+        err << "service terminating after catching exception:\n" << ex;
     }
     catch(const std::exception& ex)
     {
@@ -1369,6 +1369,11 @@ Ice::Service::serviceMain(int argc, const wchar_t* const argv[])
             status = tmpStatus;
         }
     }
+    catch(const Ice::Exception& ex)
+    {
+        ServiceError err(this);
+        err << "service terminating after catching exception:\n" << ex;
+    }
     catch(const std::exception& ex)
     {
         ServiceError err(this);
@@ -1620,9 +1625,7 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
         //
         if(setsid() == -1)
         {
-            SyscallException ex(__FILE__, __LINE__);
-            ex.error = IceInternal::getSystemErrno();
-            throw ex;
+            throw SyscallException(__FILE__, __LINE__, IceInternal::getSystemErrno());
         }
 
         //
@@ -1637,9 +1640,7 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
         pid = fork();
         if(pid < 0)
         {
-            SyscallException ex(__FILE__, __LINE__);
-            ex.error = IceInternal::getSystemErrno();
-            throw ex;
+            throw SyscallException(__FILE__, __LINE__, IceInternal::getSystemErrno());
         }
         if(pid != 0)
         {
@@ -1653,9 +1654,7 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
             //
             if(chdir("/") != 0)
             {
-                SyscallException ex(__FILE__, __LINE__);
-                ex.error = IceInternal::getSystemErrno();
-                throw ex;
+                throw SyscallException(__FILE__, __LINE__, IceInternal::getSystemErrno());
             }
         }
 
@@ -1671,9 +1670,7 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
             int fdMax = static_cast<int>(sysconf(_SC_OPEN_MAX));
             if(fdMax <= 0)
             {
-                SyscallException ex(__FILE__, __LINE__);
-                ex.error = IceInternal::getSystemErrno();
-                throw ex;
+                throw SyscallException(__FILE__, __LINE__, IceInternal::getSystemErrno());
             }
 
             for(int i = 0; i < fdMax; ++i)
@@ -1733,9 +1730,7 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
             assert(fd == 0);
             if(fd != 0)
             {
-                SyscallException ex(__FILE__, __LINE__);
-                ex.error = IceInternal::getSystemErrno();
-                throw ex;
+                throw SyscallException(__FILE__, __LINE__, IceInternal::getSystemErrno());
             }
             if(stdOut.empty())
             {
@@ -1743,9 +1738,7 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
                 assert(fd == 1);
                 if(fd != 1)
                 {
-                    SyscallException ex(__FILE__, __LINE__);
-                    ex.error = IceInternal::getSystemErrno();
-                    throw ex;
+                    throw SyscallException(__FILE__, __LINE__, IceInternal::getSystemErrno());
                 }
             }
             if(stdErr.empty())
@@ -1754,9 +1747,7 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
                 assert(fd == 2);
                 if(fd != 2)
                 {
-                    SyscallException ex(__FILE__, __LINE__);
-                    ex.error = IceInternal::getSystemErrno();
-                    throw ex;
+                    throw SyscallException(__FILE__, __LINE__, IceInternal::getSystemErrno());
                 }
             }
         }
@@ -1816,6 +1807,12 @@ Ice::Service::runDaemon(int argc, char* argv[], const InitializationData& initDa
                 status = EXIT_SUCCESS;
             }
         }
+    }
+    catch(const Ice::Exception& ex)
+    {
+        ServiceError err(this);
+        err << "service terminating after catching exception:\n" << ex;
+        errMsg = err.str();
     }
     catch(const std::exception& ex)
     {

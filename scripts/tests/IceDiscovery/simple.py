@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -14,7 +14,7 @@ domainId = uuid.uuid4() # Ensures each test uses a unique domain ID
 
 props = lambda process, current: {
     "IceDiscovery.Timeout": 50,
-    "IceDiscovery.RetryCount": 10,
+    "IceDiscovery.RetryCount": 20,
     "IceDiscovery.DomainId": domainId,
     "IceDiscovery.Interface": "" if isinstance(platform, Linux) else "::1" if current.config.ipv6 else "127.0.0.1",
     "IceDiscovery.Port": current.driver.getTestPort(10),

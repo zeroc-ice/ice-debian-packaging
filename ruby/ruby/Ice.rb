@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -191,7 +191,7 @@ module Ice
     # SliceInfo
     #
     class SliceInfo
-        attr_accessor :typeId, :bytes, :objects
+        attr_accessor :typeId, :compactId, :bytes, :instances, :hasOptionalMembers, :isLastSlice
     end
 
     class FormatType

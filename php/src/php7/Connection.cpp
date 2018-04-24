@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -21,7 +21,12 @@ ZEND_EXTERN_MODULE_GLOBALS(ice)
 //
 // Class entries represent the PHP class implementations we have registered.
 //
-static zend_class_entry* connectionClassEntry = 0;
+namespace IcePHP
+{
+
+zend_class_entry* connectionClassEntry = 0;
+
+}
 
 static zend_class_entry* connectionInfoClassEntry = 0;
 static zend_class_entry* ipConnectionInfoClassEntry = 0;

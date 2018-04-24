@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -667,7 +667,7 @@ Database::addApplication(const ApplicationInfo& info, AdminSessionI* session, Ic
                 }
             }
         }
-        catch(const DeploymentException& ex)
+        catch(const DeploymentException&)
         {
             try
             {
@@ -695,7 +695,7 @@ Database::addApplication(const ApplicationInfo& info, AdminSessionI* session, Ic
             _applicationObserverTopic->waitForSyncedSubscribers(serial);
             for_each(entries.begin(), entries.end(), IceUtil::voidMemFun(&ServerEntry::waitForSyncNoThrow));
             finishUpdating(info.descriptor.name);
-            throw ex;
+            throw;
         }
     }
 
@@ -1006,6 +1006,13 @@ Database::setAdapterDirectProxy(const string& adapterId, const string& replicaGr
         {
             throw AdapterExistsException(adapterId);
         }
+        if(_adapterCache.has(replicaGroupId))
+        {
+            throw DeploymentException("registering adapter `" + adapterId + "' with the replica group `" +
+                                      replicaGroupId + "' is not allowed:\nthe replica group was added with an "
+                                      "application descriptor and only adapters specified in an application descriptor "
+                                      "can be member of this replica group");
+        }
 
         AdapterInfo info;
         info.id = adapterId;
@@ -1127,10 +1134,9 @@ Database::removeAdapter(const string& adapterId)
         if(_adapterCache.has(adapterId))
         {
             AdapterEntryPtr adpt = _adapterCache.get(adapterId);
-            DeploymentException ex;
-            ex.reason = "removing adapter `" + adapterId + "' is not allowed:\n";
-            ex.reason += "the adapter was added with the application descriptor `" + adpt->getApplication() + "'";
-            throw ex;
+            throw DeploymentException("removing adapter `" + adapterId + "' is not allowed:\n" +
+                                      "the adapter was added with the application descriptor `" +
+                                      adpt->getApplication() + "'");
         }
 
         AdapterInfoSeq infos;
@@ -1561,12 +1567,9 @@ Database::removeObject(const Ice::Identity& id, Ice::Long dbSerial)
         Lock sync(*this);
         if(_objectCache.has(id))
         {
-            DeploymentException ex;
-            ex.reason = "removing object `" + _communicator->identityToString(id) + "' is not allowed:\n";
-            ex.reason += "the object was added with the application descriptor `";
-            ex.reason += _objectCache.get(id)->getApplication();
-            ex.reason += "'";
-            throw ex;
+            throw DeploymentException("removing object `" + _communicator->identityToString(id) + "' is not allowed:\n"
+                                      + "the object was added with the application descriptor `" +
+                                      _objectCache.get(id)->getApplication());
         }
 
         try
@@ -1576,9 +1579,7 @@ Database::removeObject(const Ice::Identity& id, Ice::Long dbSerial)
             ObjectInfo info;
             if(!_objects.get(txn, id, info))
             {
-                ObjectNotRegisteredException ex;
-                ex.id = id;
-                throw ex;
+                throw ObjectNotRegisteredException(id);
             }
             deleteObject(txn, info, false);
             dbSerial = updateSerial(txn, objectsDbName, dbSerial);
@@ -1614,12 +1615,9 @@ Database::updateObject(const Ice::ObjectPrx& proxy)
         const Ice::Identity id = proxy->ice_getIdentity();
         if(_objectCache.has(id))
         {
-            DeploymentException ex;
-            ex.reason = "updating object `" + _communicator->identityToString(id) + "' is not allowed:\n";
-            ex.reason += "the object was added with the application descriptor `";
-            ex.reason += _objectCache.get(id)->getApplication();
-            ex.reason += "'";
-            throw ex;
+            throw DeploymentException("updating object `" + _communicator->identityToString(id) + "' is not allowed:\n"
+                                      + "the object was added with the application descriptor `" +
+                                      _objectCache.get(id)->getApplication() + "'");
         }
 
         ObjectInfo info;
@@ -1630,9 +1628,7 @@ Database::updateObject(const Ice::ObjectPrx& proxy)
 
             if(!_objects.get(txn, id, info))
             {
-                ObjectNotRegisteredException ex;
-                ex.id = id;
-                throw ex;
+                ObjectNotRegisteredException(id);
             }
             info.proxy = proxy;
             addObject(txn, info, false);
@@ -1729,9 +1725,7 @@ Database::getObjectProxy(const Ice::Identity& id)
     ObjectInfo info;
     if(!_objects.get(txn, id, info))
     {
-        ObjectNotRegisteredException ex;
-        ex.id = id;
-        throw ex;
+        throw ObjectNotRegisteredException(id);
     }
     return info.proxy;
 }
@@ -1911,9 +1905,7 @@ Database::removeInternalObject(const Ice::Identity& id)
         ObjectInfo info;
         if(!_internalObjects.get(txn, id, info))
         {
-            ObjectNotRegisteredException ex;
-            ex.id = id;
-            throw ex;
+            throw ObjectNotRegisteredException(id);
         }
         deleteObject(txn, info, true);
 
@@ -2026,9 +2018,7 @@ Database::checkForUpdate(const ApplicationHelper& origApp,
                      back_inserter(invalidAdptRepGrps));
     if(!invalidAdptRepGrps.empty())
     {
-        DeploymentException ex;
-        ex.reason = "couldn't find replica group `" + invalidAdptRepGrps.front() + "'";
-        throw ex;
+        throw DeploymentException("couldn't find replica group `" + invalidAdptRepGrps.front() + "'");
     }
 }
 
@@ -2046,9 +2036,7 @@ Database::checkServerForAddition(const string& id)
 {
     if(_serverCache.has(id))
     {
-        DeploymentException ex;
-        ex.reason = "server `" + id + "' is already registered";
-        throw ex;
+        throw DeploymentException("server `" + id + "' is already registered");
     }
 }
 
@@ -2068,7 +2056,7 @@ Database::checkAdapterForAddition(const string& id, const IceDB::ReadWriteTxn& t
         }
         else
         {
-            if(!findByReplicaGroupId(txn, _adapters,_adaptersByGroupId, id).empty())
+            if(!findByReplicaGroupId(txn, _adapters, _adaptersByGroupId, id).empty())
             {
                 found = true;
             }
@@ -2077,9 +2065,7 @@ Database::checkAdapterForAddition(const string& id, const IceDB::ReadWriteTxn& t
 
     if(found)
     {
-        DeploymentException ex;
-        ex.reason = "adapter `" + id + "' is already registered";
-        throw ex;
+        throw DeploymentException("adapter `" + id + "' is already registered");
     }
 }
 
@@ -2102,9 +2088,7 @@ Database::checkObjectForAddition(const Ice::Identity& objectId,
 
     if(found)
     {
-        DeploymentException ex;
-        ex.reason = "object `" + _communicator->identityToString(objectId) + "' is already registered";
-        throw ex;
+        throw DeploymentException("object `" + _communicator->identityToString(objectId) + "' is already registered");
     }
 }
 
@@ -2122,9 +2106,7 @@ Database::checkReplicaGroupExists(const string& replicaGroup)
 
     if(!entry)
     {
-        DeploymentException ex;
-        ex.reason = "couldn't find replica group `" + replicaGroup + "'";
-        throw ex;
+        throw DeploymentException("couldn't find replica group `" + replicaGroup + "'");
     }
 }
 
@@ -2152,10 +2134,8 @@ Database::checkReplicaGroupForRemove(const string& replicaGroup)
 
     if(entry->hasAdaptersFromOtherApplications())
     {
-        DeploymentException ex;
-        ex.reason = "couldn't remove application because the replica group `" + replicaGroup +
-            "' is used by object adapters from other applications.";
-        throw ex;
+        throw DeploymentException("couldn't remove application because the replica group `" + replicaGroup +
+                                  "' is used by object adapters from other applications.");
     }
 }
 
@@ -2628,7 +2608,7 @@ Database::finishApplicationUpdate(const ApplicationUpdateInfo& update,
                 }
             }
         }
-        catch(const DeploymentException& ex)
+        catch(const DeploymentException&)
         {
             ApplicationUpdateInfo newUpdate;
             {
@@ -2669,7 +2649,7 @@ Database::finishApplicationUpdate(const ApplicationUpdateInfo& update,
             _applicationObserverTopic->waitForSyncedSubscribers(serial); // Wait for subscriber to be updated.
             for_each(entries.begin(), entries.end(), IceUtil::voidMemFun(&ServerEntry::waitForSyncNoThrow));
             finishUpdating(newDesc.name);
-            throw ex;
+            throw;
         }
     }
 

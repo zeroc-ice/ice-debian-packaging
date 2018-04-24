@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -316,9 +316,7 @@ TopicManagerImpl::create(const string& name)
     reap();
     if(_topics.find(name) != _topics.end())
     {
-        TopicExists ex;
-        ex.name = name;
-        throw ex;
+        throw TopicExists(name);
     }
 
     // Identity is <instanceName>/topic.<topicname>
@@ -362,9 +360,7 @@ TopicManagerImpl::retrieve(const string& name) const
     map<string, TopicImplPtr>::const_iterator p = _topics.find(name);
     if(p == _topics.end())
     {
-        NoSuchTopic ex;
-        ex.name = name;
-        throw ex;
+        throw NoSuchTopic(name);
     }
 
     return p->second->proxy();

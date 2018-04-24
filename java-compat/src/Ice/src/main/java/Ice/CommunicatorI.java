@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -29,21 +29,42 @@ public final class CommunicatorI implements Communicator
     public void
     shutdown()
     {
-        _instance.objectAdapterFactory().shutdown();
+        try
+        {
+            _instance.objectAdapterFactory().shutdown();
+        }
+        catch(Ice.CommunicatorDestroyedException ex)
+        {
+            // Ignore
+        }
     }
 
     @Override
     public void
     waitForShutdown()
     {
-        _instance.objectAdapterFactory().waitForShutdown();
+        try
+        {
+            _instance.objectAdapterFactory().waitForShutdown();
+        }
+        catch(Ice.CommunicatorDestroyedException ex)
+        {
+            // Ignore
+        }
     }
 
     @Override
     public boolean
     isShutdown()
     {
-        return _instance.objectAdapterFactory().isShutdown();
+        try
+        {
+            return _instance.objectAdapterFactory().isShutdown();
+        }
+        catch(Ice.CommunicatorDestroyedException ex)
+        {
+            return true;
+        }
     }
 
     @Override

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -145,6 +145,21 @@ public class LoggerI implements Logger
             try
             {
                 _out.write(message.toString().getBytes());
+            }
+            catch(java.io.IOException ex)
+            {
+            }
+        }
+    }
+
+    public void
+    destroy()
+    {
+        if(_file.length() > 0)
+        {
+            try
+            {
+                _out.close();
             }
             catch(java.io.IOException ex)
             {

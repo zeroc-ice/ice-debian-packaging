@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -327,9 +327,7 @@ NodeCache::get(const string& name, bool create) const
     }
     if(!entry)
     {
-        NodeNotExistException ex;
-        ex.name = name;
-        throw ex;
+        throw NodeNotExistException(name);
     }
     return entry;
 }

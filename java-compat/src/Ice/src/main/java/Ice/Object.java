@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -156,11 +156,10 @@ public interface Object
      * to a servant (or to another interceptor).
      *
      * @param request The details of the invocation.
-     * @return The dispatch status for the operation.
+     * @return True for asynchronous dispatch, false otherwise.
      * @throws UserException A user exception that propagates out of this method will be marshaled as the result.
      *
      * @see DispatchInterceptor
-     * @return True for asynchronous dispatch, false otherwise.
      **/
     boolean ice_dispatch(Request request)
         throws Ice.UserException;

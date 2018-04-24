@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -152,12 +152,12 @@ public class ControllerApp extends Application
         return addresses;
     }
 
-    public synchronized void startController(ControllerActivity controller)
+    public synchronized void startController(ControllerActivity controller, boolean bluetooth)
     {
         if(_helper == null)
         {
             _controller = controller;
-            _helper = new ControllerHelper();
+            _helper = new ControllerHelper(bluetooth);
         }
         else
         {
@@ -194,19 +194,22 @@ public class ControllerApp extends Application
 
     class ControllerHelper
     {
-        public ControllerHelper()
+        public ControllerHelper(boolean bluetooth)
         {
             com.zeroc.Ice.InitializationData initData = new com.zeroc.Ice.InitializationData();
             initData.properties = com.zeroc.Ice.Util.createProperties();
             initData.properties.setProperty("Ice.ThreadPool.Server.SizeMax", "10");
             initData.properties.setProperty("ControllerAdapter.Endpoints", "tcp");
-            initData.properties.setProperty("Ice.Trace.Network", "3");
-            initData.properties.setProperty("Ice.Trace.Protocol", "1");
+            //initData.properties.setProperty("Ice.Trace.Network", "3");
+            //initData.properties.setProperty("Ice.Trace.Protocol", "1");
             initData.properties.setProperty("ControllerAdapter.AdapterId", java.util.UUID.randomUUID().toString());
             initData.properties.setProperty("Ice.Override.ConnectTimeout", "1000");
             if(!isEmulator())
             {
-                initData.properties.setProperty("Ice.Plugin.IceBT", "com.zeroc.IceBT.PluginFactory");
+                if(bluetooth)
+                {
+                    initData.properties.setProperty("Ice.Plugin.IceBT", "com.zeroc.IceBT.PluginFactory");
+                }
                 initData.properties.setProperty("Ice.Plugin.IceDiscovery", "com.zeroc.IceDiscovery.PluginFactory");
                 initData.properties.setProperty("IceDiscovery.DomainId", "TestController");
             }

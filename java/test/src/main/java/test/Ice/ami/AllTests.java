@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -251,7 +251,7 @@ public class AllTests
                 initData.properties = communicator.getProperties()._clone();
                 com.zeroc.Ice.Communicator ic = app.initialize(initData);
                 com.zeroc.Ice.ObjectPrx o = ic.stringToProxy(p.toString());
-                TestIntfPrx p2 = TestIntfPrx.checkedCast(o);
+                TestIntfPrx p2 = TestIntfPrx.uncheckedCast(o);
                 ic.destroy();
 
                 try

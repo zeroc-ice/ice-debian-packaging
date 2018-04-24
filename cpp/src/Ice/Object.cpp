@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -251,6 +251,11 @@ Ice::Object::_iceDispatch(Incoming& in, const Current& current)
 
 #ifndef ICE_CPP11_MAPPING
 void
+Ice::Object::ice_collectable(bool)
+{
+}
+
+void
 Ice::Object::ice_preMarshal()
 {
 }
@@ -334,14 +339,12 @@ Ice::Object::_iceCheckMode(OperationMode expected, OperationMode received)
         }
         else
         {
-            Ice::MarshalException ex(__FILE__, __LINE__);
             std::ostringstream reason;
             reason << "unexpected operation mode. expected = "
                    << operationModeToString(expected)
                    << " received = "
                    << operationModeToString(received);
-            ex.reason = reason.str();
-            throw ex;
+            throw Ice::MarshalException(__FILE__, __LINE__, reason.str());
         }
     }
 }

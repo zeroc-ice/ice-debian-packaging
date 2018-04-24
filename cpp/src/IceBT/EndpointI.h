@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -63,7 +63,7 @@ public:
 
     virtual std::string options() const;
 
-    Ice::EndpointInfoPtr getInfo() const;
+    Ice::EndpointInfoPtr getInfo() const ICE_NOEXCEPT;
 
     void initWithOptions(std::vector<std::string>&, bool);
 
@@ -92,9 +92,9 @@ public:
     EndpointInfoI(const EndpointIPtr&);
     virtual ~EndpointInfoI();
 
-    virtual Ice::Short type() const;
-    virtual bool datagram() const;
-    virtual bool secure() const;
+    virtual Ice::Short type() const ICE_NOEXCEPT;
+    virtual bool datagram() const ICE_NOEXCEPT;
+    virtual bool secure() const ICE_NOEXCEPT;
 
 private:
 

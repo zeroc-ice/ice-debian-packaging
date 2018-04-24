@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -25,7 +25,6 @@ Ice._ModuleRegistry.require(module,
 const OutputStream = Ice.OutputStream;
 const Current = Ice.Current;
 const Debug = Ice.Debug;
-const FormatType = Ice.FormatType;
 const Context = Ice.Context;
 const Identity = Ice.Identity;
 const Protocol = Ice.Protocol;
@@ -297,8 +296,8 @@ class IncomingAsync
                 this._os.writeBlob(Protocol.replyHdr);
                 this._os.writeInt(this._current.requestId);
                 this._os.writeByte(Protocol.replyUnknownLocalException);
-                //this._os.writeString(ex.toString());
-                let s = [ ex.ice_id() ];
+                // this._os.writeString(ex.toString());
+                const s = [ex.ice_id()];
                 if(ex.stack)
                 {
                     s.push("\n");
@@ -455,7 +454,7 @@ class IncomingAsync
         try
         {
             Debug.assert(this._servant !== null);
-            let promise = this._servant._iceDispatch(this, this._current);
+            const promise = this._servant._iceDispatch(this, this._current);
             if(promise !== null)
             {
                 promise.then(() => this.completed(null, true), (ex) => this.completed(ex, true));
@@ -506,7 +505,7 @@ class IncomingAsync
     {
         try
         {
-            if(this._locator !== null && !this.servantLocatorFinished(amd))
+            if(this._locator !== null)
             {
                 Debug.assert(this._locator !== null && this._servant !== null);
                 try

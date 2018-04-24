@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -35,7 +35,7 @@ const toString = function(key, object, objectTable, ident)
 
     objectTable.push(object);
     let s = "\n" + ident + key + ":";
-    for(let k in object)
+    for(const k in object)
     {
         if(key.indexOf("_") === 0)
         {
@@ -105,7 +105,7 @@ class Exception extends Error
 
         this._inToStringAlready = true;
         let s = this.ice_id();
-        for(let key in this)
+        for(const key in this)
         {
             if(key != "_inToStringAlready")
             {
@@ -226,7 +226,7 @@ const writeImpl = function(obj, os, type)
     }
 
     os.startSlice(type._id, -1, type._parent === UserException);
-    if(type.prototype._writeMemberImpl)
+    if(type.prototype.hasOwnProperty('_writeMemberImpl'))
     {
         type.prototype._writeMemberImpl.call(obj, os);
     }
@@ -248,7 +248,7 @@ const readImpl = function(obj, is, type)
     }
 
     is.startSlice();
-    if(type.prototype._readMemberImpl)
+    if(type.prototype.hasOwnProperty('_readMemberImpl'))
     {
         type.prototype._readMemberImpl.call(obj, is);
     }

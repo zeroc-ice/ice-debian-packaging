@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -25,9 +25,7 @@ def test(b)
 end
 
 def run(args, communicator)
-    myClass = allTests(communicator)
-
-    myClass.shutdown()
+    allTests(communicator)
     return true
 end
 

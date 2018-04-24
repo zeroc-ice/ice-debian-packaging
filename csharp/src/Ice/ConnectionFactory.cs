@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -183,6 +183,10 @@ namespace IceInternal
 
         public void setRouterInfo(IceInternal.RouterInfo routerInfo)
         {
+            Debug.Assert(routerInfo != null);
+            Ice.ObjectAdapter adapter = routerInfo.getAdapter();
+            EndpointI[] endpoints = routerInfo.getClientEndpoints(); // Must be called outside the synchronization
+
             lock(this)
             {
                 if(_destroyed)
@@ -190,17 +194,13 @@ namespace IceInternal
                     throw new Ice.CommunicatorDestroyedException();
                 }
 
-                Debug.Assert(routerInfo != null);
-
                 //
                 // Search for connections to the router's client proxy
                 // endpoints, and update the object adapter for such
                 // connections, so that callbacks from the router can be
                 // received over such connections.
                 //
-                Ice.ObjectAdapter adapter = routerInfo.getAdapter();
                 DefaultsAndOverrides defaultsAndOverrides = _instance.defaultsAndOverrides();
-                EndpointI[] endpoints = routerInfo.getClientEndpoints();
                 for(int i = 0; i < endpoints.Length; i++)
                 {
                     EndpointI endpoint = endpoints[i];

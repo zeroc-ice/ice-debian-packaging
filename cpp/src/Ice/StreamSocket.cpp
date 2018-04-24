@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -18,7 +18,6 @@ using namespace IceInternal;
 #include <Ice/Properties.h>
 using namespace Platform;
 using namespace Windows::Foundation;
-
 #endif
 
 StreamSocket::StreamSocket(const ProtocolInstancePtr& instance,
@@ -246,9 +245,7 @@ StreamSocket::read(char* buf, size_t length)
 #endif
         if(ret == 0)
         {
-            Ice::ConnectionLostException ex(__FILE__, __LINE__);
-            ex.error = 0;
-            throw ex;
+            throw Ice::ConnectionLostException(__FILE__, __LINE__, 0);
         }
         else if(ret == SOCKET_ERROR)
         {
@@ -270,15 +267,11 @@ StreamSocket::read(char* buf, size_t length)
 
             if(connectionLost())
             {
-                Ice::ConnectionLostException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw Ice::ConnectionLostException(__FILE__, __LINE__, getSocketErrno());
             }
             else
             {
-                Ice::SocketException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw Ice::SocketException(__FILE__, __LINE__, getSocketErrno());
             }
         }
 
@@ -319,9 +312,7 @@ StreamSocket::write(const char* buf, size_t length)
 #endif
         if(ret == 0)
         {
-            Ice::ConnectionLostException ex(__FILE__, __LINE__);
-            ex.error = 0;
-            throw ex;
+            throw Ice::ConnectionLostException(__FILE__, __LINE__, 0);
         }
         else if(ret == SOCKET_ERROR)
         {
@@ -343,15 +334,11 @@ StreamSocket::write(const char* buf, size_t length)
 
             if(connectionLost())
             {
-                Ice::ConnectionLostException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw Ice::ConnectionLostException(__FILE__, __LINE__, getSocketErrno());
             }
             else
             {
-                Ice::SocketException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw Ice::SocketException(__FILE__, __LINE__, getSocketErrno());
             }
         }
 
@@ -409,15 +396,11 @@ StreamSocket::startWrite(Buffer& buf)
         {
             if(connectionLost())
             {
-                Ice::ConnectionLostException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw Ice::ConnectionLostException(__FILE__, __LINE__, getSocketErrno());
             }
             else
             {
-                Ice::SocketException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw Ice::SocketException(__FILE__, __LINE__, getSocketErrno());
             }
         }
     }
@@ -437,15 +420,11 @@ StreamSocket::finishWrite(Buffer& buf)
         WSASetLastError(_write.error);
         if(connectionLost())
         {
-            Ice::ConnectionLostException ex(__FILE__, __LINE__);
-            ex.error = getSocketErrno();
-            throw ex;
+            throw Ice::ConnectionLostException(__FILE__, __LINE__, getSocketErrno());
         }
         else
         {
-            Ice::SocketException ex(__FILE__, __LINE__);
-            ex.error = getSocketErrno();
-            throw ex;
+            throw Ice::SocketException(__FILE__, __LINE__, getSocketErrno());
         }
     }
 
@@ -472,15 +451,11 @@ StreamSocket::startRead(Buffer& buf)
         {
             if(connectionLost())
             {
-                Ice::ConnectionLostException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw Ice::ConnectionLostException(__FILE__, __LINE__, getSocketErrno());
             }
             else
             {
-                Ice::SocketException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw Ice::SocketException(__FILE__, __LINE__, getSocketErrno());
             }
         }
     }
@@ -499,22 +474,16 @@ StreamSocket::finishRead(Buffer& buf)
         WSASetLastError(_read.error);
         if(connectionLost())
         {
-            Ice::ConnectionLostException ex(__FILE__, __LINE__);
-            ex.error = getSocketErrno();
-            throw ex;
+            throw Ice::ConnectionLostException(__FILE__, __LINE__, getSocketErrno());
         }
         else
         {
-            Ice::SocketException ex(__FILE__, __LINE__);
-            ex.error = getSocketErrno();
-            throw ex;
+            throw Ice::SocketException(__FILE__, __LINE__, getSocketErrno());
         }
     }
     else if(_read.count == 0)
     {
-        Ice::ConnectionLostException ex(__FILE__, __LINE__);
-        ex.error = 0;
-        throw ex;
+        throw Ice::ConnectionLostException(__FILE__, __LINE__, 0);
     }
 
     buf.i += _read.count;
@@ -539,8 +508,9 @@ StreamSocket::startWrite(Buffer& buf)
             try
             {
                 queueAction(SocketOperationConnect,
-                    safe_cast<Windows::Networking::Sockets::StreamSocket^>(_fd)->ConnectAsync(addr.host, addr.port,
-                                      Windows::Networking::Sockets::SocketProtectionLevel::PlainSocket), true);
+                            safe_cast<Windows::Networking::Sockets::StreamSocket^>(_fd)->ConnectAsync(
+                                  addr.host, addr.port,
+                                  Windows::Networking::Sockets::SocketProtectionLevel::PlainSocket), true);
             }
             catch(Platform::Exception^ ex)
             {
@@ -578,6 +548,7 @@ StreamSocket::startWrite(Buffer& buf)
 void
 StreamSocket::finishWrite(Buffer& buf)
 {
+    _write.operation = nullptr; // Must be cleared with the connection lock held
     if(_fd == INVALID_SOCKET || (_state < StateConnected && _state != StateProxyWrite))
     {
         return;
@@ -609,6 +580,7 @@ StreamSocket::startRead(Buffer& buf)
 void
 StreamSocket::finishRead(Buffer& buf)
 {
+    _read.operation = nullptr; // Must be cleared with the connection lock held
     if(_fd == INVALID_SOCKET)
     {
         return;
@@ -620,9 +592,7 @@ StreamSocket::finishRead(Buffer& buf)
     }
     else if(_read.count == 0)
     {
-        Ice::ConnectionLostException ex(__FILE__, __LINE__);
-        ex.error = 0;
-        throw ex;
+        throw Ice::ConnectionLostException(__FILE__, __LINE__, 0);
     }
 
     try
@@ -647,6 +617,16 @@ StreamSocket::close()
     assert(_fd != INVALID_SOCKET);
     try
     {
+#if defined(ICE_OS_UWP)
+        if(_read.operation)
+        {
+            _read.operation->Cancel();
+        }
+        if(_write.operation)
+        {
+            _write.operation->Cancel();
+        }
+#endif
         closeSocket(_fd);
         _fd = INVALID_SOCKET;
     }

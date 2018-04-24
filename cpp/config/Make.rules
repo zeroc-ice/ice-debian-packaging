@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -21,6 +21,9 @@ ifeq ($(os),Darwin)
 include         $(lang_srcdir)/config/Make.xcodesdk.rules
 endif
 
+# Validate platforms and configs
+$(eval $(call validate-config))
+
 #
 # Define which projects to build for the different configurations.
 #
@@ -35,8 +38,8 @@ coreandstub_components  = IceUtil \
                           IceBox \
                           IcePatch2
 
-# Add the Bluetooth transport for Debian/Ubuntu/Yocto
-ifneq ($(filter debian ubuntu yocto poky,$(linux_id)),)
+# Add the Bluetooth transport if Bluetooth system libraries are available
+ifneq ($(IceBT_system_libs),)
 coreandstub_components  += IceBT
 endif
 
@@ -122,10 +125,7 @@ endef
 define make-cpp-test-project
 $1_slicecompiler        := slice2cpp
 $1_sliceflags           += -I$(slicedir)
-$1_cppflags             += -I$1/generated -I$1 -Itest/include -I$(includedir)
-ifeq ($(filter all cpp,$(ICE_BIN_DIST)),)
-$1_cppflags             += -I$(includedir)/generated
-endif
+$1_cppflags             += -I$1/generated -I$1 -Itest/include $(ice_cpp_cppflags)
 $(make-project)
 tests:: $1
 endef
@@ -138,7 +138,8 @@ $1_srcext               := cpp
 $1_dependencies         := $$(or $$($1_dependencies),TestCommon Ice)
 
 # Also link with IceSSL and IceBT (Debian/Ubuntu/Yocto) when compiling the project with the static configuration
-$1[static]_dependencies := IceSSL $(if $(filter debian ubuntu yocto poky,$(linux_id)),IceBT)
+$1[static]_cppflags     += $(if $(IceBT_system_libs),-DICE_HAS_BT)
+$1[static]_dependencies := IceSSL $(if $(IceBT_system_libs),IceBT)
 
 # Dependencies and target dirs for Xcode SDK test projects
 $1[xcodesdk]_dependencies                       := IceSSL

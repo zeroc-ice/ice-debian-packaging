@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -54,11 +54,10 @@ TrustManager::TrustManager(const Ice::CommunicatorPtr& communicator) :
             }
         }
     }
-    catch(const ParseException& e)
+    catch(const ParseException& ex)
     {
-        Ice::PluginInitializationException ex(__FILE__, __LINE__);
-        ex.reason = "IceSSL: invalid property " + key  + ":\n" + e.reason;
-        throw ex;
+        throw Ice::PluginInitializationException(__FILE__, __LINE__, "IceSSL: invalid property " + key  + ":\n" +
+                                                 ex.reason);
     }
 }
 

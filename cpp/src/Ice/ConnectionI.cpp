@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -493,7 +493,7 @@ Ice::ConnectionI::destroy(DestructionReason reason)
 }
 
 void
-Ice::ConnectionI::close(ConnectionClose mode)
+Ice::ConnectionI::close(ConnectionClose mode) ICE_NOEXCEPT
 {
     IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
 
@@ -1147,6 +1147,14 @@ Ice::ConnectionI::setACM(const IceUtil::Optional<int>& timeout,
                          const IceUtil::Optional<Ice::ACMHeartbeat>& heartbeat)
 {
     IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
+    if(timeout && *timeout < 0)
+    {
+#ifdef ICE_CPP11_MAPPING
+        throw invalid_argument("invalid negative ACM timeout value");
+#else
+        throw IceUtil::IllegalArgumentException(__FILE__, __LINE__, "invalid negative ACM timeout value");
+#endif
+    }
     if(!_monitor || _state >= StateClosed)
     {
         return;
@@ -1174,7 +1182,7 @@ Ice::ConnectionI::setACM(const IceUtil::Optional<int>& timeout,
 }
 
 ACM
-Ice::ConnectionI::getACM()
+Ice::ConnectionI::getACM() ICE_NOEXCEPT
 {
     IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
     ACM acm;
@@ -1409,25 +1417,21 @@ Ice::ConnectionI::connector() const
 void
 Ice::ConnectionI::setAdapter(const ObjectAdapterPtr& adapter)
 {
-    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
-
-    if(_state <= StateNotValidated || _state >= StateClosing)
+    if(adapter)
     {
-        return;
-    }
-
-    _adapter = adapter;
-
-    if(_adapter)
-    {
-        _servantManager = dynamic_cast<ObjectAdapterI*>(_adapter.get())->getServantManager();
-        if(!_servantManager)
-        {
-            _adapter = 0;
-        }
+        // Go through the adapter to set the adapter and servant manager on this connection
+        // to ensure the object adapter is still active.
+        dynamic_cast<ObjectAdapterI*>(adapter.get())->setAdapterOnConnection(ICE_SHARED_FROM_THIS);
     }
     else
     {
+        IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
+        if(_state <= StateNotValidated || _state >= StateClosing)
+        {
+            return;
+        }
+
+        _adapter = 0;
         _servantManager = 0;
     }
 
@@ -1438,14 +1442,14 @@ Ice::ConnectionI::setAdapter(const ObjectAdapterPtr& adapter)
 }
 
 ObjectAdapterPtr
-Ice::ConnectionI::getAdapter() const
+Ice::ConnectionI::getAdapter() const ICE_NOEXCEPT
 {
     IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
     return _adapter;
 }
 
 EndpointPtr
-Ice::ConnectionI::getEndpoint() const
+Ice::ConnectionI::getEndpoint() const ICE_NOEXCEPT
 {
     return _endpoint; // No mutex protection necessary, _endpoint is immutable.
 }
@@ -1459,6 +1463,20 @@ Ice::ConnectionI::createProxy(const Identity& ident) const
     //
     return _instance->proxyFactory()->referenceToProxy(
         _instance->referenceFactory()->create(ident, ICE_SHARED_FROM_CONST_THIS(ConnectionI)));
+}
+
+void
+Ice::ConnectionI::setAdapterAndServantManager(const ObjectAdapterPtr& adapter,
+                                              const IceInternal::ServantManagerPtr& servantManager)
+{
+    IceUtil::Monitor<IceUtil::Mutex>::Lock sync(*this);
+    if(_state <= StateNotValidated || _state >= StateClosing)
+    {
+        return;
+    }
+    assert(adapter); // Called by ObjectAdapterI::setAdapterOnConnection
+    _adapter = adapter;
+    _servantManager = servantManager;
 }
 
 #if defined(ICE_USE_IOCP) || defined(ICE_OS_UWP)
@@ -1651,9 +1669,7 @@ Ice::ConnectionI::message(ThreadPoolCurrent& current)
                     _readStream.readBlob(m, static_cast<Int>(sizeof(magic)));
                     if(m[0] != magic[0] || m[1] != magic[1] || m[2] != magic[2] || m[3] != magic[3])
                     {
-                        BadMagicException ex(__FILE__, __LINE__);
-                        ex.badMagic = Ice::ByteSeq(&m[0], &m[0] + sizeof(magic));
-                        throw ex;
+                        throw BadMagicException(__FILE__, __LINE__, "", Ice::ByteSeq(&m[0], &m[0] + sizeof(magic)));
                     }
                     ProtocolVersion pv;
                     _readStream.read(pv);
@@ -2140,7 +2156,7 @@ Ice::ConnectionI::finish(bool close)
 }
 
 string
-Ice::ConnectionI::toString() const
+Ice::ConnectionI::toString() const ICE_NOEXCEPT
 {
     return _desc; // No mutex lock, _desc is immutable.
 }
@@ -2170,13 +2186,13 @@ Ice::ConnectionI::timedOut()
 }
 
 string
-Ice::ConnectionI::type() const
+Ice::ConnectionI::type() const ICE_NOEXCEPT
 {
     return _type; // No mutex lock, _type is immutable.
 }
 
 Ice::Int
-Ice::ConnectionI::timeout() const
+Ice::ConnectionI::timeout() const ICE_NOEXCEPT
 {
     return _endpoint->timeout(); // No mutex lock, _endpoint is immutable.
 }
@@ -2722,9 +2738,7 @@ Ice::ConnectionI::validate(SocketOperation operation)
             _readStream.read(m[3]);
             if(m[0] != magic[0] || m[1] != magic[1] || m[2] != magic[2] || m[3] != magic[3])
             {
-                BadMagicException ex(__FILE__, __LINE__);
-                ex.badMagic = Ice::ByteSeq(&m[0], &m[0] + sizeof(magic));
-                throw ex;
+                throw BadMagicException(__FILE__, __LINE__, "", Ice::ByteSeq(&m[0], &m[0] + sizeof(magic)));
             }
             ProtocolVersion pv;
             _readStream.read(pv);
@@ -3138,9 +3152,7 @@ Ice::ConnectionI::doCompress(OutputStream& uncompressed, OutputStream& compresse
                                            _compressionLevel, 0, 0);
     if(bzError != BZ_OK)
     {
-        CompressionException ex(__FILE__, __LINE__);
-        ex.reason = "BZ2_bzBuffToBuffCompress failed" + getBZ2Error(bzError);
-        throw ex;
+        throw CompressionException(__FILE__, __LINE__, "BZ2_bzBuffToBuffCompress failed" + getBZ2Error(bzError));
     }
     compressed.b.resize(headerSize + sizeof(Int) + compressedLen);
 
@@ -3201,9 +3213,7 @@ Ice::ConnectionI::doUncompress(InputStream& compressed, InputStream& uncompresse
                                              0, 0);
     if(bzError != BZ_OK)
     {
-        CompressionException ex(__FILE__, __LINE__);
-        ex.reason = "BZ2_bzBuffToBuffCompress failed" + getBZ2Error(bzError);
-        throw ex;
+        throw CompressionException(__FILE__, __LINE__, "BZ2_bzBuffToBuffCompress failed" + getBZ2Error(bzError));
     }
 
     copy(compressed.b.begin(), compressed.b.begin() + headerSize, uncompressed.b.begin());
@@ -3253,9 +3263,7 @@ Ice::ConnectionI::parseMessage(InputStream& stream, Int& invokeNum, Int& request
             doUncompress(stream, ustream);
             stream.b.swap(ustream.b);
 #else
-            FeatureNotSupportedException ex(__FILE__, __LINE__);
-            ex.unsupportedFeature = "Cannot uncompress compressed message";
-            throw ex;
+            throw FeatureNotSupportedException(__FILE__, __LINE__, "Cannot uncompress compressed message");
 #endif
         }
         stream.i = stream.b.begin() + headerSize;

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -9,88 +9,77 @@
 
 (function(module, require, exports)
 {
-    var Ice = require("ice").Ice;
-    var Test = require("Test").Test;
+    const Ice = require("ice").Ice;
+    const Test = require("Test").Test;
 
-    var run = function(communicator, prx, Test, bidir)
+    async function run(communicator, prx, Test, bidir)
     {
-        var p = new Ice.Promise();
-        var test = function(b)
+        function test(value, ex)
         {
-            if(!b)
+            if(!value)
             {
-                try
+                let message = "test failed";
+                if(ex)
                 {
-                    throw new Error("test failed");
+                    message + "\n" + ex.toString();
                 }
-                catch(err)
-                {
-                    p.reject(err);
-                    throw err;
-                }
+                throw new Error(message);
             }
-        };
+        }
 
-        Ice.Promise.try(() =>
-            {
-                prx = prx.ice_oneway();
-                return prx.ice_ping();
-            }
-        ).then(() =>
-            {
-                try
-                {
-                    prx.ice_isA(Test.MyClass.ice_staticId());
-                    test(false);
-                }
-                catch(ex)
-                {
-                    // Expected: twoway proxy required
-                    test(ex instanceof Ice.TwowayOnlyException);
-                }
+        prx = prx.ice_oneway();
+        await prx.ice_ping();
 
-                try
-                {
-                    prx.ice_id();
-                    test(false);
-                }
-                catch(ex)
-                {
-                    // Expected: twoway proxy required
-                    test(ex instanceof Ice.TwowayOnlyException);
-                }
+        try
+        {
+            await prx.ice_isA(Test.MyClass.ice_staticId());
+            test(false);
+        }
+        catch(ex)
+        {
+            // Expected: twoway proxy required
+            test(ex instanceof Ice.TwowayOnlyException, ex);
+        }
 
-                try
-                {
-                    prx.ice_ids();
-                    test(false);
-                }
-                catch(ex)
-                {
-                    // Expected: twoway proxy required
-                    test(ex instanceof Ice.TwowayOnlyException);
-                }
+        try
+        {
+            await prx.ice_id();
+            test(false);
+        }
+        catch(ex)
+        {
+            // Expected: twoway proxy required
+            test(ex instanceof Ice.TwowayOnlyException, ex);
+        }
 
-                return prx.opVoid();
-            }
-        ).then(() => prx.opIdempotent()
-        ).then(() => prx.opNonmutating()
-        ).then(() =>
-            {
-                try
-                {
-                    prx.opByte(0xff, 0x0f);
-                    test(false);
-                }
-                catch(ex)
-                {
-                    // Expected: twoway proxy required
-                    test(ex instanceof Ice.TwowayOnlyException);
-                }
-            }
-        ).then(p.resolve, p.reject);
-        return p;
-    };
+        try
+        {
+            await prx.ice_ids();
+            test(false);
+        }
+        catch(ex)
+        {
+            // Expected: twoway proxy required
+            test(ex instanceof Ice.TwowayOnlyException, ex);
+        }
+
+        await prx.opVoid();
+
+        await prx.opIdempotent();
+
+        await prx.opNonmutating()
+
+        try
+        {
+            await prx.opByte(0xff, 0x0f);
+            test(false);
+        }
+        catch(ex)
+        {
+            // Expected: twoway proxy required
+            test(ex instanceof Ice.TwowayOnlyException, ex);
+        }
+    }
 
     exports.Oneways = { run: run };
 }

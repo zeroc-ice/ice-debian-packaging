@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -43,10 +43,10 @@ if(exe === "Server" || exe === "ServerAMD")
 {
     var ready = new Ice.Promise();
     test = exe === "Server" ? test._server : test._serveramd;
-    test({write: write, writeLine: writeLine}, id, ready).catch(exception);
+    test({write: write, writeLine: writeLine}, id, ready, process.argv).catch(exception);
     ready.then(() => console.log("server ready"));
 }
 else
 {
-    test._test({write: write, writeLine: writeLine}, id).catch(exception);
+    test._test({write: write, writeLine: writeLine}, id, process.argv).catch(exception);
 }

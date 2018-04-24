@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -1912,6 +1912,7 @@ class TwowaysAMI
     twowaysAMI(test.Util.Application app, MyClassPrx p)
     {
         Ice.Communicator communicator = app.communicator();
+        final boolean bluetooth = communicator.getProperties().getProperty("Ice.Default.Protocol").indexOf("bt") == 0;
 
         {
             pingI cb = new pingI();
@@ -2359,14 +2360,14 @@ class TwowaysAMI
             List<Map<Long, Float>> dsi2 = new ArrayList<>();
 
             Map<Long, Float> di1 = new HashMap<>();
-            di1.put(999999110L, new Float(-1.1));
-            di1.put(999999111L, new Float(123123.2));
+            di1.put(999999110L, Float.valueOf((float)-1.1));
+            di1.put(999999111L, Float.valueOf((float)123123.2));
             Map<Long, Float> di2 = new HashMap<>();
-            di2.put(999999110L, new Float(-1.1));
-            di2.put(999999120L, new Float(-100.4));
-            di2.put(999999130L, new Float(0.5));
+            di2.put(999999110L, Float.valueOf((float)-1.1));
+            di2.put(999999120L, Float.valueOf((float)-100.4));
+            di2.put(999999130L, Float.valueOf((float)0.5));
             Map<Long, Float> di3 = new HashMap<>();
-            di3.put(999999140L, new Float(3.14));
+            di3.put(999999140L, Float.valueOf((float)3.14));
 
             dsi1.add(di1);
             dsi1.add(di2);
@@ -2672,7 +2673,7 @@ class TwowaysAMI
             }
         }
 
-        if(p.ice_getConnection() != null)
+        if(p.ice_getConnection() != null && !bluetooth)
         {
             //
             // Test implicit context propagation

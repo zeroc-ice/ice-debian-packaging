@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -95,7 +95,7 @@ class ControllerDriver(Driver):
                     return self.current.serverTestCase._startServerSide(self.current)
                 except Exception as ex:
                     self.serverSideRunning = False
-                    raise Test.Common.TestCaseFailedException(self.current.result.getOutput() + "\n" + str(ex))
+                    raise Test.Common.TestCaseFailedException(self.current.result.getOutput() + "\n" + traceback.format_exc())
 
             def stopServerSide(self, success, c):
                 if self.serverSideRunning:

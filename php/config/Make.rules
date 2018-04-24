@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -23,22 +23,63 @@ USE_NAMESPACES  ?= yes
 # Don't change anything below this line!
 # ----------------------------------------------------------------------
 
+ifneq ($(USE_NAMESPACES),yes)
+slice2php_flags         = --no-namespace
+endif
+
+#
+# $(call make-php-test-project,$1=testdir)
+#
+define make-php-test-project
+
+$1/.depend/%.ice.d: | $1/.depend ;
+
+$1/.depend:
+	$(Q)$(MKDIR) -p $$@
+
+.PRECIOUS: $1/.depend/%.ice.d
+
+ifeq ($(filter %clean,$(MAKECMDGOALS)),)
+    # Include the dependencies
+    -include $(addprefix $1/.depend/,$(call source-to-dependency,$(wildcard $1/*.ice)))
+endif
+
+$1/%.php: $1/%.ice $1/.depend/%.ice.d $(slice2php_path)
+	$(E) "Compiling $$<"
+	$(Q)$(slice2php_path) $(slice2php_flags) -I$(slicedir) -I$1 --output-dir $1 $$($1_sliceflags) --depend $$< | \
+		sed 's/\(.*: \\\)/$(subst /,\/,$2)\/$3\/\1/' > $1/.depend/$$(*F).ice.d
+	$(Q)$(slice2php_path) $(slice2php_flags) -I$(slicedir) -I$1 --output-dir $1 $$($1_sliceflags) $$<
+
+distclean clean::
+	$(E) "Cleaning $1"
+	$(Q)$(RM) -r $1/.depend
+	$(Q)$(RM) $(patsubst $1/%.ice,$1/%.php,$(wildcard $1/*.ice))
+
+tests generate-srcs srcs all:: $(patsubst $1/%.ice,$1/%.php,$(wildcard $1/*.ice))
+
+endef
+
+# Configuration for building IcePHP sources
+ifeq ($(filter all php,$(ICE_BIN_DIST)),)
+
+ifneq ($(shell type $(PHP_CONFIG) > /dev/null 2>&1 && echo 0),0)
+$(error $(PHP_CONFIG) not found review your PHP installation and ensure $(PHP_CONFIG) is in your PATH)
+endif
+
 php_cppflags            = $(shell $(PHP_CONFIG) --includes)
 
-ifeq ($(USE_NAMESPACES),no)
-slice2php_flags         = --no-namespace
-else
+ifeq ($(USE_NAMESPACES),yes)
 php_cppflags            := $(php_cppflags) -DICEPHP_USE_NAMESPACES
+endif
+
+# PHP 5.3 does not compile with C++11 due to an issue with
+# user defined literals. PHP 5.4 and up do not have this issue.
+ifeq ($(shell [ $$($(PHP_CONFIG) --vernum) -lt 50400 ] && echo 0),0)
+    php_cppflags        := -std=c++98 $(php_cppflags)
 endif
 
 ifeq ($(os),Darwin)
     php_ldflags         := ${wl}-flat_namespace ${wl}-undefined ${wl}suppress
-endif
-
-ifeq ($(filter all cpp,$(ICE_BIN_DIST)),)
-php_cpp_includes        = -I$(top_srcdir)/cpp/include -I$(top_srcdir)/cpp/include/generated
-else
-php_cpp_includes        = -I$(includedir)
 endif
 
 ifeq ($(os),Linux)
@@ -111,34 +152,4 @@ endif
 
 endef
 
-#
-# $(call make-php-test-project,$1=testdir)
-#
-define make-php-test-project
-
-$1/.depend/%.ice.d: | $1/.depend ;
-
-$1/.depend:
-	$(Q)$(MKDIR) -p $$@
-
-.PRECIOUS: $1/.depend/%.ice.d
-
-ifeq ($(filter %clean,$(MAKECMDGOALS)),)
-    # Include the dependencies
-    -include $(addprefix $1/.depend/,$(call source-to-dependency,$(wildcard $1/*.ice)))
 endif
-
-$1/%.php: $1/%.ice $1/.depend/%.ice.d $(slice2php_path)
-	$(E) "Compiling $$<"
-	$(Q)$(slice2php_path) $(slice2php_flags) -I$(slicedir) -I$1 --output-dir $1 $$($1_sliceflags) --depend $$< | \
-		sed 's/\(.*: \\\)/$(subst /,\/,$2)\/$3\/\1/' > $1/.depend/$$(*F).ice.d
-	$(Q)$(slice2php_path) $(slice2php_flags) -I$(slicedir) -I$1 --output-dir $1 $$($1_sliceflags) $$<
-
-distclean clean::
-	$(E) "Cleaning $1"
-	$(Q)$(RM) -r $1/.depend
-	$(Q)$(RM) $(patsubst $1/%.ice,$1/%.php,$(wildcard $1/*.ice))
-
-tests generate-srcs srcs all:: $(patsubst $1/%.ice,$1/%.php,$(wildcard $1/*.ice))
-
-endef

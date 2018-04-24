@@ -3,6 +3,10 @@
     {
         "files": ["Test.js", "Client.js"]
     },
+    "Ice/adapterDeactivation":
+    {
+        "files": ["Test.js", "Client.js"]
+    },
     "Ice/ami":
     {
         "files": ["Test.js", "Client.js"]
@@ -115,6 +119,16 @@
     "Ice/retry":
     {
         "files": ["Test.js", "Client.js"]
+    },
+    "Ice/servantLocator":
+    {
+        "files": ["Test.js", "Client.js", "TestI.js", "ServantLocatorI.js", "TestActivationI.js", "Server.js"],
+        "testcases":
+        [
+            {
+                "name": "client/server"
+            }
+        ]
     },
     "Ice/slicing/exceptions":
     {

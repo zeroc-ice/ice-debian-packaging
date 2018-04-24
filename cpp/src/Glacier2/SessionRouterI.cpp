@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -1125,7 +1125,12 @@ SessionRouterI::expireSessions()
 RouterIPtr
 SessionRouterI::getRouterImpl(const ConnectionPtr& connection, const Ice::Identity& id, bool close) const
 {
-    if(_destroy)
+    //
+    // The connection can be null if the client tries to forward requests to
+    // a proxy which points to the client endpoints (in which case the request
+    // is forwarded with collocation optimization).
+    //
+    if(_destroy || !connection)
     {
         throw ObjectNotExistException(__FILE__, __LINE__);
     }
@@ -1177,9 +1182,7 @@ SessionRouterI::startCreateSession(const CreateSessionPtr& cb, const ConnectionP
 
     if(_destroy)
     {
-        CannotCreateSessionException exc;
-        exc.reason = "router is shutting down";
-        throw exc;
+        throw CannotCreateSessionException("router is shutting down");
     }
 
     //
@@ -1199,9 +1202,7 @@ SessionRouterI::startCreateSession(const CreateSessionPtr& cb, const ConnectionP
 
         if(p != _routersByConnection.end())
         {
-            CannotCreateSessionException exc;
-            exc.reason = "session exists";
-            throw exc;
+            throw CannotCreateSessionException("session exists");
         }
     }
 
@@ -1248,9 +1249,7 @@ SessionRouterI::finishCreateSession(const ConnectionPtr& connection, const Route
     {
         router->destroy(_sessionDestroyCallback);
 
-        CannotCreateSessionException exc;
-        exc.reason = "router is shutting down";
-        throw exc;
+        throw CannotCreateSessionException("router is shutting down");
     }
 
     _routersByConnectionHint = _routersByConnection.insert(

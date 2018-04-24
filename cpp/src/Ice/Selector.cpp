@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -52,9 +52,7 @@ Selector::setup(int sizeIO)
     _handle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, ICE_NULLPTR, 0, sizeIO);
     if(_handle == ICE_NULLPTR)
     {
-        Ice::SocketException ex(__FILE__, __LINE__);
-        ex.error = GetLastError();
-        throw ex;
+        throw Ice::SocketException(__FILE__, __LINE__, GetLastError());
     }
 }
 #endif
@@ -74,13 +72,12 @@ Selector::initialize(EventHandler* handler)
     {
         return;
     }
+
 #ifdef ICE_USE_IOCP
     HANDLE socket = reinterpret_cast<HANDLE>(handler->getNativeInfo()->fd());
     if(CreateIoCompletionPort(socket, _handle, reinterpret_cast<ULONG_PTR>(handler), 0) == ICE_NULLPTR)
     {
-        Ice::SocketException ex(__FILE__, __LINE__);
-        ex.error = GetLastError();
-        throw ex;
+        throw Ice::SocketException(__FILE__, __LINE__, GetLastError());
     }
     handler->getNativeInfo()->initialize(_handle, reinterpret_cast<ULONG_PTR>(handler));
 #else
@@ -118,6 +115,12 @@ Selector::update(EventHandler* handler, SocketOperation remove, SocketOperation 
 void
 Selector::finish(IceInternal::EventHandler* handler)
 {
+#ifdef ICE_OS_UWP
+    // If async operations are no longer pending, clear the completion handler to break
+    // the cyclic reference count.
+    assert(!handler->_started && !handler->_pending);
+    handler->getNativeInfo()->setCompletedHandler(nullptr);
+#endif
     handler->_registered = SocketOperationNone;
     handler->_finish = false; // Ensures that finished() is only called once on the event handler.
 }
@@ -227,9 +230,7 @@ Selector::completed(EventHandler* handler, SocketOperation op)
     }
     if(!PostQueuedCompletionStatus(_handle, 0, reinterpret_cast<ULONG_PTR>(handler), info))
     {
-        Ice::SocketException ex(__FILE__, __LINE__);
-        ex.error = GetLastError();
-        throw ex;
+        throw Ice::SocketException(__FILE__, __LINE__, GetLastError());
     }
 #else
     IceUtil::Monitor<IceUtil::Mutex>::Lock lock(_monitor);
@@ -253,9 +254,7 @@ Selector::Selector(const InstancePtr& instance) : _instance(instance), _interrup
     _queueFd = epoll_create(1);
     if(_queueFd < 0)
     {
-        Ice::SocketException ex(__FILE__, __LINE__);
-        ex.error = IceInternal::getSocketErrno();
-        throw ex;
+        throw Ice::SocketException(__FILE__, __LINE__, IceInternal::getSocketErrno());
     }
 
     epoll_event event;
@@ -272,9 +271,7 @@ Selector::Selector(const InstancePtr& instance) : _instance(instance), _interrup
     _queueFd = kqueue();
     if(_queueFd < 0)
     {
-        Ice::SocketException ex(__FILE__, __LINE__);
-        ex.error = getSocketErrno();
-        throw ex;
+        throw Ice::SocketException(__FILE__, __LINE__, getSocketErrno());
     }
 
     struct kevent ev;
@@ -527,9 +524,7 @@ Selector::wakeup()
                     continue;
                 }
 
-                Ice::SocketException ex(__FILE__, __LINE__);
-                ex.error = IceInternal::getSocketErrno();
-                throw ex;
+                throw Ice::SocketException(__FILE__, __LINE__, IceInternal::getSocketErrno());
             }
             break;
         }
@@ -552,9 +547,7 @@ Selector::startSelect()
                 {
                     continue;
                 }
-                Ice::SocketException ex(__FILE__, __LINE__);
-                ex.error = IceInternal::getSocketErrno();
-                throw ex;
+                throw Ice::SocketException(__FILE__, __LINE__, IceInternal::getSocketErrno());
             }
             break;
         }
@@ -760,12 +753,12 @@ Selector::select(int timeout)
             out << "selector failed:\n" << ex;
             IceUtil::ThreadControl::sleep(IceUtil::Time::seconds(5)); // Sleep 5s to avoid looping
         }
-        else if(_count == 0 && timeout < 0 && ++spuriousWakeup < 100)
+        else if(_count == 0 && timeout < 0)
         {
-            if(spuriousWakeup == 1)
+            if(++spuriousWakeup > 100)
             {
-                Ice::Warning out(_instance->initializationData().logger);
-                out << "spurious selector wakeup";
+                spuriousWakeup = 0;
+                _instance->initializationData().logger->warning("spurious selector wakeup");
             }
             IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(1));
             continue;

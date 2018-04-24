@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -40,6 +40,16 @@
 //
 #ifdef _WIN32
 #   include <wincrypt.h>
+#endif
+
+// The ruby.h check for the isfinite macro fails with some C++ standard libraries
+// (libc++ > 4000) because the isfinite macro included from the C library's
+// math.h is undefined and replaced with a function. As a result, Ruby defines isfinite
+// as the finite macro which is deprecated on some platforms (macOS >= 10.9).
+// The warning ends up causing a build failure. We define the HAVE_ISFINITE macro here to
+// ensure ruby.h doesn't redefine it.
+#if defined(__clang__) && defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION >= 4000)
+#define HAVE_ISFINITE 1
 #endif
 
 #include <ruby.h>

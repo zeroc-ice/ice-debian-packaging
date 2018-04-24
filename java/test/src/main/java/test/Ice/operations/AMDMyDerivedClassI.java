@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -92,6 +92,12 @@ public final class AMDMyDerivedClassI implements MyDerivedClass
 
         current.adapter.getCommunicator().shutdown();
         return CompletableFuture.completedFuture((Void)null);
+    }
+
+    @Override
+    synchronized public CompletionStage<Boolean> supportsCompressAsync(Current current)
+    {
+        return CompletableFuture.completedFuture(true);
     }
 
     @Override

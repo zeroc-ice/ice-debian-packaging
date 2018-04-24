@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -45,8 +45,17 @@ IceInternal::ACMConfig::ACMConfig(const Ice::PropertiesPtr& p,
         timeoutProperty = prefix + ".Timeout";
     };
 
-    this->timeout = IceUtil::Time::seconds(p->getPropertyAsIntWithDefault(timeoutProperty,
-                                                                          static_cast<int>(dflt.timeout.toSeconds())));
+    int timeout = p->getPropertyAsIntWithDefault(timeoutProperty, static_cast<int>(dflt.timeout.toSeconds()));
+    if(timeout >= 0)
+    {
+        this->timeout = IceUtil::Time::seconds(timeout);
+    }
+    else
+    {
+        l->warning("invalid value for property `" + timeoutProperty + "', default value will be used instead");
+        this->timeout = dflt.timeout;
+    }
+
     int hb = p->getPropertyAsIntWithDefault(prefix + ".Heartbeat", static_cast<int>(dflt.heartbeat));
     if(hb >= static_cast<int>(ICE_ENUM(ACMHeartbeat, HeartbeatOff)) &&
        hb <= static_cast<int>(ICE_ENUM(ACMHeartbeat, HeartbeatAlways)))

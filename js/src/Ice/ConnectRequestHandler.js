@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -122,7 +122,7 @@ class ConnectRequestHandler
         // If this proxy is for a non-local object, and we are using a router, then
         // add this proxy to the router info object.
         //
-        let ri = this._reference.getRouterInfo();
+        const ri = this._reference.getRouterInfo();
         if(ri !== null)
         {
                                                                                   //

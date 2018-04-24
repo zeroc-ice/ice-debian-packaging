@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -1132,6 +1132,7 @@ public final class Instance implements Ice.ClassResolver
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected synchronized void
     finalize()
@@ -1532,6 +1533,12 @@ public final class Instance implements Ice.ClassResolver
             if(_pluginManager != null)
             {
                 _pluginManager.destroy();
+            }
+
+            if(_initData.logger instanceof Ice.LoggerI)
+            {
+                Ice.LoggerI logger = (Ice.LoggerI)_initData.logger;
+                logger.destroy();
             }
 
             synchronized(this)

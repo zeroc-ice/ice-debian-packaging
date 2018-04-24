@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,12 +8,19 @@
 // **********************************************************************
 
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Test;
 
 class LoggerI : Ice.Logger
 {
+    public LoggerI(string name)
+    {
+        _name = name;
+    }
+
     public void start()
     {
         lock(this)
@@ -39,7 +46,17 @@ class LoggerI : Ice.Logger
     {
         lock(this)
         {
-            _messages.Add("[" + category + "] " + message);
+            System.Text.StringBuilder s = new System.Text.StringBuilder(_name);
+            s.Append(' ');
+            s.Append(System.DateTime.Now.ToString(_date, CultureInfo.CurrentCulture));
+            s.Append(' ');
+            s.Append(System.DateTime.Now.ToString(_time, CultureInfo.CurrentCulture));
+            s.Append(' ');
+            s.Append("[");
+            s.Append(category);
+            s.Append("] ");
+            s.Append(message);
+            _messages.Add(s.ToString());
             if(_started)
             {
                 dump();
@@ -51,7 +68,14 @@ class LoggerI : Ice.Logger
     {
         lock(this)
         {
-            _messages.Add("warning: " + message);
+            System.Text.StringBuilder s = new System.Text.StringBuilder(_name);
+            s.Append(' ');
+            s.Append(System.DateTime.Now.ToString(_date, CultureInfo.CurrentCulture));
+            s.Append(' ');
+            s.Append(System.DateTime.Now.ToString(_time, CultureInfo.CurrentCulture));
+            s.Append(" warning : ");
+            s.Append(message);
+            _messages.Add(s.ToString());
             if(_started)
             {
                 dump();
@@ -63,7 +87,14 @@ class LoggerI : Ice.Logger
     {
         lock(this)
         {
-            _messages.Add("error: " + message);
+            System.Text.StringBuilder s = new System.Text.StringBuilder(_name);
+            s.Append(' ');
+            s.Append(System.DateTime.Now.ToString(_date, CultureInfo.CurrentCulture));
+            s.Append(' ');
+            s.Append(System.DateTime.Now.ToString(_time, CultureInfo.CurrentCulture));
+            s.Append(" error : ");
+            s.Append(message);
+            _messages.Add(s.ToString());
             if(_started)
             {
                 dump();
@@ -85,12 +116,16 @@ class LoggerI : Ice.Logger
     {
         foreach(string line in _messages)
         {
-            System.Console.WriteLine(line);
+            System.Console.Error.WriteLine(line);
         }
         _messages.Clear();
     }
 
+    private string _name;
     private bool _started;
+    private readonly static string _date = "d";
+    private readonly static string _time = "HH:mm:ss:fff";
+
     private List<string> _messages = new List<string>();
 }
 
@@ -100,7 +135,7 @@ abstract class TestCase
     {
         _name = name;
         _com = com;
-        _logger = new LoggerI();
+        _logger = new LoggerI(_name);
 
         _clientACMTimeout = -1;
         _clientACMClose = -1;
@@ -267,7 +302,7 @@ public class AllTests : TestCommon.AllTests
 
             lock(this)
             {
-                test(_heartbeat >= 6);
+                test(_heartbeat >= 4);
             }
         }
     }
@@ -515,28 +550,60 @@ public class AllTests : TestCommon.AllTests
 
         public override void runTestCase(RemoteObjectAdapterPrx adapter, TestIntfPrx proxy)
         {
+            Ice.Connection con = proxy.ice_getCachedConnection();
+
+            try
+            {
+                con.setACM(-19, Ice.Util.None, Ice.Util.None);
+                test(false);
+            }
+            catch(ArgumentException)
+            {
+            }
+
             Ice.ACM acm;
-            acm = proxy.ice_getCachedConnection().getACM();
+            acm = con.getACM();
             test(acm.timeout == 15);
             test(acm.close == Ice.ACMClose.CloseOnIdleForceful);
             test(acm.heartbeat == Ice.ACMHeartbeat.HeartbeatOff);
 
-            proxy.ice_getCachedConnection().setACM(Ice.Util.None, Ice.Util.None, Ice.Util.None);
-            acm = proxy.ice_getCachedConnection().getACM();
+            con.setACM(Ice.Util.None, Ice.Util.None, Ice.Util.None);
+            acm = con.getACM();
             test(acm.timeout == 15);
             test(acm.close == Ice.ACMClose.CloseOnIdleForceful);
             test(acm.heartbeat == Ice.ACMHeartbeat.HeartbeatOff);
 
-            proxy.ice_getCachedConnection().setACM(1,
+            con.setACM(1,
                                                    Ice.ACMClose.CloseOnInvocationAndIdle,
                                                    Ice.ACMHeartbeat.HeartbeatAlways);
-            acm = proxy.ice_getCachedConnection().getACM();
+            acm = con.getACM();
             test(acm.timeout == 1);
             test(acm.close == Ice.ACMClose.CloseOnInvocationAndIdle);
             test(acm.heartbeat == Ice.ACMHeartbeat.HeartbeatAlways);
 
             proxy.startHeartbeatCount();
             proxy.waitForHeartbeatCount(2);
+
+            var t1 = new TaskCompletionSource<object>();
+            con.setCloseCallback(_ => { t1.SetResult(null); });
+
+            con.close(Ice.ConnectionClose.Gracefully);
+            test(t1.Task.Result == null);
+
+            try
+            {
+                con.throwException();
+                test(false);
+            }
+            catch(Ice.ConnectionManuallyClosedException)
+            {
+            }
+
+            var t2 = new TaskCompletionSource<object>();
+            con.setCloseCallback(_ => { t2.SetResult(null); });
+            test(t2.Task.Result == null);
+
+            con.setHeartbeatCallback(_ => { test(false); });
         }
     }
 

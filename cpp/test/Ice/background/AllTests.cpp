@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -481,7 +481,7 @@ connectTests(const ConfigurationPtr& configuration, const Test::BackgroundPrxPtr
             promise<void> completed;
             promise<bool> sent;
             prx->opAsync(
-                [&completed]()
+                []()
                 {
                     test(false);
                 },
@@ -502,7 +502,7 @@ connectTests(const ConfigurationPtr& configuration, const Test::BackgroundPrxPtr
             promise<bool> sent;
 
             prx->opAsync(
-                [&completed]()
+                []()
                 {
                     test(false);
                 },

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -122,6 +122,8 @@ public:
 
     virtual Test::D1Ptr getD1(ICE_IN(Test::D1Ptr), const Ice::Current&);
     virtual void throwEDerived(const Ice::Current&);
+
+    virtual void setG(ICE_IN(Test::GPtr), const Ice::Current&);
 
 #ifdef ICE_CPP11_MAPPING
     virtual void setI(::std::shared_ptr<::Ice::Value>, const Ice::Current&);

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -431,6 +431,11 @@ private:
                     result.push_back(s);
                     continue;
                 }
+                else if(s.substr(prefix.size(), pos - prefix.size()) == "package")
+                {
+                    result.push_back(s);
+                    continue;
+                }
 
                 dc->warning(InvalidMetaData, cont->file(), cont->line(), "ignoring invalid metadata `" + s + "'");
             }
@@ -444,7 +449,8 @@ private:
         return result;
     }
 
-    StringList validateType(const SyntaxTreeBasePtr& p, const StringList& metaData, const string& file, const string& line)
+    StringList validateType(const SyntaxTreeBasePtr& p, const StringList& metaData, const string& file,
+                            const string& line)
     {
         const UnitPtr unit = p->unit();
         const DefinitionContextPtr dc = unit->findDefinitionContext(file);
@@ -520,6 +526,18 @@ private:
                     dc->warning(InvalidMetaData, file, line, "ignoring invalid metadata `" + *i + "'");
                 }
             }
+            else if(i->find("java:package:") == 0)
+            {
+                ModulePtr m = ModulePtr::dynamicCast(p);
+                if(m && UnitPtr::dynamicCast(m->container()))
+                {
+                    newMetaData.push_back(*i);
+                }
+                else
+                {
+                    dc->warning(InvalidMetaData, file, line, "ignoring invalid metadata `" + *i + "'");
+                }
+            }
             else
             {
                 newMetaData.push_back(*i);
@@ -528,7 +546,8 @@ private:
         return newMetaData;
     }
 
-    StringList validateGetSet(const SyntaxTreeBasePtr& p, const StringList& metaData, const string& file, const string& line)
+    StringList validateGetSet(const SyntaxTreeBasePtr& p, const StringList& metaData, const string& file,
+                              const string& line)
     {
         const UnitPtr unit = p->unit();
         const DefinitionContextPtr dc= unit->findDefinitionContext(file);
@@ -771,7 +790,7 @@ Slice::JavaOutput::printHeader()
     static const char* header =
 "// **********************************************************************\n"
 "//\n"
-"// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.\n"
+"// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.\n"
 "//\n"
 "// This copy of Ice is licensed to you under the terms described in the\n"
 "// ICE_LICENSE file included in this distribution.\n"
@@ -921,25 +940,51 @@ Slice::JavaCompatGenerator::convertScopedName(const string& scoped, const string
 string
 Slice::JavaCompatGenerator::getPackagePrefix(const ContainedPtr& cont) const
 {
-    UnitPtr unit = cont->container()->unit();
-    string file = cont->file();
-    assert(!file.empty());
-
-    map<string, string>::const_iterator p = _filePackagePrefix.find(file);
-    if(p != _filePackagePrefix.end())
+    //
+    // Traverse to the top-level module.
+    //
+    ModulePtr m;
+    ContainedPtr p = cont;
+    while(true)
     {
-        return p->second;
+        if(ModulePtr::dynamicCast(p))
+        {
+            m = ModulePtr::dynamicCast(p);
+        }
+
+        ContainerPtr c = p->container();
+        p = ContainedPtr::dynamicCast(c); // This cast fails for Unit.
+        if(!p)
+        {
+            break;
+        }
     }
 
+    assert(m);
+
+    //
+    // The java:package metadata can be defined as global metadata or applied to a top-level module.
+    // We check for the metadata at the top-level module first and then fall back to the global scope.
+    //
     static const string prefix = "java:package:";
-    DefinitionContextPtr dc = unit->findDefinitionContext(file);
-    assert(dc);
-    string q = dc->findMetaData(prefix);
+
+    string q;
+    if(!m->findMetaData(prefix, q))
+    {
+        UnitPtr unit = cont->unit();
+        string file = cont->file();
+        assert(!file.empty());
+
+        DefinitionContextPtr dc = unit->findDefinitionContext(file);
+        assert(dc);
+        q = dc->findMetaData(prefix);
+    }
+
     if(!q.empty())
     {
         q = q.substr(prefix.size());
     }
-    _filePackagePrefix[file] = q;
+
     return q;
 }
 
@@ -961,6 +1006,16 @@ Slice::JavaCompatGenerator::getPackage(const ContainedPtr& cont) const
     }
 
     return scope;
+}
+
+string
+Slice::JavaCompatGenerator::getAbsolute(const std::string& type, const std::string& package) const
+{
+    if(type.find(".") != string::npos && type.find(package) == 0 && type.find(".", package.size() + 1) == string::npos)
+    {
+        return type.substr(package.size() + 1);
+    }
+    return type;
 }
 
 string
@@ -3365,25 +3420,51 @@ Slice::JavaGenerator::convertScopedName(const string& scoped, const string& pref
 string
 Slice::JavaGenerator::getPackagePrefix(const ContainedPtr& cont) const
 {
-    UnitPtr unit = cont->container()->unit();
-    string file = cont->file();
-    assert(!file.empty());
-
-    map<string, string>::const_iterator p = _filePackagePrefix.find(file);
-    if(p != _filePackagePrefix.end())
+    //
+    // Traverse to the top-level module.
+    //
+    ModulePtr m;
+    ContainedPtr p = cont;
+    while(true)
     {
-        return p->second;
+        if(ModulePtr::dynamicCast(p))
+        {
+            m = ModulePtr::dynamicCast(p);
+        }
+
+        ContainerPtr c = p->container();
+        p = ContainedPtr::dynamicCast(c); // This cast fails for Unit.
+        if(!p)
+        {
+            break;
+        }
     }
 
+    assert(m);
+
+    //
+    // The java:package metadata can be defined as global metadata or applied to a top-level module.
+    // We check for the metadata at the top-level module first and then fall back to the global scope.
+    //
     static const string prefix = "java:package:";
-    DefinitionContextPtr dc = unit->findDefinitionContext(file);
-    assert(dc);
-    string q = dc->findMetaData(prefix);
+
+    string q;
+    if(!m->findMetaData(prefix, q))
+    {
+        UnitPtr unit = cont->unit();
+        string file = cont->file();
+        assert(!file.empty());
+
+        DefinitionContextPtr dc = unit->findDefinitionContext(file);
+        assert(dc);
+        q = dc->findMetaData(prefix);
+    }
+
     if(!q.empty())
     {
         q = q.substr(prefix.size());
     }
-    _filePackagePrefix[file] = q;
+
     return q;
 }
 
@@ -3405,6 +3486,16 @@ Slice::JavaGenerator::getPackage(const ContainedPtr& cont) const
     }
 
     return scope;
+}
+
+string
+Slice::JavaGenerator::getAbsolute(const std::string& type, const std::string& package) const
+{
+    if(type.find(".") != string::npos && type.find(package) == 0 && type.find(".", package.size() + 1) == string::npos)
+    {
+        return type.substr(package.size() + 1);
+    }
+    return type;
 }
 
 string
@@ -3443,11 +3534,11 @@ Slice::JavaGenerator::getStaticId(const TypePtr& type, const string& package) co
 
     if(b && b->kind() == Builtin::KindObject)
     {
-        return "com.zeroc.Ice.Object.ice_staticId()";
+        return getAbsolute("com.zeroc.Ice.Object", package) + ".ice_staticId()";
     }
     else if(b && b->kind() == Builtin::KindValue)
     {
-        return "com.zeroc.Ice.Value.ice_staticId()";
+        return getAbsolute("com.zeroc.Ice.Value", package) + ".ice_staticId()";
     }
     else
     {
@@ -3578,26 +3669,12 @@ Slice::JavaGenerator::typeToString(const TypePtr& type,
         "float",
         "double",
         "String",
-        "com.zeroc.Ice.Value",
-        "com.zeroc.Ice.ObjectPrx",
-        "java.lang.Object",
-        "com.zeroc.Ice.Value"
-    };
-    static const char* builtinLocalTable[] =
-    {
-        "byte",
-        "boolean",
-        "short",
-        "int",
-        "long",
-        "float",
-        "double",
-        "String",
         "com.zeroc.Ice.Object",
         "com.zeroc.Ice.ObjectPrx",
         "java.lang.Object",
         "com.zeroc.Ice.Value"
     };
+
     static const char* builtinOptionalTable[] =
     {
         "java.util.Optional<java.lang.Byte>",
@@ -3649,7 +3726,7 @@ Slice::JavaGenerator::typeToString(const TypePtr& type,
                 case Builtin::KindFloat:
                 case Builtin::KindDouble:
                 {
-                    return builtinOptionalTable[builtin->kind()];
+                    return getAbsolute(builtinOptionalTable[builtin->kind()], package);
                 }
                 case Builtin::KindString:
                 case Builtin::KindObject:
@@ -3663,7 +3740,14 @@ Slice::JavaGenerator::typeToString(const TypePtr& type,
         }
         else
         {
-            return local ? builtinLocalTable[builtin->kind()] : builtinTable[builtin->kind()];
+            if(!local && builtin->kind() == Builtin::KindObject)
+            {
+                return getAbsolute(builtinTable[Builtin::KindValue], package);
+            }
+            else
+            {
+                return getAbsolute(builtinTable[builtin->kind()], package);
+            }
         }
     }
 
@@ -3678,7 +3762,7 @@ Slice::JavaGenerator::typeToString(const TypePtr& type,
     {
         if(cl->isInterface() && !local)
         {
-            return "com.zeroc.Ice.Value";
+            return getAbsolute("com.zeroc.Ice.Value", package);
         }
         else
         {
@@ -3697,7 +3781,7 @@ Slice::JavaGenerator::typeToString(const TypePtr& type,
         }
         else
         {
-            return "com.zeroc.Ice.ObjectPrx";
+            return getAbsolute("com.zeroc.Ice.ObjectPrx", package);
         }
     }
 

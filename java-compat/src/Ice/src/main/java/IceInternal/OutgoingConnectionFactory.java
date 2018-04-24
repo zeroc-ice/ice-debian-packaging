@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -8,6 +8,8 @@
 // **********************************************************************
 
 package IceInternal;
+
+import java.util.concurrent.Callable;
 
 public final class OutgoingConnectionFactory
 {
@@ -199,56 +201,79 @@ public final class OutgoingConnectionFactory
             return;
         }
 
-        ConnectCallback cb = new ConnectCallback(this, endpoints, hasMore, callback, selType);
-        cb.getConnectors();
+        final ConnectCallback cb = new ConnectCallback(this, endpoints, hasMore, callback, selType);
+        //
+        // Calling cb.getConnectors() can eventually result in a call to connect() on a socket, which is not
+        // allowed while in Android's main thread (with a dispatcher installed).
+        //
+        if(_instance.queueRequests())
+        {
+            _instance.getQueueExecutor().executeNoThrow(new Callable<Void>()
+            {
+                @Override
+                public Void call()
+                    throws Exception
+                {
+                    cb.getConnectors();
+                    return null;
+                }
+            });
+        }
+        else
+        {
+            cb.getConnectors();
+        }
     }
 
-    public synchronized void
+    public void
     setRouterInfo(IceInternal.RouterInfo routerInfo)
     {
-        if(_destroyed)
-        {
-            throw new Ice.CommunicatorDestroyedException();
-        }
-
         assert(routerInfo != null);
-
-        //
-        // Search for connections to the router's client proxy
-        // endpoints, and update the object adapter for such
-        // connections, so that callbacks from the router can be
-        // received over such connections.
-        //
         Ice.ObjectAdapter adapter = routerInfo.getAdapter();
-        DefaultsAndOverrides defaultsAndOverrides = _instance.defaultsAndOverrides();
-        for(EndpointI endpoint : routerInfo.getClientEndpoints())
+        EndpointI[] endpoints = routerInfo.getClientEndpoints(); // Must be called outside the synchronization
+        synchronized(this)
         {
-            //
-            // Modify endpoints with overrides.
-            //
-            if(defaultsAndOverrides.overrideTimeout)
+            if(_destroyed)
             {
-                endpoint = endpoint.timeout(defaultsAndOverrides.overrideTimeoutValue);
+                throw new Ice.CommunicatorDestroyedException();
             }
 
             //
-            // The Connection object does not take the compression flag of
-            // endpoints into account, but instead gets the information
-            // about whether messages should be compressed or not from
-            // other sources. In order to allow connection sharing for
-            // endpoints that differ in the value of the compression flag
-            // only, we always set the compression flag to false here in
-            // this connection factory.
+            // Search for connections to the router's client proxy
+            // endpoints, and update the object adapter for such
+            // connections, so that callbacks from the router can be
+            // received over such connections.
             //
-            endpoint = endpoint.compress(false);
-
-            for(java.util.List<Ice.ConnectionI> connectionList : _connections.values())
+            DefaultsAndOverrides defaultsAndOverrides = _instance.defaultsAndOverrides();
+            for(EndpointI endpoint : endpoints)
             {
-                for(Ice.ConnectionI connection : connectionList)
+                //
+                // Modify endpoints with overrides.
+                //
+                if(defaultsAndOverrides.overrideTimeout)
                 {
-                    if(connection.endpoint() == endpoint)
+                    endpoint = endpoint.timeout(defaultsAndOverrides.overrideTimeoutValue);
+                }
+
+                //
+                // The Connection object does not take the compression flag of
+                // endpoints into account, but instead gets the information
+                // about whether messages should be compressed or not from
+                // other sources. In order to allow connection sharing for
+                // endpoints that differ in the value of the compression flag
+                // only, we always set the compression flag to false here in
+                // this connection factory.
+                //
+                endpoint = endpoint.compress(false);
+
+                for(java.util.List<Ice.ConnectionI> connectionList : _connections.values())
+                {
+                    for(Ice.ConnectionI connection : connectionList)
                     {
-                        connection.setAdapter(adapter);
+                        if(connection.endpoint() == endpoint)
+                        {
+                            connection.setAdapter(adapter);
+                        }
                     }
                 }
             }
@@ -321,6 +346,7 @@ public final class OutgoingConnectionFactory
         _destroyed = false;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected synchronized void
     finalize()

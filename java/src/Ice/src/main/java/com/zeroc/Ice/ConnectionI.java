@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -607,6 +607,10 @@ public final class ConnectionI extends com.zeroc.IceInternal.EventHandler
     synchronized public void setACM(java.util.OptionalInt timeout, java.util.Optional<ACMClose> close,
             java.util.Optional<ACMHeartbeat> heartbeat)
     {
+        if(timeout != null && timeout.isPresent() && timeout.getAsInt() < 0)
+        {
+            throw new IllegalArgumentException("invalid negative ACM timeout value");
+        }
         if(_monitor == null || _state >= StateClosed)
         {
             return;
@@ -874,24 +878,23 @@ public final class ConnectionI extends com.zeroc.IceInternal.EventHandler
     @Override
     public synchronized void setAdapter(ObjectAdapter adapter)
     {
-        if(_state <= StateNotValidated || _state >= StateClosing)
+        if(adapter != null)
         {
-            return;
-        }
-
-        _adapter = adapter;
-
-        if(_adapter != null)
-        {
-            _servantManager = ((ObjectAdapterI) _adapter).getServantManager();
-            if(_servantManager == null)
-            {
-                _adapter = null;
-            }
+            // Go through the adapter to set the adapter and servant manager on this connection
+            // to ensure the object adapter is still active.
+            ((ObjectAdapterI)adapter).setAdapterOnConnection(this);
         }
         else
         {
-            _servantManager = null;
+            synchronized(this)
+            {
+                if(_state <= StateNotValidated || _state >= StateClosing)
+                {
+                    return;
+                }
+                _adapter = null;
+                _servantManager = null;
+            }
         }
 
         //
@@ -922,6 +925,18 @@ public final class ConnectionI extends com.zeroc.IceInternal.EventHandler
         // reference.
         //
         return _instance.proxyFactory().referenceToProxy(_instance.referenceFactory().create(ident, this));
+    }
+
+    public synchronized void setAdapterAndServantManager(ObjectAdapter adapter,
+                                                         com.zeroc.IceInternal.ServantManager servantManager)
+    {
+        if(_state <= StateNotValidated || _state >= StateClosing)
+        {
+            return;
+        }
+        assert(adapter != null); // Called by ObjectAdapterI::setAdapterOnConnection
+        _adapter = adapter;
+        _servantManager = servantManager;
     }
 
     //
@@ -1714,6 +1729,7 @@ public final class ConnectionI extends com.zeroc.IceInternal.EventHandler
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected synchronized void finalize() throws Throwable
     {

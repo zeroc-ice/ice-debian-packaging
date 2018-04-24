@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -21,7 +21,7 @@ class _ModuleRegistry
 {
     static module(name)
     {
-        var m = root[name];
+        let m = root[name];
         if(m === undefined)
         {
             m = {};
@@ -41,10 +41,10 @@ class _ModuleRegistry
         {
             return undefined;
         }
-        var components = scoped.split(".");
-        var T = root;
+        const components = scoped.split(".");
+        let T = root;
 
-        for(var i = 0, length = components.length; i < length; ++i)
+        for(let i = 0, length = components.length; i < length; ++i)
         {
             T = T[components[i]];
             if(T === undefined)

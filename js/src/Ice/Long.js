@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -34,8 +34,8 @@ class Long
 
         if(low === undefined)
         {
-            this.low = high % Long.HIGH_MASK;
-            this.high = Math.floor(high / Long.HIGH_MASK);
+            this.low = high >>> 0;
+            this.high = ((high - this.low) / Long.HIGH_MASK) >>> 0;
         }
         else
         {
