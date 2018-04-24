@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -135,9 +135,13 @@ public:
         return 0;
     }
 
-    virtual ObjectPrx getServerProxy(const Current&) const
+    virtual ObjectPrx getServerProxy(const Current& current) const
     {
-        return 0;
+        //
+        // We return a non-nil dummy proxy here so that a client is able to configure its
+        // callback object adapter with a router proxy.
+        //
+        return current.adapter->getCommunicator()->stringToProxy("dummy");
     }
 
     virtual ObjectProxySeq addProxies(const ObjectProxySeq&, const Current&)

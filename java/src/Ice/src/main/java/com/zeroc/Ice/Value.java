@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -45,7 +45,7 @@ public abstract class Value implements java.lang.Cloneable, java.io.Serializable
     }
 
     /**
-     * The Ice run time invokes this method vafter unmarshaling an object's data members. This allows a
+     * The Ice run time invokes this method after unmarshaling an object's data members. This allows a
      * subclass to override this method in order to perform additional initialization.
      **/
     public void ice_postUnmarshal()

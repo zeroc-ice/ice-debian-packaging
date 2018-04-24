@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -320,7 +320,7 @@ public class InputStream
     }
 
     /**
-     * Sets the value factory manager to use when marshaling value instances. If the stream
+     * Sets the value factory manager to use when unmarshaling value instances. If the stream
      * was initialized with a communicator, the communicator's value factory manager will
      * be used by default.
      *
@@ -494,7 +494,7 @@ public class InputStream
     public void resize(int sz)
     {
         _buf.resize(sz, true);
-        _buf.b.position(sz);
+        _buf.position(sz);
     }
 
     public Buffer getBuffer()
@@ -592,7 +592,7 @@ public class InputStream
     }
 
     /**
-     * Ends the previous encapsulation.
+     * Ends the current encapsulation.
      **/
     public void endEncapsulation()
     {
@@ -669,7 +669,7 @@ public class InputStream
             // Skip the optional content of the encapsulation if we are expecting an
             // empty encapsulation.
             //
-            _buf.b.position(_buf.b.position() + sz - 6);
+            _buf.position(_buf.b.position() + sz - 6);
         }
         return encoding;
     }
@@ -679,7 +679,7 @@ public class InputStream
      * is returned in the argument.
      *
      * @param encoding The encapsulation's encoding version.
-     * @return The encoded encapuslation.
+     * @return The encoded encapsulation.
      **/
     public byte[] readEncapsulation(EncodingVersion encoding)
     {
@@ -697,11 +697,11 @@ public class InputStream
         if(encoding != null)
         {
             encoding.ice_readMembers(this);
-            _buf.b.position(_buf.b.position() - 6);
+            _buf.position(_buf.b.position() - 6);
         }
         else
         {
-            _buf.b.position(_buf.b.position() - 4);
+            _buf.position(_buf.b.position() - 4);
         }
 
         byte[] v = new byte[sz];
@@ -752,7 +752,7 @@ public class InputStream
         EncodingVersion encoding = EncodingVersion.ice_read(this);
         try
         {
-            _buf.b.position(_buf.b.position() + sz - 6);
+            _buf.position(_buf.b.position() + sz - 6);
         }
         catch(IllegalArgumentException ex)
         {
@@ -1030,8 +1030,10 @@ public class InputStream
         {
             final int sz = readAndCheckSeqSize(1);
             java.nio.ByteBuffer v = _buf.b.slice();
-            v.limit(sz);
-            _buf.b.position(_buf.b.position() + sz);
+            // Cast to java.nio.Buffer to avoid incompatible covariant
+            // return type used in Java 9 java.nio.ByteBuffer
+            ((java.nio.Buffer)v).limit(sz);
+            _buf.position(_buf.b.position() + sz);
             return v.asReadOnlyBuffer();
         }
         catch(java.nio.BufferUnderflowException ex)
@@ -1229,7 +1231,7 @@ public class InputStream
             short[] v = new short[sz];
             java.nio.ShortBuffer shortBuf = _buf.b.asShortBuffer();
             shortBuf.get(v);
-            _buf.b.position(_buf.b.position() + sz * 2);
+            _buf.position(_buf.b.position() + sz * 2);
             return v;
         }
         catch(java.nio.BufferUnderflowException ex)
@@ -1269,8 +1271,10 @@ public class InputStream
             final int sz = readAndCheckSeqSize(2);
             java.nio.ShortBuffer shortBuf = _buf.b.asShortBuffer();
             java.nio.ShortBuffer v = shortBuf.slice();
-            v.limit(sz);
-            _buf.b.position(_buf.b.position() + sz * 2);
+            // Cast to java.nio.Buffer to avoid incompatible covariant
+            // return type used in Java 9 java.nio.ShortBuffer
+            ((java.nio.Buffer)v).limit(sz);
+            _buf.position(_buf.b.position() + sz * 2);
             return v.asReadOnlyBuffer();
         }
         catch(java.nio.BufferUnderflowException ex)
@@ -1327,7 +1331,7 @@ public class InputStream
             int[] v = new int[sz];
             java.nio.IntBuffer intBuf = _buf.b.asIntBuffer();
             intBuf.get(v);
-            _buf.b.position(_buf.b.position() + sz * 4);
+            _buf.position(_buf.b.position() + sz * 4);
             return v;
         }
         catch(java.nio.BufferUnderflowException ex)
@@ -1367,8 +1371,10 @@ public class InputStream
             final int sz = readAndCheckSeqSize(4);
             java.nio.IntBuffer intBuf = _buf.b.asIntBuffer();
             java.nio.IntBuffer v = intBuf.slice();
-            v.limit(sz);
-            _buf.b.position(_buf.b.position() + sz * 4);
+            // Cast to java.nio.Buffer to avoid incompatible covariant
+            // return type used in Java 9 java.nio.IntBuffer
+            ((java.nio.Buffer)v).limit(sz);
+            _buf.position(_buf.b.position() + sz * 4);
             return v.asReadOnlyBuffer();
         }
         catch(java.nio.BufferUnderflowException ex)
@@ -1425,7 +1431,7 @@ public class InputStream
             long[] v = new long[sz];
             java.nio.LongBuffer longBuf = _buf.b.asLongBuffer();
             longBuf.get(v);
-            _buf.b.position(_buf.b.position() + sz * 8);
+            _buf.position(_buf.b.position() + sz * 8);
             return v;
         }
         catch(java.nio.BufferUnderflowException ex)
@@ -1465,8 +1471,10 @@ public class InputStream
             final int sz = readAndCheckSeqSize(8);
             java.nio.LongBuffer longBuf = _buf.b.asLongBuffer();
             java.nio.LongBuffer v = longBuf.slice();
-            v.limit(sz);
-            _buf.b.position(_buf.b.position() + sz * 8);
+            // Cast to java.nio.Buffer to avoid incompatible covariant
+            // return type used in Java 9 java.nio.LongBuffer
+            ((java.nio.Buffer)v).limit(sz);
+            _buf.position(_buf.b.position() + sz * 8);
             return v.asReadOnlyBuffer();
         }
         catch(java.nio.BufferUnderflowException ex)
@@ -1523,7 +1531,7 @@ public class InputStream
             float[] v = new float[sz];
             java.nio.FloatBuffer floatBuf = _buf.b.asFloatBuffer();
             floatBuf.get(v);
-            _buf.b.position(_buf.b.position() + sz * 4);
+            _buf.position(_buf.b.position() + sz * 4);
             return v;
         }
         catch(java.nio.BufferUnderflowException ex)
@@ -1563,8 +1571,10 @@ public class InputStream
             final int sz = readAndCheckSeqSize(4);
             java.nio.FloatBuffer floatBuf = _buf.b.asFloatBuffer();
             java.nio.FloatBuffer v = floatBuf.slice();
-            v.limit(sz);
-            _buf.b.position(_buf.b.position() + sz * 4);
+            // Cast to java.nio.Buffer to avoid incompatible covariant
+            // return type used in Java 9 java.nio.FloatBuffer
+            ((java.nio.Buffer)v).limit(sz);
+            _buf.position(_buf.b.position() + sz * 4);
             return v.asReadOnlyBuffer();
         }
         catch(java.nio.BufferUnderflowException ex)
@@ -1621,7 +1631,7 @@ public class InputStream
             double[] v = new double[sz];
             java.nio.DoubleBuffer doubleBuf = _buf.b.asDoubleBuffer();
             doubleBuf.get(v);
-            _buf.b.position(_buf.b.position() + sz * 8);
+            _buf.position(_buf.b.position() + sz * 8);
             return v;
         }
         catch(java.nio.BufferUnderflowException ex)
@@ -1661,8 +1671,10 @@ public class InputStream
             final int sz = readAndCheckSeqSize(8);
             java.nio.DoubleBuffer doubleBuf = _buf.b.asDoubleBuffer();
             java.nio.DoubleBuffer v = doubleBuf.slice();
-            v.limit(sz);
-            _buf.b.position(_buf.b.position() + sz * 8);
+            // Cast to java.nio.Buffer to avoid incompatible covariant
+            // return type used in Java 9 java.nio.DoubleBuffer
+            ((java.nio.Buffer)v).limit(sz);
+            _buf.position(_buf.b.position() + sz * 8);
             return v.asReadOnlyBuffer();
         }
         catch(java.nio.BufferUnderflowException ex)
@@ -2041,7 +2053,7 @@ public class InputStream
             final int v = b < 0 ? b + 256 : b;
             if(v == Protocol.OPTIONAL_END_MARKER)
             {
-                _buf.b.position(_buf.b.position() - 1); // Rewind.
+                _buf.position(_buf.b.position() - 1); // Rewind.
                 return false;
             }
 
@@ -2055,7 +2067,7 @@ public class InputStream
             if(tag > readTag)
             {
                 int offset = tag < 30 ? 1 : (tag < 255 ? 2 : 6); // Rewind
-                _buf.b.position(_buf.b.position() - offset);
+                _buf.position(_buf.b.position() - offset);
                 return false; // No optional data members with the requested tag.
             }
             else if(tag < readTag)
@@ -2159,7 +2171,7 @@ public class InputStream
         {
             throw new UnmarshalOutOfBoundsException();
         }
-        _buf.b.position(_buf.b.position() + size);
+        _buf.position(_buf.b.position() + size);
     }
 
     /**
@@ -2191,7 +2203,7 @@ public class InputStream
      **/
     public void pos(int n)
     {
-        _buf.b.position(n);
+        _buf.position(n);
     }
 
     /**
@@ -2225,7 +2237,7 @@ public class InputStream
                 Class<?> c = _classResolver.apply(id);
                 if(c != null)
                 {
-                    userEx = (UserException)c.newInstance();
+                    userEx = (UserException)c.getDeclaredConstructor().newInstance();
                 }
             }
         }
@@ -2372,7 +2384,7 @@ public class InputStream
                 {
                     try
                     {
-                        v = (Value)cls.newInstance();
+                        v = (Value)cls.getDeclaredConstructor().newInstance();
                     }
                     catch(java.lang.Exception ex)
                     {
@@ -3135,8 +3147,8 @@ public class InputStream
             info.compactId = _current.compactId;
             info.hasOptionalMembers = (_current.sliceFlags & Protocol.FLAG_HAS_OPTIONAL_MEMBERS) != 0;
             info.isLastSlice = (_current.sliceFlags & Protocol.FLAG_IS_LAST_SLICE) != 0;
-            java.nio.ByteBuffer b = _stream.getBuffer().b;
-            final int end = b.position();
+            Buffer buffer = _stream.getBuffer();
+            final int end = buffer.b.position();
             int dataEnd = end;
             if(info.hasOptionalMembers)
             {
@@ -3147,9 +3159,9 @@ public class InputStream
                 --dataEnd;
             }
             info.bytes = new byte[dataEnd - start];
-            b.position(start);
-            b.get(info.bytes);
-            b.position(end);
+            buffer.position(start);
+            buffer.b.get(info.bytes);
+            buffer.position(end);
 
             if(_current.slices == null) // Lazy initialization
             {
@@ -3250,7 +3262,7 @@ public class InputStream
                         {
                             try
                             {
-                                v = (Value)cls.newInstance();
+                                v = (Value)cls.getDeclaredConstructor().newInstance();
                                 updateCache = false;
                             }
                             catch(java.lang.Exception ex)

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -187,11 +187,22 @@ IceBT::EndpointI::acceptor(const string& adapterName) const
 vector<IceInternal::EndpointIPtr>
 IceBT::EndpointI::expandIfWildcard() const
 {
-    //
-    // Nothing to do here.
-    //
     vector<IceInternal::EndpointIPtr> endps;
-    endps.push_back(ICE_SHARED_FROM_CONST_THIS(EndpointI));
+
+    if(_addr.empty())
+    {
+        //
+        // getDefaultAdapterAddress will raise BluetoothException if no adapter is present.
+        //
+        string addr = _instance->engine()->getDefaultAdapterAddress();
+        endps.push_back(ICE_MAKE_SHARED(EndpointI, _instance, addr, _uuid, _name, _channel, _timeout, _connectionId,
+                                        _compress));
+    }
+    else
+    {
+        endps.push_back(ICE_SHARED_FROM_CONST_THIS(EndpointI));
+    }
+
     return endps;
 }
 
@@ -428,7 +439,7 @@ IceBT::EndpointI::options() const
 }
 
 Ice::EndpointInfoPtr
-IceBT::EndpointI::getInfo() const
+IceBT::EndpointI::getInfo() const ICE_NOEXCEPT
 {
     EndpointInfoPtr info = ICE_MAKE_SHARED(EndpointInfoI, ICE_SHARED_FROM_CONST_THIS(EndpointI));
     info->addr = _addr;
@@ -445,21 +456,16 @@ IceBT::EndpointI::initWithOptions(vector<string>& args, bool oaEndpoint)
     {
         const_cast<string&>(_addr) = _instance->defaultHost();
     }
-
-    if(_addr.empty() || _addr == "*")
+    else if(_addr == "*")
     {
         if(oaEndpoint)
         {
-            //
-            // getDefaultAdapterAddress can throw BluetoothException.
-            //
-            const_cast<string&>(_addr) = _instance->engine()->getDefaultAdapterAddress();
+            const_cast<string&>(_addr) = string();
         }
         else
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "a device address must be specified using the -a option or Ice.Default.Host";
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__,
+                                         "`-a *' not valid for proxy endpoint `" + toString() + "'");
         }
     }
 
@@ -479,9 +485,7 @@ IceBT::EndpointI::initWithOptions(vector<string>& args, bool oaEndpoint)
         }
         else
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "a UUID must be specified using the -u option";
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__, "a UUID must be specified using the -u option");
         }
     }
 
@@ -492,9 +496,7 @@ IceBT::EndpointI::initWithOptions(vector<string>& args, bool oaEndpoint)
 
     if(!oaEndpoint && _channel != 0)
     {
-        EndpointParseException ex(__FILE__, __LINE__);
-        ex.str = "the -c option can only be used for object adapter endpoints";
-        throw ex;
+        throw EndpointParseException(__FILE__, __LINE__, "the -c option can only be used for object adapter endpoints");
     }
 
     hashInit();
@@ -527,15 +529,13 @@ IceBT::EndpointI::checkOption(const string& option, const string& argument, cons
     {
         if(arg.empty())
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "no argument provided for -a option in endpoint " + endpoint;
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__, "no argument provided for -a option in endpoint " +
+                                         endpoint);
         }
         if(arg != "*" && !isValidDeviceAddress(arg))
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "invalid argument provided for -a option in endpoint " + endpoint;
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__, "invalid argument provided for -a option in endpoint " +
+                                         endpoint);
         }
         const_cast<string&>(_addr) = arg;
     }
@@ -543,9 +543,8 @@ IceBT::EndpointI::checkOption(const string& option, const string& argument, cons
     {
         if(arg.empty())
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "no argument provided for -u option in endpoint " + endpoint;
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__, "no argument provided for -u option in endpoint " +
+                                         endpoint);
         }
         const_cast<string&>(_uuid) = arg;
     }
@@ -553,26 +552,23 @@ IceBT::EndpointI::checkOption(const string& option, const string& argument, cons
     {
         if(arg.empty())
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "no argument provided for -c option in endpoint " + endpoint;
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__, "no argument provided for -c option in endpoint " +
+                                         endpoint);
         }
 
         istringstream t(argument);
         if(!(t >> const_cast<Int&>(_channel)) || !t.eof() || _channel < 0 || _channel > 30)
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "invalid channel value `" + arg + "' in endpoint " + endpoint;
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__, "invalid channel value `" + arg + "' in endpoint " +
+                                         endpoint);
         }
     }
     else if(option == "-t")
     {
         if(arg.empty())
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "no argument provided for -t option in endpoint " + endpoint;
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__, "no argument provided for -t option in endpoint " +
+                                         endpoint);
         }
 
         if(arg == "infinite")
@@ -584,9 +580,8 @@ IceBT::EndpointI::checkOption(const string& option, const string& argument, cons
             istringstream t(argument);
             if(!(t >> const_cast<Int&>(_timeout)) || !t.eof() || _timeout < 1)
             {
-                EndpointParseException ex(__FILE__, __LINE__);
-                ex.str = "invalid timeout value `" + arg + "' in endpoint " + endpoint;
-                throw ex;
+                throw EndpointParseException(__FILE__, __LINE__, "invalid timeout value `" + arg + "' in endpoint " +
+                                             endpoint);
             }
         }
     }
@@ -594,9 +589,8 @@ IceBT::EndpointI::checkOption(const string& option, const string& argument, cons
     {
         if(!arg.empty())
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "unexpected argument `" + arg + "' provided for -z option in " + endpoint;
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__, "unexpected argument `" + arg +
+                                         "' provided for -z option in " + endpoint);
         }
         const_cast<bool&>(_compress) = true;
     }
@@ -604,9 +598,8 @@ IceBT::EndpointI::checkOption(const string& option, const string& argument, cons
     {
         if(arg.empty())
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "no argument provided for --name option in endpoint " + endpoint;
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__, "no argument provided for --name option in endpoint " +
+                                         endpoint);
         }
         const_cast<string&>(_name) = arg;
     }
@@ -626,19 +619,19 @@ IceBT::EndpointInfoI::~EndpointInfoI()
 }
 
 Ice::Short
-IceBT::EndpointInfoI::type() const
+IceBT::EndpointInfoI::type() const ICE_NOEXCEPT
 {
     return _endpoint->type();
 }
 
 bool
-IceBT::EndpointInfoI::datagram() const
+IceBT::EndpointInfoI::datagram() const ICE_NOEXCEPT
 {
     return _endpoint->datagram();
 }
 
 bool
-IceBT::EndpointInfoI::secure() const
+IceBT::EndpointInfoI::secure() const ICE_NOEXCEPT
 {
     return _endpoint->secure();
 }

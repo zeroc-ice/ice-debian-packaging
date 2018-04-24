@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -30,7 +30,7 @@
     [super dealloc];
 }
 #endif
--(void) schedule:(void(^)())callback timeout:(ICEInt)t
+-(void) schedule:(void(^)(void))callback timeout:(ICEInt)t
 {
     dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
     dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, t * NSEC_PER_MSEC), DISPATCH_TIME_FOREVER, 0);

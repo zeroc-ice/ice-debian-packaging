@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -1225,10 +1225,12 @@ namespace IceInternal
                 _initData.observer.setObserverUpdater(null);
             }
 
-            LoggerAdminLogger logger = _initData.logger as LoggerAdminLogger;
-            if(logger != null)
             {
-                logger.destroy();
+                LoggerAdminLogger logger = _initData.logger as LoggerAdminLogger;
+                if(logger != null)
+                {
+                    logger.destroy();
+                }
             }
 
             //
@@ -1349,6 +1351,14 @@ namespace IceInternal
 
                 _state = StateDestroyed;
                 Monitor.PulseAll(this);
+            }
+
+            {
+                Ice.FileLoggerI logger = _initData.logger as Ice.FileLoggerI;
+                if(logger != null)
+                {
+                    logger.destroy();
+                }
             }
         }
 

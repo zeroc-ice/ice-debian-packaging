@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -36,6 +36,9 @@ class MyDerivedClassI(Test.MyDerivedClass):
 
     def shutdown(self, current=None):
         current.adapter.getCommunicator().shutdown()
+
+    def supportsCompress(self, current=None):
+        return True
 
     def opVoid(self, current=None):
         test(current.mode == Ice.OperationMode.Normal)

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -90,9 +90,9 @@ InternalRegistryI::registerNode(const InternalNodeInfoPtr& info,
                 throw PermissionDeniedException("node certificate is required to connect to this registry");
             }
         }
-        catch(const PermissionDeniedException& ex)
+        catch(const PermissionDeniedException&)
         {
-            throw ex;
+            throw;
         }
         catch(const IceUtil::Exception&)
         {
@@ -157,9 +157,9 @@ InternalRegistryI::registerReplica(const InternalReplicaInfoPtr& info,
                 throw PermissionDeniedException("replica certificate is required to connect to this registry");
             }
         }
-        catch(const PermissionDeniedException& ex)
+        catch(const PermissionDeniedException&)
         {
-            throw ex;
+            throw;
         }
         catch(const IceUtil::Exception&)
         {

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -127,7 +127,7 @@ IceInternal::WSEndpoint::WSEndpoint(const ProtocolInstancePtr& instance, const E
 }
 
 EndpointInfoPtr
-IceInternal::WSEndpoint::getInfo() const
+IceInternal::WSEndpoint::getInfo() const ICE_NOEXCEPT
 {
     WSEndpointInfoPtr info = ICE_MAKE_SHARED(InfoI<WSEndpointInfo>, ICE_SHARED_FROM_CONST_THIS(WSEndpoint));
     info->underlying = _delegate->getInfo();
@@ -475,9 +475,8 @@ IceInternal::WSEndpoint::checkOption(const string& option, const string& argumen
     {
         if(argument.empty())
         {
-            EndpointParseException ex(__FILE__, __LINE__);
-            ex.str = "no argument provided for -r option in endpoint " + endpoint + _delegate->options();
-            throw ex;
+            throw EndpointParseException(__FILE__, __LINE__, "no argument provided for -r option in endpoint " +
+                                         endpoint + _delegate->options());
         }
         const_cast<string&>(_resource) = argument;
         return true;

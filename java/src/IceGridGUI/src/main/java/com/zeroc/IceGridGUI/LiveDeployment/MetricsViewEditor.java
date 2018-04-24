@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -247,7 +247,7 @@ public class MetricsViewEditor extends Editor implements MetricsFieldContext
     synchronized static void startRefresh(final MetricsView node)
     {
         assert(_refreshFuture == null);
-        _refreshFuture = node.getCoordinator().getExecutor().scheduleAtFixedRate(() ->
+        _refreshFuture = node.getCoordinator().getScheduledExecutor().scheduleAtFixedRate(() ->
             {
                 node.fetchMetricsView();
             }, 0, _refreshPeriod, java.util.concurrent.TimeUnit.SECONDS);

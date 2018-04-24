@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -121,7 +121,7 @@ final class UdpMulticastServerTransceiver implements Transceiver
         {
             Buffer rb = _buffers.removeFirst();
             buf.swap(rb);
-            buf.b.position(buf.b.limit());
+            buf.position(buf.b.limit());
             buf.resize(buf.b.limit(), true);
 
             if(rb.b.hasArray())
@@ -357,6 +357,7 @@ final class UdpMulticastServerTransceiver implements Transceiver
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected synchronized void finalize()
         throws Throwable
@@ -446,7 +447,7 @@ final class UdpMulticastServerTransceiver implements Transceiver
 
                 if(p.getLength() > 0)
                 {
-                    buf.b.limit(p.getLength());
+                    buf.limit(p.getLength());
 
                     synchronized(this)
                     {

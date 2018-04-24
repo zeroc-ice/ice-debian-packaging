@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -92,6 +92,11 @@ interface ProcessController
         throws ProcessFailedException;
 
     string getHost(string protocol, bool ipv6);
+}
+
+interface BrowserProcessController extends ProcessController
+{
+    void redirect(string url);
 }
 
 interface ProcessControllerRegistry

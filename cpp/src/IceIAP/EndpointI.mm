@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -131,7 +131,7 @@ IceObjC::iAPEndpointI::streamWriteImpl(OutputStream* s) const
 }
 
 EndpointInfoPtr
-IceObjC::iAPEndpointI::getInfo() const
+IceObjC::iAPEndpointI::getInfo() const ICE_NOEXCEPT
 {
     IceIAP::EndpointInfoPtr info = ICE_MAKE_SHARED(InfoI<IceIAP::EndpointInfo>, ICE_SHARED_FROM_CONST_THIS(iAPEndpointI));
     info->timeout = _timeout;

@@ -18,7 +18,7 @@ include /usr/share/dpkg/default.mk
 export JAVA_HOME=/usr/lib/jvm/default-java/
 
 export GRADLE		= gradle
-export GRADLEOPTS	= --gradle-user-home $(CURDIR)/.gradle \
+export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
 			  --info \
 			  --console plain \
 			  --offline \
@@ -116,10 +116,6 @@ override_dh_auto_clean-arch:
 	for v in $(PYTHON_VERSIONS); do \
 	  rm -rf python-$${v}; \
 	done
-	#
-	# This files are left behind by 3.7.0 see ICE-8759
-	#
-	rm -f cpp/test/Slice/errorDetection/tmp/*
 
 override_dh_auto_clean-indep:
 	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) LANGUAGES=cpp distclean
@@ -153,9 +149,9 @@ override_dh_systemd_start:
 	dh_systemd_start --no-start
 
 override_dh_systemd_enable:
-	dh_systemd_enable --name icegridregistry
-	dh_systemd_enable --name icegridnode
-	dh_systemd_enable --name glacier2router
+	dh_systemd_enable --name icegridregistry --no-enable
+	dh_systemd_enable --name icegridnode --no-enable
+	dh_systemd_enable --name glacier2router --no-enable
 
 override_dh_install:
 	install -d -m 0755 $(DESTDIR)/usr/bin

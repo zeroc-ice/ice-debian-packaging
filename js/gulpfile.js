@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -26,8 +26,7 @@ var babel       = require("gulp-babel"),
     rollup      = require("rollup").rollup,
     sourcemaps  = require('gulp-sourcemaps'),
     spawn       = require("child_process").spawn,
-    uglify      = require('uglify-js'),
-    minifier    = require('gulp-uglify/minifier');
+    uglify      = require('gulp-uglifyes');
 
 var sliceDir   = path.resolve(__dirname, '..', 'slice');
 
@@ -52,29 +51,37 @@ function parseArg(argv, key)
 
 var platform = parseArg(process.argv, "--cppPlatform") || process.env.CPP_PLATFORM;
 var configuration = parseArg(process.argv, "--cppConfiguration") || process.env.CPP_CONFIGURATION;
+var host = parseArg(process.argv, "--host") || "127.0.0.1";
 
-function slice2js(options) {
+function slice2js(options)
+{
     var defaults = {};
     var opts = options || {};
-    if(!useBinDist && process.platform == "win32" && !opts.exe)
+    if(!useBinDist)
     {
-        if(!platform || (platform.toLowerCase() != "win32" && platform.toLowerCase() != "x64"))
+        if(process.platform == "win32")
         {
-            console.log("Error: --cppPlatform must be set to `Win32' or `x64', in order to locate slice2js.exe");
-            process.exit(1);
-        }
+            if(!platform || (platform.toLowerCase() != "win32" && platform.toLowerCase() != "x64"))
+            {
+                console.log("Error: --cppPlatform must be set to `Win32' or `x64', in order to locate slice2js.exe");
+                process.exit(1);
+            }
 
-        if(!configuration || (configuration.toLowerCase() != "debug" && configuration.toLowerCase() != "release"))
-        {
-            console.log("Error: --cppConfiguration must be set to `Debug' or `Release', in order to locate slice2js.exe");
-            process.exit(1);
+            if(!configuration || (configuration.toLowerCase() != "debug" && configuration.toLowerCase() != "release"))
+            {
+                console.log("Error: --cppConfiguration must be set to `Debug' or `Release', in order to locate slice2js.exe");
+                process.exit(1);
+            }
+            defaults.iceToolsPath = path.resolve("../cpp/bin", platform, configuration);
         }
+        defaults.iceHome = path.resolve("..");
     }
+    else if(process.env.ICE_HOME)
+    {
+        defaults.iceHome = process.env.ICE_HOME;
+    }
+    defaults.include = opts.include || [];
     defaults.args = opts.args || [];
-    defaults.dest = opts.dest;
-    defaults.exe = useBinDist ? undefined : (opts.exe || path.resolve(
-            path.join("../cpp/bin", process.platform == "win32" ? path.join(platform, configuration, "slice2js.exe") : "slice2js")));
-    defaults.args = defaults.args.concat(useBinDist ? [] : ["-I" + sliceDir]);
     return iceBuilder.compile(defaults);
 }
 
@@ -83,28 +90,25 @@ function slice2js(options) {
 //
 var tests = [
     "test/Ice/acm",
+    "test/Ice/adapterDeactivation",
     "test/Ice/ami",
     "test/Ice/binding",
     "test/Ice/defaultValue",
     "test/Ice/enums",
     "test/Ice/exceptions",
-    "test/Ice/exceptionsBidir",
     "test/Ice/facets",
-    "test/Ice/facetsBidir",
     "test/Ice/hold",
     "test/Ice/info",
     "test/Ice/inheritance",
-    "test/Ice/inheritanceBidir",
     "test/Ice/location",
     "test/Ice/objects",
     "test/Ice/operations",
-    "test/Ice/operationsBidir",
     "test/Ice/optional",
-    "test/Ice/optionalBidir",
     "test/Ice/promise",
     "test/Ice/properties",
     "test/Ice/proxy",
     "test/Ice/retry",
+    "test/Ice/servantLocator",
     "test/Ice/slicing/exceptions",
     "test/Ice/slicing/objects",
     "test/Ice/timeout",
@@ -127,16 +131,44 @@ gulp.task("common:slice-babel", ["common:slice"],
         pump([
             gulp.src(["test/Common/Controller.js",
                       "test/Common/ControllerI.js",
-                      "test/Common/ControllerWorker.js"]),
+                      "test/Common/ControllerWorker.js",
+                      "test/Common/TestRunner.js",
+                      "test/Common/TestSuite.js",
+                      "test/Common/Worker.js"]),
             babel({compact: false}),
             gulp.dest("test/es5/Common")], cb);
     });
+
+gulp.task("common:slice-es5-worker", ["common:slice-babel"],
+          function(cb){
+              pump([
+                  gulp.src(["node_modules/babel-polyfill/dist/polyfill.js",
+                            "test/es5/Common/Worker.js"]),
+                  concat("Worker.js"),
+                  gulp.dest("test/es5/Common/")
+              ], cb);
+          });
+
+gulp.task("common:slice-es5-controllerworker", ["common:slice-babel"],
+          function(cb){
+              pump([
+                  gulp.src(["node_modules/babel-polyfill/dist/polyfill.js",
+                            "test/es5/Common/ControllerWorker.js"]),
+                  concat("ControllerWorker.js"),
+                  gulp.dest("test/es5/Common/")
+              ], cb);
+          });
 
 gulp.task("common:clean", [],
     function(){
         del(["test/Common/Controller.js",
              "test/Common/.depend",
-             "test/es5/Common/Controller.js"]);
+             "test/es5/Common/Controller.js",
+             "test/es5/Common/ControllerI.js",
+             "test/es5/Common/ControllerWorker.js",
+             "test/es5/Common/TestRunner.js",
+             "test/es5/Common/TestSuite.js",
+             "test/es5/Common/Worker.js"]);
     });
 
 gulp.task("import:slice2js", [],
@@ -146,7 +178,7 @@ gulp.task("import:slice2js", [],
                       "test/Ice/import/Demo/Circle.ice",
                       "test/Ice/import/Demo/Square.ice",
                       "test/Ice/import/Demo/Canvas.ice"]),
-            slice2js({ dest: "test/Ice/import/Demo", args:["-Itest/Ice/import"]}),
+            slice2js({ dest: "test/Ice/import/Demo", include:["test/Ice/import"]}),
             gulp.dest("test/Ice/import/Demo")], cb);
     });
 
@@ -184,7 +216,7 @@ tests.forEach(
             function(cb){
                 pump([
                     gulp.src(path.join(name, "*.ice")),
-                    slice2js({ args: ["-I" + name], dest: name }),
+                    slice2js({ include: [name], dest: name }),
                     gulp.dest(name)], cb);
             });
 
@@ -213,7 +245,7 @@ tests.forEach(
     });
 
 gulp.task("test", tests.map(testBabelTask).concat(
-    ["common:slice-babel", "import:bundle"]));
+    ["common:slice-es5-worker", "common:slice-es5-controllerworker", "import:bundle"]));
 
 gulp.task("test:clean", tests.map(testBabelCleanTask).concat(["common:clean", "import:clean"]));
 
@@ -331,7 +363,7 @@ libs.forEach(
                     gulp.src(libFile(lib)),
                     newer(libFileMin(lib)),
                     sourcemaps.init({loadMaps: false}),
-                    minifier({compress:false}, uglify),
+                    uglify({compress:false}),
                     extreplace(".min.js"),
                     sourcemaps.write(".", {includeContent: false, addComment: false}),
                     gulp.dest("lib"),
@@ -366,7 +398,7 @@ libs.forEach(
                 pump([
                     gulp.src(babelLibFile(lib)),
                     newer(babelLibFileMin(lib)),
-                    minifier({compress:false}, uglify),
+                    uglify({compress:false}),
                     extreplace(".min.js"),
                     sourcemaps.write(".", {includeContent: false, addComment: false}),
                     gulp.dest("lib/es5"),
@@ -386,7 +418,13 @@ gulp.task("dist:clean", libs.map(libCleanTask));
 function runTestsWithBrowser(url)
 {
     require("./bin/HttpServer")();
-    var cmd = ["../scripts/Controller.py", "--endpoints", "ws -p 15002:wss -p 15003", "-d"];
+    var cmd = ["../scripts/Controller.py", "--endpoints", "ws -p 15002:wss -p 15003", "-d",
+               "--sprops=IceSSL.VerifyPeer=0"];
+    if(host)
+    {
+        cmd.push("--host");
+        cmd.push(host);
+    }
     if(platform)
     {
         cmd.push("--platform=" + platform);
@@ -431,12 +469,12 @@ function runTestsWithBrowser(url)
 
 gulp.task("test:browser", useBinDist ? ["test"] : ["build"],
     function(url){
-        return runTestsWithBrowser("http://127.0.0.1:8080/test/Ice/acm/index.html");
+        return runTestsWithBrowser("http://" + host +":8080/test/Ice/acm/index.html");
     });
 
 gulp.task("test:browser-es5", useBinDist ? ["test"] : ["build"],
     function(url){
-        return runTestsWithBrowser("http://127.0.0.1:8080/test/es5/Ice/acm/index.html");
+        return runTestsWithBrowser("http://" + host +":8080/test/es5/Ice/acm/index.html");
     });
 
 gulp.task("test:node", (useBinDist ? ["test"] : ["build"]),

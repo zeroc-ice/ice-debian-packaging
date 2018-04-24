@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -23,9 +23,7 @@ def test(b):
         raise RuntimeError('test assertion failed')
 
 def run(args, communicator):
-    timeout = AllTests.allTests(communicator)
-    timeout.shutdown()
-
+    AllTests.allTests(communicator)
     return True
 
 try:

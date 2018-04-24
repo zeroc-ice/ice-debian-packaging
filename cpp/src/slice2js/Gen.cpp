@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -400,6 +400,10 @@ Slice::Gen::generate(const UnitPtr& p)
     bool icejs = find(globalMetaData.begin(), globalMetaData.end(), "js:ice-build") != globalMetaData.end();
     bool es6module = find(globalMetaData.begin(), globalMetaData.end(), "js:es6-module") != globalMetaData.end();
 
+    _out << nl << "/* eslint-disable */";
+    _out << nl << "/* jshint ignore: start */";
+    _out << nl;
+
     if(!es6module)
     {
         if(icejs)
@@ -441,8 +445,10 @@ Slice::Gen::generate(const UnitPtr& p)
 
         _out << eb;
         _out << nl << "(typeof(global) !== \"undefined\" && typeof(global.process) !== \"undefined\" ? module : undefined,"
-             << nl << " typeof(global) !== \"undefined\" && typeof(global.process) !== \"undefined\" ? require : this.Ice._require,"
-             << nl << " typeof(global) !== \"undefined\" && typeof(global.process) !== \"undefined\" ? exports : this));";
+             << nl << " typeof(global) !== \"undefined\" && typeof(global.process) !== \"undefined\" ? require :"
+             << nl << " (typeof WorkerGlobalScope !== \"undefined\" && self instanceof WorkerGlobalScope) ? self.Ice._require : window.Ice._require,"
+             << nl << " typeof(global) !== \"undefined\" && typeof(global.process) !== \"undefined\" ? exports :"
+             << nl << " (typeof WorkerGlobalScope !== \"undefined\" && self instanceof WorkerGlobalScope) ? self : window));";
 
         if(icejs)
         {
@@ -465,7 +471,7 @@ Slice::Gen::printHeader()
     static const char* header =
 "// **********************************************************************\n"
 "//\n"
-"// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.\n"
+"// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.\n"
 "//\n"
 "// This copy of Ice is licensed to you under the terms described in the\n"
 "// ICE_LICENSE file included in this distribution.\n"

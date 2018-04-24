@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -184,6 +184,15 @@ class BatchOneways
             test(interceptor.count() == 2);
 
             ic.destroy();
+        }
+
+        boolean supportsCompress = true;
+        try
+        {
+            supportsCompress = p.supportsCompress();
+        }
+        catch(Ice.OperationNotExistException ex)
+        {
         }
 
         p.ice_ping();

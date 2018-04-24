@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -534,7 +534,7 @@ public final class Util
      **/
     public static String stringVersion()
     {
-        return "3.7.0"; // "A.B.C", with A=major, B=minor, C=patch
+        return "3.7.1"; // "A.B.C", with A=major, B=minor, C=patch
     }
 
     /**
@@ -546,7 +546,7 @@ public final class Util
      **/
     public static int intVersion()
     {
-        return 30700; // AABBCC, with AA=major, BB=minor, CC=patch
+        return 30701; // AABBCC, with AA=major, BB=minor, CC=patch
     }
 
     /**
@@ -566,7 +566,7 @@ public final class Util
      *
      * @param version The string to convert.
      *
-     * @return The converted object identity.
+     * @return The converted encoding version.
      **/
     static public EncodingVersion stringToEncodingVersion(String version)
     {

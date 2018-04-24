@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -92,6 +92,7 @@ ICE_API @interface ICEUtil : NSObject
 +(ICEProtocolVersion*) protocolVersionWithString:(NSString*)str;
 @end
 
+extern void ICEregisterIceStringConverter(BOOL);
 extern void ICEregisterIceSSL(BOOL);
 extern void ICEregisterIceUDP(BOOL);
 extern void ICEregisterIceWS(BOOL);

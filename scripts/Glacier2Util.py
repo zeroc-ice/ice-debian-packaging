@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -12,7 +12,7 @@ from Util import *
 
 class Glacier2Router(ProcessFromBinDir, Server):
 
-    def __init__(self, portnum=10, passwords={"userid": "abc123"}, *args, **kargs):
+    def __init__(self, portnum=50, passwords={"userid": "abc123"}, *args, **kargs):
         Server.__init__(self, "glacier2router", mapping=Mapping.getByName("cpp"), desc="Glacier2 router",
                         readyCount=2, *args, **kargs)
         self.portnum = portnum

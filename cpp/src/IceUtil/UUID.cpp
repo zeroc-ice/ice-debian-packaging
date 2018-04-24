@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -98,7 +98,7 @@ IceUtil::generateUUID()
     RPC_STATUS ret = UuidCreate(&uuid);
     if(ret != RPC_S_OK && ret != RPC_S_UUID_LOCAL_ONLY && ret != RPC_S_UUID_NO_ADDRESS)
     {
-        throw new SyscallException(__FILE__, __LINE__, GetLastError());
+        throw SyscallException(__FILE__, __LINE__, GetLastError());
     }
 
     unsigned char* str;
@@ -106,7 +106,7 @@ IceUtil::generateUUID()
     ret = UuidToString(&uuid, &str);
     if(ret != RPC_S_OK)
     {
-        throw new SyscallException(__FILE__, __LINE__, GetLastError());
+        throw SyscallException(__FILE__, __LINE__, GetLastError());
     }
     string result = reinterpret_cast<char*>(str);
 

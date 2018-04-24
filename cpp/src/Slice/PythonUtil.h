@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -46,7 +46,7 @@ std::string scopedToName(const std::string&);
 std::string fixIdent(const std::string&);
 
 //
-// Return the package specified in the global metadata for the given definition,
+// Return the package specified by metadata for the given definition,
 // or an empty string if no metadata was found.
 //
 std::string getPackageMetadata(const Slice::ContainedPtr&);

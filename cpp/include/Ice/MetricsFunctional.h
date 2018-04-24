@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -92,6 +92,7 @@ template<typename R> struct ReferenceWrapper<const R&>
 namespace IceMX
 {
 
+/// \cond INTERNAL
 template<class T, typename Y, typename Func> struct ApplyOnMember
 {
     ApplyOnMember(Y T::*m, Func f) : func(f), member(m)
@@ -156,6 +157,7 @@ template<class T, typename Y> ApplyOnMember<T, Y, Decrement<Y> > dec(Y T::*membe
 {
     return applyOnMember(member, Decrement<Y>());
 }
+/// \endcond
 
 }
 

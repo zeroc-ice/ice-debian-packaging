@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -231,6 +231,11 @@ InitialI::getAll(BPtr& b1, BPtr& b2, CPtr& c, DPtr& d, const Ice::Current&)
     b2 = _b2;
     c = _c;
     d = _d;
+}
+
+void
+InitialI::setG(ICE_IN(Test::GPtr), const Ice::Current&)
+{
 }
 
 #ifdef ICE_CPP11_MAPPING

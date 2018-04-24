@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -722,6 +722,12 @@ ApplicationObserverTopic::applicationUpdated(Ice::Long dbSerial, const Applicati
     {
         Ice::Error out(_logger);
         out << "unexpected exception while instantiating application `" << info.descriptor.name << "':\n" << ex.reason;
+        assert(false);
+    }
+    catch(const std::exception& ex)
+    {
+        Ice::Error out(_logger);
+        out << "unexpected exception while instantiating application `" << info.descriptor.name << "':\n" << ex.what();
         assert(false);
     }
     catch(const std::string& msg)

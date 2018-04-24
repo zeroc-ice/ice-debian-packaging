@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -2212,6 +2212,19 @@ public class ObjectPrxHelperBase implements ObjectPrx, java.io.Serializable
     }
 
     /**
+     * Obtains the compression override setting of this proxy.
+     *
+     * @return The compression override setting. If no optional value is present, no override is
+     * set. Otherwise, true if compression is enabled, false otherwise.
+     */
+    @Override
+    public final Ice.BooleanOptional
+    ice_getCompress()
+    {
+        return _reference.getCompress();
+    }
+
+    /**
      * Creates a new proxy that is identical to this proxy, except for its timeout setting.
      *
      * @param t The timeout for the new proxy in milliseconds.
@@ -2237,6 +2250,19 @@ public class ObjectPrxHelperBase implements ObjectPrx, java.io.Serializable
     }
 
     /**
+     * Obtains the timeout override of this proxy.
+     *
+     * @return The timeout override. If no optional value is present, no override is set. Otherwise,
+     * returns the timeout override value.
+     */
+    @Override
+    public final Ice.IntOptional
+    ice_getTimeout()
+    {
+        return _reference.getTimeout();
+    }
+
+    /**
      * Creates a new proxy that is identical to this proxy, except for its connection ID.
      *
      * @param id The connection ID for the new proxy. An empty string removes the
@@ -2249,6 +2275,36 @@ public class ObjectPrxHelperBase implements ObjectPrx, java.io.Serializable
     ice_connectionId(String id)
     {
         IceInternal.Reference ref = _reference.changeConnectionId(id);
+        if(ref.equals(_reference))
+        {
+            return this;
+        }
+        else
+        {
+            return newInstance(ref);
+        }
+    }
+
+    /**
+     * Returns a proxy that is identical to this proxy, except it's a fixed proxy bound
+     * the given connection.
+     *
+     * @param connection The fixed proxy connection.
+     * @return A fixed proxy bound to the given connection.
+     */
+    @Override
+    public final ObjectPrx
+    ice_fixed(Ice.Connection connection)
+    {
+        if(connection == null)
+        {
+            throw new IllegalArgumentException("invalid null connection passed to ice_fixed");
+        }
+        if(!(connection instanceof Ice.ConnectionI))
+        {
+            throw new IllegalArgumentException("invalid connection passed to ice_fixed");
+        }
+        IceInternal.Reference ref = _reference.changeConnection((Ice.ConnectionI)connection);
         if(ref.equals(_reference))
         {
             return this;
@@ -2819,7 +2875,15 @@ public class ObjectPrxHelperBase implements ObjectPrx, java.io.Serializable
                         ObjectPrxHelperBase h = null;
                         try
                         {
-                            h = ObjectPrxHelperBase.class.cast(helperCls.newInstance());
+                            h = ObjectPrxHelperBase.class.cast(helperCls.getDeclaredConstructor().newInstance());
+                        }
+                        catch(NoSuchMethodException ex)
+                        {
+                            throw new SyscallException(ex);
+                        }
+                        catch(java.lang.reflect.InvocationTargetException ex)
+                        {
+                            throw new SyscallException(ex);
                         }
                         catch(InstantiationException ex)
                         {
@@ -2861,7 +2925,7 @@ public class ObjectPrxHelperBase implements ObjectPrx, java.io.Serializable
             {
                 if(explicitFacet)
                 {
-                    ObjectPrxHelperBase h = ObjectPrxHelperBase.class.cast(helperCls.newInstance());
+                    ObjectPrxHelperBase h = ObjectPrxHelperBase.class.cast(helperCls.getDeclaredConstructor().newInstance());
                     h._copyFrom(obj.ice_facet(facet));
                     d = proxyCls.cast(h);
                 }
@@ -2873,11 +2937,19 @@ public class ObjectPrxHelperBase implements ObjectPrx, java.io.Serializable
                     }
                     else
                     {
-                        ObjectPrxHelperBase h = ObjectPrxHelperBase.class.cast(helperCls.newInstance());
+                        ObjectPrxHelperBase h = ObjectPrxHelperBase.class.cast(helperCls.getDeclaredConstructor().newInstance());
                         h._copyFrom(obj);
                         d = proxyCls.cast(h);
                     }
                 }
+            }
+            catch(NoSuchMethodException ex)
+            {
+                throw new SyscallException(ex);
+            }
+            catch(java.lang.reflect.InvocationTargetException ex)
+            {
+                throw new SyscallException(ex);
             }
             catch(InstantiationException ex)
             {
@@ -2920,9 +2992,25 @@ public class ObjectPrxHelperBase implements ObjectPrx, java.io.Serializable
     {
         try
         {
-            ObjectPrxHelperBase proxy = getClass().newInstance();
+            ObjectPrxHelperBase proxy = getClass().getDeclaredConstructor().newInstance();
             proxy._setup(ref);
             return proxy;
+        }
+        catch(NoSuchMethodException e)
+        {
+            //
+            // Impossible
+            //
+            assert false;
+            return null;
+        }
+        catch(java.lang.reflect.InvocationTargetException e)
+        {
+            //
+            // Impossible
+            //
+            assert false;
+            return null;
         }
         catch(InstantiationException e)
         {

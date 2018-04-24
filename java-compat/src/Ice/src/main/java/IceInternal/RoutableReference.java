@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -79,6 +79,13 @@ public class RoutableReference extends Reference
     getConnectionId()
     {
         return _connectionId;
+    }
+
+    @Override
+    public Ice.IntOptional
+    getTimeout()
+    {
+        return _overrideTimeout ? Ice.Optional.O(_timeout) : new Ice.IntOptional();
     }
 
     @Override
@@ -280,6 +287,24 @@ public class RoutableReference extends Reference
             r._endpoints = newEndpoints;
         }
         return r;
+    }
+
+    @Override
+    public Reference
+    changeConnection(Ice.ConnectionI connection)
+    {
+        return new FixedReference(getInstance(),
+                                  getCommunicator(),
+                                  getIdentity(),
+                                  getFacet(),
+                                  getMode(),
+                                  getSecure(),
+                                  getProtocol(),
+                                  getEncoding(),
+                                  connection,
+                                  getInvocationTimeout(),
+                                  getContext(),
+                                  getCompress());
     }
 
     @Override

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -805,6 +805,13 @@ namespace Ice
 
 typedef IceUtil::Handle< ::IceInternal::GenericCallbackBase> CallbackPtr;
 
+/**
+ * Creates a callback wrapper instance that delegates to your object.
+ * @param instance The callback object.
+ * @param cb The completion callback.
+ * @param sentcb The sent callback.
+ * @return A callback object that can be passed to an asynchronous invocation.
+ */
 template<class T> CallbackPtr
 newCallback(const IceUtil::Handle<T>& instance,
             void (T::*cb)(const AsyncResultPtr&),
@@ -813,6 +820,13 @@ newCallback(const IceUtil::Handle<T>& instance,
     return new ::IceInternal::AsyncCallback<T>(instance, cb, sentcb);
 }
 
+/**
+ * Creates a callback wrapper instance that delegates to your object.
+ * @param instance The callback object.
+ * @param cb The completion callback.
+ * @param sentcb The sent callback.
+ * @return A callback object that can be passed to an asynchronous invocation.
+ */
 template<class T> CallbackPtr
 newCallback(T* instance,
             void (T::*cb)(const AsyncResultPtr&),

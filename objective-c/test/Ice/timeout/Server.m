@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,11 +14,17 @@
 static int
 run(id<ICECommunicator> communicator)
 {
-    [[communicator getProperties] setProperty:@"TestAdapter.Endpoints" value:@"default -p 12010:udp"];
+    [[communicator getProperties] setProperty:@"TestAdapter.Endpoints" value:@"default -p 12010"];
+    [[communicator getProperties] setProperty:@"ControllerAdapter.Endpoints" value:@"default -p 12011"];
+    [[communicator getProperties] setProperty:@"ControllerAdapter.ThreadPool.Size" value:@"1"];
+
     id<ICEObjectAdapter> adapter = [communicator createObjectAdapter:@"TestAdapter"];
-    ICEObject* object = [TimeoutI timeout];
-    [adapter add:object identity:[ICEUtil stringToIdentity:@"timeout"]];
+    [adapter add:[TimeoutI timeout] identity:[ICEUtil stringToIdentity:@"timeout"]];
     [adapter activate];
+
+    id<ICEObjectAdapter> controllerAdapter = [communicator createObjectAdapter:@"ControllerAdapter"];
+    [controllerAdapter add:[TimeoutControllerI controller:adapter] identity:[ICEUtil stringToIdentity:@"controller"]];
+    [controllerAdapter activate];
 
     serverReady(communicator);
 

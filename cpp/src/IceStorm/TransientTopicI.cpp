@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -393,10 +393,7 @@ TransientTopicImpl::link(const TopicPrx& topic, Ice::Int cost, const Ice::Curren
     vector<SubscriberPtr>::iterator p = find(_subscribers.begin(), _subscribers.end(), record.id);
     if(p != _subscribers.end())
     {
-        string name = IceStormInternal::identityToTopicName(id);
-        LinkExists ex;
-        ex.name = name;
-        throw ex;
+        throw LinkExists(IceStormInternal::identityToTopicName(id));
     }
 
     SubscriberPtr subscriber = Subscriber::create(_instance, record);
@@ -424,10 +421,7 @@ TransientTopicImpl::unlink(const TopicPrx& topic, const Ice::Current&)
             Ice::Trace out(traceLevels->logger, traceLevels->topicCat);
             out << _name << ": unlink " << name << " failed - not linked";
         }
-
-        NoSuchLink ex;
-        ex.name = name;
-        throw ex;
+        throw NoSuchLink(name);
     }
 
     TraceLevelsPtr traceLevels = _instance->traceLevels();

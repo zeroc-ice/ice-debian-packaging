@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -725,6 +725,7 @@ public class AllTests
     allTests(test.Util.Application app)
     {
         Ice.Communicator communicator = app.communicator();
+        final boolean bluetooth = communicator.getProperties().getProperty("Ice.Default.Protocol").indexOf("bt") == 0;
         PrintWriter out = app.getWriter();
         {
             out.print("testing object adapter registration exceptions... ");
@@ -1106,9 +1107,9 @@ public class AllTests
             out.println("ok");
         }
 
-        if(thrower.ice_getConnection() != null)
+        if(thrower.ice_getConnection() != null && !bluetooth)
         {
-            out.print("testing memory limit marshal exception...");
+            out.print("testing memory limit marshal exception... ");
             out.flush();
             try
             {

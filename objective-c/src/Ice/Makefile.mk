@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -10,7 +10,7 @@
 $(project)_libraries    = IceObjC
 
 IceObjC_targetdir       := $(libdir)
-IceObjC_cppflags        := -DICE_API_EXPORTS -I$(project) -I$(top_srcdir)/cpp/include -I$(top_srcdir)/cpp/include/generated
+IceObjC_cppflags        := -DICE_API_EXPORTS -I$(project) $(ice_cpp_cppflags)
 IceObjC_sliceflags      := --include-dir objc/Ice
 IceObjC_dependencies    := Ice
 IceObjC_slicedir        := $(slicedir)/Ice

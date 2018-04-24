@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -72,9 +72,7 @@ IceSSL::AcceptorI::accept()
     //
     if(!_instance->initialized())
     {
-        PluginInitializationException ex(__FILE__, __LINE__);
-        ex.reason = "IceSSL: plug-in is not initialized";
-        throw ex;
+        throw PluginInitializationException(__FILE__, __LINE__, "IceSSL: plug-in is not initialized");
     }
 
     return _instance->engine()->createTransceiver(_instance, _delegate->accept(), _adapterName, true);

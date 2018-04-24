@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -1153,6 +1153,7 @@ public final class Instance implements java.util.function.Function<String, Class
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected synchronized void
     finalize()
@@ -1555,6 +1556,12 @@ public final class Instance implements java.util.function.Function<String, Class
             if(_pluginManager != null)
             {
                 _pluginManager.destroy();
+            }
+
+            if(_initData.logger instanceof com.zeroc.Ice.LoggerI)
+            {
+                com.zeroc.Ice.LoggerI logger = (com.zeroc.Ice.LoggerI)_initData.logger;
+                logger.destroy();
             }
 
             synchronized(this)

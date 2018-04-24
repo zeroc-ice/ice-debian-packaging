@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -14,7 +14,6 @@ Ice._ModuleRegistry.require(module,
         "../Ice/Debug",
         "../Ice/FormatType",
         "../Ice/HashUtil",
-        "../Ice/Protocol",
         "../Ice/StringUtil",
         "../Ice/EndpointI",
         "../Ice/LocalException"
@@ -23,7 +22,6 @@ Ice._ModuleRegistry.require(module,
 const Base64 = Ice.Base64;
 const Debug = Ice.Debug;
 const HashUtil = Ice.HashUtil;
-const Protocol = Ice.Protocol;
 const StringUtil = Ice.StringUtil;
 const EndpointParseException = Ice.EndpointParseException;
 

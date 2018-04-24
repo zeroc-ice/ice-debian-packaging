@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -310,6 +310,16 @@ public class _ObjectPrxI implements ObjectPrx, java.io.Serializable
         return _reference.getMode() == com.zeroc.IceInternal.Reference.ModeBatchDatagram;
     }
 
+    public java.util.Optional<Boolean> ice_getCompress()
+    {
+        return _reference.getCompress();
+    }
+
+    public java.util.OptionalInt ice_getTimeout()
+    {
+        return _reference.getTimeout();
+    }
+
     public Connection ice_getConnection()
     {
         return _iceI_ice_getConnectionAsync().waitForResponse();
@@ -429,9 +439,25 @@ public class _ObjectPrxI implements ObjectPrx, java.io.Serializable
     {
         try
         {
-            _ObjectPrxI proxy = getClass().newInstance();
+            _ObjectPrxI proxy = getClass().getDeclaredConstructor().newInstance();
             proxy._setup(ref);
             return proxy;
+        }
+        catch(NoSuchMethodException ex)
+        {
+            //
+            // Impossible
+            //
+            assert false;
+            return null;
+        }
+        catch(java.lang.reflect.InvocationTargetException ex)
+        {
+            //
+            // Impossible
+            //
+            assert false;
+            return null;
         }
         catch(InstantiationException e)
         {

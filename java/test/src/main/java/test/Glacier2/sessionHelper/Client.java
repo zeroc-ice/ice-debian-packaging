@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -37,7 +37,7 @@ public class Client extends test.Util.Application
         com.zeroc.Ice.InitializationData initData = super.getInitData(args, rArgs);
         _initData = initData;
         _initData.properties.setProperty("Ice.Default.Router", "Glacier2/router:" +
-                                         getTestEndpoint(_initData.properties, 10));
+                                         getTestEndpoint(_initData.properties, 50));
         _initData.dispatcher =
             (Runnable runnable, com.zeroc.Ice.Connection c) -> {  _workQueue.submit(runnable); };
 
@@ -238,7 +238,7 @@ public class Client extends test.Util.Application
             out.print("testing SessionHelper connect... ");
             out.flush();
             _factory.setRouterHost(host);
-            _factory.setPort(getTestPort(10));
+            _factory.setPort(getTestPort(50));
             _factory.setProtocol(protocol);
             _session = _factory.connect("userid", "abc123");
             while(true)
@@ -270,14 +270,7 @@ public class Client extends test.Util.Application
             }
             out.println("ok");
 
-//             try
-//             {
-//                 test(_session.session() != null);
-//             }
-//             catch(com.zeroc.Glacier2.SessionNotExistException ex)
-//             {
-//                 test(false);
-//             }
+            test(_session.session() == null);
 
             out.print("testing stringToProxy for server object... ");
             out.flush();
@@ -358,7 +351,7 @@ public class Client extends test.Util.Application
             com.zeroc.Ice.ObjectPrx processBase;
             {
                 out.print("testing stringToProxy for process object... ");
-                processBase = communicator().stringToProxy("Glacier2/admin -f Process:" + getTestEndpoint(11));
+                processBase = communicator().stringToProxy("Glacier2/admin -f Process:" + getTestEndpoint(51));
                 out.println("ok");
             }
 
@@ -447,7 +440,7 @@ public class Client extends test.Util.Application
             out.flush();
 
             _factory.setRouterHost(host);
-            _factory.setPort(getTestPort(10));
+            _factory.setPort(getTestPort(50));
             _factory.setProtocol(protocol);
             _session = _factory.connect("userid", "abc123");
             while(true)

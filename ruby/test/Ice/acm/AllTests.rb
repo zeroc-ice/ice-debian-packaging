@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -22,6 +22,12 @@ def testSetACM(communicator, com)
     testCommunicator = Ice::initialize(initData)
     proxy = Test::TestIntfPrx::uncheckedCast(testCommunicator.stringToProxy(adapter.getTestIntf().ice_toString()))
     proxy.ice_getConnection()
+
+    begin
+        proxy.ice_getCachedConnection().setACM(-19, Ice::Unset, Ice::Unset)
+        test(false)
+    rescue
+    end
 
     acm = proxy.ice_getCachedConnection().getACM()
     test(acm.timeout == 15)

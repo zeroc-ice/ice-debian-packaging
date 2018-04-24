@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -104,7 +104,11 @@ protected:
     bool _destroyed;
     std::set<Token> _tokens;
 
+#if (ICE_CPLUSPLUS >= 201703L)
+    class TimerTaskCompare
+#else
     class TimerTaskCompare : public std::binary_function<TimerTaskPtr, TimerTaskPtr, bool>
+#endif
     {
     public:
 

@@ -1,3 +1,9 @@
+zeroc-ice (3.7.1-1) unstable; urgency=medium
+
+  * New upstream version 3.7.1
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Tue, 24 Apr 2018 11:07:11 +0000
+
 zeroc-ice (3.7.0-5) unstable; urgency=medium
 
   * Add python-passlib package required to run test

@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -42,7 +42,6 @@ class Logger
     trace(category, message)
     {
         const s = [];
-        const d = new Date();
         s.push("-- ");
         s.push(this.timestamp());
         s.push(' ');
@@ -56,7 +55,6 @@ class Logger
     warning(message)
     {
         const s = [];
-        const d = new Date();
         s.push("-! ");
         s.push(this.timestamp());
         s.push(' ');
@@ -69,7 +67,6 @@ class Logger
     error(message)
     {
         const s = [];
-        const d = new Date();
         s.push("!! ");
         s.push(this.timestamp());
         s.push(' ');

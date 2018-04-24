@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -30,10 +30,10 @@ public:
     static void registerPluginFactory(const std::string&, PluginFactory, bool);
 
     virtual void initializePlugins();
-    virtual StringSeq getPlugins();
+    virtual StringSeq getPlugins() ICE_NOEXCEPT;
     virtual PluginPtr getPlugin(const std::string&);
     virtual void addPlugin(const std::string&, const PluginPtr&);
-    virtual void destroy();
+    virtual void destroy() ICE_NOEXCEPT;
     PluginManagerI(const CommunicatorPtr&, const IceInternal::DynamicLibraryListPtr&);
 
 private:

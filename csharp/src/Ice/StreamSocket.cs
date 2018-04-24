@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -400,14 +400,17 @@ namespace IceInternal
             Debug.Assert(_fd != null);
 
             int packetSize = buf.remaining();
-            //
-            // On Windows, limiting the buffer size is important to prevent
-            // poor throughput performances when transfering large amount of
-            // data. See Microsoft KB article KB823764.
-            //
-            if(_maxSendPacketSize > 0 && packetSize > _maxSendPacketSize / 2)
+            if(AssemblyUtil.isWindows)
             {
-                packetSize = _maxSendPacketSize / 2;
+                //
+                // On Windows, limiting the buffer size is important to prevent
+                // poor throughput performances when transfering large amount of
+                // data. See Microsoft KB article KB823764.
+                //
+                if(_maxSendPacketSize > 0 && packetSize > _maxSendPacketSize / 2)
+                {
+                    packetSize = _maxSendPacketSize / 2;
+                }
             }
 
             int sent = 0;

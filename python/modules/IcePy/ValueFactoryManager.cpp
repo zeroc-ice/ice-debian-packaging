@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -88,7 +88,7 @@ IcePy::ValueFactoryManager::add(const Ice::ValueFactoryPtr& f, const string& id)
 }
 
 Ice::ValueFactoryPtr
-IcePy::ValueFactoryManager::find(const string& id) const
+IcePy::ValueFactoryManager::find(const string& id) const ICE_NOEXCEPT
 {
     Lock lock(*this);
 
@@ -299,7 +299,7 @@ IcePy::DefaultValueFactory::create(const string& id)
     //
     // Instantiate the object.
     //
-    PyTypeObject* type = reinterpret_cast<PyTypeObject*>(info->pythonType.get());
+    PyTypeObject* type = reinterpret_cast<PyTypeObject*>(info->pythonType);
     PyObjectHandle args = PyTuple_New(0);
     PyObjectHandle obj = type->tp_new(type, args.get(), 0);
     if(!obj.get())

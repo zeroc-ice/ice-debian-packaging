@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -82,7 +82,7 @@ public:
     void run()
     {
         CommunicatorPtr communicator = initialize(initData);
-        ObjectPrx routerBase = communicator->stringToProxy("Glacier2/router:" + getTestEndpoint(communicator, 10));
+        ObjectPrx routerBase = communicator->stringToProxy("Glacier2/router:" + getTestEndpoint(communicator, 50));
         Glacier2::RouterPrx router = Glacier2::RouterPrx::checkedCast(routerBase);
         communicator->setDefaultRouter(router);
 
@@ -188,7 +188,7 @@ public:
     void run()
     {
         CommunicatorPtr communicator = initialize(initData);
-        ObjectPrx routerBase = communicator->stringToProxy("Glacier2/router:" + getTestEndpoint(communicator, 10));
+        ObjectPrx routerBase = communicator->stringToProxy("Glacier2/router:" + getTestEndpoint(communicator, 50));
         _router = Glacier2::RouterPrx::checkedCast(routerBase);
         communicator->setDefaultRouter(_router);
 
@@ -437,7 +437,7 @@ CallbackClient::run(int argc, char* argv[])
 
     {
         cout << "testing stringToProxy for router... " << flush;
-        routerBase = communicator()->stringToProxy("Glacier2/router:" + getTestEndpoint(communicator(), 10));
+        routerBase = communicator()->stringToProxy("Glacier2/router:" + getTestEndpoint(communicator(), 50));
         cout << "ok" << endl;
     }
 
@@ -454,7 +454,7 @@ CallbackClient::run(int argc, char* argv[])
         cout << "testing router finder... " << flush;
         Ice::RouterFinderPrx finder =
             RouterFinderPrx::uncheckedCast(communicator()->stringToProxy("Ice/RouterFinder:" +
-                                                                         getTestEndpoint(communicator(), 10)));
+                                                                         getTestEndpoint(communicator(), 50)));
         test(finder->getRouter()->ice_getIdentity() == router->ice_getIdentity());
         cout << "ok" << endl;
     }
@@ -551,6 +551,19 @@ CallbackClient::run(int argc, char* argv[])
     {
         cout << "pinging server after session creation... " << flush;
         base->ice_ping();
+        cout << "ok" << endl;
+    }
+
+    {
+        cout << "pinging object with client endpoint... " << flush;
+        Ice::ObjectPrx baseC = communicator()->stringToProxy("collocated:" + getTestEndpoint(communicator(), 50));
+        try
+        {
+            baseC->ice_ping();
+        }
+        catch(const Ice::ObjectNotExistException&)
+        {
+        }
         cout << "ok" << endl;
     }
 
@@ -906,7 +919,7 @@ CallbackClient::run(int argc, char* argv[])
         {
             cout << "testing stringToProxy for admin process facet... " << flush;
             processBase = communicator()->stringToProxy("Glacier2/admin -f Process:" +
-                                                        getTestEndpoint(communicator(), 11));
+                                                        getTestEndpoint(communicator(), 51));
             cout << "ok" << endl;
         }
 

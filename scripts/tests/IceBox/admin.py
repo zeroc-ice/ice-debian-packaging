@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # **********************************************************************
 #
-# Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 #
 # This copy of Ice is licensed to you under the terms described in the
 # ICE_LICENSE file included in this distribution.
@@ -24,8 +24,8 @@ class IceBoxAdminTestCase(ClientServerTestCase):
         current.writeln("ok")
 
 TestSuite(__name__, [
-        ClientServerTestCase(server=IceBox(args=['--Ice.Config="{testdir}/config.icebox"'])),
-        IceBoxAdminTestCase("iceboxadmin", server=IceBox(args=['--Ice.Config="{testdir}/config.icebox"'])),
+        ClientServerTestCase(server=IceBox(args=['--Ice.Config="{testdir}/config.icebox{iceboxconfigext}"'])),
+        IceBoxAdminTestCase("iceboxadmin", server=IceBox(args=['--Ice.Config="{testdir}/config.icebox{iceboxconfigext}"'])),
     ],
     libDirs=["testservice"],
     runOnMainThread=True,

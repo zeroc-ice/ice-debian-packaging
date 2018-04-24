@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -260,6 +260,43 @@ private:
 typedef ::IceUtil::Handle<DefinitionContext> DefinitionContextPtr;
 
 // ----------------------------------------------------------------------
+// Comment
+// ----------------------------------------------------------------------
+
+class Comment : public ::IceUtil::SimpleShared
+{
+public:
+
+    bool isDeprecated() const;
+    StringList deprecated() const;
+
+    StringList overview() const;  // Contains all introductory lines up to the first tag.
+    StringList misc() const;      // Contains unrecognized tags.
+    StringList seeAlso() const;   // Targets of @see tags.
+
+    StringList returns() const;                           // Description of an operation's return value.
+    std::map<std::string, StringList> parameters() const; // Parameter descriptions for an op. Key is parameter name.
+    std::map<std::string, StringList> exceptions() const; // Exception descriptions for an op. Key is exception name.
+
+private:
+
+    Comment();
+
+    bool _isDeprecated;
+    StringList _deprecated;
+    StringList _overview;
+    StringList _misc;
+    StringList _seeAlso;
+
+    StringList _returns;
+    std::map<std::string, StringList> _parameters;
+    std::map<std::string, StringList> _exceptions;
+
+    friend class Contained;
+};
+typedef ::IceUtil::Handle<Comment> CommentPtr;
+
+// ----------------------------------------------------------------------
 // GrammarBase
 // ----------------------------------------------------------------------
 
@@ -366,6 +403,7 @@ public:
     std::string file() const;
     std::string line() const;
     std::string comment() const;
+    CommentPtr parseComment(bool) const;
 
     int includeLevel() const;
     void updateIncludeLevel();
@@ -427,7 +465,7 @@ public:
     virtual void destroy();
     ModulePtr createModule(const std::string&);
     ClassDefPtr createClassDef(const std::string&, int, bool, const ClassList&, bool);
-    ClassDeclPtr createClassDecl(const std::string&, bool, bool, bool = true);
+    ClassDeclPtr createClassDecl(const std::string&, bool, bool);
     ExceptionPtr createException(const std::string&, const ExceptionPtr&, bool, NodeType = Real);
     StructPtr createStruct(const std::string&, bool, NodeType = Real);
     SequencePtr createSequence(const std::string&, const TypePtr&, const StringList&, bool, NodeType = Real);
@@ -490,7 +528,6 @@ protected:
 
     Container(const UnitPtr&);
 
-    void checkIdentifier(const std::string&) const;
     bool checkInterfaceAndLocal(const std::string&, bool, bool, bool, bool, bool);
     bool checkGlobalMetaData(const StringList&, const StringList&);
     bool validateConstant(const std::string&, const TypePtr&, SyntaxTreeBasePtr&, const std::string&, bool);

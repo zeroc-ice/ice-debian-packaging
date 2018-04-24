@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -216,9 +216,7 @@ repeat:
         else
         {
             // No peer has sent a datagram yet.
-            SocketException ex(__FILE__, __LINE__);
-            ex.error = 0;
-            throw ex;
+            throw SocketException(__FILE__, __LINE__, 0);
         }
 
 #   ifdef _WIN32
@@ -242,9 +240,7 @@ repeat:
             return SocketOperationWrite;
         }
 
-        SocketException ex(__FILE__, __LINE__);
-        ex.error = getSocketErrno();
-        throw ex;
+        throw SocketException(__FILE__, __LINE__, getSocketErrno());
     }
 
     assert(ret == static_cast<ssize_t>(buf.b.size()));
@@ -318,15 +314,11 @@ repeat:
 
             if(connectionLost())
             {
-                ConnectionLostException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw ConnectionLostException(__FILE__, __LINE__, getSocketErrno());
             }
             else
             {
-                SocketException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw SocketException(__FILE__, __LINE__, getSocketErrno());
             }
         }
     }
@@ -378,7 +370,7 @@ IceInternal::UdpTransceiver::startWrite(Buffer& buf)
             if(!multicast)
             {
                 auto operation = safe_cast<DatagramSocket^>(_fd)->ConnectAsync(_addr.host, _addr.port);
-                if(!checkIfErrorOrCompleted(SocketOperationConnect, operation))
+                if(!checkIfErrorOrCompleted(SocketOperationConnect, operation, operation->Status))
                 {
                     operation->Completed = ref new AsyncActionCompletedHandler(
                         [this] (IAsyncAction^ info, Windows::Foundation::AsyncStatus status)
@@ -400,7 +392,7 @@ IceInternal::UdpTransceiver::startWrite(Buffer& buf)
             else
             {
                 auto operation = safe_cast<DatagramSocket^>(_fd)->GetOutputStreamAsync(_addr.host, _addr.port);
-                if(!checkIfErrorOrCompleted(SocketOperationConnect, operation))
+                if(!checkIfErrorOrCompleted(SocketOperationConnect, operation, operation->Status))
                 {
                     operation->Completed = ref new AsyncOperationCompletedHandler<IOutputStream^>(
                         [=](IAsyncOperation<IOutputStream^>^ info, Windows::Foundation::AsyncStatus status)
@@ -487,9 +479,7 @@ IceInternal::UdpTransceiver::startWrite(Buffer& buf)
         else
         {
             // No peer has sent a datagram yet.
-            SocketException ex(__FILE__, __LINE__);
-            ex.error = 0;
-            throw ex;
+            throw SocketException(__FILE__, __LINE__, 0);
         }
         err = WSASendTo(_fd, &_write.buf, 1, &_write.count, 0, &_peerAddr.sa,
                         len, &_write, ICE_NULLPTR);
@@ -501,15 +491,11 @@ IceInternal::UdpTransceiver::startWrite(Buffer& buf)
         {
             if(connectionLost())
             {
-                ConnectionLostException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw ConnectionLostException(__FILE__, __LINE__, getSocketErrno());
             }
             else
             {
-                SocketException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw SocketException(__FILE__, __LINE__, getSocketErrno());
             }
         }
     }
@@ -564,17 +550,6 @@ IceInternal::UdpTransceiver::getOutputStreamCompleted(concurrency::task<IOutputS
         DataWriter^ writer = ref new DataWriter(task.get());
         writer->WriteBytes(ref new Array<unsigned char>(&*buf.i, static_cast<int>(buf.b.size())));
         DataWriterStoreOperation^ operation = writer->StoreAsync();
-        if(operation->Status == Windows::Foundation::AsyncStatus::Completed)
-        {
-            //
-            // NOTE: unlike other methods, it's important to modify _write.count
-            // _before_ calling checkIfErrorOrCompleted since this isn't called
-            // with the connection mutex but from a Windows thread pool thread.
-            // So we can't modify the _write structure after calling the
-            // completed callback.
-            //
-            _write.count = operation->GetResults();
-        }
         queueOperation(SocketOperationWrite, operation);
     }
     catch(Platform::Exception^ pex)
@@ -590,7 +565,7 @@ IceInternal::UdpTransceiver::getOutputStreamCompleted(concurrency::task<IOutputS
 void
 IceInternal::UdpTransceiver::finishWrite(Buffer& buf)
 {
-    if(_state < StateConnected)
+    if(_fd == INVALID_SOCKET || _state < StateConnected)
     {
         return;
     }
@@ -601,15 +576,11 @@ IceInternal::UdpTransceiver::finishWrite(Buffer& buf)
         WSASetLastError(_write.error);
         if(connectionLost())
         {
-            ConnectionLostException ex(__FILE__, __LINE__);
-            ex.error = getSocketErrno();
-            throw ex;
+            throw ConnectionLostException(__FILE__, __LINE__ ,getSocketErrno());
         }
         else
         {
-            SocketException ex(__FILE__, __LINE__);
-            ex.error = getSocketErrno();
-            throw ex;
+            throw SocketException(__FILE__, __LINE__, getSocketErrno());
         }
 #else
         checkErrorCode(__FILE__, __LINE__, _write.error);
@@ -654,15 +625,11 @@ IceInternal::UdpTransceiver::startRead(Buffer& buf)
         {
             if(connectionLost())
             {
-                ConnectionLostException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw ConnectionLostException(__FILE__, __LINE__, getSocketErrno());
             }
             else
             {
-                SocketException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw SocketException(__FILE__, __LINE__, getSocketErrno());
             }
         }
     }
@@ -730,15 +697,11 @@ IceInternal::UdpTransceiver::finishRead(Buffer& buf)
         {
             if(connectionLost())
             {
-                ConnectionLostException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw ConnectionLostException(__FILE__, __LINE__, getSocketErrno());
             }
             else
             {
-                SocketException ex(__FILE__, __LINE__);
-                ex.error = getSocketErrno();
-                throw ex;
+                throw SocketException(__FILE__, __LINE__, getSocketErrno());
             }
         }
     }

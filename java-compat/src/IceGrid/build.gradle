@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -17,7 +17,7 @@ slice {
     java {
         set1 {
             args = "--tie --checksum IceGrid.SliceChecksums"
-            files = fileTree(dir: "$sliceDir/IceGrid", includes:['*.ice'], excludes:["*F.ice"])
+            files = fileTree(dir: "$project.ext.topSrcDir/slice/IceGrid", includes:['*.ice'], excludes:["*F.ice"])
         }
     }
 }

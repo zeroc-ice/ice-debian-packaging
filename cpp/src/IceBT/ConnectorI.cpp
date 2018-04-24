@@ -1,6 +1,6 @@
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -25,9 +25,7 @@ IceBT::ConnectorI::connect()
     //
     if(!_instance->initialized())
     {
-        PluginInitializationException ex(__FILE__, __LINE__);
-        ex.reason = "IceBT: plug-in is not initialized";
-        throw ex;
+        throw PluginInitializationException(__FILE__, __LINE__, "IceBT: plug-in is not initialized");
     }
 
     //

@@ -1,6 +1,7 @@
+
 // **********************************************************************
 //
-// Copyright (c) 2003-2017 ZeroC, Inc. All rights reserved.
+// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
 //
 // This copy of Ice is licensed to you under the terms described in the
 // ICE_LICENSE file included in this distribution.
@@ -237,11 +238,7 @@ Mutex::init(MutexProtocol
     // Enable mutex error checking in debug builds
     //
 #ifndef NDEBUG
-#if defined(__linux) && !defined(__USE_UNIX98)
-    rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK_NP);
-#else
     rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
-#endif
     assert(rc == 0);
     if(rc != 0)
     {
