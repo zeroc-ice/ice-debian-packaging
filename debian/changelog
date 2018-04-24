@@ -1,14 +1,98 @@
-zeroc-ice (3.7.1-1) unstable; urgency=medium
+zeroc-ice (3.7.0-5) unstable; urgency=medium
 
-  * Ice 3.7.1
+  * Add python-passlib package required to run test
+  * Filter out test that require arch services
+  * Use latest standards version
+  * Add openssl dependency required for IceSSL/configuration test
+  * Build Java packages with the default JDK
 
- -- José Gutiérrez de la Concha <jose@zeroc.com>  Fri, 13 Apr 2018 19:37:00 +0000
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Mon, 02 Apr 2018 15:05:04 +0000
+
+zeroc-ice (3.7.0-4) unstable; urgency=medium
+
+  * Fix nocheck support
+  * python-zeroc-ice: Install fails
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Thu, 22 Mar 2018 16:25:46 +0000
+
+zeroc-ice (3.7.0-3) unstable; urgency=medium
+
+  * Fix package build failure when using --build=all
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Wed, 21 Mar 2018 21:26:52 +0000
+
+zeroc-ice (3.7.0-2) unstable; urgency=medium
+
+  * Do not hardcode the lib arch directory
+  * Fix icebox install on i386 builds
+  * Do not install dbus and bluetooth on unsupported platforms
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Wed, 21 Mar 2018 17:19:48 +0100
 
 zeroc-ice (3.7.0-1) unstable; urgency=medium
 
   * Updated version to 3.7.0
 
- -- Bernard Normier <bernard@zeroc.com>  Fri, 21 Jul 2017 12:52:52 +0200
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Mon, 19 Mar 2018 17:35:41 +0000
+
+zeroc-ice (3.6.4-1+buster) unstable; urgency=medium
+
+  * Removed icegridgui patch, no longer necessary with 3.6.4
+  * Set iceBuilderClassPath to use the local Ice Builder plug-in
+  * Add class path entries to JAR files
+  * Renamed zeroc-icegrid.icegridnode.service
+  * Enable jarsClassPath see ICE-8444
+  * Imported Upstream version 3.6.4
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Fri, 08 Sep 2017 20:36:13 +0200
+
+zeroc-ice (3.6.3-6) unstable; urgency=medium
+
+  * Add python2 packages
+  * Update obsolete standards version
+  * Fix usage of deprecated operator < in dependencies
+  * Update .gitignore file
+  * Rebuild libzeroc-ice3.6 with G++ 7 and bump symbols
+  * Update git-buildpackage configuration for 3.6-sid branch
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Thu, 10 Aug 2017 10:48:29 +0000
+
+zeroc-ice (3.6.3-5) unstable; urgency=medium
+
+  * Do not install libIceStormService.so (Closes: #857219)
+  * Fix libzeroc-ice3.6-java install to use 3.6 name
+
+ -- Jose <jose@zeroc.com>  Thu, 09 Mar 2017 16:22:39 +0100
+
+zeroc-ice (3.6.3-4) unstable; urgency=medium
+
+  * Move javahelper to Build-Depends to fix Bug#847010
+
+ -- Jose <jose@zeroc.com>  Mon, 05 Dec 2016 09:37:57 +0100
+
+zeroc-ice (3.6.3-3) unstable; urgency=medium
+
+  * Missing Jgoodies dependencies in zeroc-icegridgui
+  * Do not use JGoodies PlasticLookAndFeel. We avoid using
+    JGoodies PlasticLookAndFeel as it is triggering a
+    bug in JFileChooser that causes an application crash
+
+ -- Jose <jose@zeroc.com>  Thu, 01 Dec 2016 22:39:10 +0100
+
+zeroc-ice (3.6.3-2) unstable; urgency=medium
+
+  * Fix package upgrade from stretch
+
+ -- Jose <jose@zeroc.com>  Fri, 14 Oct 2016 17:26:35 +0000
+
+zeroc-ice (3.6.3-1) unstable; urgency=medium
+
+  * Ice-3.6.3 release
+  * Added Ice for Python package python3-zeroc-ice
+  * Remove javafx dependency
+  * Fix service packaging
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Tue, 11 Oct 2016 13:21:56 +0200
 
 zeroc-ice (3.6.2-stretch-51-gba6baa6-2) unstable; urgency=medium
 
