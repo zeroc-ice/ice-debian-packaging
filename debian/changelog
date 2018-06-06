@@ -1,3 +1,10 @@
+zeroc-ice (3.7.1-2) unstable; urgency=medium
+
+  * Do not set DH_BUILD_DDEBS in debian/rules
+  * zeroc-ice: ftbfs with GCC-8 Close 897891
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Wed, 06 Jun 2018 21:28:50 +0000
+
 zeroc-ice (3.7.1-1) unstable; urgency=medium
 
   * New upstream version 3.7.1
