@@ -1,6 +1,7 @@
 zeroc-ice (3.7.1-2) UNRELEASED; urgency=medium
 
   * Use secure copyright file specification URI.
+  * Change priority optional to priority extra.
 
  -- Jelmer Vernooĳ <jelmer@debian.org>  Tue, 16 Oct 2018 22:57:14 +0000
 
