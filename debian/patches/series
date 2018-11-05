@@ -1,3 +1,4 @@
 gcc8-build-fixes.patch
 gcc8.2-ftbfs.patch
 better-detect-debian-derivatives.patch
+java-jdk11-build-fixes.patch

@@ -1,8 +1,9 @@
 zeroc-ice (3.7.1-4) unstable; urgency=medium
 
+  [ José Gutiérrez de la Concha ]
   * Better detect debian derivatives Close #901899
 
- -- José Gutiérrez de la Concha <jose@zeroc.com>  Fri, 26 Oct 2018 16:00:11 +0000
+ -- Vagrant Default User <vagrant@bb96bd73>  Mon, 05 Nov 2018 20:39:27 +0000
 
 zeroc-ice (3.7.1-3) unstable; urgency=medium
 

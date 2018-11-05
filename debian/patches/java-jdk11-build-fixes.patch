@@ -1,0 +1,54 @@
+Index: ice-debian-packaging/java/test/build.gradle
+===================================================================
+--- ice-debian-packaging.orig/java/test/build.gradle
++++ ice-debian-packaging/java/test/build.gradle
+@@ -14,6 +14,8 @@ sourceSets {
+     main {
+         java {
+             exclude 'plugins'
++            sourceCompatibility = "1.8"
++            targetCompatibility = "1.8"
+         }
+     }
+ }
+Index: ice-debian-packaging/java/test/plugins/build.gradle
+===================================================================
+--- ice-debian-packaging.orig/java/test/plugins/build.gradle
++++ ice-debian-packaging/java/test/plugins/build.gradle
+@@ -14,6 +14,8 @@ sourceSets {
+     main {
+         java {
+             srcDirs "$rootProject.projectDir/test/plugins"
++            sourceCompatibility = "1.8"
++            targetCompatibility = "1.8"
+         }
+     }
+ }
+Index: ice-debian-packaging/java-compat/test/build.gradle
+===================================================================
+--- ice-debian-packaging.orig/java-compat/test/build.gradle
++++ ice-debian-packaging/java-compat/test/build.gradle
+@@ -20,6 +20,9 @@ sourceSets {
+             }
+             exclude 'plugins'
+             exclude 'ejb'
++
++            sourceCompatibility = "1.8"
++            targetCompatibility = "1.8"
+         }
+     }
+ }
+Index: ice-debian-packaging/java-compat/test/plugins/build.gradle
+===================================================================
+--- ice-debian-packaging.orig/java-compat/test/plugins/build.gradle
++++ ice-debian-packaging/java-compat/test/plugins/build.gradle
+@@ -11,6 +11,9 @@ sourceSets {
+     main {
+         java {
+             srcDirs "$rootProject.projectDir/test/plugins"
++
++            sourceCompatibility = "1.8"
++            targetCompatibility = "1.8"
+         }
+     }
+ }
