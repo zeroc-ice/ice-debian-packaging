@@ -21,7 +21,7 @@ export JAVA_HOME=/usr/lib/jvm/default-java/
 # Use the system gradle unless it has been overridden by GRADLE
 # environment variable.
 #
-ifeq($(GRADLE),)
+ifeq ($(GRADLE),)
 export GRADLE		= gradle
 endif
 
