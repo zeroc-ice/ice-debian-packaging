@@ -1,0 +1,38 @@
+--- a/python/modules/IcePy/Communicator.cpp
++++ b/python/modules/IcePy/Communicator.cpp
+@@ -39,7 +39,11 @@
+ using namespace std;
+ using namespace IcePy;
+ 
++#if PY_VERSION_HEX < 0x03070000
+ static long _mainThreadId;
++#else
++static unsigned long _mainThreadId;
++#endif
+ 
+ typedef map<Ice::CommunicatorPtr, PyObject*> CommunicatorMap;
+ static CommunicatorMap _communicatorMap;
+--- a/python/modules/IcePy/ObjectAdapter.cpp
++++ b/python/modules/IcePy/ObjectAdapter.cpp
+@@ -31,7 +31,11 @@
+ using namespace std;
+ using namespace IcePy;
+ 
++#if PY_VERSION_HEX < 0x03070000
+ static long _mainThreadId;
++#else
++static unsigned long _mainThreadId;
++#endif
+ 
+ namespace IcePy
+ {
+--- a/python/modules/IcePy/Types.cpp
++++ b/python/modules/IcePy/Types.cpp
+@@ -17,6 +17,7 @@
+ #include <Util.h>
+ #include <IceUtil/InputUtil.h>
+ #include <IceUtil/ScopedArray.h>
++#include <IceUtil/DisableWarnings.h>
+ #include <Ice/InputStream.h>
+ #include <Ice/LocalException.h>
+ #include <Ice/OutputStream.h>
