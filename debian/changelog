@@ -1,3 +1,9 @@
+zeroc-ice (3.7.1-6) unstable; urgency=medium
+
+  * Fix Python 3.7 build failure
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Sat, 01 Dec 2018 11:17:16 +0000
+
 zeroc-ice (3.7.1-5) unstable; urgency=medium
 
   * Fix JDK 11 build failure
