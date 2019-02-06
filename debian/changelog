@@ -1,3 +1,10 @@
+zeroc-ice (3.7.2-2) unstable; urgency=medium
+
+  * Missing openjfx dependency
+  * Fix  version in libzeroc-ice3.7-java.poms
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Wed, 06 Feb 2019 18:20:18 +0000
+
 zeroc-ice (3.7.2-1) unstable; urgency=medium
 
   * New upstream version 3.7.2
