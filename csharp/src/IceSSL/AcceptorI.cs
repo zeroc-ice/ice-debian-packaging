@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 namespace IceSSL
 {
@@ -71,7 +66,8 @@ namespace IceSSL
             //
             // .NET requires that a certificate be supplied.
             //
-            if(instance.certs().Count == 0)
+            var certs = instance.certs();
+            if(certs == null || certs.Count == 0)
             {
                 Ice.SecurityException ex = new Ice.SecurityException();
                 ex.reason = "IceSSL: certificate required for server endpoint";

@@ -1,15 +1,10 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 from Util import *
 
-class IceBridge(ProcessFromBinDir, Server):
+class IceBridge(ProcessFromBinDir, ProcessIsReleaseOnly, Server):
 
     def __init__(self, *args, **kargs):
         Server.__init__(self, "icebridge", mapping=Mapping.getByName("cpp"), desc="IceBridge", *args, **kargs)

@@ -1,42 +1,41 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-using Test;
-
-public class RemoteObjectAdapterI : RemoteObjectAdapterDisp_
+namespace Ice
 {
-    public RemoteObjectAdapterI(Ice.ObjectAdapter adapter)
+    namespace binding
     {
-        _adapter = adapter;
-        _testIntf = TestIntfPrxHelper.uncheckedCast(_adapter.add(new TestI(),
-                                                    Ice.Util.stringToIdentity("test")));
-        _adapter.activate();
-    }
-
-    public override TestIntfPrx
-    getTestIntf(Ice.Current current)
-    {
-        return _testIntf;
-    }
-
-    public override void
-    deactivate(Ice.Current current)
-    {
-        try
+        public class RemoteObjectAdapterI : Test.RemoteObjectAdapterDisp_
         {
-            _adapter.destroy();
-        }
-        catch(Ice.ObjectAdapterDeactivatedException)
-        {
+            public RemoteObjectAdapterI(Ice.ObjectAdapter adapter)
+            {
+                _adapter = adapter;
+                _testIntf = Test.TestIntfPrxHelper.uncheckedCast(_adapter.add(new TestI(),
+                                                            Ice.Util.stringToIdentity("test")));
+                _adapter.activate();
+            }
+
+            public override Test.TestIntfPrx
+            getTestIntf(Ice.Current current)
+            {
+                return _testIntf;
+            }
+
+            public override void
+            deactivate(Ice.Current current)
+            {
+                try
+                {
+                    _adapter.destroy();
+                }
+                catch(Ice.ObjectAdapterDeactivatedException)
+                {
+                }
+            }
+
+            private Ice.ObjectAdapter _adapter;
+            private Test.TestIntfPrx _testIntf;
         }
     }
-
-    private Ice.ObjectAdapter _adapter;
-    private TestIntfPrx _testIntf;
-};
+}

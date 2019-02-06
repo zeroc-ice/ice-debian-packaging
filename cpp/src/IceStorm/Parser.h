@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef ICE_STORM_PARSER_H
 #define ICE_STORM_PARSER_H
@@ -22,7 +17,6 @@
 #define YYSTYPE std::list<std::string>
 #define YY_DECL int yylex(YYSTYPE* yylvalp)
 YY_DECL;
-int yyparse();
 
 //
 // I must set the initial stack depth to the maximum stack depth to

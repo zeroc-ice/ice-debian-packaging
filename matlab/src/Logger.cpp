@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Logger.h>
 #include "ice.h"
@@ -91,7 +86,6 @@ Ice_Logger_getPrefix(void* self)
     {
         return createResultException(convertException(ex));
     }
-    return 0;
 }
 
 mxArray*

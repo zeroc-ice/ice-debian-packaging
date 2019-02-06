@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #import <objc/Ice.h>
 #import <TestCommon.h>
@@ -17,7 +12,7 @@
 @end
 
 @implementation DummyHelloI
--(void) sayHello:(ICECurrent*)current
+-(void) sayHello:(ICECurrent*)__unused current
 {
     // Do nothing, this is just a dummy servant.
 }
@@ -255,15 +250,17 @@ locationAllTests(id<ICECommunicator> communicator, NSString* ref)
 
     tprintf("testing locator cache timeout... ");
 
+    id<ICEObjectPrx> basencc = [[communicator stringToProxy:@"test@TestAdapter"] ice_connectionCached:NO];
+
     int count = [locator getRequestCount];
-    [[[communicator stringToProxy:@"test@TestAdapter"] ice_locatorCacheTimeout:0] ice_ping]; // No locator cache.
+    [[basencc ice_locatorCacheTimeout:0] ice_ping]; // No locator cache.
     test(++count == [locator getRequestCount]);
-    [[[communicator stringToProxy:@"test@TestAdapter"] ice_locatorCacheTimeout:0] ice_ping]; // No locator cache.
+    [[basencc ice_locatorCacheTimeout:0] ice_ping]; // No locator cache.
     test(++count == [locator getRequestCount]);
-    [[[communicator stringToProxy:@"test@TestAdapter"] ice_locatorCacheTimeout:1] ice_ping]; // 1s timeout.
+    [[basencc ice_locatorCacheTimeout:1] ice_ping]; // 1s timeout.
     test(count == [locator getRequestCount]);
     [NSThread sleepForTimeInterval:1.2];
-    [[[communicator stringToProxy:@"test@TestAdapter"] ice_locatorCacheTimeout:1] ice_ping]; // 1s timeout.
+    [[basencc ice_locatorCacheTimeout:1] ice_ping]; // 1s timeout.
     test(++count == [locator getRequestCount]);
 
     [[[communicator stringToProxy:@"test"] ice_locatorCacheTimeout:0] ice_ping]; // No locator cache.

@@ -1,26 +1,25 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-using Test;
-
-public sealed class FI : F
+namespace Ice
 {
-    public FI()
+    namespace objects
     {
-    }
+        public sealed class FI : Test.F
+        {
+            public FI()
+            {
+            }
 
-    public FI(E e) : base(e, e)
-    {
-    }
+            public FI(Test.E e) : base(e, e)
+            {
+            }
 
-    public bool checkValues()
-    {
-        return e1 != null && e1 == e2;
+            public bool checkValues()
+            {
+                return e1 != null && e1 == e2;
+            }
+        }
     }
 }

@@ -1,16 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #pragma once
 
-[["suppress-warning:deprecated"]]
-
+[["cs:typeid-namespace:Ice.optional.AMD.TypeId", "suppress-warning:deprecated"]]
+["cs:namespace:Ice.optional.AMD"]
 module Test
 {
 
@@ -62,7 +57,7 @@ sequence<VarStruct> VarStructSeq;
 sequence<OneOptional> OneOptionalSeq;
 sequence<OneOptional*> OneOptionalPrxSeq;
 
-["clr:serializable:Test.SerializableClass"]
+["clr:serializable:Ice.optional.Test.SerializableClass"]
 sequence<byte> Serializable;
 
 dictionary<int, int> IntIntDict;

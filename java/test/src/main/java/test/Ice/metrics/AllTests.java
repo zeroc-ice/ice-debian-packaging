@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.metrics;
 
@@ -30,7 +25,7 @@ public class AllTests
 
     static String getPort(com.zeroc.Ice.PropertiesAdminPrx p)
     {
-        return Integer.toString(test.Util.Application.getTestPort(p.ice_getCommunicator().getProperties(), 0));
+        return Integer.toString(test.TestHelper.getTestPort(p.ice_getCommunicator().getProperties(), 0));
     }
 
     static ConnectionMetrics getServerConnectionMetrics(MetricsAdminPrx metrics, long expected)
@@ -377,16 +372,16 @@ public class AllTests
         return m;
     }
 
-    static MetricsPrx allTests(test.Util.Application app, CommunicatorObserverI obsv)
+    static MetricsPrx allTests(test.TestHelper helper, CommunicatorObserverI obsv)
         throws UnknownMetricsView
     {
-        PrintWriter out = app.getWriter();
-        com.zeroc.Ice.Communicator communicator = app.communicator();
+        PrintWriter out = helper.getWriter();
+        com.zeroc.Ice.Communicator communicator = helper.communicator();
 
-        String host = app.getTestHost();
-        String port = Integer.toString(app.getTestPort(0));
+        String host = helper.getTestHost();
+        String port = Integer.toString(helper.getTestPort(0));
         String hostAndPort = host + ":" + port;
-        String protocol = app.getTestProtocol();
+        String protocol = helper.getTestProtocol();
         String endpoint = protocol + " -h " + host + " -p " + port;
 
         MetricsPrx metrics = MetricsPrx.checkedCast(communicator.stringToProxy("metrics:" + endpoint));
@@ -576,7 +571,7 @@ public class AllTests
             test(map.get("active").current == 1);
 
             ControllerPrx controller = ControllerPrx.checkedCast(
-                communicator.stringToProxy("controller:" + app.getTestEndpoint(1)));
+                communicator.stringToProxy("controller:" + helper.getTestEndpoint(1)));
             controller.hold();
 
             map = toMap(clientMetrics.getMetricsView("View").returnValue.get("Connection"));
@@ -1175,6 +1170,60 @@ public class AllTests
         testAttribute(clientMetrics, clientProps, "Invocation", "mode", "batch-oneway",
                       new InvokeOp(metricsBatchOneway), out);
 
+        //
+        // Tests flushBatchRequests
+        //
+        props.put("IceMX.Metrics.View.Map.Invocation.GroupBy", "operation");
+        props.put("IceMX.Metrics.View.Map.Invocation.Map.Remote.GroupBy", "localPort");
+        updateProps(clientProps, serverProps, props, "Invocation");
+
+        metricsBatchOneway = (MetricsPrx)metrics.ice_batchOneway();
+        metricsBatchOneway.op();
+
+        metricsBatchOneway.ice_flushBatchRequests();
+        metricsBatchOneway.ice_flushBatchRequestsAsync().join();
+
+        map = toMap(clientMetrics.getMetricsView("View").returnValue.get("Invocation"));
+        test(map.size() == 2);
+
+        im1 = (InvocationMetrics)map.get("ice_flushBatchRequests");
+        test(im1.current <= 1 && im1.total == 2 && im1.failures == 0 && im1.retry == 0);
+        if(!collocated)
+        {
+            test(im1.remotes.length == 1); // The first operation got sent over a connection
+        }
+
+        if(!collocated)
+        {
+            clearView(clientProps, serverProps);
+
+            com.zeroc.Ice.Connection con = metricsBatchOneway.ice_getConnection();
+
+            metricsBatchOneway = (MetricsPrx)metricsBatchOneway.ice_fixed(con);
+            metricsBatchOneway.op();
+
+            con.flushBatchRequests(com.zeroc.Ice.CompressBatch.No);
+            con.flushBatchRequestsAsync(com.zeroc.Ice.CompressBatch.No).join();
+
+            map = toMap(clientMetrics.getMetricsView("View").returnValue.get("Invocation"));
+            test(map.size() == 3);
+
+            im1 = (InvocationMetrics)map.get("flushBatchRequests");
+            test(im1.current == 0 && im1.total == 2 && im1.failures == 0 && im1.retry == 0);
+            test(im1.remotes.length == 1); // The first operation got sent over a connection
+
+            clearView(clientProps, serverProps);
+            metricsBatchOneway.op();
+
+            communicator.flushBatchRequests(com.zeroc.Ice.CompressBatch.No);
+            communicator.flushBatchRequestsAsync(com.zeroc.Ice.CompressBatch.No).join();
+            map = toMap(clientMetrics.getMetricsView("View").returnValue.get("Invocation"));
+            test(map.size() == 2);
+
+            im1 = (InvocationMetrics)map.get("flushBatchRequests");
+            test(im1.current <= 1 && im1.total == 2 && im1.failures == 0 && im1.retry == 0);
+            test(im1.remotes.length == 1); // The first operation got sent over a connection
+        }
         out.println("ok");
 
         out.print("testing metrics view enable/disable...");

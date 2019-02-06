@@ -1,15 +1,9 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.ami;
 
-import test.Util.Application;
 import java.io.PrintWriter;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CancellationException;
@@ -25,7 +19,6 @@ import test.Ice.ami.Test.TestIntfPrx;
 import test.Ice.ami.Test.TestIntfControllerPrx;
 import test.Ice.ami.Test.TestIntfException;
 import test.Ice.ami.Test.PingReplyPrx;
-import test.Util.Application;
 
 public class AllTests
 {
@@ -44,42 +37,17 @@ public class AllTests
     public static class PingReplyI implements test.Ice.ami.Test.PingReply
     {
         @Override
-        public synchronized void reply(com.zeroc.Ice.Current current)
+        public void reply(com.zeroc.Ice.Current current)
         {
-            ++_replies;
-            notify();
+            _received = true;
         }
 
-        public synchronized void reset()
+        public boolean checkReceived()
         {
-             _replies = 0;
+            return _received;
         }
 
-        public synchronized boolean waitReply(int expectedReplies, long timeout)
-        {
-            long end = System.currentTimeMillis() + timeout;
-            while(_replies < expectedReplies)
-            {
-                long delay = end - System.currentTimeMillis();
-                if(delay > 0)
-                {
-                    try
-                    {
-                        wait(delay);
-                    }
-                    catch(java.lang.InterruptedException ex)
-                    {
-                    }
-                }
-                else
-                {
-                    break;
-                }
-            }
-            return _replies == expectedReplies;
-        }
-
-        private int _replies;
+        private boolean _received = false;
     }
 
     private static class Callback
@@ -164,19 +132,19 @@ public class AllTests
         }
     }
 
-    public static void allTests(Application app, boolean collocated)
+    public static void allTests(test.TestHelper helper, boolean collocated)
     {
-        com.zeroc.Ice.Communicator communicator = app.communicator();
+        com.zeroc.Ice.Communicator communicator = helper.communicator();
         final boolean bluetooth = communicator.getProperties().getProperty("Ice.Default.Protocol").indexOf("bt") == 0;
-        PrintWriter out = app.getWriter();
+        PrintWriter out = helper.getWriter();
 
-        String sref = "test:" + app.getTestEndpoint(0);
+        String sref = "test:" + helper.getTestEndpoint(0);
         com.zeroc.Ice.ObjectPrx obj = communicator.stringToProxy(sref);
         test(obj != null);
 
         TestIntfPrx p = TestIntfPrx.uncheckedCast(obj);
 
-        sref = "testController:" + app.getTestEndpoint(1);
+        sref = "testController:" + helper.getTestEndpoint(1);
         obj = communicator.stringToProxy(sref);
         test(obj != null);
 
@@ -247,9 +215,9 @@ public class AllTests
             //
             if(p.ice_getConnection() != null)
             {
-                com.zeroc.Ice.InitializationData initData = app.createInitializationData();
+                com.zeroc.Ice.InitializationData initData = new com.zeroc.Ice.InitializationData();
                 initData.properties = communicator.getProperties()._clone();
-                com.zeroc.Ice.Communicator ic = app.initialize(initData);
+                com.zeroc.Ice.Communicator ic = helper.initialize(initData);
                 com.zeroc.Ice.ObjectPrx o = ic.stringToProxy(p.toString());
                 TestIntfPrx p2 = TestIntfPrx.uncheckedCast(o);
                 ic.destroy();
@@ -1111,8 +1079,8 @@ public class AllTests
                 adapter.activate();
 
                 p.ice_getConnection().setAdapter(adapter);
-                p.pingBiDir(reply.ice_getIdentity());
-                replyI.waitReply(1, 100);
+                p.pingBiDir(reply);
+                test(replyI.checkReceived());
                 adapter.destroy();
             }
         }
@@ -1123,7 +1091,7 @@ public class AllTests
         {
             test.Ice.ami.Test.Outer.Inner.TestIntfPrx q =
                 test.Ice.ami.Test.Outer.Inner.TestIntfPrx.uncheckedCast(
-                    communicator.stringToProxy("test2:" + app.getTestEndpoint(0)));
+                    communicator.stringToProxy("test2:" + helper.getTestEndpoint(0)));
 
             q.opAsync(1).whenComplete(
                 (result, ex) ->

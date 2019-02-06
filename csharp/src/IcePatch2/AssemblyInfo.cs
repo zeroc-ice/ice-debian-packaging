@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 using System.Reflection;
@@ -19,8 +14,8 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCompany("ZeroC, Inc.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyProduct("Ice")]
-[assembly: AssemblyCopyright("© 2003-2018 ZeroC, Inc.")]
+[assembly: AssemblyCopyright("© ZeroC, Inc.")]
 [assembly: AssemblyCulture("")]
-[assembly: AssemblyVersion("3.7.1")]
+[assembly: AssemblyVersion("3.7.2")]
 
 [assembly: ComVisible(false)]

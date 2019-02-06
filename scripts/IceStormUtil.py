@@ -1,47 +1,49 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import sys, os
 from Util import *
+from Component import component
+from IceBoxUtil import *
 
 class IceStorm(ProcessFromBinDir, Server):
 
-    def __init__(self, instanceName="IceStorm", replica=0, nreplicas=0, transient=False, portnum=0, *args, **kargs):
+    def __init__(self, instanceName="IceStorm", replica=0, nreplicas=0, transient=False, portnum=0,
+                 createDb=True, cleanDb=True, *args, **kargs):
         Server.__init__(self, exe="icebox", ready="IceStorm", mapping=Mapping.getByName("cpp"), *args, **kargs)
         self.portnum = portnum
         self.replica = replica
         self.nreplicas = nreplicas
         self.transient = transient
         self.instanceName = instanceName
+        self.createDb = createDb
+        self.cleanDb = cleanDb
         self.desc = self.instanceName if self.nreplicas == 0 else "{0} replica #{1}".format(self.instanceName,
                                                                                             self.replica)
 
     def setup(self, current):
         # Create the database directory
-        self.dbdir = os.path.join(current.testsuite.getPath(), "{0}-{1}.db".format(self.instanceName, self.replica))
-        if os.path.exists(self.dbdir):
-            shutil.rmtree(self.dbdir)
-        os.mkdir(self.dbdir)
+        if self.createDb:
+            self.dbdir = os.path.join(current.testsuite.getPath(), "{0}-{1}.db".format(self.instanceName, self.replica))
+            if os.path.exists(self.dbdir):
+                shutil.rmtree(self.dbdir)
+            os.mkdir(self.dbdir)
 
     def teardown(self, current, success):
-        # Remove the database directory tree
-        try:
-            shutil.rmtree(self.dbdir)
-        except:
-            pass
+        if self.cleanDb:
+            # Remove the database directory tree
+            try:
+                shutil.rmtree(self.dbdir)
+            except:
+                pass
 
     def getProps(self, current):
         props = Server.getProps(self, current)
 
         # Default properties
         props.update({
-            'IceBox.Service.IceStorm' : 'IceStormService,' + getIceSoVersion() + ':createIceStorm',
+            'IceBox.Service.IceStorm' : 'IceStormService,' + component.getSoVersion() + ':createIceStorm',
             'IceBox.PrintServicesReady' : 'IceStorm',
             'IceBox.InheritProperties' : 1,
             'IceStorm.InstanceName' : self.instanceName,
@@ -141,7 +143,7 @@ class IceStormProcess:
                     props["IceStormAdmin.TopicManager.{0}".format(name)] = testcase.getTopicManager(current, name)
         return props
 
-class IceStormAdmin(ProcessFromBinDir, IceStormProcess, Client):
+class IceStormAdmin(ProcessFromBinDir, ProcessIsReleaseOnly, IceStormProcess, Client):
 
     def __init__(self, instanceName=None, instance=None, *args, **kargs):
         Client.__init__(self, exe="icestormadmin", mapping=Mapping.getByName("cpp"), *args, **kargs)

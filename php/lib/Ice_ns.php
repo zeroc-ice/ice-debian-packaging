@@ -1,12 +1,7 @@
 <?php
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 //
 // Definitions for IcePHP with namespaces enabled
@@ -225,6 +220,10 @@ namespace
     require_once 'Ice/Metrics.php';
     require_once 'Ice/RemoteLogger.php';
     require_once 'Ice/Communicator.php';
+
+    global $Ice_Protocol_1_0;
+    global $Ice_Encoding_1_0;
+    global $Ice_Encoding_1_1;
 
     $Ice_Protocol_1_0 = new Ice\ProtocolVersion(1, 0);
     $Ice_Encoding_1_0 = new Ice\EncodingVersion(1, 0);

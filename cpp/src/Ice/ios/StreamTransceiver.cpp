@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include "StreamTransceiver.h"
 #include "StreamEndpointI.h"
@@ -227,7 +222,7 @@ IceObjC::StreamTransceiver::closeStreams()
 }
 
 SocketOperation
-IceObjC::StreamTransceiver::initialize(Buffer& readBuffer, Buffer& writeBuffer)
+IceObjC::StreamTransceiver::initialize(Buffer& /*readBuffer*/, Buffer& /*writeBuffer*/)
 {
     IceUtil::Mutex::Lock sync(_mutex);
     if(_state == StateNeedConnect)
@@ -344,7 +339,7 @@ IceObjC::StreamTransceiver::write(Buffer& buf)
 
         buf.i += ret;
 
-        if(packetSize > buf.b.end() - buf.i)
+        if(packetSize > static_cast<size_t>(buf.b.end() - buf.i))
         {
             packetSize = buf.b.end() - buf.i;
         }
@@ -389,7 +384,7 @@ IceObjC::StreamTransceiver::read(Buffer& buf)
 
         buf.i += ret;
 
-        if(packetSize > buf.b.end() - buf.i)
+        if(packetSize > static_cast<size_t>(buf.b.end() - buf.i))
         {
             packetSize = buf.b.end() - buf.i;
         }
@@ -427,7 +422,7 @@ IceObjC::StreamTransceiver::getInfo() const
 }
 
 void
-IceObjC::StreamTransceiver::checkSendSize(const Buffer& buf)
+IceObjC::StreamTransceiver::checkSendSize(const Buffer& /*buf*/)
 {
 }
 

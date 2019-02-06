@@ -1,14 +1,10 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import sys, os, time, threading
 from Util import *
+from Component import component
 
 isPython2 = sys.version_info[0] == 2
 
@@ -238,7 +234,15 @@ class RemoteTestCaseRunner(TestCaseRunner):
                 testSuiteIds = serverTestSuiteIds
         return mapping.getTestSuites(testSuiteIds)
 
+    def getHost(self, protocol, ipv6):
+        if self.clientController:
+            return self.clientController.getHost(protocol, ipv6)
+        else:
+            return self.serverController.getHost(protocol, ipv6)
+
     def filterOptions(self, options):
+        if options is None:
+            return None
         import Ice
         options = options.copy()
         for (key, values) in options.items():
@@ -407,7 +411,7 @@ class LocalDriver(Driver):
                     #
                     # Sort the test suites to run tests in the following order.
                     #
-                    runOrder = mapping.getRunOrder()
+                    runOrder = self.component.getRunOrder()
                     def testsuiteKey(testsuite):
                         for k in runOrder:
                             if testsuite.getId().startswith(k + '/'):
@@ -415,15 +419,12 @@ class LocalDriver(Driver):
                         return testsuite.getId()
                     testsuites = sorted(testsuites, key=testsuiteKey)
 
-                    #
-                    # Create the executor to run the test suites on multiple workers thread is requested.
-                    #
                     for testsuite in testsuites:
                         if mapping.filterTestSuite(testsuite.getId(), self.configs[mapping], self.filters, self.rfilters):
                             continue
                         if testsuite.getId() == "Ice/echo":
                             continue
-                        elif (self.cross or self.allCross) and not testsuite.isCross():
+                        elif (self.cross or self.allCross) and not self.component.isCross(testsuite.getId()):
                             continue
                         elif isinstance(self.runner, RemoteTestCaseRunner) and not testsuite.isMultiHost():
                             continue
@@ -533,6 +534,10 @@ class LocalDriver(Driver):
             if self.allCross and cross == current.testcase.getMapping():
                 continue
 
+            # Skip if the cross test server mapping is another mapping than the cross mapping
+            if cross and cross != cross.getServerMapping():
+                continue
+
             # Skip if the mapping doesn't provide the test case
             server = current.testcase.getServerTestCase(cross)
             if not server:
@@ -550,7 +555,7 @@ class LocalDriver(Driver):
             if cross:
                 current.writeln("- Mappings: {0},{1}".format(client.getMapping(), server.getMapping()))
                 current.desc += (" " if current.desc else "") + "cross={0}".format(server.getMapping())
-            if not current.config.canRun(current) or not current.testcase.canRun(current):
+            if not current.config.canRun(current.testsuite.getId(), current) or not current.testcase.canRun(current):
                 current.result.skipped(current, "not supported with this configuration")
                 return
 
@@ -565,11 +570,20 @@ class LocalDriver(Driver):
                 # interrupted by potential KeyboardInterrupt exceptions which could leave some servers
                 # behind.
                 #
-                t=threading.Thread(target = lambda: self.runner.stopServerSide(server, current, success))
+                failure = []
+                def stopServerSide():
+                    try:
+                        self.runner.stopServerSide(server, current, success)
+                    except Exception as ex:
+                        failure.append(ex)
+
+                t=threading.Thread(target = stopServerSide)
                 t.start()
                 while True:
                     try:
                         t.join()
+                        if failure:
+                            raise failure[0]
                         break
                     except KeyboardInterrupt:
                         pass # Ignore keyboard interrupts
@@ -587,11 +601,17 @@ class LocalDriver(Driver):
             if confStr:
                 current.writeln("- Config: {0}".format(confStr))
                 current.desc = confStr
-            if not current.config.canRun(current) or not current.testcase.canRun(current):
+            if not current.config.canRun(current.testsuite.getId(), current) or not current.testcase.canRun(current):
                 current.result.skipped(current, "not supported with this configuration")
                 return
 
         current.testcase._runClientSide(current)
+
+    def getHost(self, protocol, ipv6):
+        if isinstance(self.runner, RemoteTestCaseRunner):
+            return self.runner.getHost(protocol, ipv6)
+        else:
+            return Driver.getHost(self, protocol, ipv6)
 
     def isWorkerThread(self):
         return hasattr(self.threadlocal, "num")
@@ -622,7 +642,7 @@ class LocalDriver(Driver):
     def getMappings(self):
         return Mapping.getAll(self) if self.allCross else [self.cross] if self.cross else []
 
-    def filterOptions(self, testcase, options):
+    def filterOptions(self, options):
         return self.runner.filterOptions(options)
 
 Driver.add("local", LocalDriver)

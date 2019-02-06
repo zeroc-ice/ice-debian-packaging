@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #import <objc/Ice.h>
 #import <faultTolerance/TestI.h>
@@ -18,17 +13,17 @@
     [[current.adapter getCommunicator] shutdown];
 }
 
--(void) abort:(ICECurrent*)current
+-(void) abort:(ICECurrent*)__unused current
 {
     exit(0);
 }
 
--(void) idempotentAbort:(ICECurrent*)current
+-(void) idempotentAbort:(ICECurrent*)__unused current
 {
     exit(0);
 }
 
--(ICEInt) pid:(ICECurrent*)current
+-(ICEInt) pid:(ICECurrent*)__unused current
 {
     return getpid();
 }

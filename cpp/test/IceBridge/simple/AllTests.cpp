@@ -1,14 +1,9 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 
 using namespace std;
@@ -83,13 +78,14 @@ private:
 }
 
 void
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
     cout << "testing connection to bridge... " << flush;
-    Ice::ObjectPrx base = communicator->stringToProxy("test:" + getTestEndpoint(communicator, 1) + ":" +
-                                                         getTestEndpoint(communicator, 1, "udp"));
-    test(base);
-    Test::MyClassPrx cl = Ice::checkedCast<Test::MyClassPrx>(base);
+    Ice::ObjectPrx prx = communicator->stringToProxy("test:" + helper->getTestEndpoint(1) + ":" +
+                                                      helper->getTestEndpoint(1, "udp"));
+    test(prx);
+    Test::MyClassPrx cl = Ice::checkedCast<Test::MyClassPrx>(prx);
     cl->ice_ping();
     cout << "ok" << endl;
 
@@ -132,7 +128,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
                 // The bridge forwards the CloseConnectionException from the server as an
                 // UnknownLocalException. It eventually closes the connection when notified
                 // of the connection close.
-                test(ex.unknown.find("CloseConnectionException") >= 0);
+                test(ex.unknown.find("CloseConnectionException") != string::npos);
             }
             IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(1));
         }
@@ -237,7 +233,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     cout << "testing router... " << flush;
     {
-        Ice::ObjectPrx base = communicator->stringToProxy("Ice/RouterFinder:" + getTestEndpoint(communicator, 1));
+        Ice::ObjectPrx base = communicator->stringToProxy("Ice/RouterFinder:" + helper->getTestEndpoint(1));
         Ice::RouterFinderPrx finder = Ice::checkedCast<Ice::RouterFinderPrx>(base);
         Ice::RouterPrx router = finder->getRouter();
         base = communicator->stringToProxy("test")->ice_router(router);
@@ -272,7 +268,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
     cout << "ok" << endl;
 
     cout << "testing bridge shutdown... " << flush;
-    Ice::ObjectPrx admin = communicator->stringToProxy("IceBridge/admin:" + getTestEndpoint(communicator, 2, "tcp"));
+    Ice::ObjectPrx admin = communicator->stringToProxy("IceBridge/admin:" + helper->getTestEndpoint(2, "tcp"));
     Ice::ProcessPrx process = Ice::checkedCast<Ice::ProcessPrx>(admin->ice_facet("Process"));
     process->shutdown();
     cout << "ok" << endl;

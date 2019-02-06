@@ -1,18 +1,14 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.IO;
 using Test;
 
-public class AllTests : TestCommon.AllTests
+public class AllTests : Test.AllTests
 {
     private class Callback
     {
@@ -47,7 +43,7 @@ public class AllTests : TestCommon.AllTests
         private bool _called;
     }
 
-    private static void exceptAbortI(Ice.Exception ex)
+    private static void exceptAbortI(Ice.Exception ex, TextWriter output)
     {
         try
         {
@@ -64,31 +60,32 @@ public class AllTests : TestCommon.AllTests
         }
         catch(Exception)
         {
-            WriteLine(ex.ToString());
+            output.WriteLine(ex.ToString());
             test(false);
         }
     }
 
-    public static void allTests(TestCommon.Application app, List<int> ports)
+    public static void allTests(Test.TestHelper helper, List<int> ports)
     {
-        Ice.Communicator communicator = app.communicator();
-        Write("testing stringToProxy... ");
-        Flush();
+        Ice.Communicator communicator = helper.communicator();
+        var output = helper.getWriter();
+        output.Write("testing stringToProxy... ");
+        output.Flush();
         string refString = "test";
         for(int i = 0; i < ports.Count; i++)
         {
-            refString += ":" + app.getTestEndpoint(ports[i]);
+            refString += ":" + helper.getTestEndpoint(ports[i]);
         }
         Ice.ObjectPrx basePrx = communicator.stringToProxy(refString);
         test(basePrx != null);
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing checked cast... ");
-        Flush();
+        output.Write("testing checked cast... ");
+        output.Flush();
         TestIntfPrx obj = TestIntfPrxHelper.checkedCast(basePrx);
         test(obj != null);
         test(obj.Equals(basePrx));
-        WriteLine("ok");
+        output.WriteLine("ok");
 
         int oldPid = 0;
         bool ami = false;
@@ -102,17 +99,17 @@ public class AllTests : TestCommon.AllTests
 
             if(!ami)
             {
-                Write("testing server #" + i + "... ");
-                Flush();
+                output.Write("testing server #" + i + "... ");
+                output.Flush();
                 int pid = obj.pid();
                 test(pid != oldPid);
-                WriteLine("ok");
+                output.WriteLine("ok");
                 oldPid = pid;
             }
             else
             {
-                Write("testing server #" + i + " with AMI... ");
-                Flush();
+                output.Write("testing server #" + i + " with AMI... ");
+                output.Flush();
                 Callback cb = new Callback();
                 int pid = -1;
                 obj.begin_pid().whenCompleted(
@@ -123,12 +120,12 @@ public class AllTests : TestCommon.AllTests
                     },
                     (Ice.Exception ex) =>
                     {
-                        WriteLine(ex.ToString());
+                        output.WriteLine(ex.ToString());
                         test(false);
                     });
                 cb.check();
                 test(pid != oldPid);
-                WriteLine("ok");
+                output.WriteLine("ok");
                 oldPid = pid;
             }
 
@@ -136,14 +133,14 @@ public class AllTests : TestCommon.AllTests
             {
                 if(!ami)
                 {
-                    Write("shutting down server #" + i + "... ");
-                    Flush();
+                    output.Write("shutting down server #" + i + "... ");
+                    output.Flush();
                     obj.shutdown();
-                    WriteLine("ok");
+                    output.WriteLine("ok");
                 }
                 else
                 {
-                    Write("shutting down server #" + i + " with AMI... ");
+                    output.Write("shutting down server #" + i + " with AMI... ");
                     Callback cb = new Callback();
                     obj.begin_shutdown().whenCompleted(
                         () =>
@@ -152,19 +149,19 @@ public class AllTests : TestCommon.AllTests
                         },
                         (Ice.Exception ex) =>
                         {
-                            WriteLine(ex.ToString());
+                            output.WriteLine(ex.ToString());
                             test(false);
                         });
                     cb.check();
-                    WriteLine("ok");
+                    output.WriteLine("ok");
                 }
             }
             else if(j == 1 || i + 1 > ports.Count)
             {
                 if(!ami)
                 {
-                    Write("aborting server #" + i + "... ");
-                    Flush();
+                    output.Write("aborting server #" + i + "... ");
+                    output.Flush();
                     try
                     {
                         obj.abort();
@@ -172,21 +169,21 @@ public class AllTests : TestCommon.AllTests
                     }
                     catch(Ice.ConnectionLostException)
                     {
-                        WriteLine("ok");
+                        output.WriteLine("ok");
                     }
                     catch(Ice.ConnectFailedException)
                     {
-                        WriteLine("ok");
+                        output.WriteLine("ok");
                     }
                     catch(Ice.SocketException)
                     {
-                        WriteLine("ok");
+                        output.WriteLine("ok");
                     }
                 }
                 else
                 {
-                    Write("aborting server #" + i + " with AMI... ");
-                    Flush();
+                    output.Write("aborting server #" + i + " with AMI... ");
+                    output.Flush();
                     Callback cb = new Callback();
                     obj.begin_abort().whenCompleted(
                         () =>
@@ -195,19 +192,19 @@ public class AllTests : TestCommon.AllTests
                         },
                         (Ice.Exception ex) =>
                         {
-                            exceptAbortI(ex);
+                            exceptAbortI(ex, output);
                             cb.called();
                         });
                     cb.check();
-                    WriteLine("ok");
+                    output.WriteLine("ok");
                 }
             }
             else if(j == 2 || j == 3)
             {
                 if(!ami)
                 {
-                    Write("aborting server #" + i + " and #" + (i + 1) + " with idempotent call... ");
-                    Flush();
+                    output.Write("aborting server #" + i + " and #" + (i + 1) + " with idempotent call... ");
+                    output.Flush();
                     try
                     {
                         obj.idempotentAbort();
@@ -215,21 +212,21 @@ public class AllTests : TestCommon.AllTests
                     }
                     catch(Ice.ConnectionLostException)
                     {
-                        WriteLine("ok");
+                        output.WriteLine("ok");
                     }
                     catch(Ice.ConnectFailedException)
                     {
-                        WriteLine("ok");
+                        output.WriteLine("ok");
                     }
                     catch(Ice.SocketException)
                     {
-                        WriteLine("ok");
+                        output.WriteLine("ok");
                     }
                 }
                 else
                 {
-                    Write("aborting server #" + i + " and #" + (i + 1) + " with idempotent AMI call... ");
-                    Flush();
+                    output.Write("aborting server #" + i + " and #" + (i + 1) + " with idempotent AMI call... ");
+                    output.Flush();
                     Callback cb = new Callback();
                     obj.begin_idempotentAbort().whenCompleted(
                         () =>
@@ -238,11 +235,11 @@ public class AllTests : TestCommon.AllTests
                         },
                         (Ice.Exception ex) =>
                         {
-                            exceptAbortI(ex);
+                            exceptAbortI(ex, output);
                             cb.called();
                         });
                     cb.check();
-                    WriteLine("ok");
+                    output.WriteLine("ok");
                 }
                 ++i;
             }
@@ -252,8 +249,8 @@ public class AllTests : TestCommon.AllTests
             }
         }
 
-        Write("testing whether all servers are gone... ");
-        Flush();
+        output.Write("testing whether all servers are gone... ");
+        output.Flush();
         try
         {
             obj.ice_ping();
@@ -261,7 +258,7 @@ public class AllTests : TestCommon.AllTests
         }
         catch(Ice.LocalException)
         {
-            WriteLine("ok");
+            output.WriteLine("ok");
         }
     }
 }

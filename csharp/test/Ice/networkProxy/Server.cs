@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 using System.Reflection;
@@ -16,7 +11,7 @@ using System.Reflection;
 [assembly: AssemblyDescription("Ice test")]
 [assembly: AssemblyCompany("ZeroC, Inc.")]
 
-public class Server : TestCommon.Application
+public class Server : Test.TestHelper
 {
     class TestI : Test.TestIntfDisp_
     {
@@ -26,20 +21,21 @@ public class Server : TestCommon.Application
         }
     }
 
-    public override int run(string[] args)
+    public override void run(string[] args)
     {
-        communicator().getProperties().setProperty("TestAdapter.Endpoints", getTestEndpoint(0));
-        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
-        adapter.add(new TestI(), Ice.Util.stringToIdentity("test"));
-        adapter.activate();
+        using(var communicator = initialize(ref args))
+        {
+            communicator.getProperties().setProperty("TestAdapter.Endpoints", getTestEndpoint(0));
+            Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
+            adapter.add(new TestI(), Ice.Util.stringToIdentity("test"));
+            adapter.activate();
 
-        communicator().waitForShutdown();
-        return 0;
+            communicator.waitForShutdown();
+        }
     }
 
     public static int Main(string[] args)
     {
-        Server app = new Server();
-        return app.runmain(args);
+        return Test.TestDriver.runTest<Server>(args);
     }
 }

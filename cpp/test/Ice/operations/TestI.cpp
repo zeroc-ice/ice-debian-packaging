@@ -1,16 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <IceUtil/IceUtil.h>
 #include <TestI.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <functional>
 #include <iterator>
 
@@ -65,7 +60,7 @@ MyDerivedClassI::shutdown(const Ice::Current& current)
 }
 
 bool
-MyDerivedClassI::supportsCompress(const Ice::Current& current)
+MyDerivedClassI::supportsCompress(const Ice::Current&)
 {
 #if defined(ICE_OS_UWP)
     return false;

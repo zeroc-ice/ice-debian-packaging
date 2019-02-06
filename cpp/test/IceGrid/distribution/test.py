@@ -1,19 +1,14 @@
 # -*- coding: utf-8 -*-
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 class IceGridDistributionTestCase(IceGridTestCase):
 
     def setupClientSide(self, current):
         IceGridTestCase.setupClientSide(self, current)
 
-        datadir = os.path.join(self.getPath(), "data")
+        datadir = os.path.join(current.testsuite.getPath(), "data")
 
         files = [
           [ "original/rootfile", "rootfile" ],

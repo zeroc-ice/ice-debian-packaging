@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Slice/RubyUtil.h>
 #include <Slice/Checksum.h>
@@ -191,7 +186,16 @@ Slice::Ruby::CodeVisitor::CodeVisitor(Output& out) :
 bool
 Slice::Ruby::CodeVisitor::visitModuleStart(const ModulePtr& p)
 {
-    _out << sp << nl << "module " << fixIdent(p->name(), IdentToUpper);
+    _out << sp << nl << "module ";
+    //
+    // Ensure that Slice top-level modules are defined as top
+    // level modules in Ruby
+    //
+    if(UnitPtr::dynamicCast(p->container()))
+    {
+        _out << "::";
+    }
+    _out << fixIdent(p->name(), IdentToUpper);
     _out.inc();
     return true;
 }
@@ -331,7 +335,6 @@ Slice::Ruby::CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
         //
         // read/write accessors for data members.
         //
-        DataMemberList members = p->dataMembers();
         if(!members.empty())
         {
             bool prot = p->hasMetaData("protected");
@@ -1556,14 +1559,9 @@ void
 Slice::Ruby::printHeader(IceUtilInternal::Output& out)
 {
     static const char* header =
-"# **********************************************************************\n"
 "#\n"
-"# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.\n"
+"# Copyright (c) ZeroC, Inc. All rights reserved.\n"
 "#\n"
-"# This copy of Ice is licensed to you under the terms described in the\n"
-"# ICE_LICENSE file included in this distribution.\n"
-"#\n"
-"# **********************************************************************\n"
         ;
 
     out << header;

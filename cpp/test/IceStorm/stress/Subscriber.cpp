@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <IceStorm/IceStorm.h>
@@ -16,7 +11,7 @@
 #include <Event.h>
 #include <IceUtil/Mutex.h>
 #include <IceUtil/MutexPtrLock.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 using namespace std;
 using namespace Ice;
@@ -169,7 +164,7 @@ public:
             current.adapter->deactivate();
             _count = _total;
             {
-                IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(_remainingMutex);
+                IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync2(_remainingMutex);
                 --_remaining;
                 if(_remaining == 0)
                 {
@@ -304,9 +299,17 @@ Init init;
 
 }
 
-int
-run(int argc, char* argv[], const CommunicatorPtr& communicator)
+class Subscriber : public Test::TestHelper
 {
+public:
+
+    void run(int, char**);
+};
+
+void
+Subscriber::run(int argc, char** argv)
+{
+    Ice::CommunicatorHolder communicator = initialize(argc, argv);
     IceUtilInternal::Options opts;
     opts.addOpt("", "events", IceUtilInternal::Options::NeedArg);
     opts.addOpt("", "qos", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::Repeat);
@@ -321,8 +324,9 @@ run(int argc, char* argv[], const CommunicatorPtr& communicator)
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
-        cerr << argv[0] << ": " << e.reason << endl;
-        return EXIT_FAILURE;
+        ostringstream os;
+        os << argv[0] << ": error: " << e.reason;
+        throw invalid_argument(os.str());
     }
 
     int events = 1000;
@@ -333,8 +337,9 @@ run(int argc, char* argv[], const CommunicatorPtr& communicator)
     }
     if(events <= 0)
     {
-        cerr << argv[0] << ": events must be > 0." << endl;
-        return EXIT_FAILURE;
+        ostringstream os;
+        os << argv[0] << ": events must be > 0.";
+        throw invalid_argument(os.str());
     }
 
     IceStorm::QoS cmdLineQos;
@@ -345,8 +350,9 @@ run(int argc, char* argv[], const CommunicatorPtr& communicator)
         string::size_type off = q->find(",");
         if(off == string::npos)
         {
-            cerr << argv[0] << ": parse error: no , in QoS" << endl;
-            return EXIT_FAILURE;
+            ostringstream os;
+            os << argv[0] << ": parse error: no , in QoS";
+            throw invalid_argument(os.str());
         }
         cmdLineQos[q->substr(0, off)] = q->substr(off+1);
     }
@@ -364,8 +370,9 @@ run(int argc, char* argv[], const CommunicatorPtr& communicator)
     }
     if(events <= 0)
     {
-        cerr << argv[0] << ": events must be > 0." << endl;
-        return EXIT_FAILURE;
+        ostringstream os;
+        os << argv[0] << ": events must be > 0.";
+        throw invalid_argument(os.str());
     }
 
     PropertiesPtr properties = communicator->getProperties();
@@ -373,16 +380,18 @@ run(int argc, char* argv[], const CommunicatorPtr& communicator)
     string managerProxy = properties->getProperty(managerProxyProperty);
     if(managerProxy.empty())
     {
-        cerr << argv[0] << ": property `" << managerProxyProperty << "' is not set" << endl;
-        return EXIT_FAILURE;
+        ostringstream os;
+        os << argv[0] << ": property `" << managerProxyProperty << "' is not set";
+        throw invalid_argument(os.str());
     }
 
     IceStorm::TopicManagerPrx manager = IceStorm::TopicManagerPrx::checkedCast(
         communicator->stringToProxy(managerProxy));
     if(!manager)
     {
-        cerr << argv[0] << ": `" << managerProxy << "' is not running" << endl;
-        return EXIT_FAILURE;
+        ostringstream os;
+        os << argv[0] << ": `" << managerProxy << "' is not running";
+        throw invalid_argument(os.str());
     }
 
     vector<Subscription> subs;
@@ -395,7 +404,7 @@ run(int argc, char* argv[], const CommunicatorPtr& communicator)
             os << "SubscriberAdapter" << i;
             Subscription item;
             item.adapter = communicator->createObjectAdapterWithEndpoints(os.str(), "default");
-            item.servant = new ErraticEventI(communicator, events);
+            item.servant = new ErraticEventI(communicator.communicator(), events);
             item.qos["reliability"] = "twoway";
             subs.push_back(item);
         }
@@ -404,7 +413,7 @@ run(int argc, char* argv[], const CommunicatorPtr& communicator)
     {
         Subscription item;
         item.adapter = communicator->createObjectAdapterWithEndpoints("SubscriberAdapter", "default");
-        item.servant = new SlowEventI(communicator, events);
+        item.servant = new SlowEventI(communicator.communicator(), events);
         item.qos = cmdLineQos;
         subs.push_back(item);
     }
@@ -414,11 +423,11 @@ run(int argc, char* argv[], const CommunicatorPtr& communicator)
         item1.adapter = communicator->createObjectAdapterWithEndpoints("MaxQueueAdapter", "default");
         if(maxQueueDropEvents)
         {
-            item1.servant = new MaxQueueEventI(communicator, maxQueueDropEvents, events, false);
+            item1.servant = new MaxQueueEventI(communicator.communicator(), maxQueueDropEvents, events, false);
         }
         else
         {
-            item1.servant = new MaxQueueEventI(communicator, maxQueueRemoveSub, events, true);
+            item1.servant = new MaxQueueEventI(communicator.communicator(), maxQueueRemoveSub, events, true);
         }
         item1.qos = cmdLineQos;
         item1.activate = false;
@@ -426,7 +435,7 @@ run(int argc, char* argv[], const CommunicatorPtr& communicator)
 
         Subscription item2;
         item2.adapter = communicator->createObjectAdapterWithEndpoints("ControllerAdapter", "default");
-        item2.servant = new ControllerEventI(communicator, events, item1.adapter);
+        item2.servant = new ControllerEventI(communicator.communicator(), events, item1.adapter);
         item2.qos["reliability"] = "oneway";
         subs.push_back(item2);
     }
@@ -438,25 +447,16 @@ run(int argc, char* argv[], const CommunicatorPtr& communicator)
         map<string, string>::const_iterator p = item.qos.find("reliability");
         if(p != item.qos.end() && p->second == "ordered")
         {
-            item.servant = new OrderEventI(communicator, events);
+            item.servant = new OrderEventI(communicator.communicator(), events);
         }
         else
         {
-            item.servant = new CountEventI(communicator, events);
+            item.servant = new CountEventI(communicator.communicator(), events);
         }
         subs.push_back(item);
     }
 
-    TopicPrx topic;
-    try
-    {
-        topic = manager->retrieve("fed1");
-    }
-    catch(const IceStorm::NoSuchTopic& e)
-    {
-        cerr << argv[0] << ": NoSuchTopic: " << e.name << endl;
-        return EXIT_FAILURE;
-    }
+    TopicPrx topic = manager->retrieve("fed1");
 
     {
         for(vector<Subscription>::iterator p = subs.begin(); p != subs.end(); ++p)
@@ -509,36 +509,12 @@ run(int argc, char* argv[], const CommunicatorPtr& communicator)
             topic->unsubscribe(p->obj);
             if(p->servant->count() != events)
             {
-                cerr << "expected " << events << " events but got " << p->servant->count() << " events." << endl;
-                return EXIT_FAILURE;
+                ostringstream os;
+                os << "expected " << events << " events but got " << p->servant->count() << " events.";
+                throw invalid_argument(os.str());
             }
         }
     }
-
-    return EXIT_SUCCESS;
 }
 
-int
-main(int argc, char* argv[])
-{
-    int status;
-    CommunicatorPtr communicator;
-    InitializationData initData = getTestInitData(argc, argv);
-    try
-    {
-        communicator = initialize(argc, argv, initData);
-        status = run(argc, argv, communicator);
-    }
-    catch(const Exception& ex)
-    {
-        cerr << ex << endl;
-        status = EXIT_FAILURE;
-    }
-
-    if(communicator)
-    {
-        communicator->destroy();
-    }
-
-    return status;
-}
+DEFINE_TEST(Subscriber)

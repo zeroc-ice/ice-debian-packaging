@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 namespace IceSSL
 {
@@ -15,9 +10,10 @@ namespace IceSSL
 
     public sealed class Util
     {
-        public static X509Certificate2 createCertificate(string certPEM)
+        public static void
+        registerIceSSL(bool loadOnInitialize)
         {
-            return new X509Certificate2(System.Text.Encoding.ASCII.GetBytes(certPEM));
+            Ice.Util.registerPluginFactory("IceSSL", new PluginFactory(), loadOnInitialize);
         }
     }
 }

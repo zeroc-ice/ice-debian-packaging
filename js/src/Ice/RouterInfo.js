@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 Ice._ModuleRegistry.require(module,
@@ -79,7 +74,7 @@ class RouterInfo
         }
         else
         {
-            this._router.getClientProxy().then((result) =>
+            this._router.getClientProxy().then(result =>
                            this.setClientEndpoints(result[0],
                                                    result[1] !== undefined ? result[1] : true,
                                                    promise)).catch(promise.reject);
@@ -115,7 +110,7 @@ class RouterInfo
         }
         else
         {
-            return this._router.addProxies([ proxy ]).then(
+            return this._router.addProxies([proxy]).then(
                 evictedProxies =>
                 {
                     this.addAndEvictProxies(proxy, evictedProxies);

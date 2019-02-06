@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Operation.h>
 #include <Communicator.h>
@@ -96,7 +91,7 @@ typedef IceUtil::Handle<OperationI> OperationIPtr;
 //
 // The base class for client-side invocations.
 //
-class Invocation : public virtual IceUtil::Shared
+class Invocation : public IceUtil::Shared
 {
 public:
 
@@ -115,7 +110,7 @@ typedef IceUtil::Handle<Invocation> InvocationPtr;
 // TypedInvocation uses the information in the given operation to validate, marshal, and unmarshal
 // parameters and exceptions.
 //
-class TypedInvocation : public virtual Invocation
+class TypedInvocation : public Invocation
 {
 public:
 
@@ -135,7 +130,7 @@ protected:
 //
 // A synchronous typed invocation.
 //
-class SyncTypedInvocation : public virtual TypedInvocation
+class SyncTypedInvocation : public TypedInvocation
 {
 public:
 
@@ -717,7 +712,7 @@ IcePHP::TypedInvocation::checkTwowayOnly(const Ice::ObjectPrx& proxy) const
 //
 IcePHP::SyncTypedInvocation::SyncTypedInvocation(const Ice::ObjectPrx& prx, const CommunicatorInfoPtr& communicator,
                                                  const OperationIPtr& op) :
-    Invocation(prx, communicator), TypedInvocation(prx, communicator, op)
+    TypedInvocation(prx, communicator, op)
 {
 }
 

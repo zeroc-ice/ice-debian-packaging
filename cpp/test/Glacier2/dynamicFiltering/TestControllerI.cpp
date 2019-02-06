@@ -1,15 +1,10 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <TestControllerI.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <vector>
 #include <string>
 
@@ -64,7 +59,7 @@ TestControllerI::step(const Glacier2::SessionPrx& currentSession, const TestToke
     {
         case Test::Finished:
         {
-            assert("TestController::step() shouldn't have been called with a state of Finished" == 0);
+            assert(false);
             break;
         }
 

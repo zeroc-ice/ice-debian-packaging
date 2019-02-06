@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Object.h>
 #include <Ice/Incoming.h>
@@ -118,7 +113,6 @@ Ice::ObjectPtr
 Ice::Object::ice_clone() const
 {
     throw CloneNotImplementedException(__FILE__, __LINE__);
-    return 0; // avoid warning with some compilers
 }
 
 Ice::SlicedDataPtr

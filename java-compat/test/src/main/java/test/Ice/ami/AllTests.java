@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.ami;
 
@@ -15,7 +10,6 @@ import test.Ice.ami.Test.TestIntfPrx;
 import test.Ice.ami.Test.TestIntfPrxHelper;
 import test.Ice.ami.Test.TestIntfControllerPrx;
 import test.Ice.ami.Test.TestIntfControllerPrxHelper;
-import test.Util.Application;
 
 public class AllTests
 {
@@ -29,25 +23,25 @@ public class AllTests
     }
 
     public static void
-    allTests(Application app, boolean collocated)
+    allTests(test.TestHelper helper, boolean collocated)
     {
-        Ice.Communicator communicator = app.communicator();
-        PrintWriter out = app.getWriter();
+        Ice.Communicator communicator = helper.communicator();
+        PrintWriter out = helper.getWriter();
 
-        String sref = "test:" + app.getTestEndpoint(0);
+        String sref = "test:" + helper.getTestEndpoint(0);
         Ice.ObjectPrx obj = communicator.stringToProxy(sref);
         test(obj != null);
 
         TestIntfPrx p = TestIntfPrxHelper.uncheckedCast(obj);
 
-        sref = "testController:" + app.getTestEndpoint(1);
+        sref = "testController:" + helper.getTestEndpoint(1);
         obj = communicator.stringToProxy(sref);
         test(obj != null);
 
         TestIntfControllerPrx testController = TestIntfControllerPrxHelper.uncheckedCast(obj);
 
         out.println("testing with new AMI mapping... ");
-        test.Ice.ami.AMI.run(app, communicator, collocated, p, testController);
+        test.Ice.ami.AMI.run(helper, communicator, collocated, p, testController);
 
         //
         // Use reflection to load TwowaysLambdaAMI as that is only supported with Java >= 1.8
@@ -61,7 +55,7 @@ public class AllTests
                     "run",
                     new Class<?>[]
                     {
-                        test.Util.Application.class,
+                        test.TestHelper.class,
                         Ice.Communicator.class,
                         boolean.class,
                         TestIntfPrx.class,
@@ -69,7 +63,7 @@ public class AllTests
                     });
                 out.println("testing with lambda AMI mapping... ");
                 out.flush();
-                run.invoke(null, app, communicator, collocated, p, testController);
+                run.invoke(null, helper, communicator, collocated, p, testController);
             }
         }
         catch(java.lang.NoSuchMethodException ex)

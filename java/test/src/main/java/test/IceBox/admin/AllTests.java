@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.IceBox.admin;
 
@@ -21,9 +16,9 @@ public class AllTests
         }
     }
 
-    public static void allTests(test.Util.Application app)
+    public static void allTests(test.TestHelper helper)
     {
-        com.zeroc.Ice.Communicator communicator = app.communicator();
+        com.zeroc.Ice.Communicator communicator = helper.communicator();
 
         String ref = "DemoIceBox/admin:default -p 9996 -t 10000";
         com.zeroc.Ice.ObjectPrx admin = communicator.stringToProxy(ref);

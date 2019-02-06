@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceBT/DBus.h>
 #include <IceUtil/Thread.h>
@@ -751,9 +746,9 @@ private:
             //
             string sig = ::dbus_message_iter_get_signature(_iter);
             string::iterator p = sig.begin();
-            TypePtr t = buildType(p);
+            TypePtr vt = buildType(p);
             VariantValuePtr v = new VariantValue;
-            v->v = readValue(t);
+            v->v = readValue(vt);
             popIter();
             return v;
         }

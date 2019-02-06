@@ -1,16 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <IceGrid/IceGrid.h>
 #include <IceUtil/Thread.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 
 using namespace std;
@@ -86,8 +81,9 @@ private:
 typedef IceUtil::Handle<PingThread> PingThreadPtr;
 
 void
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
     IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
         communicator->stringToProxy(communicator->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
     test(registry);
@@ -95,11 +91,13 @@ allTests(const Ice::CommunicatorPtr& communicator)
     IceGrid::QueryPrx query = IceGrid::QueryPrx::checkedCast(
         communicator->stringToProxy(communicator->getDefaultLocator()->ice_getIdentity().category + "/Query"));
 
-    IceGrid::AdminSessionPrx session = registry->createAdminSession("foo", "bar");
+    IceGrid::AdminSessionPrx adminSession = registry->createAdminSession("foo", "bar");
 
-    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
+    adminSession->ice_getConnection()->setACM(registry->getACMTimeout(),
+                                         IceUtil::None,
+                                         Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
 
-    IceGrid::AdminPrx admin = session->getAdmin();
+    IceGrid::AdminPrx admin = adminSession->getAdmin();
     test(admin);
 
     admin->startServer("node-1");
@@ -619,17 +617,23 @@ allTests(const Ice::CommunicatorPtr& communicator)
     try
     {
         test(admin->getServerState("server2") == IceGrid::Inactive);
-        TestIntfPrx obj = TestIntfPrx::checkedCast(communicator->stringToProxy("server2"));
-        waitForServerState(admin, "server2", IceGrid::Active);
-        obj->fail();
-        waitForServerState(admin, "server2", IceGrid::Inactive);
-        try
+        TestIntfPrx obj = TestIntfPrx::uncheckedCast(communicator->stringToProxy("server2"));
+        while(true)
         {
             obj->ice_ping();
-            test(false);
-        }
-        catch(const Ice::NoEndpointException&)
-        {
+            waitForServerState(admin, "server2", IceGrid::Active);
+            IceUtil::Time now = IceUtil::Time::now();
+            obj->fail();
+            waitForServerState(admin, "server2", IceGrid::Inactive);
+            try
+            {
+                obj->ice_ping();
+                test(IceUtil::Time::now() - now >= IceUtil::Time::seconds(2));
+            }
+            catch(const Ice::NoEndpointException&)
+            {
+                break; // Success
+            }
         }
         test(!admin->isServerEnabled("server2"));
         nRetry = 0;
@@ -738,5 +742,5 @@ allTests(const Ice::CommunicatorPtr& communicator)
     admin->stopServer("node-1");
     admin->stopServer("node-2");
 
-    session->destroy();
+    adminSession->destroy();
 }

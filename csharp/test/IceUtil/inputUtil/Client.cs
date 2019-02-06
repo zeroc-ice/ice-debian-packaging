@@ -1,17 +1,12 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 
-public class Client : TestCommon.Application
+public class Client : Test.TestHelper
 {
-    public override int run(string[] argvs)
+    public override void run(string[] argvs)
     {
         Console.Out.Write("testing string to command line arguments... ");
         Console.Out.Flush();
@@ -155,12 +150,10 @@ public class Client : TestCommon.Application
             test(IceUtilInternal.StringUtil.splitString("a\"b", ":") == null);
         }
         Console.Out.WriteLine("ok");
-        return 0;
     }
 
     public static int Main(string[] args)
     {
-        Client app = new Client();
-        return app.runmain(args);
+        return Test.TestDriver.runTest<Client>(args);
     }
 }

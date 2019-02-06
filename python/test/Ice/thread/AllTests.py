@@ -1,11 +1,6 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import Ice, Test, sys, TestI
 
@@ -13,9 +8,9 @@ def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-def allTests(communicator):
+def allTests(helper, communicator):
 
-    ref = "factory:default -p 12010 -t 10000"
+    ref = "factory:{0} -t 10000".format(helper.getTestEndpoint())
     factory = Test.RemoteCommunicatorFactoryPrx.checkedCast(communicator.stringToProxy(ref))
 
     sys.stdout.write("testing thread hooks... ")

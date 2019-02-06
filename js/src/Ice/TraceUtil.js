@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 Ice._ModuleRegistry.require(module,
@@ -224,7 +219,7 @@ function printRequestHeader(s, stream)
     {
         const key = stream.readString();
         const value = stream.readString();
-        s.push(key + '/'+ value);
+        s.push(key + '/' + value);
         if(sz > 0)
         {
             s.push(", ");
@@ -241,7 +236,7 @@ function printRequestHeader(s, stream)
 
 function printHeader(s, stream)
 {
-    stream.readByte();  // Don't bother printing the magic number
+    stream.readByte(); // Don't bother printing the magic number
     stream.readByte();
     stream.readByte();
     stream.readByte();
@@ -348,7 +343,7 @@ function getMessageTypeAsString(type)
     case Protocol.closeConnectionMsg:
         return "close connection";
     case Protocol.validateConnectionMsg:
-        return  "validate connection";
+        return "validate connection";
     default:
         return "unknown";
     }
@@ -469,7 +464,7 @@ class TraceUtil
                     }
                     else
                     {
-                        s = "" + n;
+                        s = String(n);
                     }
                     buf.push(s + " ");
                 }

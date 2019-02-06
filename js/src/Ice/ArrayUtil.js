@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 const _ModuleRegistry = Ice._ModuleRegistry;
@@ -29,7 +24,7 @@ const eq = function(e1, e2)
     {
         return e1.equals(e2);
     }
-    else if(e1 instanceof Array)
+    else if(e1 instanceof Array || e1 instanceof Uint8Array)
     {
         return ArrayUtil.equals(e1, e2, eq);
     }
@@ -92,11 +87,13 @@ Slice.defineSequence = function(module, name, valueHelper, fixed, elementType)
     let helper = null;
     Object.defineProperty(module, name,
         {
-            get: function()
+            get: () =>
                 {
                     if(helper === null)
                     {
-                        helper = Ice.StreamHelpers.generateSeqHelper(_ModuleRegistry.type(valueHelper), fixed, _ModuleRegistry.type(elementType));
+                        helper = Ice.StreamHelpers.generateSeqHelper(_ModuleRegistry.type(valueHelper),
+                                                                     fixed,
+                                                                     _ModuleRegistry.type(elementType));
                     }
                     return helper;
                 }

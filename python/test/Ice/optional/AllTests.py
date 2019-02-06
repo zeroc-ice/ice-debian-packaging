@@ -1,11 +1,6 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import Ice, Test, sys
 
@@ -13,10 +8,10 @@ def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-def allTests(communicator):
+def allTests(helper, communicator):
     sys.stdout.write("testing stringToProxy... ")
     sys.stdout.flush()
-    ref = "initial:default -p 12010"
+    ref = "initial:{0}".format(helper.getTestEndpoint())
     base = communicator.stringToProxy(ref)
     test(base)
     print("ok")

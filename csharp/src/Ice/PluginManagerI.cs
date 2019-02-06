@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 namespace Ice
 {
@@ -34,6 +29,18 @@ namespace Ice
     public sealed class PluginManagerI : PluginManager
     {
         private static string _kindOfObject = "plugin";
+
+        internal static void registerPluginFactory(string name, PluginFactory factory, bool loadOnInit)
+        {
+            if(!_factories.ContainsKey(name))
+            {
+                _factories[name] = factory;
+                if(loadOnInit)
+                {
+                    _loadOnInitialization.Add(name);
+                }
+            }
+        }
 
         public void initializePlugins()
         {
@@ -189,6 +196,42 @@ namespace Ice
         public void loadPlugins(ref string[] cmdArgs)
         {
             Debug.Assert(_communicator != null);
+            string prefix = "Ice.Plugin.";
+            Properties properties = _communicator.getProperties();
+            Dictionary<string, string> plugins = properties.getPropertiesForPrefix(prefix);
+
+            //
+            // First, load static plugin factories which were setup to load on
+            // communicator initialization. If a matching plugin property is
+            // set, we load the plugin with the plugin specification. The
+            // entryPoint will be ignored but the rest of the plugin
+            // specification might be used.
+            //
+            foreach(var name in _loadOnInitialization)
+            {
+                string key = "Ice.Plugin." + name + ".clr";
+                string r = null;
+                plugins.TryGetValue(key, out r);
+                if(r != null)
+                {
+                    plugins.Remove("Ice.Plugin." + name);
+                }
+                else
+                {
+                    key = "Ice.Plugin." + name;
+                    plugins.TryGetValue(key, out r);
+                }
+
+                if(r != null)
+                {
+                    loadPlugin(name, r, ref cmdArgs);
+                    plugins.Remove(key);
+                }
+                else
+                {
+                    loadPlugin(name, "", ref cmdArgs);
+                }
+            }
 
             //
             // Load and initialize the plug-ins defined in the property set
@@ -206,9 +249,6 @@ namespace Ice
             // specified plug-ins in the specified order, then load any
             // remaining plug-ins.
             //
-            string prefix = "Ice.Plugin.";
-            Properties properties = _communicator.getProperties();
-            Dictionary<string, string> plugins = properties.getPropertiesForPrefix(prefix);
 
             string[] loadOrder = properties.getPropertyAsList("Ice.PluginLoadOrder");
             for(int i = 0; i < loadOrder.Length; ++i)
@@ -226,20 +266,20 @@ namespace Ice
                 }
 
                 string key = "Ice.Plugin." + loadOrder[i] + ".clr";
-                bool hasKey = plugins.ContainsKey(key);
-                if(hasKey)
+                string value = null;
+                plugins.TryGetValue(key, out value);
+                if(value != null)
                 {
                     plugins.Remove("Ice.Plugin." + loadOrder[i]);
                 }
                 else
                 {
                     key = "Ice.Plugin." + loadOrder[i];
-                    hasKey = plugins.ContainsKey(key);
+                    plugins.TryGetValue(key, out value);
                 }
 
-                if(hasKey)
+                if(value != null)
                 {
-                    string value = plugins[key];
                     loadPlugin(loadOrder[i], value, ref cmdArgs);
                     plugins.Remove(key);
                 }
@@ -312,147 +352,159 @@ namespace Ice
         {
             Debug.Assert(_communicator != null);
 
-            //
-            // Split the entire property value into arguments. An entry point containing spaces
-            // must be enclosed in quotes.
-            //
             string[] args = null;
-            try
-            {
-                args = IceUtilInternal.Options.split(pluginSpec);
-            }
-            catch(IceUtilInternal.Options.BadQuote ex)
-            {
-                PluginInitializationException e = new PluginInitializationException();
-                e.reason = "invalid arguments for plug-in `" + name + "':\n" + ex.Message;
-                throw e;
-            }
-
-            Debug.Assert(args.Length > 0);
-
-            string entryPoint = args[0];
-
-            //
-            // Shift the arguments.
-            //
-            string[] tmp = new string[args.Length - 1];
-            Array.Copy(args, 1, tmp, 0, args.Length - 1);
-            args = tmp;
-
-            //
-            // Convert command-line options into properties. First
-            // we convert the options from the plug-in
-            // configuration, then we convert the options from the
-            // application command-line.
-            //
-            Properties properties = _communicator.getProperties();
-            args = properties.parseCommandLineOptions(name, args);
-            cmdArgs = properties.parseCommandLineOptions(name, cmdArgs);
-
-            //
-            // Extract the assembly name and the class name.
-            //
-            string err = "unable to load plug-in `" + entryPoint + "': ";
-            int sepPos = entryPoint.IndexOf(':');
-            if(sepPos != -1)
-            {
-                const string driveLetters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                if(entryPoint.Length > 3 &&
-                   sepPos == 1 &&
-                   driveLetters.IndexOf(entryPoint[0]) != -1 &&
-                   (entryPoint[2] == '\\' || entryPoint[2] == '/'))
-                {
-                    sepPos = entryPoint.IndexOf(':', 3);
-                }
-            }
-            if(sepPos == -1)
-            {
-                PluginInitializationException e = new PluginInitializationException();
-                e.reason = err + "invalid entry point format";
-                throw e;
-            }
-
-            System.Reflection.Assembly pluginAssembly = null;
-            string assemblyName = entryPoint.Substring(0, sepPos);
-            string className = entryPoint.Substring(sepPos + 1);
-
-            try
+            string entryPoint = null;
+            if(pluginSpec.Length > 0)
             {
                 //
-                // First try to load the assembly using Assembly.Load, which will succeed
-                // if a fully-qualified name is provided or if a partial name has been qualified
-                // in configuration. If that fails, try Assembly.LoadFrom(), which will succeed
-                // if a file name is configured or a partial name is configured and DEVPATH is used.
-                //
-                // We catch System.Exception as this can fail with System.ArgumentNullException
-                // or System.IO.IOException depending of the .NET framework and platform.
+                // Split the entire property value into arguments. An entry point containing spaces
+                // must be enclosed in quotes.
                 //
                 try
                 {
-                    pluginAssembly = System.Reflection.Assembly.Load(assemblyName);
+                    args = IceUtilInternal.Options.split(pluginSpec);
+                }
+                catch(IceUtilInternal.Options.BadQuote ex)
+                {
+                    PluginInitializationException e = new PluginInitializationException();
+                    e.reason = "invalid arguments for plug-in `" + name + "':\n" + ex.Message;
+                    throw e;
+                }
+
+                Debug.Assert(args.Length > 0);
+
+                entryPoint = args[0];
+
+                //
+                // Shift the arguments.
+                //
+                string[] tmp = new string[args.Length - 1];
+                Array.Copy(args, 1, tmp, 0, args.Length - 1);
+                args = tmp;
+
+                //
+                // Convert command-line options into properties. First
+                // we convert the options from the plug-in
+                // configuration, then we convert the options from the
+                // application command-line.
+                //
+                Properties properties = _communicator.getProperties();
+                args = properties.parseCommandLineOptions(name, args);
+                cmdArgs = properties.parseCommandLineOptions(name, cmdArgs);
+            }
+
+            string err = "unable to load plug-in `" + entryPoint + "': ";
+            //
+            // Always check the static plugin factory table first, it takes
+            // precedence over the the entryPoint specified in the plugin
+            // property value.
+            //
+            PluginFactory pluginFactory = null;
+            if(!_factories.TryGetValue(name, out pluginFactory))
+            {
+                //
+                // Extract the assembly name and the class name.
+                //
+                int sepPos = entryPoint.IndexOf(':');
+                if(sepPos != -1)
+                {
+                    const string driveLetters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                    if(entryPoint.Length > 3 &&
+                       sepPos == 1 &&
+                       driveLetters.IndexOf(entryPoint[0]) != -1 &&
+                       (entryPoint[2] == '\\' || entryPoint[2] == '/'))
+                    {
+                        sepPos = entryPoint.IndexOf(':', 3);
+                    }
+                }
+                if(sepPos == -1)
+                {
+                    PluginInitializationException e = new PluginInitializationException();
+                    e.reason = err + "invalid entry point format";
+                    throw e;
+                }
+
+                System.Reflection.Assembly pluginAssembly = null;
+                string assemblyName = entryPoint.Substring(0, sepPos);
+                string className = entryPoint.Substring(sepPos + 1);
+
+                try
+                {
+                    //
+                    // First try to load the assembly using Assembly.Load, which will succeed
+                    // if a fully-qualified name is provided or if a partial name has been qualified
+                    // in configuration. If that fails, try Assembly.LoadFrom(), which will succeed
+                    // if a file name is configured or a partial name is configured and DEVPATH is used.
+                    //
+                    // We catch System.Exception as this can fail with System.ArgumentNullException
+                    // or System.IO.IOException depending of the .NET framework and platform.
+                    //
+                    try
+                    {
+                        pluginAssembly = System.Reflection.Assembly.Load(assemblyName);
+                    }
+                    catch(System.Exception ex)
+                    {
+                        try
+                        {
+                            pluginAssembly = System.Reflection.Assembly.LoadFrom(assemblyName);
+                        }
+                        catch(System.IO.IOException)
+                        {
+                            throw ex;
+                        }
+                    }
                 }
                 catch(System.Exception ex)
                 {
-                    try
-                    {
-                        pluginAssembly = System.Reflection.Assembly.LoadFrom(assemblyName);
-                    }
-                    catch(System.IO.IOException)
-                    {
-                         throw ex;
-                    }
-                }
-            }
-            catch(System.Exception ex)
-            {
-                PluginInitializationException e = new PluginInitializationException();
-                e.reason = err + "unable to load assembly: `" + assemblyName + "': " + ex.ToString();
-                throw e;
-            }
-
-            //
-            // Instantiate the class.
-            //
-            PluginFactory pluginFactory = null;
-            System.Type c = null;
-            try
-            {
-                c = pluginAssembly.GetType(className, true);
-            }
-            catch(System.Exception ex)
-            {
-                PluginInitializationException e = new PluginInitializationException(ex);
-                e.reason = err + "GetType failed for `" + className + "'";
-                throw e;
-            }
-
-            try
-            {
-                pluginFactory = (PluginFactory)IceInternal.AssemblyUtil.createInstance(c);
-                if(pluginFactory == null)
-                {
                     PluginInitializationException e = new PluginInitializationException();
-                    e.reason = err + "can't find constructor for `" + className + "'";
+                    e.reason = err + "unable to load assembly: `" + assemblyName + "': " + ex.ToString();
                     throw e;
                 }
-            }
-            catch(InvalidCastException ex)
-            {
-                PluginInitializationException e = new PluginInitializationException(ex);
-                e.reason = err + "InvalidCastException to Ice.PluginFactory";
-                throw e;
-            }
-            catch(UnauthorizedAccessException ex)
-            {
-                PluginInitializationException e = new PluginInitializationException(ex);
-                e.reason = err + "UnauthorizedAccessException: " + ex.ToString();
-                throw e;
-            }
-            catch(System.Exception ex)
-            {
-                PluginInitializationException e = new PluginInitializationException(ex);
-                e.reason = err + "System.Exception: " + ex.ToString();
-                throw e;
+
+                //
+                // Instantiate the class.
+                //
+                System.Type c = null;
+                try
+                {
+                    c = pluginAssembly.GetType(className, true);
+                }
+                catch(System.Exception ex)
+                {
+                    PluginInitializationException e = new PluginInitializationException(ex);
+                    e.reason = err + "GetType failed for `" + className + "'";
+                    throw e;
+                }
+
+                try
+                {
+                    pluginFactory = (PluginFactory)IceInternal.AssemblyUtil.createInstance(c);
+                    if(pluginFactory == null)
+                    {
+                        PluginInitializationException e = new PluginInitializationException();
+                        e.reason = err + "can't find constructor for `" + className + "'";
+                        throw e;
+                    }
+                }
+                catch(InvalidCastException ex)
+                {
+                    PluginInitializationException e = new PluginInitializationException(ex);
+                    e.reason = err + "InvalidCastException to Ice.PluginFactory";
+                    throw e;
+                }
+                catch(UnauthorizedAccessException ex)
+                {
+                    PluginInitializationException e = new PluginInitializationException(ex);
+                    e.reason = err + "UnauthorizedAccessException: " + ex.ToString();
+                    throw e;
+                }
+                catch(System.Exception ex)
+                {
+                    PluginInitializationException e = new PluginInitializationException(ex);
+                    e.reason = err + "System.Exception: " + ex.ToString();
+                    throw e;
+                }
             }
 
             Plugin plugin = null;
@@ -506,5 +558,8 @@ namespace Ice
         private Communicator _communicator;
         private ArrayList _plugins;
         private bool _initialized;
+
+        private static Dictionary<string, PluginFactory> _factories = new Dictionary<string, PluginFactory>();
+        private static List<string> _loadOnInitialization = new List<string>();
     }
 }

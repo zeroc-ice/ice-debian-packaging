@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.packagemd;
 
@@ -28,13 +23,13 @@ public class AllTests
         }
     }
 
-    public static InitialPrx allTests(test.Util.Application app)
+    public static InitialPrx allTests(test.TestHelper helper)
     {
-        com.zeroc.Ice.Communicator communicator=app.communicator();
-        PrintWriter out = app.getWriter();
+        com.zeroc.Ice.Communicator communicator = helper.communicator();
+        PrintWriter out = helper.getWriter();
         out.print("testing stringToProxy... ");
         out.flush();
-        String ref = "initial:" + app.getTestEndpoint(0);
+        String ref = "initial:" + helper.getTestEndpoint(0);
         com.zeroc.Ice.ObjectPrx base = communicator.stringToProxy(ref);
         test(base != null);
         out.println("ok");

@@ -1,16 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <IceGrid/IceGrid.h>
 
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 using namespace std;
 using namespace IceGrid;
@@ -80,11 +75,11 @@ public:
 
         string server = p->second;
         Ice::StringSeq filteredAdapters;
-        for(Ice::StringSeq::const_iterator p = adpts.begin(); p != adpts.end(); ++p)
+        for(Ice::StringSeq::const_iterator q = adpts.begin(); q != adpts.end(); ++q)
         {
-            if(_facade->getAdapterServer(*p) == server)
+            if(_facade->getAdapterServer(*q) == server)
             {
-                filteredAdapters.push_back(*p);
+                filteredAdapters.push_back(*q);
             }
         }
         return filteredAdapters;
@@ -105,7 +100,7 @@ public:
     }
 
     virtual Ice::ObjectProxySeq
-    filter(const string& type, const Ice::ObjectProxySeq& objects, const Ice::ConnectionPtr&, const Ice::Context& ctx)
+    filter(const string& /*type*/, const Ice::ObjectProxySeq& objects, const Ice::ConnectionPtr&, const Ice::Context& ctx)
     {
         Ice::Context::const_iterator p = ctx.find("server");
         if(p == ctx.end())
@@ -115,11 +110,11 @@ public:
 
         string server = p->second;
         Ice::ObjectProxySeq filteredObjects;
-        for(Ice::ObjectProxySeq::const_iterator p = objects.begin(); p != objects.end(); ++p)
+        for(Ice::ObjectProxySeq::const_iterator q = objects.begin(); q != objects.end(); ++q)
         {
-            if(_facade->getAdapterServer((*p)->ice_getAdapterId()) == server)
+            if(_facade->getAdapterServer((*q)->ice_getAdapterId()) == server)
             {
-                filteredObjects.push_back(*p);
+                filteredObjects.push_back(*q);
             }
         }
         return filteredObjects;
@@ -140,7 +135,7 @@ public:
     }
 
     virtual Ice::StringSeq
-    filter(const string& id, const Ice::StringSeq& adapters, const Ice::ConnectionPtr& con, const Ice::Context& ctx)
+    filter(const string& /*id*/, const Ice::StringSeq& adapters, const Ice::ConnectionPtr& /*con*/, const Ice::Context& ctx)
     {
         Ice::Context::const_iterator p = ctx.find("server");
         if(p == ctx.end() || p->second == _exclude)

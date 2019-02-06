@@ -1,25 +1,13 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
- /* global
-    _test : false,
-    _runServer : false,
-    Test : false,
-    WorkerGlobalScope : false,
-    _server: false,
-    _serveramd: false,
-    URI: false
-*/
+/* globals Ice, Test, URI, WorkerGlobalScope */
+/* eslint no-unused-vars: ["error", { "varsIgnorePattern": "isSafari|isChrome|isWorker|isWindows|runController" }] */
 
 function isSafari()
 {
-    return /^((?!chrome).)*safari/i.test(navigator.userAgent);
+    return (/^((?!chrome).)*safari/i).test(navigator.userAgent);
 }
 
 function isChrome()
@@ -33,7 +21,7 @@ function isChrome()
 
 function isWorker()
 {
-    return typeof(WorkerGlobalScope) !== 'undefined' && this instanceof WorkerGlobalScope;
+    return typeof WorkerGlobalScope !== 'undefined' && this instanceof WorkerGlobalScope;
 }
 
 function isWindows()
@@ -61,32 +49,32 @@ class Logger extends Ice.Logger
 
 class ProcessI extends Test.Common.Process
 {
-    constructor(promise, output, ready)
+    constructor(promise, helper, output)
     {
         super();
         this._promise = promise;
+        this._helper = helper;
         this._output = output;
-        this._ready = ready;
     }
 
-    async waitReady(timeout, current)
+    async waitReady()
     {
-        if(this._ready)
-        {
-            await this._ready;
-        }
+        await this._helper.waitReady();
     }
 
-    async waitSuccess(timeout, current)
+    async waitSuccess()
     {
         try
         {
             await this._promise;
+            this._helper.serverReady();
             return 0;
         }
         catch(ex)
         {
             this._output.writeLine(`unexpected exception while running test: ${ex.toString()}`);
+            this._output.writeLine(ex.stack);
+            this._helper.serverReady(ex);
             return 1;
         }
     }
@@ -95,6 +83,51 @@ class ProcessI extends Test.Common.Process
     {
         current.adapter.remove(current.id);
         return this._output.get();
+    }
+}
+
+class ControllerHelper
+{
+    constructor(exe, output)
+    {
+        if(exe === "Server" || exe === "ServerAMD")
+        {
+            this._serverReady = new Ice.Promise();
+        }
+        this._output = output;
+    }
+
+    serverReady(ex)
+    {
+        if(this._serverReady)
+        {
+            if(ex)
+            {
+                this._serverReady.reject(ex);
+            }
+            else
+            {
+                this._serverReady.resolve();
+            }
+        }
+    }
+
+    async waitReady()
+    {
+        if(this._serverReady)
+        {
+            await this._serverReady;
+        }
+    }
+
+    write(msg)
+    {
+        this._output.write(msg);
+    }
+
+    writeLine(msg)
+    {
+        this._output.writeLine(msg);
     }
 }
 
@@ -111,13 +144,11 @@ class ProcessControllerI extends Test.Common.BrowserProcessController
 
     start(testSuite, exe, args, current)
     {
-        let es5 = document.location.pathname.indexOf("/es5/") !== -1;
+        const es5 = document.location.pathname.indexOf("/es5/") !== -1;
         let promise;
-        let ready = null;
         let out;
         if(exe === "Server" || exe === "ServerAMD")
         {
-            ready = new Ice.Promise();
             out = this._serverOutput;
         }
         else
@@ -125,14 +156,15 @@ class ProcessControllerI extends Test.Common.BrowserProcessController
             out = this._clientOutput;
         }
         out.clear();
+        const helper = new ControllerHelper(exe, out);
 
         if(this._useWorker)
         {
-            let scripts = this._scripts;
+            const scripts = this._scripts;
             promise = new Promise(
                 (resolve, reject) =>
                     {
-                        let worker = new Worker(es5 ?
+                        const worker = new Worker(es5 ?
                                                 "/test/es5/Common/ControllerWorker.js" :
                                                 "/test/Common/ControllerWorker.js");
                         this._worker = worker;
@@ -140,60 +172,43 @@ class ProcessControllerI extends Test.Common.BrowserProcessController
                         {
                             if(e.data.type == "write")
                             {
-                                out.write(e.data.message);
+                                helper.write(e.data.message);
                             }
                             else if(e.data.type == "writeLine")
                             {
-                                out.writeLine(e.data.message);
+                                helper.writeLine(e.data.message);
                             }
-                            else if(e.data.type == "ready" && (exe === "Server" || exe === "ServerAMD"))
+                            else if(e.data.type == "ready")
                             {
-                                ready.resolve();
+                                helper.serverReady();
                             }
                             else if(e.data.type == "finished")
                             {
                                 if(e.data.exception)
                                 {
                                     reject(e.data.exception);
-                                    if(ready)
-                                    {
-                                        ready.reject(e.data.exception);
-                                    }
                                 }
                                 else
                                 {
                                     resolve();
-                                    if(ready)
-                                    {
-                                        ready.resolve();
-                                    }
                                 }
                                 worker.terminate();
                             }
                         };
-                        worker.postMessage({ scripts:scripts, exe:exe, args:args });
+                        worker.postMessage({scripts: scripts, exe: exe, args: args});
                     });
         }
         else
         {
-            let initData = new Ice.InitializationData();
-            initData.properties = Ice.createProperties(args);
-            if(exe === "Server" || exe === "ServerAMD")
-            {
-                initData.logger = new Logger(this._serverOutput);
-                let test = exe === "Server" ? _server : _serveramd;
-                promise = test(this._serverOutput, initData, ready, args);
-            }
-            else
-            {
-                initData.logger = new Logger(this._clientOutput);
-                promise = _test(this._clientOutput, initData, args);
-            }
+            const cls = Ice._require(exe)[exe];
+            const test = new cls();
+            test.setControllerHelper(helper);
+            promise = test.run(args);
         }
-        return Test.Common.ProcessPrx.uncheckedCast(current.adapter.addWithUUID(new ProcessI(promise, out, ready)));
+        return Test.Common.ProcessPrx.uncheckedCast(current.adapter.addWithUUID(new ProcessI(promise, helper, out)));
     }
 
-    getHost(protocol, ipv6, current)
+    getHost()
     {
         return "127.0.0.1";
     }
@@ -237,16 +252,16 @@ async function runController(clientOutput, serverOutput, scripts)
         }
     }
 
-    let out = new Output(clientOutput);
-    let serverOut = new Output(serverOutput);
+    const out = new Output(clientOutput);
+    const serverOut = new Output(serverOutput);
 
-    let uri = new URI(document.location.href);
-    let protocol = uri.protocol() === "http" ? "ws" : "wss";
-    let query = uri.search(true);
-    let port = query.port || 15002;
-    let worker = query.worker === "True";
+    const uri = new URI(document.location.href);
+    const protocol = uri.protocol() === "http" ? "ws" : "wss";
+    const query = uri.search(true);
+    const port = query.port || 15002;
+    const worker = query.worker === "True";
 
-    let initData = new Ice.InitializationData();
+    const initData = new Ice.InitializationData();
     initData.logger = new Logger(out);
     initData.properties = Ice.createProperties();
     initData.properties.setProperty("Ice.Override.ConnectTimeout", "1000");
@@ -256,11 +271,11 @@ async function runController(clientOutput, serverOutput, scripts)
         try
         {
             await registry.ice_ping();
-            let connection = registry.ice_getCachedConnection();
+            const connection = registry.ice_getCachedConnection();
             connection.setAdapter(adapter);
             connection.setACM(5, Ice.ACMClose.CloseOff, Ice.ACMHeartbeat.HeartbeatAlways);
             connection.setCloseCallback(
-                connection => out.writeLine("connection with process controller registry closed"));
+                () => out.writeLine("connection with process controller registry closed"));
             await registry.setProcessController(Test.Common.ProcessControllerPrx.uncheckedCast(processController));
         }
         catch(ex)
@@ -280,11 +295,11 @@ async function runController(clientOutput, serverOutput, scripts)
     try
     {
         comm = Ice.initialize(initData);
-        let str = `Util/ProcessControllerRegistry:${protocol} -h ${document.location.hostname} -p ${port}`;
-        let registry = Test.Common.ProcessControllerRegistryPrx.uncheckedCast(comm.stringToProxy(str));
-        let adapter = await comm.createObjectAdapter("");
-        let ident = new Ice.Identity("ProcessController", "Browser");
-        let processController = adapter.add(new ProcessControllerI(out, serverOut, worker, scripts), ident);
+        const str = `Util/ProcessControllerRegistry:${protocol} -h ${document.location.hostname} -p ${port}`;
+        const registry = Test.Common.ProcessControllerRegistryPrx.uncheckedCast(comm.stringToProxy(str));
+        const adapter = await comm.createObjectAdapter("");
+        const ident = new Ice.Identity("ProcessController", "Browser");
+        const processController = adapter.add(new ProcessControllerI(out, serverOut, worker, scripts), ident);
         adapter.activate();
         registerProcessController(adapter, registry, processController);
     }

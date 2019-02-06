@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package IceInternal;
 
@@ -312,6 +307,8 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
                         // Ignore, could be a class loading error.
                     }
 
+                    assert(_acceptorStarted);
+                    _acceptorStarted = false;
                     if(_adapter.getThreadPool().finish(this, true))
                     {
                         closeAcceptor();
@@ -369,17 +366,29 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
     {
         if(_state < StateClosed)
         {
-            if(_acceptorStarted && close)
+            if(close)
             {
                 closeAcceptor();
             }
+
+            //
+            // If the acceptor hasn't been explicitly stopped (which is the case if the acceptor got closed
+            // because of an unexpected error), try to restart the acceptor in 1 second.
+            //
+            _instance.timer().schedule(new Runnable()
+                                       {
+                                            public void run()
+                                            {
+                                                startAcceptor();
+                                            }
+                                       }, 1, java.util.concurrent.TimeUnit.SECONDS);
             return;
         }
 
-        assert(_state == StateClosed);
+        assert(_state >= StateClosed);
         setState(StateFinished);
 
-        if(_acceptorStarted && close)
+        if(close)
         {
             closeAcceptor();
         }
@@ -626,6 +635,7 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
                     // if there are no more threads in the thread pool available to dispatch
                     // the finish() call.
                     //
+                    _acceptorStarted = false;
                     if(_adapter.getThreadPool().finish(this, true))
                     {
                         closeAcceptor();
@@ -716,19 +726,8 @@ public final class IncomingConnectionFactory extends EventHandler implements Ice
             _instance.initializationData().logger.trace(_instance.traceLevels().networkCat, s.toString());
         }
 
-        _acceptorStarted = false;
+        assert(!_acceptorStarted);
         _acceptor.close();
-
-        if(_state == StateHolding || _state == StateActive)
-        {
-            _instance.timer().schedule(new Runnable()
-                                       {
-                                            public void run()
-                                            {
-                                                startAcceptor();
-                                            }
-                                       }, 1, java.util.concurrent.TimeUnit.SECONDS);
-        }
     }
 
     private void

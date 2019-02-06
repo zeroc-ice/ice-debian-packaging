@@ -1,18 +1,13 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Test;
 
-public class AllTests : TestCommon.AllTests
+public class AllTests : Test.AllTests
 {
     private class Callback
     {
@@ -76,24 +71,25 @@ public class AllTests : TestCommon.AllTests
         return null;
     }
 
-    public static TestIntfPrx allTests(TestCommon.Application app, bool collocated)
+    public static TestIntfPrx allTests(Test.TestHelper helper, bool collocated)
     {
-        Ice.Communicator communicator = app.communicator();
-        Write("testing stringToProxy... ");
-        Flush();
-        Ice.ObjectPrx basePrx = communicator.stringToProxy("Test:" + app.getTestEndpoint(0) + " -t 2000");
+        Ice.Communicator communicator = helper.communicator();
+        var output = helper.getWriter();
+        output.Write("testing stringToProxy... ");
+        output.Flush();
+        Ice.ObjectPrx basePrx = communicator.stringToProxy("Test:" + helper.getTestEndpoint(0) + " -t 2000");
         test(basePrx != null);
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing checked cast... ");
-        Flush();
+        output.Write("testing checked cast... ");
+        output.Flush();
         TestIntfPrx testPrx = TestIntfPrxHelper.checkedCast(basePrx);
         test(testPrx != null);
         test(testPrx.Equals(basePrx));
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base as Object... ");
-        Flush();
+        output.Write("base as Object... ");
+        output.Flush();
         {
             Ice.Value o;
             SBase sb = null;
@@ -111,10 +107,10 @@ public class AllTests : TestCommon.AllTests
             test(sb != null);
             test(sb.sb.Equals("SBase.sb"));
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base as Object (AMI)... ");
-        Flush();
+        output.Write("base as Object (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_SBaseAsObject().whenCompleted(
@@ -141,10 +137,10 @@ public class AllTests : TestCommon.AllTests
             test(sb != null);
             test(sb.sb.Equals("SBase.sb"));
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base as base... ");
-        Flush();
+        output.Write("base as base... ");
+        output.Flush();
         {
             SBase sb;
             try
@@ -157,10 +153,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base as base (AMI)... ");
-        Flush();
+        output.Write("base as base (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_SBaseAsSBase().whenCompleted(
@@ -180,10 +176,10 @@ public class AllTests : TestCommon.AllTests
             SBase sb = testPrx.SBaseAsSBaseAsync().Result;
             test(sb.sb.Equals("SBase.sb"));
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base with known derived as base... ");
-        Flush();
+        output.Write("base with known derived as base... ");
+        output.Flush();
         {
             SBase sb;
             SBSKnownDerived sbskd = null;
@@ -200,10 +196,10 @@ public class AllTests : TestCommon.AllTests
             test(sbskd != null);
             test(sbskd.sbskd.Equals("SBSKnownDerived.sbskd"));
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base with known derived as base (AMI)... ");
-        Flush();
+        output.Write("base with known derived as base (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_SBSKnownDerivedAsSBase().whenCompleted(
@@ -228,10 +224,10 @@ public class AllTests : TestCommon.AllTests
             test(sbskd != null);
             test(sbskd.sbskd.Equals("SBSKnownDerived.sbskd"));
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base with known derived as known derived... ");
-        Flush();
+        output.Write("base with known derived as known derived... ");
+        output.Flush();
         {
             SBSKnownDerived sbskd;
             try
@@ -244,10 +240,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base with known derived as known derived (AMI)... ");
-        Flush();
+        output.Write("base with known derived as known derived (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_SBSKnownDerivedAsSBSKnownDerived().whenCompleted(
@@ -266,10 +262,10 @@ public class AllTests : TestCommon.AllTests
             SBSKnownDerived sbskd = testPrx.SBSKnownDerivedAsSBSKnownDerivedAsync().Result;
             test(sbskd.sbskd.Equals("SBSKnownDerived.sbskd"));
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base with unknown derived as base... ");
-        Flush();
+        output.Write("base with unknown derived as base... ");
+        output.Flush();
         {
             SBase sb;
             try
@@ -314,10 +310,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base with unknown derived as base (AMI)... ");
-        Flush();
+        output.Write("base with unknown derived as base (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_SBSUnknownDerivedAsSBase().whenCompleted(
@@ -390,10 +386,10 @@ public class AllTests : TestCommon.AllTests
                 test(ae.InnerException is Ice.NoValueFactoryException);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("unknown with Object as Object... ");
-        Flush();
+        output.Write("unknown with Object as Object... ");
+        output.Flush();
         {
             try
             {
@@ -413,10 +409,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("unknown with Object as Object (AMI)... ");
-        Flush();
+        output.Write("unknown with Object as Object (AMI)... ");
+        output.Flush();
         {
             try
             {
@@ -486,10 +482,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("one-element cycle... ");
-        Flush();
+        output.Write("one-element cycle... ");
+        output.Flush();
         {
             try
             {
@@ -504,10 +500,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("one-element cycle (AMI)... ");
-        Flush();
+        output.Write("one-element cycle (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_oneElementCycle().whenCompleted(
@@ -532,10 +528,10 @@ public class AllTests : TestCommon.AllTests
             test(b.sb.Equals("B1.sb"));
             test(b.pb == b);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("two-element cycle... ");
-        Flush();
+        output.Write("two-element cycle... ");
+        output.Flush();
         {
             try
             {
@@ -555,10 +551,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("two-element cycle (AMI)... ");
-        Flush();
+        output.Write("two-element cycle (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_twoElementCycle().whenCompleted(
@@ -593,10 +589,10 @@ public class AllTests : TestCommon.AllTests
             test(b2.sb.Equals("B2.sb"));
             test(b2.pb == b1);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("known derived pointer slicing as base... ");
-        Flush();
+        output.Write("known derived pointer slicing as base... ");
+        output.Flush();
         {
             try
             {
@@ -625,10 +621,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("known derived pointer slicing as base (AMI)... ");
-        Flush();
+        output.Write("known derived pointer slicing as base (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_D1AsB().whenCompleted(
@@ -679,10 +675,10 @@ public class AllTests : TestCommon.AllTests
             test(b2.sb.Equals("D2.sb"));
             test(b2.ice_id().Equals("::Test::B"));
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("known derived pointer slicing as derived... ");
-        Flush();
+        output.Write("known derived pointer slicing as derived... ");
+        output.Flush();
         {
             try
             {
@@ -705,10 +701,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("known derived pointer slicing as derived (AMI)... ");
-        Flush();
+        output.Write("known derived pointer slicing as derived (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_D1AsD1().whenCompleted(
@@ -748,10 +744,10 @@ public class AllTests : TestCommon.AllTests
             test(b2.sb.Equals("D2.sb"));
             test(b2.pb == d1);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("unknown derived pointer slicing as base... ");
-        Flush();
+        output.Write("unknown derived pointer slicing as base... ");
+        output.Flush();
         {
             try
             {
@@ -778,10 +774,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("unknown derived pointer slicing as base (AMI)... ");
-        Flush();
+        output.Write("unknown derived pointer slicing as base (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_D2AsB().whenCompleted(
@@ -829,10 +825,10 @@ public class AllTests : TestCommon.AllTests
             test(d1.sd1.Equals("D1.sd1"));
             test(d1.pd1 == b2);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("param ptr slicing with known first... ");
-        Flush();
+        output.Write("param ptr slicing with known first... ");
+        output.Flush();
         {
             try
             {
@@ -859,10 +855,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("param ptr slicing with known first (AMI)... ");
-        Flush();
+        output.Write("param ptr slicing with known first (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_paramTest1().whenCompleted(
@@ -908,10 +904,10 @@ public class AllTests : TestCommon.AllTests
             test(b2.sb.Equals("D2.sb"));
             test(b2.pb == b1);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("param ptr slicing with unknown first... ");
-        Flush();
+        output.Write("param ptr slicing with unknown first... ");
+        output.Flush();
         {
             try
             {
@@ -938,10 +934,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("param ptr slicing with unknown first (AMI)... ");
-        Flush();
+        output.Write("param ptr slicing with unknown first (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_paramTest2().whenCompleted(
@@ -987,10 +983,10 @@ public class AllTests : TestCommon.AllTests
             test(b2.sb.Equals("D2.sb"));
             test(b2.pb == b1);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("return value identity with known first... ");
-        Flush();
+        output.Write("return value identity with known first... ");
+        output.Flush();
         {
             try
             {
@@ -1004,10 +1000,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("return value identity with known first (AMI)... ");
-        Flush();
+        output.Write("return value identity with known first (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_returnTest1().whenCompleted(
@@ -1026,10 +1022,10 @@ public class AllTests : TestCommon.AllTests
             var result = testPrx.returnTest1Async().Result;
             test(result.returnValue == result.p1);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("return value identity with unknown first... ");
-        Flush();
+        output.Write("return value identity with unknown first... ");
+        output.Flush();
         {
             try
             {
@@ -1043,10 +1039,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("return value identity with unknown first (AMI)... ");
-        Flush();
+        output.Write("return value identity with unknown first (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_returnTest2().whenCompleted(
@@ -1065,10 +1061,10 @@ public class AllTests : TestCommon.AllTests
             var result = testPrx.returnTest2Async().Result;
             test(result.returnValue == result.p2);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("return value identity for input params known first... ");
-        Flush();
+        output.Write("return value identity for input params known first... ");
+        output.Flush();
         {
             try
             {
@@ -1118,10 +1114,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("return value identity for input params known first (AMI)... ");
-        Flush();
+        output.Write("return value identity for input params known first (AMI)... ");
+        output.Flush();
         {
             D1 d1 = new D1();
             d1.sb = "D1.sb";
@@ -1220,10 +1216,10 @@ public class AllTests : TestCommon.AllTests
             test(b2 != d1);
             test(b2 != d3);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("return value identity for input params unknown first... ");
-        Flush();
+        output.Write("return value identity for input params unknown first... ");
+        output.Flush();
         {
             try
             {
@@ -1274,10 +1270,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("return value identity for input params unknown first (AMI)... ");
-        Flush();
+        output.Write("return value identity for input params unknown first (AMI)... ");
+        output.Flush();
         {
             D1 d1 = new D1();
             d1.sb = "D1.sb";
@@ -1379,10 +1375,10 @@ public class AllTests : TestCommon.AllTests
             test(b2 != d1);
             test(b2 != d3);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("remainder unmarshaling (3 instances)... ");
-        Flush();
+        output.Write("remainder unmarshaling (3 instances)... ");
+        output.Flush();
         {
             try
             {
@@ -1410,10 +1406,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("remainder unmarshaling (3 instances) (AMI)... ");
-        Flush();
+        output.Write("remainder unmarshaling (3 instances) (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_paramTest3().whenCompleted(
@@ -1462,10 +1458,10 @@ public class AllTests : TestCommon.AllTests
             test(ret.pb == null);
             test(ret.ice_id().Equals("::Test::D1"));
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("remainder unmarshaling (4 instances)... ");
-        Flush();
+        output.Write("remainder unmarshaling (4 instances)... ");
+        output.Flush();
         {
             try
             {
@@ -1487,10 +1483,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("remainder unmarshaling (4 instances) (AMI)... ");
-        Flush();
+        output.Write("remainder unmarshaling (4 instances) (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_paramTest4().whenCompleted(
@@ -1529,10 +1525,10 @@ public class AllTests : TestCommon.AllTests
             test(ret.pb == null);
             test(ret.ice_id().Equals("::Test::B"));
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("param ptr slicing, instance marshaled in unknown derived as base... ");
-        Flush();
+        output.Write("param ptr slicing, instance marshaled in unknown derived as base... ");
+        output.Flush();
         {
             try
             {
@@ -1562,10 +1558,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("param ptr slicing, instance marshaled in unknown derived as base (AMI)... ");
-        Flush();
+        output.Write("param ptr slicing, instance marshaled in unknown derived as base (AMI)... ");
+        output.Flush();
         {
             B b1 = new B();
             b1.sb = "B.sb(1)";
@@ -1623,10 +1619,10 @@ public class AllTests : TestCommon.AllTests
             test(rv.sb.Equals("D3.sb"));
             test(rv.pb == rv);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("param ptr slicing, instance marshaled in unknown derived as derived... ");
-        Flush();
+        output.Write("param ptr slicing, instance marshaled in unknown derived as derived... ");
+        output.Flush();
         {
             try
             {
@@ -1658,10 +1654,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("param ptr slicing, instance marshaled in unknown derived as derived (AMI)... ");
-        Flush();
+        output.Write("param ptr slicing, instance marshaled in unknown derived as derived (AMI)... ");
+        output.Flush();
         {
             D1 d11 = new D1();
             d11.sb = "D1.sb(1)";
@@ -1725,10 +1721,10 @@ public class AllTests : TestCommon.AllTests
             test(rv.sb.Equals("D3.sb"));
             test(rv.pb == rv);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("sequence slicing... ");
-        Flush();
+        output.Write("sequence slicing... ");
+        output.Flush();
         {
             try
             {
@@ -1815,10 +1811,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("sequence slicing (AMI)... ");
-        Flush();
+        output.Write("sequence slicing (AMI)... ");
+        output.Flush();
         {
             SS3 ss = null;
             {
@@ -1987,10 +1983,10 @@ public class AllTests : TestCommon.AllTests
             test(ss2d5.ice_id().Equals("::Test::D1"));
             test(ss2d6.ice_id().Equals("::Test::B"));
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("dictionary slicing... ");
-        Flush();
+        output.Write("dictionary slicing... ");
+        output.Flush();
         {
             try
             {
@@ -2042,10 +2038,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("dictionary slicing (AMI)... ");
-        Flush();
+        output.Write("dictionary slicing (AMI)... ");
+        output.Flush();
         {
             Dictionary<int, B> bin = new Dictionary<int, B>();
             Dictionary<int, B> bout = null;
@@ -2149,10 +2145,10 @@ public class AllTests : TestCommon.AllTests
                 test(d1.pd1 == d1);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base exception thrown as base exception... ");
-        Flush();
+        output.Write("base exception thrown as base exception... ");
+        output.Flush();
         {
             try
             {
@@ -2172,10 +2168,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("base exception thrown as base exception (AMI)... ");
-        Flush();
+        output.Write("base exception thrown as base exception (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_throwBaseAsBase().whenCompleted(
@@ -2222,10 +2218,10 @@ public class AllTests : TestCommon.AllTests
                 }
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("derived exception thrown as base exception... ");
-        Flush();
+        output.Write("derived exception thrown as base exception... ");
+        output.Flush();
         {
             try
             {
@@ -2251,10 +2247,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("derived exception thrown as base exception (AMI)... ");
-        Flush();
+        output.Write("derived exception thrown as base exception (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_throwDerivedAsBase().whenCompleted(
@@ -2314,10 +2310,10 @@ public class AllTests : TestCommon.AllTests
                 }
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("derived exception thrown as derived exception... ");
-        Flush();
+        output.Write("derived exception thrown as derived exception... ");
+        output.Flush();
         {
             try
             {
@@ -2343,10 +2339,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("derived exception thrown as derived exception (AMI)... ");
-        Flush();
+        output.Write("derived exception thrown as derived exception (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_throwDerivedAsDerived().whenCompleted(
@@ -2406,10 +2402,10 @@ public class AllTests : TestCommon.AllTests
                 }
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("unknown derived exception thrown as base exception... ");
-        Flush();
+        output.Write("unknown derived exception thrown as base exception... ");
+        output.Flush();
         {
             try
             {
@@ -2429,10 +2425,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("unknown derived exception thrown as base exception (AMI)... ");
-        Flush();
+        output.Write("unknown derived exception thrown as base exception (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_throwUnknownDerivedAsBase().whenCompleted(
@@ -2480,10 +2476,10 @@ public class AllTests : TestCommon.AllTests
                 }
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("forward-declared class... ");
-        Flush();
+        output.Write("forward-declared class... ");
+        output.Flush();
         {
             try
             {
@@ -2496,10 +2492,10 @@ public class AllTests : TestCommon.AllTests
                 test(false);
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("forward-declared class (AMI)... ");
-        Flush();
+        output.Write("forward-declared class (AMI)... ");
+        output.Flush();
         {
             Callback cb = new Callback();
             testPrx.begin_useForward().whenCompleted(
@@ -2517,10 +2513,10 @@ public class AllTests : TestCommon.AllTests
         {
             test(testPrx.useForwardAsync().Result != null);
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("preserved classes... ");
-        Flush();
+        output.Write("preserved classes... ");
+        output.Flush();
 
         //
         // Register a factory in order to substitute our own subclass of Preserved. This provides
@@ -2700,10 +2696,10 @@ public class AllTests : TestCommon.AllTests
         {
         }
 
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("preserved classes (AMI)... ");
-        Flush();
+        output.Write("preserved classes (AMI)... ");
+        output.Flush();
         {
             //
             // Server knows the most-derived class PDerived.
@@ -3043,10 +3039,10 @@ public class AllTests : TestCommon.AllTests
         {
         }
 
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("garbage collection for preserved classes... ");
-        Flush();
+        output.Write("garbage collection for preserved classes... ");
+        output.Flush();
         try
         {
             //
@@ -3142,7 +3138,7 @@ public class AllTests : TestCommon.AllTests
         {
         }
 
-        WriteLine("ok");
+        output.WriteLine("ok");
         return testPrx;
     }
 }

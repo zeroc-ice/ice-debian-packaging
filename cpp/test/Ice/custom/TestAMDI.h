@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef TEST_I_H
 #define TEST_I_H
@@ -15,8 +10,6 @@
 class TestIntfI : public virtual Test::TestIntf
 {
 public:
-
-    TestIntfI(const Ice::CommunicatorPtr&);
 
 #ifdef ICE_CPP11_MAPPING
 
@@ -343,10 +336,6 @@ public:
     virtual void shutdown_async(const Test::AMD_TestIntf_shutdownPtr&,
                                 const Ice::Current&);
 #endif
-
-private:
-
-    Ice::CommunicatorPtr _communicator;
 };
 
 #endif

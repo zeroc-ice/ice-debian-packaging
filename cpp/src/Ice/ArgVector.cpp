@@ -1,22 +1,17 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/ArgVector.h>
 #include <cstring>
 
-IceInternal::ArgVector::ArgVector(int argc, const char* const argv[])
+IceInternal::ArgVector::ArgVector(int argcP, const char* const argvP[])
 {
-    assert(argc >= 0);
-    _args.resize(argc);
-    for(int i = 0; i < argc; ++i)
+    assert(argcP >= 0);
+    _args.resize(argcP);
+    for(int i = 0; i < argcP; ++i)
     {
-        _args[i] = argv[i];
+        _args[i] = argvP[i];
     }
     setupArgcArgv();
 }

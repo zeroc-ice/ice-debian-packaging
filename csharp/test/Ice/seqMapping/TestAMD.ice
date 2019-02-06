@@ -1,14 +1,12 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #pragma once
 
+[["cs:typeid-namespace:Ice.seqMapping.AMD.TypeId"]]
+
+["cs:namespace:Ice.seqMapping.AMD"]
 module Test
 {
 
@@ -122,11 +120,11 @@ sequence<En> AEnS;
 ["clr:generic:Queue"] sequence<En> QEnS;
 ["clr:generic:Stack"] sequence<En> SEnS;
 
-["clr:generic:Custom"] sequence<int> CustomIntS;
-["clr:generic:Custom"] sequence<CV> CustomCVS;
+["clr:generic:Ice.seqMapping.Custom"] sequence<int> CustomIntS;
+["clr:generic:Ice.seqMapping.Custom"] sequence<CV> CustomCVS;
 
-["clr:generic:Custom"] sequence<CustomIntS> CustomIntSS;
-["clr:generic:Custom"] sequence<CustomCVS> CustomCVSS;
+["clr:generic:Ice.seqMapping.Custom"] sequence<CustomIntS> CustomIntSS;
+["clr:generic:Ice.seqMapping.Custom"] sequence<CustomCVS> CustomCVSS;
 
 ["clr:serializable:Serialize.Small"] sequence<byte> SerialSmall;
 ["clr:serializable:Serialize.Large"] sequence<byte> SerialLarge;

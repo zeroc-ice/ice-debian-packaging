@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #import <Foundation/NSObject.h>
 #import <Foundation/NSException.h>
@@ -25,7 +20,7 @@ TEST_API @interface TestFailedException : NSException
 @end
 
 #if TARGET_OS_IPHONE
-TEST_API void TestCommonInit(id, SEL);
+TEST_API void TestCommonSetOutput(id, SEL);
 TEST_API void TestCommonTestInit(id, SEL, NSString*, BOOL, BOOL);
 #endif
 

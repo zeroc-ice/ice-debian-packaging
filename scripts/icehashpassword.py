@@ -1,12 +1,7 @@
 #!/usr/bin/env python
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import sys, getopt, passlib.hash, passlib.hosts, getpass
 
@@ -119,9 +114,6 @@ def main():
             usage()
             return 2
 
-    # passlib 1.7 renamed encrypt to hash
-    encryptfn = passScheme.hash if hasattr(passScheme, "hash") else passScheme.encrypt
-
     args = []
     if sys.stdout.isatty():
         args.append(getpass.getpass("Password: "))
@@ -135,7 +127,11 @@ def main():
     if rounds:
         opts["rounds"] = rounds
 
-    print(encryptfn(*args, **opts))
+    # passlib 1.7 renamed encrypt to hash
+    if hasattr(passScheme, "hash"):
+        print(passScheme.using(**opts).hash(*args))
+    else:
+        print(passScheme.encrypt(*args, **opts))
 
     return 0
 

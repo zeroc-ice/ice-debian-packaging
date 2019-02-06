@@ -1,19 +1,9 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Communicator.h>
 #include <TestI.h>
-
-TestIntfI::TestIntfI(const Ice::CommunicatorPtr& communicator)
-    : _communicator(communicator)
-{
-}
 
 Test::DoubleSeq
 TestIntfI::opDoubleArray(ICE_IN(std::pair<const Ice::Double*, const Ice::Double*>) inSeq,
@@ -461,7 +451,7 @@ TestIntfI::opBufferStruct(ICE_IN(Test::BufferStruct) bs, const Ice::Current&)
 }
 
 void
-TestIntfI::shutdown(const Ice::Current&)
+TestIntfI::shutdown(const Ice::Current& current)
 {
-    _communicator->shutdown();
+    current.adapter->getCommunicator()->shutdown();
 }

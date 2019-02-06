@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef _WIN32
 
@@ -111,7 +106,7 @@ Ice::SysLoggerI::SysLoggerI(const string& prefix, const string& facilityString) 
     }
 
     int logopt = LOG_PID | LOG_CONS;
-    openlog(prefix.c_str(), logopt, _facility);
+    openlog(_prefix.c_str(), logopt, _facility);
 }
 
 Ice::SysLoggerI::SysLoggerI(const string& prefix, int facility) :
@@ -119,7 +114,7 @@ Ice::SysLoggerI::SysLoggerI(const string& prefix, int facility) :
     _prefix(prefix)
 {
     int logopt = LOG_PID | LOG_CONS;
-    openlog(prefix.c_str(), logopt, facility);
+    openlog(_prefix.c_str(), logopt, facility);
 }
 
 Ice::SysLoggerI::~SysLoggerI()

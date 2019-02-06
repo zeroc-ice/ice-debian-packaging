@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/FileUtil.h>
@@ -240,8 +235,8 @@ PlatformInfo::PlatformInfo(const string& prefix,
 #ifdef _WIN32
     _os = "Windows";
     char hostname[MAX_COMPUTERNAME_LENGTH + 1];
-    unsigned long size = sizeof(hostname);
-    if(GetComputerName(hostname, &size))
+    unsigned long hsize = sizeof(hostname);
+    if(GetComputerName(hostname, &hsize))
     {
         _hostname = hostname;
     }
@@ -627,7 +622,7 @@ PlatformInfo::runUpdateLoadInfo()
         }
 
         int usage = 100;
-        PDH_STATUS err = PdhCollectQueryData(query);
+        err = PdhCollectQueryData(query);
         if(err == ERROR_SUCCESS)
         {
             DWORD type;

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef TEST_I_H
 #define TEST_I_H
@@ -15,8 +10,6 @@
 class TestIntfI : public virtual Test::TestIntf
 {
 public:
-
-    TestIntfI(const Ice::CommunicatorPtr&);
 
     virtual Test::DoubleSeq opDoubleArray(ICE_IN(std::pair<const Ice::Double*, const Ice::Double*>),
                                           Test::DoubleSeq&,
@@ -207,10 +200,6 @@ public:
     Test::BufferStruct opBufferStruct(ICE_IN(Test::BufferStruct), const Ice::Current&);
 
     virtual void shutdown(const Ice::Current&);
-
-private:
-
-    Ice::CommunicatorPtr _communicator;
 };
 
 #endif

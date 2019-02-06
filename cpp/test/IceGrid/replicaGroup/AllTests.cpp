@@ -1,17 +1,12 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <Ice/BuiltinSequences.h>
 #include <IceGrid/IceGrid.h>
 #include <IceUtil/Thread.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 #include <set>
 
@@ -105,8 +100,9 @@ removeServer(const AdminPrx& admin, const string& id)
 }
 
 void
-allTests(const Ice::CommunicatorPtr& comm)
+allTests(Test::TestHelper* helper)
 {
+    Ice::CommunicatorPtr comm = helper->communicator();
     IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
         comm->stringToProxy(comm->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
     test(registry);
@@ -115,7 +111,9 @@ allTests(const Ice::CommunicatorPtr& comm)
     test(query);
     AdminSessionPrx session = registry->createAdminSession("foo", "bar");
 
-    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
+    session->ice_getConnection()->setACM(registry->getACMTimeout(),
+                                         IceUtil::None,
+                                         Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
 
     AdminPrx admin = session->getAdmin();
     test(admin);

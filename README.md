@@ -26,6 +26,7 @@ Ice supports the following programming languages:
 - PHP
 - Python
 - Ruby
+- TypeScript
 
 ## Platforms
 
@@ -62,8 +63,6 @@ Ice runs on a wide range of platforms:
     lightweight topic-based pub-sub service
     - [Glacier2](https://zeroc.com/products/ice/services/glacier2) - a
     sysadmin-friendly solution for routing Ice communications through firewalls
-    - [IcePatch2](https://zeroc.com/products/ice/services/icepatch2) - an
-    efficient software distribution and patching service
 
 ## Branches
 
@@ -108,5 +107,5 @@ Ice and a commercial Ice are the license terms.
 
 ## Documentation
 
-- [Ice Release Notes](https://doc.zeroc.com/display/Rel/Ice+3.7.1+Release+Notes)
+- [Ice Release Notes](https://doc.zeroc.com/display/Rel/Ice+3.7.2+Release+Notes)
 - [Ice Manual](https://doc.zeroc.com/display/Ice37/Home)

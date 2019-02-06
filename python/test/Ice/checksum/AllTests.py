@@ -1,11 +1,6 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import sys, string, re, traceback, Ice, Test
 
@@ -13,8 +8,8 @@ def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-def allTests(communicator):
-    ref = "test:default -p 12010"
+def allTests(helper, communicator):
+    ref = "test:{0}".format(helper.getTestEndpoint())
     base = communicator.stringToProxy(ref)
     test(base)
 
@@ -55,4 +50,4 @@ def allTests(communicator):
 
     print("ok")
 
-    return checksum
+    checksum.shutdown()

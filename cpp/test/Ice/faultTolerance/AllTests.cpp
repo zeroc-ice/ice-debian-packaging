@@ -1,14 +1,9 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 
 using namespace std;
@@ -89,9 +84,9 @@ public:
         catch(const Ice::ConnectFailedException&)
         {
         }
-        catch(const Ice::Exception& ex)
+        catch(const Ice::Exception& e)
         {
-            cout << ex << endl;
+            cout << e << endl;
             test(false);
         }
         called();
@@ -109,14 +104,15 @@ private:
 typedef IceUtil::Handle<Callback> CallbackPtr;
 
 void
-allTests(const Ice::CommunicatorPtr& communicator, const vector<int>& ports)
+allTests(Test::TestHelper* helper, const vector<int>& ports)
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
     cout << "testing stringToProxy... " << flush;
     ostringstream ref;
     ref << "test";
     for(vector<int>::const_iterator p = ports.begin(); p != ports.end(); ++p)
     {
-        ref << ":" << getTestEndpoint(communicator, *p);
+        ref << ":" << helper->getTestEndpoint(*p);
     }
     Ice::ObjectPrxPtr base = communicator->stringToProxy(ref.str());
     test(base);

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 Ice._ModuleRegistry.require(module,
@@ -96,7 +91,7 @@ class EndpointFactoryManager
                 throw new EndpointParseException("unrecognized argument `" + arr[0] + "' in endpoint `" + str + "'");
             }
 
-            for(let i = 0, length =  this._factories.length; i < length; ++i)
+            for(let i = 0, length = this._factories.length; i < length; ++i)
             {
                 if(this._factories[i].type() == ue.type())
                 {

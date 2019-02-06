@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.defaultValue;
 
@@ -22,9 +17,9 @@ public class AllTests
         }
     }
 
-    public static void allTests(test.Util.Application app)
+    public static void allTests(test.TestHelper helper)
     {
-        PrintWriter out = app.getWriter();
+        PrintWriter out = helper.getWriter();
 
         out.print("testing default values... ");
         out.flush();

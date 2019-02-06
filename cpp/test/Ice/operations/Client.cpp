@@ -1,25 +1,36 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
-
-DEFINE_TEST("client")
 
 using namespace std;
 
-int
-run(int, char**, const Ice::CommunicatorPtr& communicator)
+class Client : public Test::TestHelper
 {
-    Test::MyClassPrxPtr allTests(const Ice::CommunicatorPtr&);
-    Test::MyClassPrxPtr myClass = allTests(communicator);
+public:
+
+    void run(int, char**);
+};
+
+void
+Client::run(int argc, char** argv)
+{
+    //
+    // In this test, we need at least two threads in the
+    // client side thread pool for nested AMI.
+    //
+    Ice::PropertiesPtr properties = createTestProperties(argc, argv);
+    properties->setProperty("Ice.ThreadPool.Client.Size", "2");
+    properties->setProperty("Ice.ThreadPool.Client.SizeWarn", "0");
+    properties->setProperty("Ice.BatchAutoFlushSize", "100");
+
+    Ice::CommunicatorHolder communicator = initialize(argc, argv, properties);
+
+    Test::MyClassPrxPtr allTests(Test::TestHelper*);
+    Test::MyClassPrxPtr myClass = allTests(this);
 
     myClass->shutdown();
     cout << "testing server shutdown... " << flush;
@@ -35,38 +46,6 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     {
         cout << "ok" << endl;
     }
-
-    return EXIT_SUCCESS;
 }
 
-int
-main(int argc, char* argv[])
-{
-#ifdef ICE_STATIC_LIBS
-    Ice::registerIceSSL(false);
-    Ice::registerIceWS(true);
-#   ifdef ICE_HAS_BT
-    Ice::registerIceBT(false);
-#   endif
-#endif
-
-    try
-    {
-        //
-        // In this test, we need at least two threads in the
-        // client side thread pool for nested AMI.
-        //
-        Ice::InitializationData initData = getTestInitData(argc, argv);
-        initData.properties->setProperty("Ice.ThreadPool.Client.Size", "2");
-        initData.properties->setProperty("Ice.ThreadPool.Client.SizeWarn", "0");
-        initData.properties->setProperty("Ice.BatchAutoFlushSize", "100");
-
-        Ice::CommunicatorHolder ich(argc, argv, initData);
-        return run(argc, argv, ich.communicator());
-    }
-    catch(const Ice::Exception& ex)
-    {
-        cerr << ex << endl;
-        return EXIT_FAILURE;
-    }
-}
+DEFINE_TEST(Client)

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Exception.h>
 #include <Ice/LocalException.h>
@@ -82,8 +77,8 @@ throwUOE(const string& expectedType, const ValuePtr& v)
 
     string type = v->ice_id();
     throw Ice::UnexpectedObjectException(__FILE__, __LINE__,
-                                         "expected element of type `" + expectedType + "' but received '" +
-                                         type, type, expectedType);
+                                         "expected element of type `" + expectedType + "' but received `" +
+                                         type + "'", type, expectedType);
 }
 
 void

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.seqMapping;
 
@@ -15,12 +10,12 @@ import test.Ice.seqMapping.Test.*;
 
 public class AllTests
 {
-    public static MyClassPrx allTests(test.Util.Application app, boolean collocated)
+    public static MyClassPrx allTests(test.TestHelper helper, boolean collocated)
     {
-        PrintWriter out = app.getWriter();
-        com.zeroc.Ice.Communicator communicator = app.communicator();
+        PrintWriter out = helper.getWriter();
+        com.zeroc.Ice.Communicator communicator = helper.communicator();
 
-        String ref = "test:" + app.getTestEndpoint(0);
+        String ref = "test:" + helper.getTestEndpoint(0);
         com.zeroc.Ice.ObjectPrx baseProxy = communicator.stringToProxy(ref);
         MyClassPrx cl = MyClassPrx.checkedCast(baseProxy);
 

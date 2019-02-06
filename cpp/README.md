@@ -34,7 +34,7 @@ Ice was extensively tested using the operating systems and compiler versions
 listed on [supported platforms][2].
 
 On Windows, the build requires a recent version of Visual Studio, and the
-Windows 10 SDK (10.0.14393.0) component when using Visual Studio 2017.
+Windows 10 SDK (10.0.14393.0) component when building with Visual Studio 2017.
 
 ### Third-Party Libraries
 
@@ -131,6 +131,13 @@ with the `srcs` target, or only the tests with the `tests` target. For example:
 make V=1 -j8 srcs
 ```
 
+The build system supports specifying additional preprocessor, compiler and
+linker options with the `CPPFLAGS`, `CXXFLAGS` and `LDFLAGS` variables. For
+example, to build the Ice C++98 mapping with `-std=c++11`, you can use:
+```
+make CXXFLAGS=-std=c++11
+```
+
 ### Build configurations and platforms
 
 The C++ source tree supports multiple build configurations and platforms. To
@@ -168,6 +175,8 @@ The Xcode SDKs are built into `ice/sdk`.
 
 ## Building Ice for Windows
 
+### Build Using MSBuild
+
 Open a Visual Studio command prompt. For example, with Visual Studio 2015, you
 can open one of:
 
@@ -184,7 +193,7 @@ cd cpp
 
 Now you're ready to build Ice:
 ```
-msbuild msbuild\ice.proj
+msbuild /m msbuild\ice.proj
 ```
 
 This builds the Ice for C++ SDK and the Ice for C++ test suite, with
@@ -193,7 +202,7 @@ Release binaries for the default platform.
 Set the MSBuild `Configuration` property to `Debug` to build debug binaries
 instead:
 ```
-msbuild msbuild\ice.proj /p:Configuration=Debug
+msbuild /m msbuild\ice.proj /p:Configuration=Debug
 ```
 
 The `Configuration` property may be set to `Debug` or `Release`.
@@ -201,17 +210,17 @@ The `Configuration` property may be set to `Debug` or `Release`.
 Set the MSBuild `Platform` property to `Win32` or `x64` to build binaries
 for a specific platform, for example:
 ```
-msbuild msbuild\ice.proj /p:Configuration=Debug /p:Platform=x64
+msbuild /m msbuild\ice.proj /p:Configuration=Debug /p:Platform=x64
 ```
 
 You can also skip the build of the test suite with the `BuildDist` target:
 ```
-msbuild msbuild\ice.proj /t:BuildDist /p:Platform=x64
+msbuild /m msbuild\ice.proj /t:BuildDist /p:Platform=x64
 ```
 
 To build the test suite using the NuGet binary distribution use:
 ```
-msbuild msbuild\ice.proj /p:ICE_BIN_DIST=all
+msbuild /m msbuild\ice.proj /p:ICE_BIN_DIST=all
 ```
 
 You can also sign the Ice binaries with Authenticode, by setting the following
@@ -220,7 +229,60 @@ environment variables:
  - `SIGN_CERTIFICATE` to your Authenticode certificate
  - `SIGN_PASSWORD` to the certificate password
 
+### Build Using Visual Studio
+
+Open the Visual Studio solution that corresponds to the Visual Studio version you
+are using.
+
+ - For Visual Studio 2017 use [msbuild/ice.v141.sln](./msbuild/ice.v141.sln)
+ - For Visual Studio 2015 use [msbuild/ice.v140.sln](./msbuild/ice.v140.sln)
+ - For Visual Studio 2013 use [msbuild/ice.v120.sln](./msbuild/ice.v120.sln)
+ - For Visual Studio 2010 use [msbuild/ice.v100.sln](./msbuild/ice.v100.sln)
+
+Restore the solution NuGet packages using the NuGet package manager, if the automatic
+download of packages during build is not enabled.
+
+Using the configuration manager choose the platform and configuration you want to build.
+
+The solution provide a project for each Ice component and each component can be built
+separatelly. When you build a component its dependencies are built automatically.
+
+For Visual Studio 2017 and Visual Studio 2015, the solutions organize the projects in two
+solution folders, C++11 and C++98, which correspond to the C++11 and C++98 mappings. If you
+want to build all the C++11 mapping components, build the C++11 solution folder;
+likewise if you want to build all the C++98 mapping components, build the C++98
+solution folder.
+
+For Visual Studio 2013 and Visual Studio 2010. there is no separate solution folder because
+only the C++98 mapping is supported with these compilers.
+
+The test suite is built using separate Visual Studio solutions:
+
+ - Ice Test Suite for Visual Studio 2017, Visual Studio 2015 and Visual Studio 2013 [msbuild/ice.test.sln](./msbuild/ice.test.sln)
+ - Ice Test Suite for Visual Studio 2010 [msbuild/ice.test.v100.sln](./msbuild/ice.test.v100.sln)
+ - Ice OpenSSL Test Suite for Visual Studio 2017, Visual Studio 2015 and Visual Studio 2013 [msbuild/ice.openssl.test.sln](./msbuild/ice.openssl.test.sln)
+
+The solution provides a separate project for each test component, the `Cpp11-Release` and `Cpp11-Debug` build
+configurations are setup to use the C++11 mapping in release and debug mode respectively, and are only supported
+with Visual Studio 2017 and Visual Studio 2015. The `Release` and `Debug` build configurations are setup to
+use the C++98 mapping in release and debug mode respectively.
+
+The building of the test uses by default the local source build, and you must have built the Ice
+source with the same platform and configuration than you are attemping to build the tests.
+
+For example to build the `Cpp11-Release/x64` tests you must have built first the C++11 mapping
+using `Release/x64`.
+
+It is also possible to build the tests using a C++ binary distribution, to do that you must
+set the `ICE_BIN_DIST` environment variable to `all` before starting Visual Studio.
+
+Then launch Visual Studio and open the desired test solution, you must now use NuGet package
+manager to restore the NuGet packages, and the build will use Ice NuGet packages instead of
+your local source build.
+
 ## Building Ice for Universal Windows (UWP)
+
+### Build Using MSBuild
 
 The steps are the same as for Building Ice for Windows above, except you must also
 use a `UWP` target.
@@ -240,6 +302,29 @@ To build the test suite using the NuGet binary distribution use:
 msbuild msbuild\ice.proj /t:UWPBuild /p:ICE_BIN_DIST=all
 ```
 
+### Build Using Visual Studio
+
+Before building Ice for UWP using Visual Studio you must build the slice2cpp compiler
+from the C++98 mapping, refer to [Building Ice for Windows](#building-ice-for-windows).
+
+Using either Visual Studio 2017 or Visual Studio 2015, open the [msbuild/ice.uwp.sln](./msbuild/ice.uwp.sln)
+
+Choose the platform and configuration you want to build using the configuration manager.
+
+The solution provides a project for each Ice component and each component can be built
+separately. When you build a component, its dependencies are built automatically.
+
+The test suite is built using a separate Visual Studio solution [msbuild/ice.testuwp.sln](./msbuild/ice.testuwp.sln).
+This solution includes a project for each test and a project for the UWP test controller
+required to run the test suite.
+
+It is also possible to build the tests using a C++ binary distribution, to do that you must
+set `ICE_BIN_DIST` environment variable to `all` before starting Visual Studio.
+
+Then launch Visual Studio and open the [msbuild/ice.testuwp.sln](./msbuild/ice.testuwp.sln) solution,
+you must now use NuGet package manager to restore the NuGet packages, and the build will use
+Ice NuGet packages instead of your local source build.
+
 ## Installing a C++ Source Build on Linux or macOS
 
 Simply run `make install`. This will install Ice in the directory specified by
@@ -251,7 +336,7 @@ After installation, make sure that the `<prefix>/bin` directory is in your
 If you choose to not embed a `runpath` into executables at build time (see your
 build settings in `../config/Make.rules`) or did not create a symbolic link from
 the `runpath` directory to the installation directory, you also need to add the
-library directory to your `LD_LIBRARY_PATH` (Linux) or `DYLD_LIBRARY_PATH (macOS).
+library directory to your `LD_LIBRARY_PATH` (Linux) or `DYLD_LIBRARY_PATH` (macOS).
 
 On a Linux x86_64 system:
 ```
@@ -292,9 +377,9 @@ msbuild msbuild\ice.proj /t:UWPNuGetPack /p:BuildAllConfigurations=yes
 This creates: `zeroc.ice.uwp.v140\zeroc.ice.uwp.v140.nupkg`,
 `zeroc.ice.uwp.v140.x64\zeroc.ice.uwp.v140.x64.nupkg` and
 `zeroc.ice.uwp.v140.x86\zeroc.ice.uwp.v140.x86.nupkg` for Visual Studio 2015
-builds or `zeroc.ice.uwp.v140\zeroc.ice.uwp.v140.nupkg`,
-`zeroc.ice.uwp.v140.x64\zeroc.ice.uwp.v140.x64.nupkg` and
-`zeroc.ice.uwp.v140.x86\zeroc.ice.uwp.v140.x86.nupkg` for Visual Studio 2017
+builds or `zeroc.ice.uwp.v141\zeroc.ice.uwp.v141.nupkg`,
+`zeroc.ice.uwp.v141.x64\zeroc.ice.uwp.v141.x64.nupkg` and
+`zeroc.ice.uwp.v141.x86\zeroc.ice.uwp.v141.x86.nupkg` for Visual Studio 2017
 builds.
 
 ## Cleaning the source build on macOS or Linux
@@ -335,9 +420,13 @@ For the C++11 mapping, you need to specify a C++11 config:
  python allTests.py --config=cpp11-shared # cpp11-shared config with the default platform
 ```
 
-* Windows
+* Windows C++11 debug builds
 ```
 python allTests.py --config Cpp11-Debug
+```
+
+* Windows C++11 release builds
+```
 python allTests.py --config Cpp11-Release
 ```
 
@@ -363,18 +452,26 @@ C++98 Test Controller app or C++11 Test Controller app from Xcode:
  match the configuration(s) selected when building the test suite).
 
 #### iOS Simulator
+ - C++98 controller
 ```
 python allTests.py --config=xcodesdk --platform=iphonesimulator --controller-app
+```
+ - C++11 controller
+```
 python allTests.py --config=cpp11-xcodesdk --platform=iphonesimulator --controller-app
 ```
 
 #### iOS
  - Start the `C++98 Test Controller` or the `C++11 Test Controller` app on your
  iOS device, from Xcode.
- - On your Mac:
+
+ - Start the C++98 controller on your Mac:
 ```
-python3 allTests.py --config=xcodesdk --platform=iphoneos # C++98 controller
-python3 allTests.py --config=cpp11-xcodesdk --platform=iphoneos # C++11 controller
+python allTests.py --config=xcodesdk --platform=iphoneos
+```
+ - Start the C++11 controller on your Mac:
+```
+python allTests.py --config=cpp11-xcodesdk --platform=iphoneos
 ```
 
 All the test clients and servers run on the iOS device, not on your Mac computer.
@@ -397,8 +494,8 @@ If everything worked out, you should see lots of `ok` messages. In case of a
 failure, the tests abort with `failed`.
 
 [1]: https://zeroc.com/distributions/ice
-[2]: https://doc.zeroc.com/display/Rel/Supported+Platforms+for+Ice+3.7.1
-[3]: http://bzip.org
+[2]: https://doc.zeroc.com/display/Rel/Supported+Platforms+for+Ice+3.7.2
+[3]: https://github.com/zeroc-ice/bzip2
 [4]: https://libexpat.github.io
 [5]: https://symas.com/lightning-memory-mapped-database/
 [6]: https://github.com/zeroc-ice/mcpp

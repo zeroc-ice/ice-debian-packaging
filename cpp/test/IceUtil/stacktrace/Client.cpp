@@ -1,14 +1,9 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/StringUtil.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 #include <fstream>
 
@@ -96,12 +91,20 @@ splitLines(const string& str)
 
 }
 
-int main(int argc, char* argv[])
+class Client : public Test::TestHelper
+{
+public:
+
+    virtual void run(int argc, char* argv[]);
+};
+
+void
+Client::run(int, char*[])
 {
     if(IceUtilInternal::stackTraceImpl() == IceUtilInternal::STNone)
     {
         cout << "This Ice build cannot capture stack traces" << endl;
-        return EXIT_SUCCESS;
+        return;
     }
 
     bool optimized = false;
@@ -128,6 +131,12 @@ int main(int argc, char* argv[])
 #    elif(_MSC_VER >= 1910)
         filename += "-vc141";
 #   endif
+#elif defined(__apple_build_version__)
+#   if(__apple_build_version__ >= 10001145)
+        filename += "-xcode10";
+    #else
+        filename += "-xcode9";
+    #endif
 #endif
     }
     else
@@ -163,8 +172,10 @@ int main(int argc, char* argv[])
 
         if(!ifs)
         {
-            cout << "cannot open `" << filename << "`, failed!" << endl;
-            return EXIT_FAILURE;
+            ostringstream os;
+            os << "cannot open `" << filename << "`, failed!";
+            cout << os.str() << endl;
+            throw invalid_argument(os.str());
         }
 
         // Show which template we use:
@@ -229,6 +240,6 @@ int main(int argc, char* argv[])
         }
     }
     cout << "ok" << endl;
-
-    return EXIT_SUCCESS;
 }
+
+DEFINE_TEST(Client);

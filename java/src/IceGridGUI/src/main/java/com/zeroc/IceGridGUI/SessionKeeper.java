@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package com.zeroc.IceGridGUI;
 
@@ -80,7 +75,7 @@ public class SessionKeeper
     //
     private class Session
     {
-        Session(AdminSessionPrx session, long sessionTimeout, int acmTimeout, boolean routed, final Component parent)
+        Session(AdminSessionPrx session, int acmTimeout, boolean routed, final Component parent)
             throws java.lang.Throwable
         {
             _session = session;
@@ -216,33 +211,17 @@ public class SessionKeeper
                     {
                         try
                         {
-                            con.getInfo(); // This throws when the connection is closed.
+                            con.throwException(); // This throws when the connection is closed.
                             assert(false);
                         }
                         catch(final com.zeroc.Ice.LocalException ex)
                         {
                             SwingUtilities.invokeLater(() ->
                                 {
-                                    sessionLost("Failed to contact the IceGrid registry: " + ex.toString());
+                                    sessionLost();
                                 });
                         }
                     });
-            }
-            else
-            {
-                _keepAliveFuture = _coordinator.getScheduledExecutor().scheduleAtFixedRate(() ->
-                    {
-                        _session.keepAliveAsync().whenComplete((result, ex) ->
-                            {
-                                if(ex != null)
-                                {
-                                    SwingUtilities.invokeLater(() ->
-                                        {
-                                            sessionLost("Failed to contact the IceGrid registry: " + ex.toString());
-                                        });
-                                }
-                            });
-                    }, sessionTimeout / 2, sessionTimeout / 2, java.util.concurrent.TimeUnit.SECONDS);
             }
         }
 
@@ -5079,8 +5058,8 @@ public class SessionKeeper
         }
     }
 
-    public void loginSuccess(final JDialog parent, final long sessionTimeout, final int acmTimeout,
-                             final AdminSessionPrx adminSession, final ConnectionInfo info)
+    public void loginSuccess(final JDialog parent, final int acmTimeout, final AdminSessionPrx adminSession,
+                             final String replicaName, final ConnectionInfo info)
     {
         try
         {
@@ -5105,21 +5084,8 @@ public class SessionKeeper
         }
 
         assert adminSession != null;
-        try
-        {
-            _replicaName = adminSession.getReplicaName();
-        }
-        catch(com.zeroc.Ice.LocalException e)
-        {
-            logout(true);
-            JOptionPane.showMessageDialog(
-                parent,
-                "Could not retrieve replica name: " + e.toString(),
-                "Login failed",
-                JOptionPane.ERROR_MESSAGE);
-            return;
-        }
 
+        _replicaName = replicaName;
         _coordinator.setConnected(true);
 
         _connectedToMaster = _replicaName.equals("Master");
@@ -5139,7 +5105,7 @@ public class SessionKeeper
             {
                 try
                 {
-                    final Session session = new Session(adminSession, sessionTimeout, acmTimeout, !info.getDirect(), parent);
+                    final Session session = new Session(adminSession, acmTimeout, !info.getDirect(), parent);
                     SwingUtilities.invokeAndWait(() ->
                                                  {
                                                      _session = session;
@@ -5202,6 +5168,12 @@ public class SessionKeeper
 
     public void permissionDenied(final JDialog parent, final ConnectionInfo info, final String msg)
     {
+        if(_authDialog != null)
+        {
+            _authDialog.dispose();
+            _authDialog = null;
+        }
+
         class PermissionDeniedAuthDialog extends AuthDialog
         {
             PermissionDeniedAuthDialog()
@@ -5355,8 +5327,9 @@ public class SessionKeeper
                             }
                         }
                     };
+                okButton.setAction(okAction);
 
-                AbstractAction editAction = new AbstractAction("Edit Connection")
+                AbstractAction editConnectionAction = new AbstractAction("Edit Connection")
                     {
                         @Override
                         public void actionPerformed(ActionEvent e)
@@ -5370,6 +5343,7 @@ public class SessionKeeper
                             dialog.setVisible(true);
                         }
                     };
+                editConnectionButton.setAction(editConnectionAction);
 
                 AbstractAction cancelAction = new AbstractAction("Cancel")
                     {
@@ -5381,6 +5355,7 @@ public class SessionKeeper
                             _authDialog = null;
                         }
                     };
+                cancelButton.setAction(cancelAction);
 
                 JComponent buttonBar = new ButtonBarBuilder().addGlue().addButton(okButton, editConnectionButton,
                     cancelButton).addGlue().build();
@@ -5408,11 +5383,11 @@ public class SessionKeeper
         _authDialog.showDialog();
     }
 
-    void sessionLost(String message)
+    public void sessionLost()
     {
         JOptionPane.showMessageDialog(
             _coordinator.getMainFrame(),
-            message,
+            "The connection with the registry has been closed.",
             "Session lost",
             JOptionPane.ERROR_MESSAGE);
 

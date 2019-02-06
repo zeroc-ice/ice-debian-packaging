@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef ICE_METRICSADMIN_I_H
 #define ICE_METRICSADMIN_I_H
@@ -325,7 +320,14 @@ public:
         }
     }
 
-    MetricsMapT(const MetricsMapT& other) : MetricsMapI(other), _destroyed(false)
+    MetricsMapT(const MetricsMapT& other)
+        :
+#ifndef ICE_CPP11_MAPPING
+        IceUtil::Shared(),
+#endif
+        MetricsMapI(other),
+        IceUtil::Mutex(),
+        _destroyed(false)
     {
     }
 

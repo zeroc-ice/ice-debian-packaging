@@ -1,30 +1,29 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System.Collections.Generic;
 
-namespace Test
+namespace Ice
 {
-    public sealed class ChecksumI : ChecksumDisp_
+    namespace checksum
     {
-        public ChecksumI()
-        {
-        }
 
-        public override Dictionary<string, string> getSliceChecksums(Ice.Current current)
+        public sealed class ChecksumI : Test.ChecksumDisp_
         {
-            return Ice.SliceChecksums.checksums;
-        }
+            public ChecksumI()
+            {
+            }
 
-        public override void shutdown(Ice.Current current)
-        {
-            current.adapter.getCommunicator().shutdown();
+            public override Dictionary<string, string> getSliceChecksums(Ice.Current current)
+            {
+                return Ice.SliceChecksums.checksums;
+            }
+
+            public override void shutdown(Ice.Current current)
+            {
+                current.adapter.getCommunicator().shutdown();
+            }
         }
     }
 }

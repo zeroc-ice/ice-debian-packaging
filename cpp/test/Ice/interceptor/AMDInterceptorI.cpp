@@ -1,16 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/DisableWarnings.h>
 #include <AMDInterceptorI.h>
 #include <Test.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 using namespace std;
 
@@ -97,9 +92,9 @@ AMDInterceptorI::dispatch(Ice::Request& request)
         {
             rethrow_exception(ex);
         }
-        catch(const IceUtil::Exception& ex)
+        catch(const IceUtil::Exception& e)
         {
-            setException(ex);
+            setException(e);
         }
         catch(...)
         {

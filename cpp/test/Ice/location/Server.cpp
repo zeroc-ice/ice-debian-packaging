@@ -1,24 +1,28 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <ServerLocator.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <TestI.h>
-
-DEFINE_TEST("server")
 
 using namespace std;
 
-int
-run(int, char**, const Ice::CommunicatorPtr& communicator, const Ice::InitializationData& initData)
+class Server : public Test::TestHelper
 {
+public:
+
+    void run(int, char**);
+};
+
+void
+Server::run(int argc, char** argv)
+{
+    Ice::InitializationData initData;
+    initData.properties = createTestProperties(argc, argv);
+
+    Ice::CommunicatorHolder communicator = initialize(argc, argv, initData);
     //
     // Register the server manager. The server manager creates a new
     // 'server' (a server isn't a different process, it's just a new
@@ -26,7 +30,7 @@ run(int, char**, const Ice::CommunicatorPtr& communicator, const Ice::Initializa
     //
     Ice::PropertiesPtr properties = communicator->getProperties();
     properties->setProperty("Ice.ThreadPool.Server.Size", "2");
-    properties->setProperty("ServerManager.Endpoints", getTestEndpoint(communicator, 0));
+    properties->setProperty("ServerManager.Endpoints", getTestEndpoint());
 
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("ServerManager");
 
@@ -48,30 +52,8 @@ run(int, char**, const Ice::CommunicatorPtr& communicator, const Ice::Initializa
     adapter->add(locator, Ice::stringToIdentity("locator"));
 
     adapter->activate();
-    TEST_READY
+    serverReady();
     communicator->waitForShutdown();
-
-    return EXIT_SUCCESS;
 }
 
-int
-main(int argc, char* argv[])
-{
-#ifdef ICE_STATIC_LIBS
-    Ice::registerIceSSL(false);
-    Ice::registerIceWS(true);
-    Ice::registerIceUDP(true);
-#endif
-    try
-    {
-        Ice::InitializationData initData = getTestInitData(argc, argv);
-        Ice::CommunicatorHolder ich(argc, argv, initData);
-        assert(initData.properties != ich->getProperties());
-        return run(argc, argv, ich.communicator(), initData);
-    }
-    catch(const Ice::Exception& ex)
-    {
-        cerr << ex << endl;
-        return EXIT_FAILURE;
-    }
-}
+DEFINE_TEST(Server)

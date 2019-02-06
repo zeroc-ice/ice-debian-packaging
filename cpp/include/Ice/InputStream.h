@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef ICE_INPUT_STREAM_H
 #define ICE_INPUT_STREAM_H
@@ -62,7 +57,7 @@ public:
      * @param addr The target address.
      * @param v The unmarshaled value.
      */
-    typedef void (*PatchFunc)(void*, const ValuePtr&);
+    typedef void (*PatchFunc)(void* addr, const ValuePtr& v);
 
     /**
      * Constructs a stream using the latest encoding version but without a communicator.

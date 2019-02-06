@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/Options.h>
 #include <IceUtil/StringUtil.h>
@@ -313,11 +308,6 @@ main(int argc, char* argv[])
     catch(const exception& ex)
     {
         consoleErr << appName << ": " << ex.what() << endl;
-        return EXIT_FAILURE;
-    }
-    catch(const char* ex)
-    {
-        consoleErr << appName << ": " << ex << endl;
         return EXIT_FAILURE;
     }
 

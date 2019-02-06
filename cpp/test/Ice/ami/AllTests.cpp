@@ -1,21 +1,40 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <IceUtil/Random.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 
 using namespace std;
 
 namespace
 {
+
+class PingReplyI : public Test::PingReply
+{
+public:
+    PingReplyI() :
+        _received(false)
+    {
+    }
+
+    virtual void reply(const Ice::Current&)
+    {
+        _received = true;
+    }
+
+    bool checkReceived()
+    {
+        return _received;
+    }
+
+private:
+    bool _received;
+};
+
+ICE_DEFINE_PTR(PingReplyIPtr, PingReplyI);
 
 enum ThrowType { LocalException, UserException, StandardException, OtherException };
 
@@ -62,7 +81,7 @@ struct Cookie : public Ice::LocalObject
 };
 typedef IceUtil::Handle<Cookie> CookiePtr;
 
-class CallbackBase : public Ice::LocalObject
+class CallbackBase : public virtual Ice::LocalObject
 {
 public:
 
@@ -781,7 +800,7 @@ public:
     {
     }
 
-    virtual void closed(const Ice::ConnectionPtr& con)
+    virtual void closed(const Ice::ConnectionPtr&)
     {
         called();
     }
@@ -899,22 +918,23 @@ typedef IceUtil::Handle<Thrower> ThrowerPtr;
 }
 
 void
-allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
+allTests(Test::TestHelper* helper, bool collocated)
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
     const string protocol = communicator->getProperties()->getProperty("Ice.Default.Protocol");
 
 #ifdef ICE_CPP11_MAPPING
-    string sref = "test:" + getTestEndpoint(communicator, 0);
-    auto obj = communicator->stringToProxy(sref);
-    test(obj);
+    string sref = "test:" + helper->getTestEndpoint();
+    auto prx = communicator->stringToProxy(sref);
+    test(prx);
 
-    auto p = Ice::uncheckedCast<Test::TestIntfPrx>(obj);
+    auto p = Ice::uncheckedCast<Test::TestIntfPrx>(prx);
 
-    sref = "testController:" + getTestEndpoint(communicator, 1);
-    obj = communicator->stringToProxy(sref);
-    test(obj);
+    sref = "testController:" + helper->getTestEndpoint(1);
+    prx = communicator->stringToProxy(sref);
+    test(prx);
 
-    auto testController = Ice::uncheckedCast<Test::TestIntfControllerPrx>(obj);
+    auto testController = Ice::uncheckedCast<Test::TestIntfControllerPrx>(prx);
 
     Ice::Context ctx;
     cout << "testing lambda API... " << flush;
@@ -1795,7 +1815,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                         promise.set_value();
                         thrower(throwEx[i]);
                     },
-                    [&](const exception_ptr& ex)
+                    [&](const exception_ptr&)
                     {
                         test(false);
                     });
@@ -2189,7 +2209,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                 auto con = p->ice_getConnection();
                 auto sc = make_shared<promise<void>>();
                 con->setCloseCallback(
-                    [sc](Ice::ConnectionPtr connection)
+                    [sc](Ice::ConnectionPtr)
                     {
                         sc->set_value();
                     });
@@ -2244,13 +2264,13 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                         for(int i = 0; i < maxQueue; i++)
                         {
                             auto s = make_shared<promise<void>>();
-                            atomic_flag sent = ATOMIC_FLAG_INIT;
+                            atomic_flag sent2 = ATOMIC_FLAG_INIT;
                             p->opWithPayloadAsync(seq,
                                                   [s]() { s->set_value(); },
                                                   [s](exception_ptr ex) { s->set_exception(ex); },
-                                                  [&sent](bool) { sent.test_and_set(); });
+                                                  [&sent2](bool) { sent2.test_and_set(); });
                             results.push_back(s->get_future());
-                            if(sent.test_and_set())
+                            if(sent2.test_and_set())
                             {
                                 done = false;
                                 maxQueue *= 2;
@@ -2264,11 +2284,11 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                         done = false;
                     }
 
-                    for(vector<future<void>>::iterator p = results.begin(); p != results.end(); ++p)
+                    for(vector<future<void>>::iterator r = results.begin(); r != results.end(); ++r)
                     {
                         try
                         {
-                            p->get();
+                            r->get();
                         }
                         catch(const Ice::LocalException&)
                         {
@@ -2292,7 +2312,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                 auto sent = make_shared<promise<void>>();
                 p->startDispatchAsync([s]() { s->set_value(); },
                                       [s](exception_ptr ex) { s->set_exception(ex); },
-                                      [sent](bool ss) { sent->set_value(); });
+                                      [sent](bool) { sent->set_value(); });
                 auto f = s->get_future();
                 sent->get_future().get(); // Ensure the request was sent before we close the connection.
                 con->close(Ice::ConnectionClose::Gracefully);
@@ -2314,7 +2334,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                 con = p->ice_getConnection();
                 auto sc = make_shared<promise<void>>();
                 con->setCloseCallback(
-                    [sc](Ice::ConnectionPtr connection)
+                    [sc](Ice::ConnectionPtr)
                     {
                         sc->set_value();
                     });
@@ -2349,7 +2369,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                 auto sent = make_shared<promise<void>>();
                 p->startDispatchAsync([s]() { s->set_value(); },
                                       [s](exception_ptr ex) { s->set_exception(ex); },
-                                      [sent](bool ss) { sent->set_value(); });
+                                      [sent](bool) { sent->set_value(); });
                 auto f = s->get_future();
                 sent->get_future().get(); // Ensure the request was sent before we close the connection.
                 con->close(Ice::ConnectionClose::Forcefully);
@@ -2387,7 +2407,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
         cout << "testing result struct... " << flush;
 
         auto q = Ice::uncheckedCast<Test::Outer::Inner::TestIntfPrx>(
-            communicator->stringToProxy("test2:" + getTestEndpoint(communicator, 0)));
+            communicator->stringToProxy("test2:" + helper->getTestEndpoint()));
 
         promise<void> promise;
         q->opAsync(1,
@@ -2417,16 +2437,32 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
         cout << "ok" << endl;
     }
 
+    if(p->ice_getConnection())
+    {
+        cout << "testing bidir... " << flush;
+        auto adapter = communicator->createObjectAdapter("");
+        auto replyI = make_shared<PingReplyI>();
+        auto reply = Ice::uncheckedCast<Test::PingReplyPrx>(adapter->addWithUUID(replyI));
+        adapter->activate();
+
+        p->ice_getConnection()->setAdapter(adapter);
+        p->pingBiDir(reply);
+        test(replyI->checkReceived());
+        adapter->destroy();
+
+        cout << "ok" << endl;
+    }
+
     p->shutdown();
 
 #else
-    string sref = "test:" + getTestEndpoint(communicator, 0);
+    string sref = "test:" + helper->getTestEndpoint();
     Ice::ObjectPrx obj = communicator->stringToProxy(sref);
     test(obj);
 
     Test::TestIntfPrx p = Test::TestIntfPrx::uncheckedCast(obj);
 
-    sref = "testController:" + getTestEndpoint(communicator, 1);
+    sref = "testController:" + helper->getTestEndpoint(1);
     obj = communicator->stringToProxy(sref);
     test(obj);
 
@@ -2701,7 +2737,7 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
             Ice::InitializationData initData;
             initData.properties = communicator->getProperties()->clone();
             Ice::CommunicatorPtr ic = Ice::initialize(initData);
-            Ice::ObjectPrx obj = ic->stringToProxy(p->ice_toString());
+            obj = ic->stringToProxy(p->ice_toString());
             Test::TestIntfPrx p2 = Test::TestIntfPrx::checkedCast(obj);
             ic->destroy();
 
@@ -3981,12 +4017,12 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                     done = false;
                 }
 
-                for(vector<Ice::AsyncResultPtr>::const_iterator p = results.begin(); p != results.end(); ++p)
+                for(vector<Ice::AsyncResultPtr>::const_iterator r = results.begin(); r != results.end(); ++r)
                 {
-                    (*p)->waitForCompleted();
+                    (*r)->waitForCompleted();
                     try
                     {
-                        (*p)->throwLocalException();
+                        (*r)->throwLocalException();
                     }
                     catch(const Ice::LocalException&)
                     {
@@ -4081,6 +4117,22 @@ allTests(const Ice::CommunicatorPtr& communicator, bool collocated)
                 // Expected.
             }
         }
+        cout << "ok" << endl;
+    }
+
+    if(p->ice_getConnection())
+    {
+        cout << "testing bidir... " << flush;
+        Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("");
+        PingReplyIPtr replyI = new PingReplyI();
+        Test::PingReplyPrx reply = Test::PingReplyPrx::uncheckedCast(adapter->addWithUUID(replyI));
+        adapter->activate();
+
+        p->ice_getConnection()->setAdapter(adapter);
+        p->pingBiDir(reply);
+        test(replyI->checkReceived());
+        adapter->destroy();
+
         cout << "ok" << endl;
     }
 

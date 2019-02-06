@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceSSL/SChannelEngine.h>
 #include <IceSSL/SChannelTransceiverI.h>
@@ -19,9 +14,19 @@
 
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/FileUtil.h>
+#include <IceUtil/MutexPtrLock.h>
 #include <Ice/UUID.h>
 
 #include <wincrypt.h>
+
+//
+// SP_PROT_TLS1_3 is new in v10.0.15021 SDK
+//
+#ifndef SP_PROT_TLS1_3
+#    define SP_PROT_TLS1_3_SERVER 0x00001000
+#    define SP_PROT_TLS1_3_CLIENT 0x00002000
+#    define SP_PROT_TLS1_3 (SP_PROT_TLS1_3_SERVER | SP_PROT_TLS1_3_CLIENT)
+#endif
 
 //
 // CALG_ECDH_EPHEM algorithm constant is not defined in older version of the SDK headers
@@ -32,7 +37,7 @@
 const int ICESSL_CALG_ECDH_EPHEM = 0x0000AE06;
 
 //
-// COMPILERFIX SCH_USE_STRONG_CRYPTO not defined with VC90
+// COMPILERFIX SCH_USE_STRONG_CRYPTO not defined with v90
 //
 #if defined(_MSC_VER) && (_MSC_VER <= 1600)
 #  ifndef SCH_USE_STRONG_CRYPTO
@@ -54,6 +59,26 @@ Shared* SChannel::upCast(SChannel::SSLEngine* p)
 namespace
 {
 
+IceUtil::Mutex* globalMutex;
+
+class Init
+{
+public:
+
+    Init()
+    {
+        globalMutex = new IceUtil::Mutex;
+    }
+
+    ~Init()
+    {
+        delete globalMutex;
+        globalMutex = 0;
+    }
+};
+
+Init init;
+
 void
 addMatchingCertificates(HCERTSTORE source, HCERTSTORE target, DWORD findType, const void* findParam)
 {
@@ -61,7 +86,7 @@ addMatchingCertificates(HCERTSTORE source, HCERTSTORE target, DWORD findType, co
     do
     {
         if((next = CertFindCertificateInStore(source, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, 0,
-                                              findType, findParam, next)))
+                                              findType, findParam, next)) != 0)
         {
             if(!CertAddCertificateContextToStore(target, next, CERT_STORE_ADD_ALWAYS, 0))
             {
@@ -74,7 +99,7 @@ addMatchingCertificates(HCERTSTORE source, HCERTSTORE target, DWORD findType, co
 }
 
 vector<PCCERT_CONTEXT>
-findCertificates(const string& location, const string& name, const string& value, vector<HCERTSTORE>& stores)
+findCertificates(const string& location, const string& storeName, const string& value, vector<HCERTSTORE>& stores)
 {
     DWORD storeLoc;
     if(location == "CurrentUser")
@@ -86,10 +111,10 @@ findCertificates(const string& location, const string& name, const string& value
         storeLoc = CERT_SYSTEM_STORE_LOCAL_MACHINE;
     }
 
-    HCERTSTORE store = CertOpenStore(CERT_STORE_PROV_SYSTEM, 0, 0, storeLoc, Ice::stringToWstring(name).c_str());
+    HCERTSTORE store = CertOpenStore(CERT_STORE_PROV_SYSTEM, 0, 0, storeLoc, Ice::stringToWstring(storeName).c_str());
     if(!store)
     {
-        throw PluginInitializationException(__FILE__, __LINE__, "IceSSL: failed to open certificate store `" + name +
+        throw PluginInitializationException(__FILE__, __LINE__, "IceSSL: failed to open certificate store `" + storeName +
                                             "':\n" + IceUtilInternal::lastErrorToString());
     }
 
@@ -253,7 +278,7 @@ findCertificates(const string& location, const string& name, const string& value
                     do
                     {
                         if((next = CertFindCertificateInStore(store, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, 0,
-                                                              CERT_FIND_ANY, 0, next)))
+                                                              CERT_FIND_ANY, 0, next)) != 0)
                         {
                             if(CertCompareIntegerBlob(&serial, &next->pCertInfo->SerialNumber))
                             {
@@ -295,7 +320,7 @@ findCertificates(const string& location, const string& name, const string& value
         do
         {
             if((next = CertFindCertificateInStore(store, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, 0, CERT_FIND_ANY, 0,
-                                                  next)))
+                                                  next)) != 0)
             {
                 certs.push_back(next);
             }
@@ -399,23 +424,23 @@ parseProtocols(const StringSeq& protocols)
 
         if(prot == "SSL3" || prot == "SSLV3")
         {
-            v |= SP_PROT_SSL3_SERVER;
-            v |= SP_PROT_SSL3_CLIENT;
+            v |= SP_PROT_SSL3;
         }
         else if(prot == "TLS" || prot == "TLS1" || prot == "TLSV1" || prot == "TLS1_0" || prot == "TLSV1_0")
         {
-            v |= SP_PROT_TLS1_SERVER;
-            v |= SP_PROT_TLS1_CLIENT;
+            v |= SP_PROT_TLS1;
         }
         else if(prot == "TLS1_1" || prot == "TLSV1_1")
         {
-            v |= SP_PROT_TLS1_1_SERVER;
-            v |= SP_PROT_TLS1_1_CLIENT;
+            v |= SP_PROT_TLS1_1;
         }
         else if(prot == "TLS1_2" || prot == "TLSV1_2")
         {
-            v |= SP_PROT_TLS1_2_SERVER;
-            v |= SP_PROT_TLS1_2_CLIENT;
+            v |= SP_PROT_TLS1_2;
+        }
+        else if (prot == "TLS1_3" || prot == "TLSV1_2")
+        {
+            v |= SP_PROT_TLS1_3;
         }
         else
         {
@@ -580,6 +605,17 @@ SChannel::SSLEngine::SSLEngine(const CommunicatorPtr& communicator) :
 void
 SChannel::SSLEngine::initialize()
 {
+    //
+    // BUGFIX: we use a global mutex for the initialization of SChannel to
+    // avoid crashes ocurring with last SChannel updates see:
+    // https://github.com/zeroc-ice/ice/issues/242
+    //
+    IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(globalMutex);
+
+    //
+    // We still have to acquire the instance mutex because it is used by the base
+    // class to access _initialized data member.
+    //
     Mutex::Lock lock(_mutex);
     if(_initialized)
     {
@@ -751,21 +787,21 @@ SChannel::SSLEngine::initialize()
 
         for(size_t i = 0; i < certFiles.size(); ++i)
         {
-            string certFile = certFiles[i];
+            string cFile = certFiles[i];
             string resolved;
-            if(!checkPath(certFile, defaultDir, false, resolved))
+            if(!checkPath(cFile, defaultDir, false, resolved))
             {
                 throw PluginInitializationException(__FILE__, __LINE__,
-                                                    "IceSSL: certificate file not found:\n" + certFile);
+                                                    "IceSSL: certificate file not found:\n" + cFile);
             }
-            certFile = resolved;
+            cFile = resolved;
 
             vector<char> buffer;
-            readFile(certFile, buffer);
+            readFile(cFile, buffer);
             if(buffer.empty())
             {
                 throw PluginInitializationException(__FILE__, __LINE__,
-                                                    "IceSSL: certificate file is empty:\n" + certFile);
+                                                    "IceSSL: certificate file is empty:\n" + cFile);
             }
 
             CRYPT_DATA_BLOB pfxBlob;
@@ -962,7 +998,7 @@ SChannel::SSLEngine::initialize()
                                                         "store:\n" + lastErrorToString());
                 }
 
-                addCertificatesToStore(certFile, store, &cert);
+                addCertificatesToStore(cFile, store, &cert);
 
                 //
                 // Associate key & certificate
@@ -1098,7 +1134,11 @@ SChannel::SSLEngine::getCipherName(ALG_ID cipher) const
         case CALG_SHA_512:
             return "SHA_512";
         default:
-            return "Unknown";
+        {
+            ostringstream os;
+            os << "Unknown cipher: " << cipher;
+            return os.str();
+        }
     }
 }
 

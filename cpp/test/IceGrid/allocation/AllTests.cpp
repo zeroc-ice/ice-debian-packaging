@@ -1,18 +1,13 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/Thread.h>
 #include <IceUtil/Random.h>
 #include <Ice/Ice.h>
 #include <IceGrid/IceGrid.h>
 #include <Glacier2/Router.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 
 using namespace std;
@@ -269,13 +264,16 @@ protected:
 typedef IceUtil::Handle<StressClient> StressClientPtr;
 
 void
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
     IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
         communicator->stringToProxy(communicator->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
     test(registry);
     AdminSessionPrx session = registry->createAdminSession("foo", "bar");
-    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
+    session->ice_getConnection()->setACM(registry->getACMTimeout(),
+                                         IceUtil::None,
+                                         Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
 
     AdminPrx admin = session->getAdmin();
     test(admin);
@@ -1000,8 +998,8 @@ allTests(const Ice::CommunicatorPtr& communicator)
         cout << "ok" << endl;
         cout << "testing application updates with allocated objects... " << flush;
         {
-            SessionPrx session1 = registry->createSession("Client1", "");
-            SessionPrx session2 = registry->createSession("Client2", "");
+            session1 = registry->createSession("Client1", "");
+            session2 = registry->createSession("Client2", "");
 
             ServerDescriptorPtr objectAllocOriginal = admin->getServerInfo("ObjectAllocation").descriptor;
             ServerDescriptorPtr objectAllocUpdate = ServerDescriptorPtr::dynamicCast(objectAllocOriginal->ice_clone());
@@ -1097,7 +1095,6 @@ allTests(const Ice::CommunicatorPtr& communicator)
             test(session1);
             session1->ice_ping();
 
-            Ice::ObjectPrx obj;
             obj = session1->allocateObjectById(allocatable)->ice_connectionId("client1")->ice_router(router1);
             obj->ice_ping();
             session1->releaseObject(allocatable);

@@ -1,15 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.objects;
 
 import java.io.PrintWriter;
+import java.lang.reflect.Modifier;
 
 import test.Ice.objects.Test.B;
 import test.Ice.objects.Test.C;
@@ -19,6 +15,12 @@ import test.Ice.objects.Test.F;
 import test.Ice.objects.Test.G;
 import test.Ice.objects.Test.H;
 import test.Ice.objects.Test.I;
+import test.Ice.objects.Test.K;
+import test.Ice.objects.Test.L;
+import test.Ice.objects.Test.Initial.OpValueResult;
+import test.Ice.objects.Test.Initial.OpValueSeqResult;
+import test.Ice.objects.Test.Initial.OpValueMapResult;
+import test.Ice.objects.Test.L;
 import test.Ice.objects.Test.A1;
 import test.Ice.objects.Test.B1;
 import test.Ice.objects.Test.D1;
@@ -30,7 +32,9 @@ import test.Ice.objects.Test.InitialPrx;
 import test.Ice.objects.Test.J;
 import test.Ice.objects.Test.Recursive;
 import test.Ice.objects.Test.UnexpectedObjectExceptionTestPrx;
-
+import test.Ice.objects.Test.M;
+import test.Ice.objects.Test.StructKey;
+import test.Ice.objects.Test.Initial.OpMResult;
 public class AllTests
 {
     private static void test(boolean b)
@@ -42,13 +46,13 @@ public class AllTests
     }
 
     @SuppressWarnings("deprecation")
-    public static InitialPrx allTests(test.Util.Application app)
+    public static InitialPrx allTests(test.TestHelper helper)
     {
-        com.zeroc.Ice.Communicator communicator=app.communicator();
-        PrintWriter out = app.getWriter();
+        com.zeroc.Ice.Communicator communicator = helper.communicator();
+        PrintWriter out = helper.getWriter();
         out.print("testing stringToProxy... ");
         out.flush();
-        String ref = "initial:" + app.getTestEndpoint(0);
+        String ref = "initial:" + helper.getTestEndpoint(0);
         com.zeroc.Ice.ObjectPrx base = communicator.stringToProxy(ref);
         test(base != null);
         out.println("ok");
@@ -164,8 +168,9 @@ public class AllTests
             test((E.class.getDeclaredField("i").getModifiers() & java.lang.reflect.Modifier.PROTECTED) != 0);
             test((E.class.getDeclaredField("s").getModifiers() & java.lang.reflect.Modifier.PROTECTED) != 0);
         }
-        catch(Exception ex)
+        catch(NoSuchFieldException ex)
         {
+            ex.printStackTrace(out);
             test(false);
         }
         F f = initial.getF();
@@ -176,8 +181,9 @@ public class AllTests
             test((F.class.getDeclaredField("e1").getModifiers() & java.lang.reflect.Modifier.PROTECTED) != 0);
             test((F.class.getDeclaredField("e2").getModifiers() & java.lang.reflect.Modifier.PROTECTED) == 0);
         }
-        catch(Exception ex)
+        catch(NoSuchFieldException ex)
         {
+            ex.printStackTrace(out);
             test(false);
         }
         out.println("ok");
@@ -190,6 +196,40 @@ public class AllTests
         test(j != null && j.ice_id().equals(J.ice_staticId()));
         com.zeroc.Ice.Value h = initial.getH();
         test(h != null && ((H)h) != null);
+        out.println("ok");
+
+        out.print("getting K... ");
+        out.flush();
+        {
+            K k = initial.getK();
+            test(k.value instanceof L);
+            L l = (L)k.value;
+            test(l.data.equals("l"));
+        }
+        out.println("ok");
+
+        out.print("testing Value as parameter... ");
+        {
+            com.zeroc.Ice.Value v1 = new L("l");
+            OpValueResult result = initial.opValue(v1);
+            test(((L)result.returnValue).data.equals("l"));
+            test(((L)result.v2).data.equals("l"));
+        }
+        {
+            L l = new L("l");
+            com.zeroc.Ice.Value[] v1 = { l };
+            OpValueSeqResult result = initial.opValueSeq(v1);
+            test(((L)result.returnValue[0]).data.equals("l"));
+            test(((L)result.v2[0]).data.equals("l"));
+        }
+        {
+            L l = new L("l");
+            java.util.Map<String, com.zeroc.Ice.Value> v1 = new java.util.HashMap<String, com.zeroc.Ice.Value>();
+            v1.put("l", l);
+            OpValueMapResult result = initial.opValueMap(v1);
+            test(((L)result.returnValue.get("l")).data.equals("l"));
+            test(((L)result.v2.get("l")).data.equals("l"));
+        }
         out.println("ok");
 
         out.print("getting D1... ");
@@ -311,7 +351,7 @@ public class AllTests
 
         out.print("testing UnexpectedObjectException...");
         out.flush();
-        ref = "uoet:" + app.getTestEndpoint(0);
+        ref = "uoet:" + helper.getTestEndpoint(0);
         base = communicator.stringToProxy(ref);
         test(base != null);
         UnexpectedObjectExceptionTestPrx uoet = UnexpectedObjectExceptionTestPrx.uncheckedCast(base);
@@ -339,6 +379,29 @@ public class AllTests
         out.println("ok");
         out.print("testing getting ObjectFactory as ValueFactory...");
         test(communicator.getValueFactoryManager().find("TestOF") != null);
+        out.println("ok");
+
+        out.print("testing class containing complex dictionary... ");
+        out.flush();
+        {
+            M m = new M();
+            m.v = new java.util.HashMap<StructKey, L>();
+            StructKey k1 = new StructKey(1, "1");
+            m.v.put(k1, new L("one"));
+            StructKey k2 = new StructKey(2, "2");
+            m.v.put(k2, new L("two"));
+
+            Initial.OpMResult opMResult = initial.opM(m);
+            test(opMResult.returnValue.v.size() == 2);
+            test(opMResult.v2.v.size() == 2);
+
+            test(opMResult.returnValue.v.get(k1).data.equals("one"));
+            test(opMResult.v2.v.get(k1).data.equals("one"));
+
+            test(opMResult.returnValue.v.get(k2).data.equals("two"));
+            test(opMResult.v2.v.get(k2).data.equals("two"));
+
+        }
         out.println("ok");
 
         return initial;

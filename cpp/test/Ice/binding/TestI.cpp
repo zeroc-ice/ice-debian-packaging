@@ -1,21 +1,17 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <TestI.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 using namespace std;
 using namespace Ice;
 using namespace Test;
 
-RemoteCommunicatorI::RemoteCommunicatorI() : _nextPort(1)
+RemoteCommunicatorI::RemoteCommunicatorI() :
+    _nextPort(1)
 {
 }
 
@@ -39,7 +35,7 @@ RemoteCommunicatorI::createObjectAdapter(const string& name, const string& endpt
             {
                 if(endpoints.find("-p") == string::npos)
                 {
-                    endpoints = getTestEndpoint(com, _nextPort++, endpoints);
+                    endpoints = TestHelper::getTestEndpoint(com->getProperties(), _nextPort++, endpoints);
                 }
             }
             com->getProperties()->setProperty(name + ".ThreadPool.Size", "1");
@@ -90,7 +86,7 @@ RemoteObjectAdapterI::getTestIntf(const Ice::Current&)
 }
 
 void
-RemoteObjectAdapterI::deactivate(const Ice::Current& current)
+RemoteObjectAdapterI::deactivate(const Ice::Current&)
 {
     try
     {

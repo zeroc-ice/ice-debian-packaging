@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef ICE_INCOMING_ASYNC_H
 #define ICE_INCOMING_ASYNC_H
@@ -44,6 +39,12 @@ public:
 
 namespace IceInternal
 {
+
+// TODO: fix this warning
+#if defined(_MSC_VER) && (_MSC_VER >= 1900)
+#   pragma warning(push)
+#   pragma warning(disable:4239)
+#endif
 
 //
 // We need virtual inheritance from AMDCallback, because we use multiple
@@ -117,6 +118,10 @@ private:
     //
     const ResponseHandlerPtr _responseHandlerCopy;
 };
+
+#if defined(_MSC_VER) && (_MSC_VER >= 1900)
+#   pragma warning(pop)
+#endif
 
 }
 

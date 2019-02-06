@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/StringUtil.h>
 #include <IceUtil/Random.h>
@@ -546,8 +541,6 @@ Database::getApplications(Ice::Long& serial)
         logError(_communicator, ex);
         throw;
     }
-    assert(false);
-    return ApplicationInfoSeq();
 }
 
 AdapterInfoSeq
@@ -565,8 +558,6 @@ Database::getAdapters(Ice::Long& serial)
         logError(_communicator, ex);
         throw;
     }
-    assert(false);
-    return AdapterInfoSeq();
 }
 
 ObjectInfoSeq
@@ -584,8 +575,6 @@ Database::getObjects(Ice::Long& serial)
         logError(_communicator, ex);
         throw;
     }
-    assert(false);
-    return ObjectInfoSeq();
 }
 
 StringLongDict
@@ -1628,7 +1617,7 @@ Database::updateObject(const Ice::ObjectPrx& proxy)
 
             if(!_objects.get(txn, id, info))
             {
-                ObjectNotRegisteredException(id);
+                throw ObjectNotRegisteredException(id);
             }
             info.proxy = proxy;
             addObject(txn, info, false);
@@ -1751,8 +1740,7 @@ Database::getObjectByTypeOnLeastLoadedNode(const string& type, LoadSample sample
         return 0;
     }
 
-    RandomNumberGenerator rng;
-    random_shuffle(objs.begin(), objs.end(), rng);
+    IceUtilInternal::shuffle(objs.begin(), objs.end());
     vector<pair<Ice::ObjectPrx, float> > objectsWithLoad;
     objectsWithLoad.reserve(objs.size());
     for(Ice::ObjectProxySeq::const_iterator p = objs.begin(); p != objs.end(); ++p)
@@ -2455,9 +2443,9 @@ Database::checkUpdate(const ApplicationHelper& oldApp,
                 {
 #if defined(__SUNPRO_CC) && defined(_RWSTD_NO_MEMBER_TEMPLATES)
                     Ice::StringSeq nodes;
-                    for(set<string>::const_iterator p = unreachableNodes.begin(); p != unreachableNodes.end(); ++p)
+                    for(set<string>::const_iterator r = unreachableNodes.begin(); r != unreachableNodes.end(); ++r)
                     {
-                        nodes.push_back(*p);
+                        nodes.push_back(*r);
                     }
 #else
                     Ice::StringSeq nodes(unreachableNodes.begin(), unreachableNodes.end());
@@ -2473,9 +2461,9 @@ Database::checkUpdate(const ApplicationHelper& oldApp,
                 }
                 if(!reasons.empty())
                 {
-                    for(vector<string>::const_iterator p = reasons.begin(); p != reasons.end(); ++p)
+                    for(vector<string>::const_iterator r = reasons.begin(); r != reasons.end(); ++r)
                     {
-                        out << "\n" << *p;
+                        out << "\n" << *r;
                     }
                 }
             }
@@ -2497,9 +2485,9 @@ Database::checkUpdate(const ApplicationHelper& oldApp,
             {
 #if defined(__SUNPRO_CC) && defined(_RWSTD_NO_MEMBER_TEMPLATES)
                 Ice::StringSeq nodes;
-                for(set<string>::const_iterator p = unreachableNodes.begin(); p != unreachableNodes.end(); ++p)
+                for(set<string>::const_iterator r = unreachableNodes.begin(); r != unreachableNodes.end(); ++r)
                 {
-                    nodes.push_back(*p);
+                    nodes.push_back(*r);
                 }
 #else
                 Ice::StringSeq nodes(unreachableNodes.begin(), unreachableNodes.end());
@@ -2520,9 +2508,9 @@ Database::checkUpdate(const ApplicationHelper& oldApp,
     {
         ostringstream os;
         os << "check for application `" << application << "' update failed:";
-        for(vector<string>::const_iterator p = reasons.begin(); p != reasons.end(); ++p)
+        for(vector<string>::const_iterator r = reasons.begin(); r != reasons.end(); ++r)
         {
-            os << "\n" << *p;
+            os << "\n" << *r;
         }
         throw DeploymentException(os.str());
     }
@@ -2531,13 +2519,13 @@ Database::checkUpdate(const ApplicationHelper& oldApp,
 void
 Database::finishApplicationUpdate(const ApplicationUpdateInfo& update,
                                   const ApplicationInfo& oldApp,
-                                  const ApplicationHelper& previous,
-                                  const ApplicationHelper& helper,
+                                  const ApplicationHelper& previousAppHelper,
+                                  const ApplicationHelper& appHelper,
                                   AdminSessionI* /*session*/,
                                   bool noRestart,
                                   Ice::Long dbSerial)
 {
-    const ApplicationDescriptor& newDesc = helper.getDefinition();
+    const ApplicationDescriptor& newDesc = appHelper.getDefinition();
 
     ServerEntrySeq entries;
     int serial = 0;
@@ -2545,15 +2533,15 @@ Database::finishApplicationUpdate(const ApplicationUpdateInfo& update,
     {
         if(_master)
         {
-            checkUpdate(previous, helper, oldApp.uuid, oldApp.revision, noRestart);
+            checkUpdate(previousAppHelper, appHelper, oldApp.uuid, oldApp.revision, noRestart);
         }
 
         Lock sync(*this);
 
         IceDB::ReadWriteTxn txn(_env);
 
-        checkForUpdate(previous, helper, txn);
-        reload(previous, helper, entries, oldApp.uuid, oldApp.revision + 1, noRestart);
+        checkForUpdate(previousAppHelper, appHelper, txn);
+        reload(previousAppHelper, appHelper, entries, oldApp.uuid, oldApp.revision + 1, noRestart);
 
         for_each(entries.begin(), entries.end(), IceUtil::voidMemFun(&ServerEntry::sync));
 

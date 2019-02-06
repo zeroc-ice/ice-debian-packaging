@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef ICEPY_LOGGER_H
 #define ICEPY_LOGGER_H
@@ -51,7 +46,7 @@ PyObject* createLogger(const Ice::LoggerPtr&);
 
 }
 
-extern "C" PyObject* IcePy_getProcessLogger(PyObject*);
+extern "C" PyObject* IcePy_getProcessLogger(PyObject*, PyObject*);
 extern "C" PyObject* IcePy_setProcessLogger(PyObject*, PyObject*);
 
 #endif

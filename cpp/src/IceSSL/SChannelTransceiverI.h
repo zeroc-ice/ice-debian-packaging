@@ -1,14 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef ICESSL_SCHANNELTRANSCEIVER_I_H
 #define ICESSL_SCHANNELTRANSCEIVER_I_H
+
+#ifdef _WIN32
 
 #include <IceSSL/Config.h>
 #include <IceSSL/InstanceF.h>
@@ -86,6 +83,7 @@ private:
         StateHandshakeNotStarted,
         StateHandshakeReadContinue,
         StateHandshakeWriteContinue,
+        StateHandshakeWriteNoContinue,
         StateHandshakeComplete
     };
 
@@ -96,6 +94,7 @@ private:
     const bool _incoming;
     const IceInternal::TransceiverPtr _delegate;
     State _state;
+    DWORD _ctxFlags;
 
     //
     // Buffered encrypted data that has not been written.
@@ -127,5 +126,7 @@ typedef IceUtil::Handle<TransceiverI> TransceiverIPtr;
 } // SChannel namespace end
 
 } // IceSSL namespace end
+
+#endif
 
 #endif

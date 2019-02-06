@@ -1,20 +1,23 @@
 # -*- coding: utf-8 -*-
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import glob
+import os
+import shutil
+
 
 class SliceErrorDetectionTestCase(ClientTestCase):
 
     def runClientSide(self, current):
-        testdir = self.getPath()
+        testdir = current.testsuite.getPath()
         slice2cpp = SliceTranslator("slice2cpp")
+
+        outdir = "{0}/tmp".format(testdir)
+        if os.path.exists(outdir):
+            shutil.rmtree(outdir)
+        os.mkdir(outdir)
 
         files = glob.glob("{0}/*.ice".format(testdir))
         files.sort()
@@ -23,8 +26,6 @@ class SliceErrorDetectionTestCase(ClientTestCase):
                 current.write(os.path.basename(file) + "... ")
 
                 args = ["-I.", file, "--output-dir", "tmp"]
-                if file.find("Underscore") >= 0:
-                    args.append("--underscore")
 
                 # Don't print out slice2cpp output and expect failures
                 slice2cpp.run(current, args=args, exitstatus=0 if file.find("Warning") >= 0 else 1)
@@ -46,8 +47,15 @@ class SliceErrorDetectionTestCase(ClientTestCase):
                     i = i + 1
                 else:
                     current.writeln("ok")
+
+            for language in ["cpp", "cs", "html", "java", "js", "matlab", "objc", "php", "py", "rb"]:
+                compiler = SliceTranslator('slice2%s' % language)
+                if not os.path.isfile(compiler.getCommandLine(current)):
+                    continue
+                compiler.run(current, args=["forward/Forward.ice", "--output-dir", "tmp"])
+            current.writeln("ok")
         finally:
-            for file in glob.glob("{0}/tmp/*".format(testdir)):
-                current.files.append(file)
+            if os.path.exists(outdir):
+                shutil.rmtree(outdir)
 
 TestSuite(__name__, [ SliceErrorDetectionTestCase() ])

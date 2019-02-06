@@ -1,15 +1,10 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/IceUtil.h>
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Callback.h>
 
 using namespace std;
@@ -17,13 +12,6 @@ using namespace Test;
 
 namespace
 {
-
-class Server : public Ice::Application
-{
-public:
-
-    virtual int run(int, char*[]);
-};
 
 class CallbackI : public Callback
 {
@@ -45,29 +33,25 @@ public:
 
 }
 
-int
-Server::run(int, char**)
+class Server : public Test::TestHelper
 {
-    communicator()->getProperties()->setProperty("DeactivatedAdapter.Endpoints", getTestEndpoint(communicator(), 1));
-    communicator()->createObjectAdapter("DeactivatedAdapter");
+public:
 
-    communicator()->getProperties()->setProperty("CallbackAdapter.Endpoints", getTestEndpoint(communicator(), 0));
-    Ice::ObjectAdapterPtr adapter = communicator()->createObjectAdapter("CallbackAdapter");
+    void run(int, char**);
+};
+
+void
+Server::run(int argc, char** argv)
+{
+    Ice::CommunicatorHolder communicator = initialize(argc, argv);
+    communicator->getProperties()->setProperty("DeactivatedAdapter.Endpoints", getTestEndpoint(1));
+    communicator->createObjectAdapter("DeactivatedAdapter");
+
+    communicator->getProperties()->setProperty("CallbackAdapter.Endpoints", getTestEndpoint());
+    Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("CallbackAdapter");
     adapter->add(ICE_MAKE_SHARED(CallbackI), Ice::stringToIdentity("callback"));
     adapter->activate();
-    communicator()->waitForShutdown();
-
-    return EXIT_SUCCESS;
+    communicator->waitForShutdown();
 }
 
-int
-main(int argc, char* argv[])
-{
-#ifdef ICE_STATIC_LIBS
-    Ice::registerIceSSL(false);
-    Ice::registerIceWS(true);
-#endif
-    Server app;
-    Ice::InitializationData initData = getTestInitData(argc, argv);
-    return app.main(argc, argv, initData);
-}
+DEFINE_TEST(Server)

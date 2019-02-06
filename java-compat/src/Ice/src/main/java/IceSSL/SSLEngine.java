@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package IceSSL;
 
@@ -69,6 +64,10 @@ class SSLEngine
                 else if(s.equals("TLS1_2") || s.equals("TLSV1_2"))
                 {
                     l.add("TLSv1.2");
+                }
+                else if(s.equals("TLS1_3") || s.equals("TLSV1_3"))
+                {
+                    l.add("TLSv1.3");
                 }
                 else
                 {
@@ -781,15 +780,22 @@ class SSLEngine
     javax.net.ssl.SSLEngine createSSLEngine(boolean incoming, String host, int port)
     {
         javax.net.ssl.SSLEngine engine;
-        if(host != null)
+        try
         {
-            engine = _context.createSSLEngine(host, port);
+            if(host != null)
+            {
+                engine = _context.createSSLEngine(host, port);
+            }
+            else
+            {
+                engine = _context.createSSLEngine();
+            }
+            engine.setUseClientMode(!incoming);
         }
-        else
+        catch(Exception ex)
         {
-            engine = _context.createSSLEngine();
+            throw new Ice.SecurityException("IceSSL: couldn't create SSL engine", ex);
         }
-        engine.setUseClientMode(!incoming);
 
         String[] cipherSuites = filterCiphers(engine.getSupportedCipherSuites(), engine.getEnabledCipherSuites());
         try

@@ -1,16 +1,22 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICEGRID_API", "cpp:doxygen:include:IceGrid/IceGrid.h", "objc:header-dir:objc", "objc:dll-export:ICEGRID_API", "js:ice-build", "python:pkgdir:IceGrid"]]
+[["cpp:dll-export:ICEGRID_API"]]
+[["cpp:doxygen:include:IceGrid/IceGrid.h"]]
+[["cpp:header-ext:h"]]
 [["cpp:include:IceGrid/Config.h"]]
+
+[["ice-prefix"]]
+
+[["js:module:ice"]]
+
+[["objc:dll-export:ICEGRID_API"]]
+[["objc:header-dir:objc"]]
+
+[["python:pkgdir:IceGrid"]]
 
 #include <Ice/Identity.ice>
 #include <Ice/BuiltinSequences.ice>
@@ -882,7 +888,7 @@ interface Admin
     /**
      *
      * Add an object to the object registry. IceGrid will get the
-     * object type by calling <tt>ice_id</tt> on the given proxy. The object
+     * object type by calling <code>ice_id</code> on the given proxy. The object
      * must be reachable.
      *
      * @param obj The object to be added to the registry.
@@ -991,7 +997,7 @@ interface Admin
      *
      * @param expr The expression to match against the stringified
      * identities of registered objects. The expression may contain
-     * a trailing wildcard (<tt>*</tt>) character.
+     * a trailing wildcard (<code>*</code>) character.
      *
      * @return All the object infos with a stringified identity
      * matching the given expression.
@@ -1364,7 +1370,7 @@ interface RegistryObserver
 {
     /**
      *
-     * The <tt>registryInit</tt> operation is called after registration of
+     * The <code>registryInit</code> operation is called after registration of
      * an observer to indicate the state of the registries.
      *
      * @param registries The current state of the registries.
@@ -1374,7 +1380,7 @@ interface RegistryObserver
 
     /**
      *
-     * The <tt>nodeUp</tt> operation is called to notify an observer that a node
+     * The <code>nodeUp</code> operation is called to notify an observer that a node
      * came up.
      *
      * @param node The node state.
@@ -1384,7 +1390,7 @@ interface RegistryObserver
 
     /**
      *
-     * The <tt>nodeDown</tt> operation is called to notify an observer that a node
+     * The <code>nodeDown</code> operation is called to notify an observer that a node
      * went down.
      *
      * @param name The node name.
@@ -1411,7 +1417,7 @@ interface NodeObserver
 {
     /**
      *
-     * The <tt>nodeInit</tt> operation indicates the current state
+     * The <code>nodeInit</code> operation indicates the current state
      * of nodes. It is called after the registration of an observer.
      *
      * @param nodes The current state of the nodes.
@@ -1421,7 +1427,7 @@ interface NodeObserver
 
     /**
      *
-     * The <tt>nodeUp</tt> operation is called to notify an observer that a node
+     * The <code>nodeUp</code> operation is called to notify an observer that a node
      * came up.
      *
      * @param node The node state.
@@ -1431,7 +1437,7 @@ interface NodeObserver
 
     /**
      *
-     * The <tt>nodeDown</tt> operation is called to notify an observer that a node
+     * The <code>nodeDown</code> operation is called to notify an observer that a node
      * went down.
      *
      * @param name The node name.
@@ -1441,7 +1447,7 @@ interface NodeObserver
 
     /**
      *
-     * The <tt>updateServer</tt> operation is called to notify an observer that
+     * The <code>updateServer</code> operation is called to notify an observer that
      * the state of a server changed.
      *
      * @param node The node hosting the server.
@@ -1453,7 +1459,7 @@ interface NodeObserver
 
     /**
      *
-     * The <tt>updateAdapter</tt> operation is called to notify an observer that
+     * The <code>updateAdapter</code> operation is called to notify an observer that
      * the state of an adapter changed.
      *
      * @param node The node hosting the adapter.
@@ -1475,7 +1481,7 @@ interface ApplicationObserver
 {
     /**
      *
-     * <tt>applicationInit</tt> is called after the registration
+     * <code>applicationInit</code> is called after the registration
      * of an observer to indicate the state of the registry.
      *
      * @param serial The current serial number of the registry
@@ -1490,7 +1496,7 @@ interface ApplicationObserver
 
     /**
      *
-     * The <tt>applicationAdded</tt> operation is called to notify an observer
+     * The <code>applicationAdded</code> operation is called to notify an observer
      * that an application was added.
      *
      * @param serial The new serial number of the registry database.
@@ -1502,7 +1508,7 @@ interface ApplicationObserver
 
     /**
      *
-     * The <tt>applicationRemoved</tt> operation is called to notify an observer
+     * The <code>applicationRemoved</code> operation is called to notify an observer
      * that an application was removed.
      *
      * @param serial The new serial number of the registry database.
@@ -1514,7 +1520,7 @@ interface ApplicationObserver
 
     /**
      *
-     * The <tt>applicationUpdated</tt> operation is called to notify an observer
+     * The <code>applicationUpdated</code> operation is called to notify an observer
      * that an application was updated.
      *
      * @param serial The new serial number of the registry database.
@@ -1535,7 +1541,7 @@ interface AdapterObserver
 {
     /**
      *
-     * <tt>adapterInit</tt> is called after registration of
+     * <code>adapterInit</code> is called after registration of
      * an observer to indicate the state of the registry.
      *
      * @param adpts The adapters that were dynamically registered
@@ -1546,7 +1552,7 @@ interface AdapterObserver
 
     /**
      *
-     * The <tt>adapterAdded</tt> operation is called to notify an observer when
+     * The <code>adapterAdded</code> operation is called to notify an observer when
      * a dynamically-registered adapter was added.
      *
      * @param info The details of the new adapter.
@@ -1583,7 +1589,7 @@ interface ObjectObserver
 {
     /**
      *
-     * <tt>objectInit</tt> is called after the registration of
+     * <code>objectInit</code> is called after the registration of
      * an observer to indicate the state of the registry.
      *
      * @param objects The objects registered with the {@link Admin}
@@ -1594,7 +1600,7 @@ interface ObjectObserver
 
     /**
      *
-     * The <tt>objectAdded</tt> operation is called to notify an observer when an
+     * The <code>objectAdded</code> operation is called to notify an observer when an
      * object was added to the {@link Admin} interface.
      *
      * @param info The details of the added object.
@@ -1604,7 +1610,7 @@ interface ObjectObserver
 
     /**
      *
-     * <tt>objectUpdated</tt> is called to notify an observer when
+     * <code>objectUpdated</code> is called to notify an observer when
      * an object registered with the {@link Admin} interface was updated.
      *
      * @param info The details of the updated object.
@@ -1614,7 +1620,7 @@ interface ObjectObserver
 
     /**
      *
-     * <tt>objectRemoved</tt> is called to notify an observer when
+     * <code>objectRemoved</code> is called to notify an observer when
      * an object registered with the {@link Admin} interface was removed.
      *
      * @param id The identity of the removed object.
@@ -1628,7 +1634,7 @@ interface ObjectObserver
  * Used by administrative clients to view,
  * update, and receive observer updates from the IceGrid
  * registry. Admin sessions are created either via the {@link Registry}
- * object or via the registry admin <tt>SessionManager</tt> object.
+ * object or via the registry admin <code>SessionManager</code> object.
  *
  * @see Registry
  *
@@ -1765,7 +1771,7 @@ interface AdminSession extends Glacier2::Session
      *
      * @param count Specifies where to start reading the file. If
      * negative, the file is read from the begining. If 0 or positive,
-     * the file is read from the last <tt>count</tt> lines.
+     * the file is read from the last <code>count</code> lines.
      *
      * @return An iterator to read the file.
      *
@@ -1794,7 +1800,7 @@ interface AdminSession extends Glacier2::Session
      *
      * @param count Specifies where to start reading the file. If
      * negative, the file is read from the begining. If 0 or positive,
-     * the file is read from the last <tt>count</tt> lines.
+     * the file is read from the last <code>count</code> lines.
      *
      * @return An iterator to read the file.
      *
@@ -1823,7 +1829,7 @@ interface AdminSession extends Glacier2::Session
      *
      * @param count Specifies where to start reading the file. If
      * negative, the file is read from the begining. If 0 or positive,
-     * the file is read from the last <tt>count</tt> lines.
+     * the file is read from the last <code>count</code> lines.
      *
      * @return An iterator to read the file.
      *
@@ -1852,7 +1858,7 @@ interface AdminSession extends Glacier2::Session
      *
      * @param count Specifies where to start reading the file. If
      * negative, the file is read from the begining. If 0 or positive,
-     * the file is read from the last <tt>count</tt> lines.
+     * the file is read from the last <code>count</code> lines.
      *
      * @return An iterator to read the file.
      *
@@ -1877,7 +1883,7 @@ interface AdminSession extends Glacier2::Session
      *
      * @param count Specifies where to start reading the file. If
      * negative, the file is read from the begining. If 0 or positive,
-     * the file is read from the last <tt>count</tt> lines.
+     * the file is read from the last <code>count</code> lines.
      *
      * @return An iterator to read the file.
      *
@@ -1902,7 +1908,7 @@ interface AdminSession extends Glacier2::Session
      *
      * @param count Specifies where to start reading the file. If
      * negative, the file is read from the begining. If 0 or positive,
-     * the file is read from the last <tt>count</tt> lines.
+     * the file is read from the last <code>count</code> lines.
      *
      * @return An iterator to read the file.
      *
@@ -1928,7 +1934,7 @@ interface AdminSession extends Glacier2::Session
      *
      * @param count Specifies where to start reading the file. If
      * negative, the file is read from the begining. If 0 or positive,
-     * the file is read from the last <tt>count</tt> lines.
+     * the file is read from the last <code>count</code> lines.
      *
      * @return An iterator to read the file.
      *

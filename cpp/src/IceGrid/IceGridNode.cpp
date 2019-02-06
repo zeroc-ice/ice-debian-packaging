@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/UUID.h>
 #include <IceUtil/Timer.h>
@@ -463,6 +458,13 @@ NodeService::startImpl(int argc, char* argv[], int& status)
     _adapter->addDefaultServant(new NodeServerAdminRouter(_node), _node->getServerAdminCategory());
 
     //
+    // Keep the old default servant for backward compatibility with IceGrid registries 3.5 that
+    // still forward requests to this category. This can be removed when we decide to break
+    // backward compatibility with 3.5 registries.
+    //
+    _adapter->addDefaultServant(new NodeServerAdminRouter(_node), instanceName + "-NodeRouter");
+
+    //
     // Start the platform info thread if needed.
     //
     _node->getPlatformInfo().start();
@@ -562,13 +564,13 @@ NodeService::startImpl(int argc, char* argv[], int& status)
             }
             else
             {
-                string id = communicator()->getProperties()->getProperty("IceGridAdmin.Username");
+                string username = communicator()->getProperties()->getProperty("IceGridAdmin.Username");
                 string password = communicator()->getProperties()->getProperty("IceGridAdmin.Password");
-                while(id.empty())
+                while(username.empty())
                 {
                     consoleOut << "user id: " << flush;
-                    getline(cin, id);
-                    id = IceUtilInternal::trim(id);
+                    getline(cin, username);
+                    username = IceUtilInternal::trim(username);
                 }
 
                 if(password.empty())
@@ -578,7 +580,7 @@ NodeService::startImpl(int argc, char* argv[], int& status)
                     password = IceUtilInternal::trim(password);
                 }
 
-                session = registry->createAdminSession(id, password);
+                session = registry->createAdminSession(username, password);
             }
             assert(session);
 

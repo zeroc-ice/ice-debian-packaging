@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 namespace IceInternal
 {
@@ -670,9 +665,39 @@ namespace IceInternal
             _initData.threadStop = threadStop;
         }
 
+        //
+        // Return the C# class associated with this Slice type-id
+        // Used for both non-local Slice classes and exceptions
+        //
         public Type resolveClass(string id)
         {
-            Type c = AssemblyUtil.findType(this, typeToClass(id));
+            // First attempt corresponds to no cs:namespace metadata in the
+            // enclosing top-level module
+            //
+            string className = typeToClass(id);
+            Type c = AssemblyUtil.findType(this, className);
+
+            //
+            // If this fails, look for helper classes in the typeIdNamespaces namespace(s)
+            //
+            if(c == null && _initData.typeIdNamespaces != null)
+            {
+                foreach(var ns in _initData.typeIdNamespaces)
+                {
+                    Type helper = AssemblyUtil.findType(this, ns + "." + className);
+                    if(helper != null)
+                    {
+                        try
+                        {
+                            c = helper.GetProperty("targetClass").PropertyType;
+                            break; // foreach
+                        }
+                        catch(Exception)
+                        {
+                        }
+                    }
+                }
+            }
 
             //
             // Ensure the class is instantiable.
@@ -687,19 +712,33 @@ namespace IceInternal
 
         public string resolveCompactId(int compactId)
         {
-            String className = "IceCompactId.TypeId_" + compactId;
-            try
+            string[] defaultVal = {"IceCompactId"};
+            var compactIdNamespaces = new List<string>(defaultVal);
+
+            if(_initData.typeIdNamespaces != null)
             {
-                Type c = AssemblyUtil.findType(this, className);
-                if(c != null)
+                compactIdNamespaces.AddRange(_initData.typeIdNamespaces);
+            }
+
+            string result = "";
+
+            foreach(var ns in compactIdNamespaces)
+            {
+                string className = ns + ".TypeId_" + compactId;
+                try
                 {
-                    return (string)c.GetField("typeId").GetValue(null);
+                    Type c = AssemblyUtil.findType(this, className);
+                    if(c != null)
+                    {
+                       result = (string)c.GetField("typeId").GetValue(null);
+                       break; // foreach
+                    }
+                }
+                catch(Exception)
+                {
                 }
             }
-            catch(Exception)
-            {
-            }
-            return "";
+            return result;
         }
 
         private static string typeToClass(string id)

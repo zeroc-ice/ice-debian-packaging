@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Glacier2/SessionRouterI.h>
 #include <Glacier2/PermissionsVerifier.h>
@@ -453,6 +448,15 @@ CreateSession::CreateSession(const SessionRouterIPtr& sessionRouter, const strin
     _user(user),
     _current(current)
 {
+    // Clear reserved contexts potentially set by client
+    _context.erase("_con.type");
+    _context.erase("_con.remotePort");
+    _context.erase("_con.remoteAddress");
+    _context.erase("_con.localPort");
+    _context.erase("_con.localAddress");
+    _context.erase("_con.cipher");
+    _context.erase("_con.peerCert");
+
     if(_instance->properties()->getPropertyAsInt("Glacier2.AddConnectionContext") > 0)
     {
         _context["_con.type"] = current.con->type();
@@ -544,11 +548,11 @@ CreateSession::unexpectedAuthorizeException(const Ice::Exception& ex)
 }
 
 void
-CreateSession::createException(const Ice::Exception& ex)
+CreateSession::createException(const Ice::Exception& sex)
 {
     try
     {
-        ex.ice_throw();
+        sex.ice_throw();
     }
     catch(const CannotCreateSessionException& ex)
     {

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/RecMutex.h>
 #include <IceUtil/Exception.h>
@@ -113,7 +108,7 @@ IceUtil::RecMutex::lock(LockState& state) const
 #else
 
 void
-IceUtil::RecMutex::init(const MutexProtocol protocol)
+IceUtil::RecMutex::init(ICE_MAYBE_UNUSED const MutexProtocol protocol)
 {
     int rc;
     pthread_mutexattr_t attr;

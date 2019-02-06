@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Slice/CPlusPlusUtil.h>
 #include <Slice/Util.h>
@@ -62,7 +57,7 @@ toOptional(const string& s, int typeCtx)
 }
 
 string
-stringTypeToString(const TypePtr& type, const StringList& metaData, int typeCtx)
+stringTypeToString(const TypePtr&, const StringList& metaData, int typeCtx)
 {
     string strType = findMetaData(metaData, typeCtx);
     if(strType == "wstring" || (typeCtx & TypeContextUseWstring && strType == ""))
@@ -124,7 +119,7 @@ sequenceTypeToString(const SequencePtr& seq, const string& scope, const StringLi
             }
             else
             {
-                s = getAbsolute(fixKwd(seq->scoped()), scope);
+                s = getUnqualified(fixKwd(seq->scoped()), scope);
             }
 
             if(typeCtx & TypeContextAMIPrivateEnd)
@@ -145,7 +140,7 @@ sequenceTypeToString(const SequencePtr& seq, const string& scope, const StringLi
     }
     else
     {
-        return getAbsolute(fixKwd(seq->scoped()), scope);
+        return getUnqualified(fixKwd(seq->scoped()), scope);
     }
 }
 
@@ -155,7 +150,7 @@ dictionaryTypeToString(const DictionaryPtr& dict, const string& scope, const Str
     const string dictType = findMetaData(metaData, typeCtx);
     if(dictType.empty())
     {
-        return getAbsolute(fixKwd(dict->scoped()), scope);
+        return getUnqualified(fixKwd(dict->scoped()), scope);
     }
     else
     {
@@ -192,10 +187,10 @@ writeParamAllocateCode(Output& out, const TypePtr& type, bool optional, const st
             seqType = findMetaData(seq->getMetaData(), typeCtx);
         }
 
-        string s;
+        string str;
         if(seqType == "%array")
         {
-            s = typeToString(seq, scope, metaData, TypeContextAMIPrivateEnd);
+            str = typeToString(seq, scope, metaData, TypeContextAMIPrivateEnd);
         }
         else if(seqType.find("%range") == 0)
         {
@@ -204,16 +199,16 @@ writeParamAllocateCode(Output& out, const TypePtr& type, bool optional, const st
             {
                 md.push_back("cpp:type:" + seqType.substr(strlen("%range:")));
             }
-            s = typeToString(seq, scope, md, 0);
+            str = typeToString(seq, scope, md, 0);
         }
 
-        if(!s.empty())
+        if(!str.empty())
         {
             if(optional)
             {
-                s = toOptional(s, typeCtx);
+                str = toOptional(str, typeCtx);
             }
-            out << nl << s << ' ' << fixedName << "_tmp_;";
+            out << nl << str << ' ' << fixedName << "_tmp_;";
         }
     }
 }
@@ -515,14 +510,9 @@ void
 Slice::printHeader(Output& out)
 {
     static const char* header =
-"// **********************************************************************\n"
 "//\n"
-"// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.\n"
+"// Copyright (c) ZeroC, Inc. All rights reserved.\n"
 "//\n"
-"// This copy of Ice is licensed to you under the terms described in the\n"
-"// ICE_LICENSE file included in this distribution.\n"
-"//\n"
-"// **********************************************************************\n"
         ;
 
     out << header;
@@ -610,7 +600,7 @@ Slice::isMovable(const TypePtr& type)
 }
 
 string
-Slice::getAbsolute(const std::string& type, const std::string& scope)
+Slice::getUnqualified(const std::string& type, const std::string& scope)
 {
     if(type.find("::") != string::npos)
     {
@@ -627,7 +617,11 @@ Slice::getAbsolute(const std::string& type, const std::string& scope)
 
         if(type.find(scope, prefix.size()) == prefix.size())
         {
-            return prefix + type.substr(prefix.size() + scope.size());
+            string t = type.substr(prefix.size() + scope.size());
+            if(t.find("::") == string::npos)
+            {
+                return prefix + t;
+            }
         }
     }
     return type;
@@ -695,16 +689,16 @@ Slice::typeToString(const TypePtr& type, const string& scope, const StringList& 
         {
             if(builtin->kind() == Builtin::KindObject && !(typeCtx & TypeContextLocal))
             {
-                return getAbsolute(cpp11BuiltinTable[Builtin::KindValue], scope);
+                return getUnqualified(cpp11BuiltinTable[Builtin::KindValue], scope);
             }
             else
             {
-                return getAbsolute(cpp11BuiltinTable[builtin->kind()], scope);
+                return getUnqualified(cpp11BuiltinTable[builtin->kind()], scope);
             }
         }
         else
         {
-            return getAbsolute(builtinTable[builtin->kind()], scope);
+            return getUnqualified(builtinTable[builtin->kind()], scope);
         }
     }
 
@@ -715,20 +709,20 @@ Slice::typeToString(const TypePtr& type, const string& scope, const StringList& 
         {
             if(cl->definition() && cl->definition()->isDelegate())
             {
-                return getAbsolute(fixKwd(cl->scoped()), scope);
+                return getUnqualified(fixKwd(cl->scoped()), scope);
             }
             else if(cl->isInterface() && !cl->isLocal())
             {
-                return getAbsolute(cpp11BuiltinTable[Builtin::KindValue], scope);
+                return getUnqualified(cpp11BuiltinTable[Builtin::KindValue], scope);
             }
             else
             {
-                return "::std::shared_ptr<" + getAbsolute(cl->scoped(), scope) + ">";
+                return "::std::shared_ptr<" + getUnqualified(cl->scoped(), scope) + ">";
             }
         }
         else
         {
-            return getAbsolute(cl->scoped() + "Ptr", scope);
+            return getUnqualified(cl->scoped() + "Ptr", scope);
         }
     }
 
@@ -740,11 +734,11 @@ Slice::typeToString(const TypePtr& type, const string& scope, const StringList& 
         //
         if(!cpp11 && findMetaData(st->getMetaData()) == "%class")
         {
-            return getAbsolute(fixKwd(st->scoped() + "Ptr"), scope);
+            return getUnqualified(fixKwd(st->scoped() + "Ptr"), scope);
         }
         else
         {
-            return getAbsolute(fixKwd(st->scoped()), scope);
+            return getUnqualified(fixKwd(st->scoped()), scope);
         }
     }
 
@@ -760,23 +754,23 @@ Slice::typeToString(const TypePtr& type, const string& scope, const StringList& 
             //
             if(def && !def->isInterface() && def->allOperations().empty())
             {
-                return getAbsolute(cpp11BuiltinTable[Builtin::KindObjectProxy], scope);
+                return getUnqualified(cpp11BuiltinTable[Builtin::KindObjectProxy], scope);
             }
             else
             {
-                return "::std::shared_ptr<" + getAbsolute(fixKwd(proxy->_class()->scoped() + "Prx"), scope) + ">";
+                return "::std::shared_ptr<" + getUnqualified(fixKwd(proxy->_class()->scoped() + "Prx"), scope) + ">";
             }
         }
         else
         {
-            return getAbsolute(fixKwd(proxy->_class()->scoped() + "Prx"), scope);
+            return getUnqualified(fixKwd(proxy->_class()->scoped() + "Prx"), scope);
         }
     }
 
     EnumPtr en = EnumPtr::dynamicCast(type);
     if(en)
     {
-        return getAbsolute(fixKwd(en->scoped()), scope);
+        return getUnqualified(fixKwd(en->scoped()), scope);
     }
 
     SequencePtr seq = SequencePtr::dynamicCast(type);
@@ -880,16 +874,16 @@ Slice::inputTypeToString(const TypePtr& type, bool optional, const string& scope
         {
             if(builtin->kind() == Builtin::KindObject && !(typeCtx & TypeContextLocal))
             {
-                return getAbsolute(cpp11InputBuiltinTable[Builtin::KindValue], scope);
+                return getUnqualified(cpp11InputBuiltinTable[Builtin::KindValue], scope);
             }
             else
             {
-                return getAbsolute(cpp11InputBuiltinTable[builtin->kind()], scope);
+                return getUnqualified(cpp11InputBuiltinTable[builtin->kind()], scope);
             }
         }
         else
         {
-            return getAbsolute(cpp98InputBuiltinTable[builtin->kind()], scope);
+            return getUnqualified(cpp98InputBuiltinTable[builtin->kind()], scope);
         }
     }
 
@@ -900,20 +894,20 @@ Slice::inputTypeToString(const TypePtr& type, bool optional, const string& scope
         {
             if(cl->definition() && cl->definition()->isDelegate())
             {
-                return getAbsolute(fixKwd(cl->scoped()), scope);
+                return getUnqualified(fixKwd(cl->scoped()), scope);
             }
             else if(cl->isInterface() && !cl->isLocal())
             {
-                return getAbsolute(cpp11InputBuiltinTable[Builtin::KindValue], scope);
+                return getUnqualified(cpp11InputBuiltinTable[Builtin::KindValue], scope);
             }
             else
             {
-                return "const ::std::shared_ptr<" + getAbsolute(fixKwd(cl->scoped()), scope) + ">&";
+                return "const ::std::shared_ptr<" + getUnqualified(fixKwd(cl->scoped()), scope) + ">&";
             }
         }
         else
         {
-            return "const " + getAbsolute(fixKwd(cl->scoped() + "Ptr&"), scope);
+            return "const " + getUnqualified(fixKwd(cl->scoped() + "Ptr&"), scope);
         }
     }
 
@@ -922,17 +916,17 @@ Slice::inputTypeToString(const TypePtr& type, bool optional, const string& scope
     {
         if(cpp11)
         {
-            return "const " + getAbsolute(fixKwd(st->scoped()), scope) + "&";
+            return "const " + getUnqualified(fixKwd(st->scoped()), scope) + "&";
         }
         else
         {
             if(findMetaData(st->getMetaData()) == "%class")
             {
-                return "const " + getAbsolute(fixKwd(st->scoped() + "Ptr"), scope) + "&";
+                return "const " + getUnqualified(fixKwd(st->scoped() + "Ptr"), scope) + "&";
             }
             else
             {
-                return "const " + getAbsolute(fixKwd(st->scoped()), scope) + "&";
+                return "const " + getUnqualified(fixKwd(st->scoped()), scope) + "&";
             }
         }
     }
@@ -945,23 +939,23 @@ Slice::inputTypeToString(const TypePtr& type, bool optional, const string& scope
             ClassDefPtr def = proxy->_class()->definition();
             if(def && !def->isInterface() && def->allOperations().empty())
             {
-                return getAbsolute(cpp11InputBuiltinTable[Builtin::KindObjectProxy], scope);
+                return getUnqualified(cpp11InputBuiltinTable[Builtin::KindObjectProxy], scope);
             }
             else
             {
-                return "const ::std::shared_ptr<" + getAbsolute(fixKwd(proxy->_class()->scoped() + "Prx"), scope) + ">&";
+                return "const ::std::shared_ptr<" + getUnqualified(fixKwd(proxy->_class()->scoped() + "Prx"), scope) + ">&";
             }
         }
         else
         {
-            return "const " + getAbsolute(fixKwd(proxy->_class()->scoped() + "Prx"), scope) + "&";
+            return "const " + getUnqualified(fixKwd(proxy->_class()->scoped() + "Prx"), scope) + "&";
         }
     }
 
     EnumPtr en = EnumPtr::dynamicCast(type);
     if(en)
     {
-        return getAbsolute(fixKwd(en->scoped()), scope);
+        return getUnqualified(fixKwd(en->scoped()), scope);
     }
 
     SequencePtr seq = SequencePtr::dynamicCast(type);
@@ -1033,16 +1027,16 @@ Slice::outputTypeToString(const TypePtr& type, bool optional, const string& scop
         {
             if(builtin->kind() == Builtin::KindObject && !(typeCtx & TypeContextLocal))
             {
-                return getAbsolute(cpp11OutputBuiltinTable[Builtin::KindValue], scope);
+                return getUnqualified(cpp11OutputBuiltinTable[Builtin::KindValue], scope);
             }
             else
             {
-                return getAbsolute(cpp11OutputBuiltinTable[builtin->kind()], scope);
+                return getUnqualified(cpp11OutputBuiltinTable[builtin->kind()], scope);
             }
         }
         else
         {
-            return getAbsolute(outputBuiltinTable[builtin->kind()], scope);
+            return getUnqualified(outputBuiltinTable[builtin->kind()], scope);
         }
     }
 
@@ -1053,20 +1047,20 @@ Slice::outputTypeToString(const TypePtr& type, bool optional, const string& scop
         {
             if(cl->definition() && cl->definition()->isDelegate())
             {
-                return getAbsolute(fixKwd(cl->scoped()), scope) + "&";
+                return getUnqualified(fixKwd(cl->scoped()), scope) + "&";
             }
             else if(cl->isInterface() && !cl->isLocal())
             {
-                return getAbsolute(cpp11OutputBuiltinTable[Builtin::KindValue], scope);
+                return getUnqualified(cpp11OutputBuiltinTable[Builtin::KindValue], scope);
             }
             else
             {
-                return "::std::shared_ptr<" + getAbsolute(fixKwd(cl->scoped()), scope) + ">&";
+                return "::std::shared_ptr<" + getUnqualified(fixKwd(cl->scoped()), scope) + ">&";
             }
         }
         else
         {
-            return getAbsolute(fixKwd(cl->scoped() + "Ptr&"), scope);
+            return getUnqualified(fixKwd(cl->scoped() + "Ptr&"), scope);
         }
     }
 
@@ -1075,11 +1069,11 @@ Slice::outputTypeToString(const TypePtr& type, bool optional, const string& scop
     {
         if(!cpp11 && findMetaData(st->getMetaData()) == "%class")
         {
-            return getAbsolute(fixKwd(st->scoped() + "Ptr&"), scope);
+            return getUnqualified(fixKwd(st->scoped() + "Ptr&"), scope);
         }
         else
         {
-            return getAbsolute(fixKwd(st->scoped()), scope) + "&";
+            return getUnqualified(fixKwd(st->scoped()), scope) + "&";
         }
     }
 
@@ -1095,23 +1089,23 @@ Slice::outputTypeToString(const TypePtr& type, bool optional, const string& scop
             //
             if(def && !def->isInterface() && def->allOperations().empty())
             {
-                return getAbsolute(cpp11OutputBuiltinTable[Builtin::KindObjectProxy], scope);
+                return getUnqualified(cpp11OutputBuiltinTable[Builtin::KindObjectProxy], scope);
             }
             else
             {
-                return "::std::shared_ptr<" + getAbsolute(fixKwd(proxy->_class()->scoped() + "Prx"), scope) + ">&";
+                return "::std::shared_ptr<" + getUnqualified(fixKwd(proxy->_class()->scoped() + "Prx"), scope) + ">&";
             }
         }
         else
         {
-            return getAbsolute(fixKwd(proxy->_class()->scoped() + "Prx&"), scope);
+            return getUnqualified(fixKwd(proxy->_class()->scoped() + "Prx&"), scope);
         }
     }
 
     EnumPtr en = EnumPtr::dynamicCast(type);
     if(en)
     {
-        return getAbsolute(fixKwd(en->scoped()), scope) + "&";
+        return getUnqualified(fixKwd(en->scoped()), scope) + "&";
     }
 
     SequencePtr seq = SequencePtr::dynamicCast(type);

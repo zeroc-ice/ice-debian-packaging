@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef ICE_RUBY_UTIL_H
 #define ICE_RUBY_UTIL_H
@@ -89,6 +84,12 @@ bool arrayToStringSeq(VALUE, std::vector<std::string>&);
 // RubyException.
 //
 VALUE stringSeqToArray(const std::vector<std::string>&);
+
+//
+// Convert a vector of Ice::Byte into a Ruby array of numbers.
+// May raise RubyException.
+//
+VALUE createNumSeq(const std::vector<Ice::Byte>&);
 
 //
 // Convert a Ruby hash to Ice::Context. Returns true on success
@@ -177,7 +178,10 @@ public:
 
     RF_0(Fun f) : _f(f) {}
     inline VALUE operator()() { return _f(); }
-    static inline VALUE call(RF_0* f) { return (*f)(); }
+    static inline VALUE call(VALUE f)
+    {
+        return (*reinterpret_cast<RF_0*>(f))();
+    }
 
 private:
 
@@ -189,7 +193,7 @@ inline VALUE callRuby(Fun fun)
 {
     typedef RF_0<Fun> RF;
     RF f(fun);
-    return callProtected(RubyFunction(RF::call), reinterpret_cast<VALUE>(&f));
+    return callProtected(RF::call, reinterpret_cast<VALUE>(&f));
 }
 
 template<typename Fun, typename T1>
@@ -199,7 +203,10 @@ public:
 
     RF_1(Fun f, T1 t1) : _f(f), _t1(t1) {}
     inline VALUE operator()() { return _f(_t1); }
-    static inline VALUE call(RF_1* f) { return (*f)(); }
+    static inline VALUE call(VALUE f)
+    {
+        return (*reinterpret_cast<RF_1*>(f))();
+    }
 
 private:
 
@@ -212,7 +219,7 @@ inline VALUE callRuby(Fun fun, T1 t1)
 {
     typedef RF_1<Fun, T1> RF;
     RF f(fun, t1);
-    return callProtected(RubyFunction(RF::call), reinterpret_cast<VALUE>(&f));
+    return callProtected(RF::call, reinterpret_cast<VALUE>(&f));
 }
 
 template<typename Fun, typename T1, typename T2>
@@ -222,7 +229,10 @@ public:
 
     RF_2(Fun f, T1 t1, T2 t2) : _f(f), _t1(t1), _t2(t2) {}
     inline VALUE operator()() { return _f(_t1, _t2); }
-    static inline VALUE call(RF_2* f) { return (*f)(); }
+    static inline VALUE call(VALUE f)
+    {
+        return (*reinterpret_cast<RF_2*>(f))();
+    }
 
 private:
 
@@ -236,7 +246,7 @@ inline VALUE callRuby(Fun fun, T1 t1, T2 t2)
 {
     typedef RF_2<Fun, T1, T2> RF;
     RF f(fun, t1, t2);
-    return callProtected(RubyFunction(RF::call), reinterpret_cast<VALUE>(&f));
+    return callProtected(RF::call, reinterpret_cast<VALUE>(&f));
 }
 
 template<typename Fun, typename T1, typename T2, typename T3>
@@ -246,7 +256,10 @@ public:
 
     RF_3(Fun f, T1 t1, T2 t2, T3 t3) : _f(f), _t1(t1), _t2(t2), _t3(t3) {}
     inline VALUE operator()() { return _f(_t1, _t2, _t3); }
-    static inline VALUE call(RF_3* f) { return (*f)(); }
+    static inline VALUE call(VALUE f)
+    {
+        return (*reinterpret_cast<RF_3*>(f))();
+    }
 
 private:
 
@@ -261,7 +274,7 @@ inline VALUE callRuby(Fun fun, T1 t1, T2 t2, T3 t3)
 {
     typedef RF_3<Fun, T1, T2, T3> RF;
     RF f(fun, t1, t2, t3);
-    return callProtected(RubyFunction(RF::call), reinterpret_cast<VALUE>(&f));
+    return callProtected(RF::call, reinterpret_cast<VALUE>(&f));
 }
 
 template<typename Fun, typename T1, typename T2, typename T3, typename T4>
@@ -271,7 +284,10 @@ public:
 
     RF_4(Fun f, T1 t1, T2 t2, T3 t3, T4 t4) : _f(f), _t1(t1), _t2(t2), _t3(t3), _t4(t4) {}
     inline VALUE operator()() { return _f(_t1, _t2, _t3, _t4); }
-    static inline VALUE call(RF_4* f) { return (*f)(); }
+    static inline VALUE call(VALUE f)
+    {
+        return (*reinterpret_cast<RF_4*>(f))();
+    }
 
 private:
 
@@ -287,7 +303,7 @@ inline VALUE callRuby(Fun fun, T1 t1, T2 t2, T3 t3, T4 t4)
 {
     typedef RF_4<Fun, T1, T2, T3, T4> RF;
     RF f(fun, t1, t2, t3, t4);
-    return callProtected(RubyFunction(RF::call), reinterpret_cast<VALUE>(&f));
+    return callProtected(RF::call, reinterpret_cast<VALUE>(&f));
 }
 
 //
@@ -318,7 +334,12 @@ public:
 
     RFV_0(Fun f) : _f(f) {}
     inline void operator()() { _f(); }
-    static inline VALUE call(RFV_0* f) { (*f)(); return Qnil; }
+
+    static inline VALUE call(VALUE f)
+    {
+        (*reinterpret_cast<RFV_0*>(f))();
+        return Qnil;
+    }
 
 private:
 
@@ -330,7 +351,7 @@ inline void callRubyVoid(Fun fun)
 {
     typedef RFV_0<Fun> RF;
     RF f(fun);
-    callProtected(RubyFunction(RF::call), reinterpret_cast<VALUE>(&f));
+    callProtected(RF::call, reinterpret_cast<VALUE>(&f));
 }
 
 template<typename Fun, typename T1>
@@ -340,7 +361,11 @@ public:
 
     RFV_1(Fun f, T1 t1) : _f(f), _t1(t1) {}
     inline void operator()() { _f(_t1); }
-    static inline VALUE call(RFV_1* f) { (*f)(); return Qnil; }
+    static inline VALUE call(VALUE f)
+    {
+        (*reinterpret_cast<RFV_1*>(f))();
+        return Qnil;
+    }
 
 private:
 
@@ -353,7 +378,7 @@ inline void callRubyVoid(Fun fun, T1 t1)
 {
     typedef RFV_1<Fun, T1> RF;
     RF f(fun, t1);
-    callProtected(RubyFunction(RF::call), reinterpret_cast<VALUE>(&f));
+    callProtected(RF::call, reinterpret_cast<VALUE>(&f));
 }
 
 template<typename Fun, typename T1, typename T2>
@@ -363,7 +388,11 @@ public:
 
     RFV_2(Fun f, T1 t1, T2 t2) : _f(f), _t1(t1), _t2(t2) {}
     inline void operator()() { _f(_t1, _t2); }
-    static inline VALUE call(RFV_2* f) { (*f)(); return Qnil; }
+    static inline VALUE call(VALUE f)
+    {
+        (*reinterpret_cast<RFV_2*>(f))();
+        return Qnil;
+    }
 
 private:
 
@@ -377,7 +406,7 @@ inline void callRubyVoid(Fun fun, T1 t1, T2 t2)
 {
     typedef RFV_2<Fun, T1, T2> RF;
     RF f(fun, t1, t2);
-    callProtected(RubyFunction(RF::call), reinterpret_cast<VALUE>(&f));
+    callProtected(RF::call, reinterpret_cast<VALUE>(&f));
 }
 
 template<typename Fun, typename T1, typename T2, typename T3>
@@ -387,7 +416,11 @@ public:
 
     RFV_3(Fun f, T1 t1, T2 t2, T3 t3) : _f(f), _t1(t1), _t2(t2), _t3(t3) {}
     inline void operator()() { _f(_t1, _t2, _t3); }
-    static inline VALUE call(RFV_3* f) { (*f)(); return Qnil; }
+    static inline VALUE call(VALUE f)
+    {
+        (*reinterpret_cast<RFV_3*>(f))();
+        return Qnil;
+    }
 
 private:
 
@@ -402,7 +435,7 @@ inline void callRubyVoid(Fun fun, T1 t1, T2 t2, T3 t3)
 {
     typedef RFV_3<Fun, T1, T2, T3> RF;
     RF f(fun, t1, t2, t3);
-    callProtected(RubyFunction(RF::call), reinterpret_cast<VALUE>(&f));
+    callProtected(RF::call, reinterpret_cast<VALUE>(&f));
 }
 
 template<typename Fun, typename T1, typename T2, typename T3, typename T4>
@@ -412,7 +445,11 @@ public:
 
     RFV_4(Fun f, T1 t1, T2 t2, T3 t3, T4 t4) : _f(f), _t1(t1), _t2(t2), _t3(t3), _t4(t4) {}
     inline void operator()() { _f(_t1, _t2, _t3, _t4); }
-    static inline VALUE call(RFV_4* f) { (*f)(); return Qnil; }
+    static inline VALUE call(VALUE f)
+    {
+        (*reinterpret_cast<RFV_4*>(f))();
+        return Qnil;
+    }
 
 private:
 

@@ -1,16 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/IceUtil.h>
 #include <IceUtil/Random.h>
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 #include <PluginI.h>
 #include <Configuration.h>
@@ -205,16 +200,17 @@ void validationTests(const ConfigurationPtr&, const Test::BackgroundPrxPtr&, con
 void readWriteTests(const ConfigurationPtr&, const Test::BackgroundPrxPtr&, const Test::BackgroundControllerPrxPtr&);
 
 BackgroundPrxPtr
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
-    const string endp = getTestEndpoint(communicator, 0);
+    Ice::CommunicatorPtr communicator = helper->communicator();
+    const string endp = helper->getTestEndpoint();
     string sref = "background:" + endp;
     Ice::ObjectPrxPtr obj = communicator->stringToProxy(sref);
     test(obj);
 
     BackgroundPrxPtr background = ICE_UNCHECKED_CAST(BackgroundPrx, obj);
 
-    sref = "backgroundController:" + getTestEndpoint(communicator, 1, "tcp");
+    sref = "backgroundController:" + helper->getTestEndpoint(1, "tcp");
     obj = communicator->stringToProxy(sref);
     test(obj);
 
@@ -455,8 +451,7 @@ connectTests(const ConfigurationPtr& configuration, const Test::BackgroundPrxPtr
     }
     background->ice_getConnection()->close(Ice::ICE_SCOPED_ENUM(ConnectionClose, GracefullyWithWait));
 
-    int i;
-    for(i = 0; i < 4; ++i)
+    for(int i = 0; i < 4; ++i)
     {
         if(i == 0 || i == 2)
         {
@@ -549,7 +544,7 @@ connectTests(const ConfigurationPtr& configuration, const Test::BackgroundPrxPtr
     OpThreadPtr thread1 = new OpThread(background);
     OpThreadPtr thread2 = new OpThread(background);
 
-    for(i = 0; i < 5; i++)
+    for(int i = 0; i < 5; i++)
     {
         try
         {
@@ -597,8 +592,7 @@ initializeTests(const ConfigurationPtr& configuration,
     }
     background->ice_getConnection()->close(Ice::ICE_SCOPED_ENUM(ConnectionClose, GracefullyWithWait));
 
-    int i;
-    for(i = 0; i < 4; i++)
+    for(int i = 0; i < 4; i++)
     {
         if(i == 0 || i == 2)
         {
@@ -759,7 +753,7 @@ initializeTests(const ConfigurationPtr& configuration,
     OpThreadPtr thread1 = new OpThread(background);
     OpThreadPtr thread2 = new OpThread(background);
 
-    for(i = 0; i < 5; i++)
+    for(int i = 0; i < 5; i++)
     {
         try
         {
@@ -881,8 +875,7 @@ validationTests(const ConfigurationPtr& configuration,
         test(false);
     }
 
-    int i;
-    for(i = 0; i < 2; i++)
+    for(int i = 0; i < 2; i++)
     {
         configuration->readException(new Ice::SocketException(__FILE__, __LINE__));
         BackgroundPrxPtr prx = i == 0 ? background : background->ice_oneway();
@@ -1227,8 +1220,7 @@ readWriteTests(const ConfigurationPtr& configuration,
         test(false);
     }
 
-    int i;
-    for(i = 0; i < 2; i++)
+    for(int i = 0; i < 2; i++)
     {
         BackgroundPrxPtr prx = i == 0 ? background : background->ice_oneway();
 
@@ -1307,28 +1299,30 @@ readWriteTests(const ConfigurationPtr& configuration,
     configuration->readReady(false); // Required in C# to make sure beginRead() doesn't throw too soon.
     configuration->readException(new Ice::SocketException(__FILE__, __LINE__));
 #ifdef ICE_CPP11_MAPPING
-    promise<void> completed;
-    background->opAsync(
-        []()
-        {
-            test(false);
-        },
-        [&completed](exception_ptr e)
-        {
-            try
-            {
-                rethrow_exception(e);
-            }
-            catch(const Ice::SocketException&)
-            {
-                completed.set_value();
-            }
-            catch(...)
+    {
+        promise<void> completed;
+        background->opAsync(
+            []()
             {
                 test(false);
-            }
-        });
-    completed.get_future().get();
+            },
+            [&completed](exception_ptr e)
+            {
+                try
+                {
+                    rethrow_exception(e);
+                }
+                catch(const Ice::SocketException&)
+                {
+                    completed.set_value();
+                }
+                catch(...)
+                {
+                    test(false);
+                }
+            });
+        completed.get_future().get();
+    }
 #else
     Ice::AsyncResultPtr r = background->begin_op();
     try
@@ -1389,7 +1383,7 @@ readWriteTests(const ConfigurationPtr& configuration,
             configuration->writeException(0);
         }
 
-        for(i = 0; i < 2; ++i)
+        for(int i = 0; i < 2; ++i)
         {
             BackgroundPrxPtr prx = i == 0 ? background : background->ice_oneway();
 
@@ -1426,7 +1420,7 @@ readWriteTests(const ConfigurationPtr& configuration,
             test(sent.get_future().wait_for(chrono::milliseconds(0)) != future_status::ready);
             completed.get_future().get();
 #else
-            Ice::AsyncResultPtr r = prx->begin_op();
+            r = prx->begin_op();
             test(!r->sentSynchronously());
             try
             {
@@ -1485,7 +1479,7 @@ readWriteTests(const ConfigurationPtr& configuration,
             completed.get_future().get();
 
 #else
-            Ice::AsyncResultPtr r = background->begin_op();
+            r = background->begin_op();
             try
             {
                 background->end_op(r);
@@ -1529,7 +1523,7 @@ readWriteTests(const ConfigurationPtr& configuration,
                 });
             completed.get_future().get();
 #else
-            Ice::AsyncResultPtr r = background->begin_op();
+            r = background->begin_op();
             // The read exception might propagate before the message send is seen as completed on IOCP.
 #   ifndef ICE_USE_IOCP
             r->waitForSent();
@@ -1590,7 +1584,7 @@ readWriteTests(const ConfigurationPtr& configuration,
         {
             c1.set_value();
         },
-        [](exception_ptr err)
+        [](exception_ptr)
         {
             test(false);
         },
@@ -1608,7 +1602,7 @@ readWriteTests(const ConfigurationPtr& configuration,
         {
             c2.set_value();
         },
-        [](exception_ptr err)
+        [](exception_ptr)
         {
             test(false);
         },
@@ -1774,7 +1768,7 @@ readWriteTests(const ConfigurationPtr& configuration,
     OpThreadPtr thread1 = new OpThread(background);
     OpThreadPtr thread2 = new OpThread(background);
 
-    for(i = 0; i < 5; i++)
+    for(int i = 0; i < 5; i++)
     {
         try
         {

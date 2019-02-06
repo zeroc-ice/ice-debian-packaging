@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef CS_UTIL_H
 #define CS_UTIL_H
@@ -32,9 +27,25 @@ public:
     //
     static void validateMetaData(const UnitPtr&);
 
+    //
+    // Returns the namespace of a Contained entity.
+    //
+    static std::string getNamespace(const ContainedPtr&);
+
+    static std::string getUnqualified(const std::string&, const std::string&, bool builtin = false);
+    static std::string getUnqualified(const ContainedPtr&,
+                                      const std::string& package = "",
+                                      const std::string& prefix = "",
+                                      const std::string& suffix = "");
+
 protected:
 
-    static std::string getAbsolute(const std::string&, const std::string&);
+    //
+    // Returns the namespace prefix of a Contained entity.
+    //
+    static std::string getNamespacePrefix(const ContainedPtr&);
+    static std::string getCustomTypeIdNamespace(const UnitPtr&);
+
     static std::string resultStructName(const std::string&, const std::string&, bool = false);
     static std::string resultType(const OperationPtr&, const std::string&, bool = false);
     static std::string taskResultType(const OperationPtr&, const std::string&, bool = false);

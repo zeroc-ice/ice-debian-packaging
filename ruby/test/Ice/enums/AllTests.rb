@@ -1,20 +1,9 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
-def test(b)
-    if !b
-        raise RuntimeError, 'test assertion failed'
-    end
-end
-
-def allTests(communicator)
-    ref = "test:default -p 12010"
+def allTests(helper, communicator)
+    ref = "test:#{helper.getTestEndpoint()}"
     base = communicator.stringToProxy(ref)
     test(base)
 

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceBT/EndpointI.h>
 #include <IceBT/AcceptorI.h>
@@ -171,7 +166,7 @@ IceBT::EndpointI::transceiver() const
 }
 
 void
-IceBT::EndpointI::connectors_async(EndpointSelectionType selType, const IceInternal::EndpointI_connectorsPtr& cb) const
+IceBT::EndpointI::connectors_async(EndpointSelectionType /*selType*/, const IceInternal::EndpointI_connectorsPtr& cb) const
 {
     vector<IceInternal::ConnectorPtr> connectors;
     connectors.push_back(new ConnectorI(_instance, _addr, _uuid, _timeout, _connectionId));

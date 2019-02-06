@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 Ice._ModuleRegistry.require(module,
@@ -25,9 +20,7 @@ Ice._ModuleRegistry.require(module,
 
 const ArrayUtil = Ice.ArrayUtil;
 const AsyncResultBase = Ice.AsyncResultBase;
-const AsyncResult = Ice.AsyncResult;
 const Debug = Ice.Debug;
-const FormatType = Ice.FormatType;
 const OutgoingAsync = Ice.OutgoingAsync;
 const ProxyFlushBatch = Ice.ProxyFlushBatch;
 const ProxyGetConnection = Ice.ProxyGetConnection;
@@ -170,7 +163,7 @@ class ObjectPrx
     {
         if(newTimeout < -1)
         {
-            throw new Error("invalid value passed to ice_locatorCacheTimeout: " + newTimeout);
+            throw new RangeError("invalid value passed to ice_locatorCacheTimeout: " + newTimeout);
         }
         if(newTimeout === this._reference.getLocatorCacheTimeout())
         {
@@ -191,7 +184,7 @@ class ObjectPrx
     {
         if(newTimeout < 1 && newTimeout !== -1)
         {
-            throw new Error("invalid value passed to ice_invocationTimeout: " + newTimeout);
+            throw new RangeError("invalid value passed to ice_invocationTimeout: " + newTimeout);
         }
         if(newTimeout === this._reference.getInvocationTimeout())
         {
@@ -415,7 +408,7 @@ class ObjectPrx
     {
         if(t < 1 && t !== -1)
         {
-            throw new Error("invalid value passed to ice_timeout: " + t);
+            throw new RangeError("invalid value passed to ice_timeout: " + t);
         }
         const ref = this._reference.changeTimeout(t);
         if(ref.equals(this._reference))
@@ -437,11 +430,11 @@ class ObjectPrx
     {
         if(connection === null)
         {
-            throw new Error("invalid null connection passed to ice_fixed");
+            throw new RangeError("invalid null connection passed to ice_fixed");
         }
         if(!(connection instanceof Ice.ConnectionI))
         {
-            throw new Error("invalid connection passed to ice_fixed");
+            throw new RangeError("invalid connection passed to ice_fixed");
         }
         const ref = this._reference.changeConnection(connection);
         if(ref.equals(this._reference))
@@ -701,7 +694,7 @@ class ObjectPrx
             else
             {
                 const ostr = r.startWriteParams(fmt);
-                marshalFn.call(null, ostr, args);
+                marshalFn(ostr, args);
                 r.endWriteParams();
             }
             r.invoke();
@@ -738,7 +731,6 @@ class ObjectPrx
         catch(ex)
         {
             this.dispatchLocalException(r, ex);
-            return;
         }
     }
 

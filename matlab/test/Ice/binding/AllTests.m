@@ -1,13 +1,6 @@
-%{
-**********************************************************************
-
-Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
-
-This copy of Ice is licensed to you under the terms described in the
-ICE_LICENSE file included in this distribution.
-
-**********************************************************************
-%}
+%
+% Copyright (c) ZeroC, Inc. All rights reserved.
+%
 
 classdef AllTests
     methods(Static)
@@ -34,12 +27,12 @@ classdef AllTests
             end
         end
 
-        function r = allTests(app)
+        function allTests(helper)
             import Test.*;
 
-            communicator = app.communicator();
+            communicator = helper.communicator();
 
-            ref = ['communicator:', app.getTestEndpoint(0)];
+            ref = ['communicator:', helper.getTestEndpoint()];
             rcom = RemoteCommunicatorPrx.uncheckedCast(communicator.stringToProxy(ref));
 
             fprintf('testing binding with single endpoint... ');

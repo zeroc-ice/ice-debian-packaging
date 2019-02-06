@@ -1,52 +1,53 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-class Oneways
+namespace Ice
 {
-    private static void test(bool b)
+    namespace operations
     {
-        if(!b)
+        class Oneways
         {
-            throw new System.SystemException();
-        }
-    }
-
-    internal static void oneways(TestCommon.Application app, Test.MyClassPrx p)
-    {
-        Ice.Communicator communicator = app.communicator();
-        p = Test.MyClassPrxHelper.uncheckedCast(p.ice_oneway());
-
-        {
-            p.ice_ping();
-        }
-
-        {
-            p.opVoid();
-        }
-
-        {
-            p.opIdempotent();
-        }
-
-        {
-            p.opNonmutating();
-        }
-
-        {
-            byte b;
-            try
+            private static void test(bool b)
             {
-                p.opByte((byte)0xff, (byte)0x0f, out b);
-                test(false);
+                if (!b)
+                {
+                    throw new System.SystemException();
+                }
             }
-            catch(Ice.TwowayOnlyException)
+
+            internal static void oneways(global::Test.TestHelper helper, Test.MyClassPrx p)
             {
+                Ice.Communicator communicator = helper.communicator();
+                p = Test.MyClassPrxHelper.uncheckedCast(p.ice_oneway());
+
+                {
+                    p.ice_ping();
+                }
+
+                {
+                    p.opVoid();
+                }
+
+                {
+                    p.opIdempotent();
+                }
+
+                {
+                    p.opNonmutating();
+                }
+
+                {
+                    byte b;
+                    try
+                    {
+                        p.opByte((byte)0xff, (byte)0x0f, out b);
+                        test(false);
+                    }
+                    catch (Ice.TwowayOnlyException)
+                    {
+                    }
+                }
             }
         }
     }

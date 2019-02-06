@@ -1,17 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef TESTI_H
 #define TESTI_H
 
 #include <Test.h>
-#include <TestCommon.h>
 
 class InitialI : public Test::Initial
 {

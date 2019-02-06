@@ -1,14 +1,9 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 
 using namespace std;
@@ -34,9 +29,10 @@ getIPConnectionInfo(const Ice::ConnectionInfoPtr& info)
 }
 
 void
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
-    string sref = "test:" + getTestEndpoint(communicator, 0);
+    Ice::CommunicatorPtr communicator = helper->communicator();
+    string sref = "test:" + helper->getTestEndpoint();
     Ice::ObjectPrxPtr obj = communicator->stringToProxy(sref);
     test(obj);
 

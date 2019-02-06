@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/UUID.h>
 
@@ -434,9 +429,9 @@ public:
             _proxy.handleException(ex);
             assert(false);
         }
-        catch(const Ice::Exception& ex)
+        catch(const Ice::Exception& e)
         {
-            _amdCB->ice_exception(ex);
+            _amdCB->ice_exception(e);
         }
     }
 
@@ -491,9 +486,9 @@ public:
         {
             _amdCB->ice_response();
         }
-        catch(const Ice::Exception& ex)
+        catch(const Ice::Exception& e)
         {
-            _amdCB->ice_exception(ex);
+            _amdCB->ice_exception(e);
         }
     }
 
@@ -802,7 +797,6 @@ AdminI::getNodeLoad(const string& name, const Current&) const
         os << ex;
         throw NodeUnreachableException(name, os.str());
     }
-    return LoadInfo(); // Keep the compiler happy.
 }
 
 int
@@ -865,7 +859,6 @@ AdminI::getNodeHostname(const string& name, const Current&) const
         ostringstream os;
         os << ex;
         throw NodeUnreachableException(name, os.str());
-        return ""; // Keep the compiler happy.
     }
 }
 
@@ -926,7 +919,6 @@ AdminI::pingRegistry(const string& name, const Current&) const
     {
         return false;
     }
-    return false;
 }
 
 void

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef ICEMX_METRICSOBSERVER_I_H
 #define ICEMX_METRICSOBSERVER_I_H
@@ -131,6 +126,20 @@ protected:
                                Resolver*>::value_type(name, new MemberFunctionResolver<I, O, Y>(name, getFn,
                                                                                                 memberFn)));
         }
+
+#if ICE_CPLUSPLUS >= 201703L
+        //
+        // Since C++17 the noexcept-specification is part of the function type and we need a separate
+        // overload to handle memberFn being noexcept
+        //
+        template<typename I, typename O, typename Y> void
+        add(const std::string& name, O (Helper::*getFn)() const, Y (I::*memberFn)() const noexcept)
+        {
+            _attributes.insert(typename std::map<std::string,
+                               Resolver*>::value_type(name, new MemberFunctionResolver<I, O, Y>(name, getFn,
+                                                                                                memberFn)));
+        }
+#endif
 
     private:
 
@@ -317,7 +326,7 @@ public:
 };
 ICE_DEFINE_PTR(UpdaterPtr, Updater);
 
-template<typename T> class UpdaterT : public Updater
+template<typename T> class UpdaterT ICE_FINAL : public Updater
 {
 public:
 

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef GEN_H
 #define GEN_H
@@ -74,6 +69,9 @@ protected:
     void writeDocCommentAMD(const OperationPtr&, const std::string&);
     void writeDocCommentParam(const OperationPtr&, ParamDir, bool);
 
+    void moduleStart(const ModulePtr&);
+    void moduleEnd(const ModulePtr&);
+
     ::IceUtilInternal::Output& _out;
 };
 
@@ -118,10 +116,23 @@ private:
     public:
 
         CompactIdVisitor(IceUtilInternal::Output&);
-
         virtual bool visitUnitStart(const UnitPtr&);
         virtual void visitUnitEnd(const UnitPtr&);
         virtual bool visitClassDefStart(const ClassDefPtr&);
+    };
+
+    class TypeIdVisitor : public CsVisitor
+    {
+    public:
+
+        TypeIdVisitor(IceUtilInternal::Output&);
+        virtual bool visitModuleStart(const ModulePtr&);
+        virtual void visitModuleEnd(const ModulePtr&);
+        virtual bool visitClassDefStart(const ClassDefPtr&);
+        virtual bool visitExceptionStart(const ExceptionPtr&);
+
+    private:
+        void generateHelperClass(const ContainedPtr&);
     };
 
     class TypesVisitor : public CsVisitor

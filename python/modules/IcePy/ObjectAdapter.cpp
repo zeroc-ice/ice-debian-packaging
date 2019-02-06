@@ -1,15 +1,7 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-#ifdef _WIN32
-#   include <IceUtil/Config.h>
-#endif
 #include <ObjectAdapter.h>
 #include <Communicator.h>
 #include <Current.h>
@@ -31,7 +23,11 @@
 using namespace std;
 using namespace IcePy;
 
+#if PY_VERSION_HEX < 0x03070000
 static long _mainThreadId;
+#else
+static unsigned long _mainThreadId;
+#endif
 
 namespace IcePy
 {
@@ -215,7 +211,7 @@ IcePy::ServantLocatorWrapper::locate(const Ice::Current& current, Ice::LocalObje
 }
 
 void
-IcePy::ServantLocatorWrapper::finished(const Ice::Current& current, const Ice::ObjectPtr&,
+IcePy::ServantLocatorWrapper::finished(const Ice::Current&, const Ice::ObjectPtr&,
                                        const Ice::LocalObjectPtr& cookie)
 {
     AdoptThread adoptThread; // Ensure the current thread is able to call into Python.
@@ -328,7 +324,7 @@ adapterDealloc(ObjectAdapterObject* self)
 extern "C"
 #endif
 static PyObject*
-adapterGetName(ObjectAdapterObject* self)
+adapterGetName(ObjectAdapterObject* self, PyObject* /*args*/)
 {
     assert(self->adapter);
     string name;
@@ -349,7 +345,7 @@ adapterGetName(ObjectAdapterObject* self)
 extern "C"
 #endif
 static PyObject*
-adapterGetCommunicator(ObjectAdapterObject* self)
+adapterGetCommunicator(ObjectAdapterObject* self, PyObject* /*args*/)
 {
     assert(self->adapter);
     Ice::CommunicatorPtr communicator;
@@ -370,7 +366,7 @@ adapterGetCommunicator(ObjectAdapterObject* self)
 extern "C"
 #endif
 static PyObject*
-adapterActivate(ObjectAdapterObject* self)
+adapterActivate(ObjectAdapterObject* self, PyObject* /*args*/)
 {
     assert(self->adapter);
     try
@@ -401,7 +397,7 @@ adapterActivate(ObjectAdapterObject* self)
 extern "C"
 #endif
 static PyObject*
-adapterHold(ObjectAdapterObject* self)
+adapterHold(ObjectAdapterObject* self, PyObject* /*args*/)
 {
     assert(self->adapter);
     try
@@ -503,7 +499,7 @@ adapterWaitForHold(ObjectAdapterObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-adapterDeactivate(ObjectAdapterObject* self)
+adapterDeactivate(ObjectAdapterObject* self, PyObject* /*args*/)
 {
     assert(self->adapter);
     try
@@ -609,7 +605,7 @@ adapterWaitForDeactivate(ObjectAdapterObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-adapterIsDeactivated(ObjectAdapterObject* self)
+adapterIsDeactivated(ObjectAdapterObject* self, PyObject* /*args*/)
 {
     assert(self->adapter);
     try
@@ -630,7 +626,7 @@ adapterIsDeactivated(ObjectAdapterObject* self)
 extern "C"
 #endif
 static PyObject*
-adapterDestroy(ObjectAdapterObject* self)
+adapterDestroy(ObjectAdapterObject* self, PyObject* /*args*/)
 {
     assert(self->adapter);
     try
@@ -1517,7 +1513,7 @@ adapterSetLocator(ObjectAdapterObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-adapterGetLocator(ObjectAdapterObject* self)
+adapterGetLocator(ObjectAdapterObject* self, PyObject* /*args*/)
 {
     assert(self->adapter);
     Ice::LocatorPrx locator;
@@ -1546,7 +1542,7 @@ adapterGetLocator(ObjectAdapterObject* self)
 extern "C"
 #endif
 static PyObject*
-adapterGetEndpoints(ObjectAdapterObject* self)
+adapterGetEndpoints(ObjectAdapterObject* self, PyObject* /*args*/)
 {
     assert(self->adapter);
 
@@ -1581,7 +1577,7 @@ adapterGetEndpoints(ObjectAdapterObject* self)
 extern "C"
 #endif
 static PyObject*
-adapterRefreshPublishedEndpoints(ObjectAdapterObject* self)
+adapterRefreshPublishedEndpoints(ObjectAdapterObject* self, PyObject* /*args*/)
 {
     assert(self->adapter);
     try
@@ -1603,7 +1599,7 @@ adapterRefreshPublishedEndpoints(ObjectAdapterObject* self)
 extern "C"
 #endif
 static PyObject*
-adapterGetPublishedEndpoints(ObjectAdapterObject* self)
+adapterGetPublishedEndpoints(ObjectAdapterObject* self, PyObject* /*args*/)
 {
     assert(self->adapter);
 

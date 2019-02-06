@@ -1,11 +1,6 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import Ice, Test
 
@@ -13,8 +8,8 @@ def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-def onewaysFuture(communicator, proxy):
-
+def onewaysFuture(helper, proxy):
+    communicator = helper.communicator()
     p = Test.MyClassPrx.uncheckedCast(proxy.ice_oneway())
 
     f = p.ice_pingAsync()

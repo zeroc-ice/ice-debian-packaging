@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 using System.Reflection;
@@ -16,26 +11,27 @@ using System.Reflection;
 [assembly: AssemblyDescription("IceDiscovery test")]
 [assembly: AssemblyCompany("ZeroC, Inc.")]
 
-public class Client : TestCommon.Application
+public class Client : Test.TestHelper
 {
-    public override int run(string[] args)
+    public override void run(string[] args)
     {
-        int num;
-        try
+        using(var communicator = initialize(ref args))
         {
-            num = args.Length == 1 ? Int32.Parse(args[0]) : 0;
+            int num;
+            try
+            {
+                num = args.Length == 1 ? Int32.Parse(args[0]) : 0;
+            }
+            catch(FormatException)
+            {
+                num = 0;
+            }
+            AllTests.allTests(this, num);
         }
-        catch(FormatException)
-        {
-            num = 0;
-        }
-        AllTests.allTests(this, num);
-        return 0;
     }
 
     public static int Main(string[] args)
     {
-        Client app = new Client();
-        return app.runmain(args);
+        return Test.TestDriver.runTest<Client>(args);
     }
 }

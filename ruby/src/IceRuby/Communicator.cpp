@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Communicator.h>
 #include <ImplicitContext.h>
@@ -79,7 +74,7 @@ private:
 
 extern "C"
 VALUE
-IceRuby_initialize(int argc, VALUE* argv, VALUE self)
+IceRuby_initialize(int argc, VALUE* argv, VALUE /*self*/)
 {
     ICE_RUBY_TRY
     {
@@ -333,7 +328,7 @@ IceRuby_initialize(int argc, VALUE* argv, VALUE self)
 
 extern "C"
 VALUE
-IceRuby_stringToIdentity(VALUE self, VALUE str)
+IceRuby_stringToIdentity(VALUE /*self*/, VALUE str)
 {
     ICE_RUBY_TRY
     {
@@ -347,7 +342,7 @@ IceRuby_stringToIdentity(VALUE self, VALUE str)
 
 extern "C"
 VALUE
-IceRuby_identityToString(int argc, VALUE* argv, VALUE self)
+IceRuby_identityToString(int argc, VALUE* argv, VALUE /*self*/)
 {
     ICE_RUBY_TRY
     {

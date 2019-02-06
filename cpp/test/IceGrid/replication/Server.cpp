@@ -1,32 +1,26 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <TestI.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 using namespace std;
 
-class Server : public Ice::Application
+class Server : public Test::TestHelper
 {
 public:
 
-    virtual int run(int argc, char* argv[]);
+    void run(int, char**);
 };
 
-int
-Server::run(int, char**)
+void
+Server::run(int argc, char** argv)
 {
-    Ice::ObjectAdapterPtr adapter = communicator()->createObjectAdapter("TestAdapter");
-    Ice::ObjectPtr object = new TestI();
-    adapter->add(object, Ice::stringToIdentity(communicator()->getProperties()->getProperty("Identity")));
-    shutdownOnInterrupt();
+    Ice::CommunicatorHolder communicator = initialize(argc, argv);
+    Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
+    adapter->add(new TestI(), Ice::stringToIdentity(communicator->getProperties()->getProperty("Identity")));
     try
     {
         adapter->activate();
@@ -34,14 +28,7 @@ Server::run(int, char**)
     catch(const Ice::ObjectAdapterDeactivatedException&)
     {
     }
-    communicator()->waitForShutdown();
-    ignoreInterrupt();
-    return EXIT_SUCCESS;
+    communicator->waitForShutdown();
 }
 
-int
-main(int argc, char* argv[])
-{
-    Server app;
-    return app.main(argc, argv);
-}
+DEFINE_TEST(Server)

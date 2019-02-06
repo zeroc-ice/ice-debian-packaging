@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/NetworkProxy.h>
 #include <Ice/HttpParser.h>
@@ -81,7 +76,6 @@ private:
 SOCKSNetworkProxy::SOCKSNetworkProxy(const string& host, int port) : _host(host), _port(port)
 {
     assert(!host.empty());
-    memset(&_address, 0, sizeof(_address));
 }
 
 SOCKSNetworkProxy::SOCKSNetworkProxy(const Address& addr) : _port(0), _address(addr)
@@ -194,7 +188,6 @@ HTTPNetworkProxy::HTTPNetworkProxy(const string& host, int port) :
     _host(host), _port(port), _protocol(EnableBoth)
 {
     assert(!host.empty());
-    memset(&_address, 0, sizeof(_address));
 }
 
 HTTPNetworkProxy::HTTPNetworkProxy(const Address& addr, ProtocolSupport protocol) :
@@ -305,6 +298,7 @@ IceInternal::createNetworkProxy(const Ice::PropertiesPtr& properties, ProtocolSu
     if(!proxyHost.empty())
     {
 #ifdef ICE_OS_UWP
+        UNREFERENCED_PARAMETER(protocolSupport);
         throw Ice::InitializationException(__FILE__, __LINE__, "SOCKS proxy not supported with UWP");
 #else
         if(protocolSupport == EnableIPv6)

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Proxy.h>
 #include <Ice/ProxyFactory.h>
@@ -38,7 +33,7 @@ const Context noExplicitContext;
 
 #if defined(_MSC_VER) && (_MSC_VER <= 1600)
 //
-// COMPILERFIX VC90 and VC100 get confused with namespaces and complains that
+// COMPILERFIX v90 and v100 get confused with namespaces and complains that
 // ::Ice::noExplicitContext isn't defined in IceProxy namespace.
 //
 namespace IceProxy
@@ -483,7 +478,7 @@ IceProxy::Ice::Object::_iceI_begin_ice_invoke(const string& operation,
                                               const Context& ctx,
                                               const ::IceInternal::CallbackBasePtr& del,
                                               const ::Ice::LocalObjectPtr& cookie,
-                                              bool sync)
+                                              bool /*sync*/)
 {
     pair<const Byte*, const Byte*> inPair;
     if(inEncaps.empty())

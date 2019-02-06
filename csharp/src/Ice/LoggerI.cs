@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 namespace Ice
 {
@@ -88,8 +83,8 @@ namespace Ice
 
         protected abstract void write(string message);
 
-        internal string _prefix = "";
-        internal string _formattedPrefix = "";
+        internal readonly string _prefix;
+        internal readonly string _formattedPrefix;
         internal string _date = null;
         internal string _time = null;
 
@@ -147,10 +142,12 @@ namespace Ice
 
     public class ConsoleListener : TraceListener
     {
-        public ConsoleListener()
+        public override bool IsThreadSafe
         {
-            _date = "d";
-            _time = "HH:mm:ss:fff";
+            get
+            {
+                return true;
+            }
         }
 
         public override void TraceEvent(TraceEventCache cache, string source, TraceEventType type,
@@ -188,8 +185,8 @@ namespace Ice
             System.Console.Error.WriteLine(message);
         }
 
-        internal string _date = null;
-        internal string _time = null;
+        internal const string _date = "d";
+        internal const string _time = "HH:mm:ss:fff";
     }
 
     public sealed class TraceLoggerI : LoggerI
@@ -206,22 +203,14 @@ namespace Ice
 
         public override void trace(string category, string message)
         {
-            string s = format(category, message);
-            lock(_globalMutex)
-            {
-                Trace.TraceInformation(s);
-                Trace.Flush();
-            }
+            Trace.TraceInformation(format(category, message));
+            Trace.Flush();
         }
 
         public override void warning(string message)
         {
-            string s = format("warning", message);
-            lock(_globalMutex)
-            {
-                Trace.TraceWarning(s);
-                Trace.Flush();
-            }
+            Trace.TraceWarning(format("warning", message));
+            Trace.Flush();
         }
 
         public override void error(string message)
