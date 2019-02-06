@@ -1,14 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef ICESSL_SECURE_TRANSPORT_H
 #define ICESSL_SECURE_TRANSPORT_H
+
+#ifdef __APPLE__
 
 #include <IceSSL/Plugin.h>
 #include <Security/Security.h>
@@ -69,5 +66,7 @@ public:
 } // SecureTransport namespace end
 
 } // IceSSL namespace end
+
+#endif
 
 #endif

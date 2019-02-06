@@ -1,17 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/IceUtil.h>
 
 #include <stdlib.h>
-#include <TestCommon.h>
-
+#include <TestHelper.h>
 #include <TestSuite.h>
 #include <IceUtil/MutexProtocol.h>
 
@@ -36,22 +30,22 @@ getDefaultMutexProtocol()
 
 #endif
 
-int
-main(int, char**)
+class Client : public Test::TestHelper
 {
-    try
-    {
-        initializeTestSuite();
+public:
 
-        for(list<TestBasePtr>::const_iterator p = allTests.begin(); p != allTests.end(); ++p)
-        {
-            (*p)->start();
-        }
-    }
-    catch(const TestFailed& e)
+    void run(int, char**);
+};
+
+void
+Client::run(int, char**)
+{
+    initializeTestSuite();
+
+    for(list<TestBasePtr>::const_iterator p = allTests.begin(); p != allTests.end(); ++p)
     {
-        cout << "test " << e.name << " failed" << endl;
-        return EXIT_FAILURE;
+        (*p)->start();
     }
-    return EXIT_SUCCESS;
 }
+
+DEFINE_TEST(Client)

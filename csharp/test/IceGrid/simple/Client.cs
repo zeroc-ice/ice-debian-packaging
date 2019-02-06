@@ -1,14 +1,10 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 using System.Reflection;
+using System.Linq;
 
 [assembly: CLSCompliant(true)]
 
@@ -16,35 +12,25 @@ using System.Reflection;
 [assembly: AssemblyDescription("Ice test")]
 [assembly: AssemblyCompany("ZeroC, Inc.")]
 
-public class Client : TestCommon.Application
+public class Client : Test.TestHelper
 {
-    public override int run(string[] args)
+    public override void run(string[] args)
     {
-        bool withDeploy = false;
-        for(int i = 0; i < args.Length; i++)
+        using(var communicator = initialize(ref args))
         {
-            if(args[i].Equals("--with-deploy"))
+            if(args.Any(v => v.Equals("--with-deploy")))
             {
-                withDeploy = true;
-                break;
+                AllTests.allTestsWithDeploy(this);
+            }
+            else
+            {
+                AllTests.allTests(this);
             }
         }
-
-        if(!withDeploy)
-        {
-            AllTests.allTests(this);
-        }
-        else
-        {
-            AllTests.allTestsWithDeploy(this);
-        }
-
-        return 0;
     }
 
     public static int Main(string[] args)
     {
-        Client app = new Client();
-        return app.runmain(args);
+        return Test.TestDriver.runTest<Client>(args);
     }
 }

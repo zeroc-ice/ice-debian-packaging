@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifdef __sun
 #    define _POSIX_PTHREAD_SEMANTICS
@@ -131,6 +126,7 @@ CtrlCHandler::~CtrlCHandler()
     {
         IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(globalMutex);
         _handler = 0;
+        _callback = ICE_NULLPTR;
     }
 }
 
@@ -242,6 +238,7 @@ CtrlCHandler::~CtrlCHandler()
     {
         IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(globalMutex);
         _handler = 0;
+        _callback = ICE_NULLPTR;
     }
 
     //

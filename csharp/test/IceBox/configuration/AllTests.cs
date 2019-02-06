@@ -1,28 +1,23 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 using Test;
 
-public class AllTests : TestCommon.AllTests
+public class AllTests : Test.AllTests
 {
-    public static void allTests(TestCommon.Application app)
+    public static void allTests(Test.TestHelper helper)
     {
-        Ice.Communicator communicator = app.communicator();
+        Ice.Communicator communicator = helper.communicator();
         TestIntfPrx service1 = TestIntfPrxHelper.uncheckedCast(communicator.stringToProxy("test:" +
-                                                                                          app.getTestEndpoint(0)));
+                                                                                          helper.getTestEndpoint(0)));
         TestIntfPrx service2 = TestIntfPrxHelper.uncheckedCast(communicator.stringToProxy("test:" +
-                                                                                          app.getTestEndpoint(1)));
+                                                                                          helper.getTestEndpoint(1)));
         TestIntfPrx service3 = TestIntfPrxHelper.uncheckedCast(communicator.stringToProxy("test:" +
-                                                                                          app.getTestEndpoint(2)));
+                                                                                          helper.getTestEndpoint(2)));
         TestIntfPrx service4 = TestIntfPrxHelper.uncheckedCast(communicator.stringToProxy("test:" +
-                                                                                          app.getTestEndpoint(3)));
+                                                                                          helper.getTestEndpoint(3)));
 
         if(service1.getProperty("IceBox.InheritProperties").Equals(""))
         {

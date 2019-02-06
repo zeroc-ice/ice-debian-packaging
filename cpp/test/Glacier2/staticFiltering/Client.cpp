@@ -1,54 +1,43 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <Glacier2/Router.h>
 #include <Backend.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 using namespace std;
 using namespace Ice;
 using namespace Test;
 
-class AttackClient : public Application
+class AttackClient : public Test::TestHelper
 {
 public:
 
-    virtual int run(int, char*[]);
+    void run(int, char**);
 };
 
-int
-main(int argc, char* argv[])
+void
+AttackClient::run(int argc, char** argv)
 {
-    Ice::InitializationData initData = getTestInitData(argc, argv);
-
+    Ice::PropertiesPtr properties = createTestProperties(argc, argv);
     //
     // We want to check whether the client retries for evicted
     // proxies, even with regular retries disabled.
     //
-    initData.properties->setProperty("Ice.RetryIntervals", "-1");
+    properties->setProperty("Ice.RetryIntervals", "-1");
 
-    AttackClient app;
-    return app.main(argc, argv, initData);
-}
+    Ice::CommunicatorHolder communicator = initialize(argc, argv, properties);
 
-int
-AttackClient::run(int, char**)
-{
-    ObjectPrx routerBase = communicator()->stringToProxy("Glacier2/router:" + getTestEndpoint(communicator(), 50));
+    ObjectPrx routerBase = communicator->stringToProxy("Glacier2/router:" + getTestEndpoint(50));
     Glacier2::RouterPrx router = Glacier2::RouterPrx::checkedCast(routerBase);
     test(router);
-    communicator()->setDefaultRouter(router);
+    communicator->setDefaultRouter(router);
 
     PropertyDict::const_iterator p;
 
-    PropertyDict badProxies = communicator()->getProperties()->getPropertiesForPrefix("Reject.Proxy.");
+    PropertyDict badProxies = communicator->getProperties()->getPropertiesForPrefix("Reject.Proxy.");
     for(p = badProxies.begin(); p != badProxies.end(); ++p)
     {
         try
@@ -57,14 +46,14 @@ AttackClient::run(int, char**)
         }
         catch(const Glacier2::CannotCreateSessionException&)
         {
-            test("Unable to create new session" == 0);
+            test(false);
         }
-        BackendPrx backend = BackendPrx::uncheckedCast(communicator()->stringToProxy(p->second));
+        BackendPrx backend = BackendPrx::uncheckedCast(communicator->stringToProxy(p->second));
         try
         {
             backend->ice_ping();
             cerr << "Test failed on : " << p->second << endl;
-            test("Expected exception" == 0);
+            test(false);
         }
         catch(const ConnectionLostException&)
         {
@@ -94,11 +83,11 @@ AttackClient::run(int, char**)
         catch(const LocalException& e)
         {
             cerr << e << endl;
-            test("Unexpected local exception" == 0);
+            test(false);
         }
     }
 
-    PropertyDict goodProxies = communicator()->getProperties()->getPropertiesForPrefix("Accept.Proxy.");
+    PropertyDict goodProxies = communicator->getProperties()->getPropertiesForPrefix("Accept.Proxy.");
     for(p = goodProxies.begin(); p != goodProxies.end(); ++p)
     {
         try
@@ -107,9 +96,9 @@ AttackClient::run(int, char**)
         }
         catch(const Glacier2::CannotCreateSessionException&)
         {
-            test("Unable to create new session" == 0);
+            test(false);
         }
-        BackendPrx backend = BackendPrx::uncheckedCast(communicator()->stringToProxy(p->second));
+        BackendPrx backend = BackendPrx::uncheckedCast(communicator->stringToProxy(p->second));
         try
         {
             backend->ice_ping();
@@ -118,7 +107,7 @@ AttackClient::run(int, char**)
         {
             cerr << p->second << endl;
             cerr << ex << endl;
-            test("Unexpected local exception" == 0);
+            test(false);
         }
         try
         {
@@ -136,10 +125,10 @@ AttackClient::run(int, char**)
     // Stop using router and communicate with backend and router directly
     // to shut things down.
     //
-    communicator()->setDefaultRouter(0);
+    communicator->setDefaultRouter(0);
     try
     {
-        BackendPrx backend = BackendPrx::checkedCast(communicator()->stringToProxy("dummy:tcp -p 12010"));
+        BackendPrx backend = BackendPrx::checkedCast(communicator->stringToProxy("dummy:tcp -p 12010"));
         backend->shutdown();
     }
     catch(const Ice::LocalException&)
@@ -147,8 +136,7 @@ AttackClient::run(int, char**)
         test(false);
     }
 
-    ObjectPrx processBase = communicator()->stringToProxy("Glacier2/admin -f Process:" +
-                                                          getTestEndpoint(communicator(), 51));
+    ObjectPrx processBase = communicator->stringToProxy("Glacier2/admin -f Process:" + getTestEndpoint(51));
     Ice::ProcessPrx process = Ice::ProcessPrx::checkedCast(processBase);
     test(process);
     process->shutdown();
@@ -161,6 +149,6 @@ AttackClient::run(int, char**)
     {
         cout << "ok" << endl;
     }
-
-    return EXIT_SUCCESS;
 }
+
+DEFINE_TEST(AttackClient)

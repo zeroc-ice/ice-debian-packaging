@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package com.zeroc.IceGridGUI;
 
@@ -119,7 +114,7 @@ public class Main extends JFrame
             });
 
         _coordinator = new Coordinator(this, args, Preferences.userRoot().node("IceGridGUI"));
-
+        _coordinator.tryMigrateDataDirectory();
         _coordinator.showMainFrame();
     }
 

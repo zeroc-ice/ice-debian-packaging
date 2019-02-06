@@ -1,23 +1,16 @@
-%{
-**********************************************************************
-
-Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
-
-This copy of Ice is licensed to you under the terms described in the
-ICE_LICENSE file included in this distribution.
-
-**********************************************************************
-%}
+%
+% Copyright (c) ZeroC, Inc. All rights reserved.
+%
 
 %
 % These tests exercise some corner cases of the mapping.
 %
 classdef LocalTests
     methods(Static)
-        function localTests(app)
+        function localTests(helper)
             import LocalTest.*;
 
-            communicator = app.communicator();
+            communicator = helper.communicator();
             props = communicator.getProperties();
 
             fprintf('testing class members locally... ');

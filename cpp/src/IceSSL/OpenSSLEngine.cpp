@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceSSL/Config.h>
 
@@ -30,6 +25,10 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/pkcs12.h>
+
+#ifdef _MSC_VER
+#   pragma warning(disable:4127) // conditional expression is constant
+#endif
 
 using namespace std;
 using namespace Ice;
@@ -201,8 +200,6 @@ OpenSSL::SSLEngine::SSLEngine(const CommunicatorPtr& communicator) :
     IceSSL::SSLEngine(communicator),
     _ctx(0)
 {
-    __setNoDelete(true);
-
     //
     // Initialize OpenSSL if necessary.
     //
@@ -279,6 +276,7 @@ OpenSSL::SSLEngine::SSLEngine(const CommunicatorPtr& communicator) :
 
                 if(!IceUtilInternal::splitString(randFiles, IceUtilInternal::pathsep, files))
                 {
+                    cleanup();
                     throw PluginInitializationException(__FILE__, __LINE__,
                                                         "IceSSL: invalid value for IceSSL.Random:\n" + randFiles);
                 }
@@ -288,11 +286,13 @@ OpenSSL::SSLEngine::SSLEngine(const CommunicatorPtr& communicator) :
                     string resolved;
                     if(!checkPath(file, defaultDir, false, resolved))
                     {
+                        cleanup();
                         throw PluginInitializationException(__FILE__, __LINE__,
                                                             "IceSSL: entropy data file not found:\n" + file);
                     }
                     if(!RAND_load_file(resolved.c_str(), 1024))
                     {
+                        cleanup();
                         throw PluginInitializationException(__FILE__, __LINE__,
                                                             "IceSSL: unable to load entropy data from " + resolved);
                     }
@@ -308,6 +308,7 @@ OpenSSL::SSLEngine::SSLEngine(const CommunicatorPtr& communicator) :
             {
                 if(RAND_egd(entropyDaemon.c_str()) <= 0)
                 {
+                    cleanup();
                     throw PluginInitializationException(__FILE__, __LINE__,
                                                         "IceSSL: EGD failure using file " + entropyDaemon);
                 }
@@ -332,21 +333,24 @@ OpenSSL::SSLEngine::SSLEngine(const CommunicatorPtr& communicator) :
 #endif
         }
     }
-    __setNoDelete(false);
 }
 
-OpenSSL::SSLEngine::~SSLEngine()
+void
+OpenSSL::SSLEngine::cleanup()
 {
-//
-// OpenSSL 1.1.0 remove the need for library initialization and cleanup.
-//
+    //
+    // Must be called with the static mutex locked.
+    //
+    --instanceCount;
+    //
+    // OpenSSL 1.1.0 remove the need for library initialization and cleanup. We
+    // still need to decrement instanceCount
+    //
 #if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
     //
     // Clean up OpenSSL resources.
     //
-    IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(staticMutex);
-
-    if(--instanceCount == 0 && initOpenSSL)
+    if(instanceCount == 0 && initOpenSSL)
     {
         //
         // NOTE: We can't destroy the locks here: threads which might have called openssl methods
@@ -364,6 +368,12 @@ OpenSSL::SSLEngine::~SSLEngine()
         EVP_cleanup();
     }
 #endif
+}
+
+OpenSSL::SSLEngine::~SSLEngine()
+{
+    IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(staticMutex);
+    cleanup();
 }
 
 void
@@ -387,9 +397,21 @@ OpenSSL::SSLEngine::initialize()
         // TLS1.1 and TLS1.2 to avoid security issues with SSLv3
         //
         vector<string> defaultProtocols;
+#if defined(TLS1_VERSION) && !defined(OPENSSL_NO_TLS1_METHOD)
         defaultProtocols.push_back("tls1_0");
+#endif
+
+#if defined(TLS1_1_VERSION) && !defined(OPENSSL_NO_TLS1_1_METHOD)
         defaultProtocols.push_back("tls1_1");
+#endif
+
+#if defined(TLS1_2_VERSION) && !defined(OPENSSL_NO_TLS1_2_METHOD)
         defaultProtocols.push_back("tls1_2");
+#endif
+
+#if defined(TLS1_3_VERSION) && !defined(OPENSSL_NO_TLS1_3_METHOD)
+        defaultProtocols.push_back("tls1_3");
+#endif
 
         const int protocols =
                 parseProtocols(properties->getPropertyAsListWithDefault(propPrefix + "Protocols", defaultProtocols));
@@ -485,7 +507,7 @@ OpenSSL::SSLEngine::initialize()
                     while(count < passwordRetryMax)
                     {
                         ERR_clear_error();
-                        if((success = SSL_CTX_load_verify_locations(_ctx, file, dir)) || !passwordError())
+                        if((success = SSL_CTX_load_verify_locations(_ctx, file, dir)) != 0 || !passwordError())
                         {
                             break;
                         }
@@ -529,8 +551,9 @@ OpenSSL::SSLEngine::initialize()
                 vector<string> files;
                 if(!IceUtilInternal::splitString(certFile, IceUtilInternal::pathsep, files) || files.size() > 2)
                 {
-                    PluginInitializationException ex(__FILE__, __LINE__,
-                                            "IceSSL: invalid value for " + propPrefix + "CertFile:\n" + certFile);
+                    throw PluginInitializationException(__FILE__, __LINE__,
+                                                        "IceSSL: invalid value for " + propPrefix + "CertFile:\n" +
+                                                        certFile);
                 }
                 numCerts = files.size();
                 for(vector<string>::iterator p = files.begin(); p != files.end(); ++p)
@@ -539,8 +562,8 @@ OpenSSL::SSLEngine::initialize()
                     string resolved;
                     if(!checkPath(file, defaultDir, false, resolved))
                     {
-                        PluginInitializationException ex(__FILE__, __LINE__,
-                                                         "IceSSL: certificate file not found:\n" + file);
+                        throw PluginInitializationException(__FILE__, __LINE__,
+                                                            "IceSSL: certificate file not found:\n" + file);
                     }
                     file = resolved;
 
@@ -573,7 +596,7 @@ OpenSSL::SSLEngine::initialize()
                                 key = 0;
                                 cert = 0;
                                 chain = 0;
-                                if(!(success = PKCS12_parse(p12, password(false).c_str(), &key, &cert, &chain)))
+                                if((success = PKCS12_parse(p12, password(false).c_str(), &key, &cert, &chain)) == 0)
                                 {
                                     if(passwordError())
                                     {
@@ -655,7 +678,7 @@ OpenSSL::SSLEngine::initialize()
                         while(count < passwordRetryMax)
                         {
                             ERR_clear_error();
-                            if(!(success = SSL_CTX_use_certificate_chain_file(_ctx, file.c_str())))
+                            if((success = SSL_CTX_use_certificate_chain_file(_ctx, file.c_str())) == 0)
                             {
                                 if(passwordError())
                                 {
@@ -737,10 +760,10 @@ OpenSSL::SSLEngine::initialize()
                         }
                         else
                         {
-                            string err = sslErrors();
-                            if(!err.empty())
+                            string errStr = sslErrors();
+                            if(!errStr.empty())
                             {
-                                msg += ":\n" + err;
+                                msg += ":\n" + errStr;
                             }
                         }
                         throw PluginInitializationException(__FILE__, __LINE__, msg);
@@ -836,13 +859,13 @@ OpenSSL::SSLEngine::initialize()
         //
         // Establish the cipher list.
         //
-        string ciphers = properties->getProperty(propPrefix + "Ciphers");
-        if(!ciphers.empty())
+        string ciphersStr = properties->getProperty(propPrefix + "Ciphers");
+        if(!ciphersStr.empty())
         {
-            if(!SSL_CTX_set_cipher_list(_ctx, ciphers.c_str()))
+            if(!SSL_CTX_set_cipher_list(_ctx, ciphersStr.c_str()))
             {
                 throw PluginInitializationException(__FILE__, __LINE__,
-                                        "IceSSL: unable to set ciphers using `" + ciphers + "':\n" + sslErrors());
+                                        "IceSSL: unable to set ciphers using `" + ciphersStr + "':\n" + sslErrors());
             }
         }
 
@@ -951,19 +974,48 @@ OpenSSL::SSLEngine::parseProtocols(const StringSeq& protocols) const
         string prot = IceUtilInternal::toUpper(*p);
         if(prot == "SSL3" || prot == "SSLV3")
         {
+#if defined(OPENSSL_NO_SSL3_METHOD) || !defined(SSL3_VERSION)
+            throw PluginInitializationException(__FILE__, __LINE__,
+                                                "IceSSL: OpenSSL was build without SSLv3 support");
+#else
             v |= SSLv3;
+#endif
         }
         else if(prot == "TLS" || prot == "TLS1" || prot == "TLSV1" || prot == "TLS1_0" || prot == "TLSV1_0")
         {
+#if defined(OPENSSL_NO_TLS1_METHOD) || !defined(TLS1_VERSION)
+            throw PluginInitializationException(__FILE__, __LINE__,
+                                                "IceSSL: OpenSSL was build without TLS 1.0 support");
+#else
             v |= TLSv1_0;
+#endif
         }
         else if(prot == "TLS1_1" || prot == "TLSV1_1")
         {
+#if defined(OPENSSL_NO_TLS1_1_METHOD) || !defined(TLS1_1_VERSION)
+            throw PluginInitializationException(__FILE__, __LINE__,
+                                                "IceSSL: OpenSSL was build without TLS 1.1 support");
+#else
             v |= TLSv1_1;
+#endif
         }
         else if(prot == "TLS1_2" || prot == "TLSV1_2")
         {
+#if defined(OPENSSL_NO_TLS1_2_METHOD) || !defined(TLS1_2_VERSION)
+            throw PluginInitializationException(__FILE__, __LINE__,
+                                                "IceSSL: OpenSSL was build without TLS 1.2 support");
+#else
             v |= TLSv1_2;
+#endif
+        }
+        else if(prot == "TLS1_3" || prot == "TLSV1_3")
+        {
+#if defined(OPENSSL_NO_TLS1_3_METHOD) || !defined(TLS1_3_VERSION)
+            throw PluginInitializationException(__FILE__, __LINE__,
+                                                "IceSSL: OpenSSL was build without TLS 1.3 support");
+#else
+            v |= TLSv1_3;
+#endif
         }
         else
         {
@@ -1002,14 +1054,21 @@ void
 OpenSSL::SSLEngine::setOptions(int protocols)
 {
     long opts = SSL_OP_NO_SSLv2; // SSLv2 is not supported.
+
+#ifdef SSL_OP_NO_SSLv3
     if(!(protocols & SSLv3))
     {
         opts |= SSL_OP_NO_SSLv3;
     }
+#endif
+
+#ifdef SSL_OP_NO_TLSv1
     if(!(protocols & TLSv1_0))
     {
         opts |= SSL_OP_NO_TLSv1;
     }
+#endif
+
 #ifdef SSL_OP_NO_TLSv1_1
     if(!(protocols & TLSv1_1))
     {
@@ -1028,6 +1087,13 @@ OpenSSL::SSLEngine::setOptions(int protocols)
     if(!(protocols & TLSv1_2))
     {
         opts |= SSL_OP_NO_TLSv1_2;
+    }
+#endif
+
+#ifdef SSL_OP_NO_TLSv1_3
+    if(!(protocols & TLSv1_3))
+    {
+        opts |= SSL_OP_NO_TLSv1_3;
     }
 #endif
     SSL_CTX_set_options(_ctx, opts);

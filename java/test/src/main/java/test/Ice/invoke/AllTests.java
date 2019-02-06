@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.invoke;
 
@@ -31,11 +26,11 @@ public class AllTests
         }
     }
 
-    public static MyClassPrx allTests(test.Util.Application app)
+    public static MyClassPrx allTests(test.TestHelper helper)
     {
-        com.zeroc.Ice.Communicator communicator=app.communicator();
-        PrintWriter out = app.getWriter();
-        String ref = "test:" + app.getTestEndpoint(0);
+        com.zeroc.Ice.Communicator communicator = helper.communicator();
+        PrintWriter out = helper.getWriter();
+        String ref = "test:" + helper.getTestEndpoint(0);
         com.zeroc.Ice.ObjectPrx base = communicator.stringToProxy(ref);
         MyClassPrx cl = MyClassPrx.checkedCast(base);
         MyClassPrx oneway = cl.ice_oneway();
@@ -43,7 +38,6 @@ public class AllTests
 
         out.print("testing ice_invoke... ");
         out.flush();
-
         {
             com.zeroc.Ice.Object.Ice_invokeResult r;
 

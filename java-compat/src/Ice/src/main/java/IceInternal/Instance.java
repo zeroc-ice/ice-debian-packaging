@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package IceInternal;
 
@@ -69,11 +64,7 @@ public final class Instance implements Ice.ClassResolver
         Timer(Ice.Properties props, String threadName)
         {
             super(1, Util.createThreadFactory(props, threadName)); // Single thread executor
-            if(!Util.isAndroid())
-            {
-                // This API doesn't exist on Android up to API level 20.
-                setRemoveOnCancelPolicy(true);
-            }
+            setRemoveOnCancelPolicy(true);
             setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
             _observerHelper = new ThreadObserverHelper(threadName);
         }

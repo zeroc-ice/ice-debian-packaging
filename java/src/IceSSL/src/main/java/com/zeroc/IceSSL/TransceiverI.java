@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package com.zeroc.IceSSL;
 
@@ -52,10 +47,15 @@ final class TransceiverI implements com.zeroc.IceInternal.Transceiver
             final String host = _incoming ? (ipInfo != null ? ipInfo.remoteAddress : "") : _host;
             final int port = ipInfo != null ? ipInfo.remotePort : -1;
             _engine = _instance.createSSLEngine(_incoming, host, port);
-            _appInput = ByteBuffer.allocateDirect(_engine.getSession().getApplicationBufferSize() * 2);
+            _appInput = ByteBuffer.allocate(_engine.getSession().getApplicationBufferSize() * 2);
+
+            // Require BIG_ENDIAN byte buffers. This is needed for Android >= 8.0 which can read
+            // the SSL messages directly with these buffers.
             int bufSize = _engine.getSession().getPacketBufferSize() * 2;
-            _netInput = new com.zeroc.IceInternal.Buffer(ByteBuffer.allocateDirect(bufSize * 2));
-            _netOutput = new com.zeroc.IceInternal.Buffer(ByteBuffer.allocateDirect(bufSize * 2));
+            _netInput = new com.zeroc.IceInternal.Buffer(ByteBuffer.allocateDirect(bufSize * 2),
+                                                         java.nio.ByteOrder.BIG_ENDIAN);
+            _netOutput = new com.zeroc.IceInternal.Buffer(ByteBuffer.allocateDirect(bufSize * 2),
+                                                          java.nio.ByteOrder.BIG_ENDIAN);
         }
 
         int status = handshakeNonBlocking();

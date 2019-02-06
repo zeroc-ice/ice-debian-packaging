@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package com.zeroc.Ice;
 
@@ -18,6 +13,7 @@ import com.zeroc.IceInternal.Incoming;
  **/
 public interface Object
 {
+    /** @hidden */
     final static String[] _iceIds =
     {
         "::Ice::Object"
@@ -121,6 +117,7 @@ public interface Object
         return _iceIds[0];
     }
 
+    /** @hidden */
     final static String[] _iceOps =
     {
         "ice_id",
@@ -147,6 +144,13 @@ public interface Object
         return _iceDispatch(in, in.getCurrent());
     }
 
+    /**
+     * @hidden
+     * @param in -
+     * @param current -
+     * @return -
+     * @throws UserException -
+     **/
     default CompletionStage<OutputStream> _iceDispatch(Incoming in, Current current)
         throws UserException
     {
@@ -180,6 +184,10 @@ public interface Object
         throw new OperationNotExistException(current.id, current.facet, current.operation);
     }
 
+    /**
+     * @hidden
+     * @param ostr -
+     **/
     default void _iceWrite(OutputStream ostr)
     {
          ostr.startValue(null);
@@ -187,10 +195,18 @@ public interface Object
          ostr.endValue();
     }
 
+    /**
+     * @hidden
+     * @param ostr -
+     **/
     default void _iceWriteImpl(OutputStream ostr)
     {
     }
 
+    /**
+     * @hidden
+     * @param istr -
+     **/
     default void _iceRead(InputStream istr)
     {
          istr.startValue();
@@ -198,10 +214,21 @@ public interface Object
          istr.endValue(false);
     }
 
+    /**
+     * @hidden
+     * @param istr -
+     **/
     default void _iceReadImpl(InputStream istr)
     {
     }
 
+    /**
+     * @hidden
+     * @param obj -
+     * @param inS -
+     * @param current -
+     * @return -
+     **/
     static CompletionStage<OutputStream> _iceD_ice_isA(Object obj, Incoming inS, Current current)
     {
         InputStream istr = inS.startReadParams();
@@ -214,6 +241,13 @@ public interface Object
         return inS.setResult(ostr);
     }
 
+    /**
+     * @hidden
+     * @param obj -
+     * @param inS -
+     * @param current -
+     * @return -
+     **/
     static CompletionStage<OutputStream> _iceD_ice_ping(Object obj, Incoming inS, Current current)
     {
         inS.readEmptyParams();
@@ -221,6 +255,13 @@ public interface Object
         return inS.setResult(inS.writeEmptyParams());
     }
 
+    /**
+     * @hidden
+     * @param obj -
+     * @param inS -
+     * @param current -
+     * @return -
+     **/
     static CompletionStage<OutputStream> _iceD_ice_ids(Object obj, Incoming inS, Current current)
     {
         inS.readEmptyParams();
@@ -231,6 +272,13 @@ public interface Object
         return inS.setResult(ostr);
     }
 
+    /**
+     * @hidden
+     * @param obj -
+     * @param inS -
+     * @param current -
+     * @return -
+     **/
     static CompletionStage<OutputStream> _iceD_ice_id(Object obj, Incoming inS, Current current)
     {
         inS.readEmptyParams();
@@ -241,6 +289,11 @@ public interface Object
         return inS.setResult(ostr);
     }
 
+    /**
+     * @hidden
+     * @param mode -
+     * @return -
+     **/
     static String _iceOperationModeToString(OperationMode mode)
     {
         if(mode == OperationMode.Normal)
@@ -260,6 +313,11 @@ public interface Object
         return "???";
     }
 
+    /**
+     * @hidden
+     * @param expected -
+     * @param received -
+     **/
     static void _iceCheckMode(OperationMode expected, OperationMode received)
     {
         if(expected == null)

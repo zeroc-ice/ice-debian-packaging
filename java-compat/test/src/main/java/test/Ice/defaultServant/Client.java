@@ -1,30 +1,16 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.defaultServant;
 
-public class Client extends test.Util.Application
+public class Client extends test.TestHelper
 {
-    @Override
-    public int run(String[] args)
+    public void run(String[] args)
     {
-        AllTests.allTests(this);
-
-        return 0;
-    }
-
-    public static void main(String[] args)
-    {
-        Client c = new Client();
-        int status = c.main("Client", args);
-
-        System.gc();
-        System.exit(status);
+        try(Ice.Communicator communicator = initialize(args))
+        {
+            AllTests.allTests(this);
+        }
     }
 }

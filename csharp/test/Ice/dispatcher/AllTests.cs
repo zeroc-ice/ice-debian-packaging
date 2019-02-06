@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 using System.Diagnostics;
@@ -13,7 +8,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using Test;
 
-public class AllTests : TestCommon.AllTests
+public class AllTests : Test.AllTests
 {
     public class Progress : IProgress<bool>
     {
@@ -36,9 +31,10 @@ public class AllTests : TestCommon.AllTests
 
     private class Callback
     {
-        internal Callback()
+        internal Callback(System.IO.TextWriter output)
         {
             _called = false;
+            _output = output;
         }
 
         public void check()
@@ -63,7 +59,7 @@ public class AllTests : TestCommon.AllTests
         {
             if(!(ex is Ice.NoEndpointException))
             {
-                WriteLine(ex.ToString());
+                _output.WriteLine(ex.ToString());
                 test(false);
             }
             test(Dispatcher.isDispatcherThread());
@@ -79,7 +75,7 @@ public class AllTests : TestCommon.AllTests
         {
             if(!(ex is Ice.CommunicatorDestroyedException))
             {
-                WriteLine(ex.ToString());
+                _output.WriteLine(ex.ToString());
                 test(false);
             }
         }
@@ -100,29 +96,31 @@ public class AllTests : TestCommon.AllTests
         }
 
         private bool _called;
+        private System.IO.TextWriter _output;
     }
 
-    public static void allTests(TestCommon.Application app)
+    public static void allTests(Test.TestHelper helper)
     {
-        Ice.Communicator communicator = app.communicator();
-        string sref = "test:" + app.getTestEndpoint(0);
+        var output = helper.getWriter();
+        Ice.Communicator communicator = helper.communicator();
+        string sref = "test:" + helper.getTestEndpoint(0);
         Ice.ObjectPrx obj = communicator.stringToProxy(sref);
         test(obj != null);
 
         Test.TestIntfPrx p = Test.TestIntfPrxHelper.uncheckedCast(obj);
 
-        sref = "testController:" + app.getTestEndpoint(1);
+        sref = "testController:" + helper.getTestEndpoint(1);
         obj = communicator.stringToProxy(sref);
         test(obj != null);
 
         Test.TestIntfControllerPrx testController = Test.TestIntfControllerPrxHelper.uncheckedCast(obj);
 
-        Write("testing dispatcher... ");
-        Flush();
+        output.Write("testing dispatcher... ");
+        output.Flush();
         {
             p.op();
 
-            Callback cb = new Callback();
+            Callback cb = new Callback(output);
             p.begin_op().whenCompleted(cb.response, cb.exception);
             cb.check();
 
@@ -134,7 +132,7 @@ public class AllTests : TestCommon.AllTests
             // Expect InvocationTimeoutException.
             //
             {
-                Test.TestIntfPrx to = Test.TestIntfPrxHelper.uncheckedCast(p.ice_invocationTimeout(250));
+                Test.TestIntfPrx to = Test.TestIntfPrxHelper.uncheckedCast(p.ice_invocationTimeout(10));
                 to.begin_sleep(500).whenCompleted(
                     () =>
                     {
@@ -160,14 +158,14 @@ public class AllTests : TestCommon.AllTests
             testController.resumeAdapter();
             r.waitForCompleted();
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing dispatcher with continuations... ");
-        Flush();
+        output.Write("testing dispatcher with continuations... ");
+        output.Flush();
         {
             p.op();
 
-            Callback cb = new Callback();
+            Callback cb = new Callback(output);
             System.Action<Task> continuation = (Task previous) =>
             {
                 try
@@ -199,7 +197,7 @@ public class AllTests : TestCommon.AllTests
             // Expect InvocationTimeoutException.
             //
             {
-                Test.TestIntfPrx to = Test.TestIntfPrxHelper.uncheckedCast(p.ice_invocationTimeout(250));
+                Test.TestIntfPrx to = Test.TestIntfPrxHelper.uncheckedCast(p.ice_invocationTimeout(20));
                 to.sleepAsync(500).ContinueWith(
                     previous =>
                     {
@@ -232,7 +230,7 @@ public class AllTests : TestCommon.AllTests
             // Expect InvocationTimeoutException.
             //
             {
-                Test.TestIntfPrx to = Test.TestIntfPrxHelper.uncheckedCast(p.ice_invocationTimeout(250));
+                Test.TestIntfPrx to = Test.TestIntfPrxHelper.uncheckedCast(p.ice_invocationTimeout(10));
                 to.sleepAsync(500).ContinueWith(
                     previous =>
                     {
@@ -282,10 +280,10 @@ public class AllTests : TestCommon.AllTests
             testController.resumeAdapter();
             t.Wait();
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing dispatcher with async/await... ");
-        Flush();
+        output.Write("testing dispatcher with async/await... ");
+        output.Flush();
         {
             TaskCompletionSource<object> t = new TaskCompletionSource<object>();
             p.opAsync().ContinueWith(async previous => // Execute the code below from the Ice client thread pool
@@ -306,7 +304,7 @@ public class AllTests : TestCommon.AllTests
                         test(Dispatcher.isDispatcherThread());
                     }
 
-                    Test.TestIntfPrx to = Test.TestIntfPrxHelper.uncheckedCast(p.ice_invocationTimeout(250));
+                    Test.TestIntfPrx to = Test.TestIntfPrxHelper.uncheckedCast(p.ice_invocationTimeout(10));
                     try
                     {
                         await to.sleepAsync(500);
@@ -326,7 +324,7 @@ public class AllTests : TestCommon.AllTests
 
             t.Task.Wait();
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
         p.shutdown();
     }

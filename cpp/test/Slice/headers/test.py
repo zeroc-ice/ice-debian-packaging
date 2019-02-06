@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import glob
 
@@ -23,7 +18,7 @@ class SliceHeadersTestCase(ClientTestCase):
         os.symlink("dir2", os.path.join("slices", "linktodir2"))
 
         basedir = self.testsuite.getPath()
-        slicedir = current.driver.getSliceDir(self.mapping, current)
+        slicedir = component.getSliceDir(self.mapping, current)
         os.symlink(slicedir, "iceslices")
 
         def runTest(args):

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Slice.h>
 #include <Util.h>
@@ -21,7 +16,7 @@ using namespace Slice::Ruby;
 
 extern "C"
 VALUE
-IceRuby_loadSlice(int argc, VALUE* argv, VALUE self)
+IceRuby_loadSlice(int argc, VALUE* argv, VALUE /*self*/)
 {
     ICE_RUBY_TRY
     {
@@ -163,7 +158,7 @@ IceRuby_loadSlice(int argc, VALUE* argv, VALUE self)
 
 extern "C"
 VALUE
-IceRuby_compile(int argc, VALUE* argv, VALUE self)
+IceRuby_compile(int argc, VALUE* argv, VALUE /*self*/)
 {
     ICE_RUBY_TRY
     {
@@ -188,16 +183,6 @@ IceRuby_compile(int argc, VALUE* argv, VALUE self)
         catch(const std::exception& ex)
         {
             cerr << argSeq[0] << ": error:" << ex.what() << endl;
-            rc = EXIT_FAILURE;
-        }
-        catch(const std::string& msg)
-        {
-            cerr << argSeq[0] << ": error:" << msg << endl;
-            rc = EXIT_FAILURE;
-        }
-        catch(const char* msg)
-        {
-            cerr << argSeq[0] << ": error:" << msg << endl;
             rc = EXIT_FAILURE;
         }
         catch(...)

@@ -1,13 +1,7 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
 #include <IceUtil/Options.h>
 #include <IceUtil/CtrlCHandler.h>
 #include <IceUtil/Thread.h>
@@ -37,10 +31,7 @@
 #endif
 
 using namespace std;
-using namespace Ice;
 using namespace IceInternal;
-using namespace IceLocatorDiscovery;
-using namespace IceGrid;
 
 class Client;
 
@@ -48,7 +39,8 @@ namespace
 {
 
 IceUtil::Mutex* _staticMutex = 0;
-Client* _globalClient = 0;
+Ice::CommunicatorPtr communicator;
+IceGrid::ParserPtr parser;
 
 class Init
 {
@@ -70,128 +62,68 @@ Init init;
 
 }
 
-class SessionKeepAliveThread : public IceUtil::Thread, public IceUtil::Monitor<IceUtil::Mutex>
+class ReuseConnectionRouter : public Ice::Router
 {
 public:
 
-    SessionKeepAliveThread(const AdminSessionPrx& session, long timeout) :
-        IceUtil::Thread("IceGrid admin session keepalive thread"),
-        _session(session),
-        _timeout(IceUtil::Time::seconds(timeout)),
-        _destroy(false)
+    ReuseConnectionRouter(const Ice::ObjectPrx& proxy) : _clientProxy(proxy)
     {
     }
 
-    virtual void
-    run()
-    {
-        Lock sync(*this);
-        while(!_destroy)
-        {
-            timedWait(_timeout);
-            if(_destroy)
-            {
-                break;
-            }
-            try
-            {
-                _session->keepAlive();
-            }
-            catch(const Exception&)
-            {
-                break;
-            }
-        }
-    }
-
-    void
-    destroy()
-    {
-        Lock sync(*this);
-        _destroy = true;
-        notify();
-    }
-
-private:
-
-    AdminSessionPrx _session;
-    const IceUtil::Time _timeout;
-    bool _destroy;
-};
-typedef IceUtil::Handle<SessionKeepAliveThread> SessionKeepAliveThreadPtr;
-
-class ReuseConnectionRouter : public Router
-{
-public:
-
-    ReuseConnectionRouter(const ObjectPrx& proxy) : _clientProxy(proxy)
-    {
-    }
-
-    virtual ObjectPrx
-    getClientProxy(IceUtil::Optional<bool>& hasRoutingTable, const Current&) const
+    virtual Ice::ObjectPrx
+    getClientProxy(IceUtil::Optional<bool>& hasRoutingTable, const Ice::Current&) const
     {
         hasRoutingTable = false;
         return _clientProxy;
     }
 
-    virtual ObjectPrx
-    getServerProxy(const Current&) const
+    virtual Ice::ObjectPrx
+    getServerProxy(const Ice::Current&) const
     {
         return 0;
     }
 
     virtual void
-    addProxy(const ObjectPrx&, const Current&)
+    addProxy(const Ice::ObjectPrx&, const Ice::Current&)
     {
     }
 
-    virtual ObjectProxySeq
-    addProxies(const ObjectProxySeq&, const Current&)
+    virtual Ice::ObjectProxySeq
+    addProxies(const Ice::ObjectProxySeq&, const Ice::Current&)
     {
-        return ObjectProxySeq();
+        return Ice::ObjectProxySeq();
     }
 
 private:
 
-    const ObjectPrx _clientProxy;
+    const Ice::ObjectPrx _clientProxy;
 };
 
-class Client : public IceUtil::Monitor<IceUtil::Mutex>
-{
-public:
+int run(const Ice::StringSeq&);
 
-    void usage();
-    int main(StringSeq& args);
-    int run(StringSeq& args);
-    void interrupted();
-
-    CommunicatorPtr communicator() const { return _communicator; }
-    const string& appName() const { return _appName; }
-
-    string getPassword(const string&);
-
-private:
-
-    IceUtil::CtrlCHandler _ctrlCHandler;
-    CommunicatorPtr _communicator;
-    string _appName;
-    ParserPtr _parser;
-};
-
+//
+// Callback for CtrlCHandler
+//
 static void
 interruptCallback(int /*signal*/)
 {
     IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(_staticMutex);
-    if(_globalClient)
+    if(parser) // If there's an interactive parser, notify the parser.
     {
-        _globalClient->interrupted();
+        parser->interrupt();
+    }
+    else
+    {
+        //
+        // Otherwise, destroy the communicator.
+        //
+        assert(communicator);
+        communicator->destroy();
     }
 }
 
-#ifdef _WIN32
-
 int
+#ifdef _WIN32
 wmain(int argc, wchar_t* argv[])
 {
     //
@@ -199,20 +131,57 @@ wmain(int argc, wchar_t* argv[])
     //
     _setmode(_fileno(stdin), _O_BINARY);
 #else
-
-int
 main(int argc, char* argv[])
 {
 #endif
-    Client app;
-    StringSeq args = argsToStringSeq(argc, argv);
-    return app.main(args);
+    int status = 0;
+    Ice::StringSeq args = Ice::argsToStringSeq(argc, argv);
+
+    try
+    {
+        Ice::CtrlCHandler ctrlCHandler;
+        Ice::PropertiesPtr defaultProps = Ice::createProperties();
+        defaultProps->setProperty("IceGridAdmin.Server.Endpoints", "tcp -h localhost");
+        Ice::InitializationData id;
+        id.properties = createProperties(args, defaultProps);
+        id.properties->setProperty("Ice.Warn.Endpoints", "0");
+        Ice::CommunicatorHolder ich(id);
+        communicator = ich.communicator();
+
+        ctrlCHandler.setCallback(interruptCallback);
+
+        try
+        {
+            status = run(args);
+        }
+        catch(const Ice::CommunicatorDestroyedException&)
+        {
+            // Expected if the client is interrupted during the initialization.
+        }
+    }
+    catch(const IceUtil::Exception& ex)
+    {
+        consoleErr << args[0] << ": " << ex << endl;
+        status = 1;
+    }
+    catch(const std::exception& ex)
+    {
+        consoleErr << args[0] << ": std::exception: " << ex.what() << endl;
+        status = 1;
+    }
+    catch(...)
+    {
+        consoleErr << args[0] << ": unknown exception" << endl;
+        status = 1;
+    }
+
+    return status;
 }
 
 void
-Client::usage()
+usage(const string& name)
 {
-    consoleErr << "Usage: " << appName() << " [options]\n";
+    consoleErr << "Usage: " << name << " [options]\n";
     consoleErr <<
         "Options:\n"
         "-h, --help           Show this message.\n"
@@ -230,98 +199,36 @@ Client::usage()
         ;
 }
 
+string
+getPassword(const string& prompt)
+{
+    consoleOut << prompt << flush;
+    string password;
+#ifndef _WIN32
+    struct termios oldConf;
+    struct termios newConf;
+    tcgetattr(0, &oldConf);
+    newConf = oldConf;
+    newConf.c_lflag &= (~ECHO);
+    tcsetattr(0, TCSANOW, &newConf);
+    getline(cin, password);
+    tcsetattr(0, TCSANOW, &oldConf);
+#else
+    char c;
+    while((c = static_cast<char>(_getch())) != '\r')
+    {
+        password += c;
+    }
+#endif
+    consoleOut << endl;
+    return IceUtilInternal::trim(password);
+}
+
 extern "C" ICE_LOCATOR_DISCOVERY_API Ice::Plugin*
 createIceLocatorDiscovery(const Ice::CommunicatorPtr&, const string&, const Ice::StringSeq&);
 
 int
-Client::main(StringSeq& args)
-{
-    int status = EXIT_SUCCESS;
-
-    try
-    {
-        _appName = args[0];
-        InitializationData id;
-        id.properties = createProperties(args);
-        id.properties->setProperty("Ice.Warn.Endpoints", "0");
-        _communicator = initialize(id);
-
-        {
-            IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(_staticMutex);
-            _globalClient = this;
-        }
-        _ctrlCHandler.setCallback(interruptCallback);
-
-        try
-        {
-            status = run(args);
-        }
-        catch(const CommunicatorDestroyedException&)
-        {
-            // Expected if the client is interrupted during the initialization.
-        }
-    }
-    catch(const IceUtil::Exception& ex)
-    {
-        consoleErr << _appName << ": " << ex << endl;
-        status = EXIT_FAILURE;
-    }
-    catch(const std::exception& ex)
-    {
-        consoleErr << _appName << ": std::exception: " << ex.what() << endl;
-        status = EXIT_FAILURE;
-    }
-    catch(const std::string& msg)
-    {
-        consoleErr << _appName << ": " << msg << endl;
-        status = EXIT_FAILURE;
-    }
-    catch(const char* msg)
-    {
-        consoleErr << _appName << ": " << msg << endl;
-        status = EXIT_FAILURE;
-    }
-    catch(...)
-    {
-        consoleErr << _appName << ": unknown exception" << endl;
-        status = EXIT_FAILURE;
-    }
-
-    if(_communicator)
-    {
-        _communicator->destroy();
-    }
-
-    _ctrlCHandler.setCallback(0);
-    {
-        IceUtilInternal::MutexPtrLock<IceUtil::Mutex> sync(_staticMutex);
-        _globalClient = 0;
-    }
-
-    return status;
-
-}
-
-void
-Client::interrupted()
-{
-    Lock sync(*this);
-    if(_parser) // If there's an interactive parser, notify the parser.
-    {
-        _parser->interrupt();
-    }
-    else
-    {
-        //
-        // Otherwise, destroy the communicator.
-        //
-        assert(_communicator);
-        _communicator->destroy();
-    }
-}
-
-int
-Client::run(StringSeq& originalArgs)
+run(const Ice::StringSeq& args)
 {
     string commands;
     bool debug;
@@ -340,45 +247,42 @@ Client::run(StringSeq& originalArgs)
     opts.addOpt("s", "server");
     opts.addOpt("r", "replica", IceUtilInternal::Options::NeedArg, "", IceUtilInternal::Options::NoRepeat);
 
-    vector<string> args;
     try
     {
-        args = opts.parse(originalArgs);
+        if(!opts.parse(args).empty())
+        {
+            consoleErr << args[0] << ": too many arguments" << endl;
+            usage(args[0]);
+            return 1;
+        }
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
         consoleErr << e.reason << endl;
-        usage();
-        return EXIT_FAILURE;
-    }
-    if(!args.empty())
-    {
-        consoleErr << _appName << ": too many arguments" << endl;
-        usage();
-        return EXIT_FAILURE;
+        usage(args[0]);
+        return 1;
     }
 
     if(opts.isSet("help"))
     {
-        usage();
-        return EXIT_SUCCESS;
+        usage(args[0]);
+        return 0;
     }
     if(opts.isSet("version"))
     {
         consoleOut << ICE_STRING_VERSION << endl;
-        return EXIT_SUCCESS;
+        return 0;
     }
 
     if(opts.isSet("server"))
     {
-        ObjectAdapterPtr adapter =
-            communicator()->createObjectAdapterWithEndpoints("FileParser", "tcp -h localhost");
+        Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("IceGridAdmin.Server");
         adapter->activate();
-        ObjectPrx proxy = adapter->add(new FileParserI, stringToIdentity("FileParser"));
+        Ice::ObjectPrx proxy = adapter->add(new FileParserI, Ice::stringToIdentity("FileParser"));
         consoleOut << proxy << endl;
 
-        communicator()->waitForShutdown();
-        return EXIT_SUCCESS;
+        communicator->waitForShutdown();
+        return 0;
     }
 
     if(opts.isSet("e"))
@@ -391,47 +295,47 @@ Client::run(StringSeq& originalArgs)
     }
     debug = opts.isSet("debug");
 
-    bool ssl = communicator()->getProperties()->getPropertyAsInt("IceGridAdmin.AuthenticateUsingSSL");
+    bool ssl = communicator->getProperties()->getPropertyAsInt("IceGridAdmin.AuthenticateUsingSSL") > 0;
     if(opts.isSet("ssl"))
     {
         ssl = true;
     }
 
-    string id = communicator()->getProperties()->getProperty("IceGridAdmin.Username");
+    string id = communicator->getProperties()->getProperty("IceGridAdmin.Username");
     if(!opts.optArg("username").empty())
     {
         id = opts.optArg("username");
     }
-    string password = communicator()->getProperties()->getProperty("IceGridAdmin.Password");
+    string password = communicator->getProperties()->getProperty("IceGridAdmin.Password");
     if(!opts.optArg("password").empty())
     {
         password = opts.optArg("password");
     }
 
-    string host = communicator()->getProperties()->getProperty("IceGridAdmin.Host");
+    string host = communicator->getProperties()->getProperty("IceGridAdmin.Host");
     if(!opts.optArg("host").empty())
     {
         host = opts.optArg("host");
     }
 
-    string instanceName = communicator()->getProperties()->getProperty("IceGridAdmin.InstanceName");
+    string instanceName = communicator->getProperties()->getProperty("IceGridAdmin.InstanceName");
     if(!opts.optArg("instanceName").empty())
     {
         instanceName = opts.optArg("instanceName");
     }
 
-    int port = communicator()->getProperties()->getPropertyAsInt("IceGridAdmin.Port");
+    int port = communicator->getProperties()->getPropertyAsInt("IceGridAdmin.Port");
     if(!opts.optArg("port").empty())
     {
         istringstream is(opts.optArg("port"));
         if(!(is >> port))
         {
-            consoleErr << _appName << ": given port number is not a numeric value" << endl;
-            return EXIT_FAILURE;
+            consoleErr << args[0] << ": given port number is not a numeric value" << endl;
+            return 1;
         }
     }
 
-    PropertiesPtr properties = communicator()->getProperties();
+    Ice::PropertiesPtr properties = communicator->getProperties();
     string replica = properties->getProperty("IceGridAdmin.Replica");
     if(!opts.optArg("replica").empty())
     {
@@ -439,14 +343,12 @@ Client::run(StringSeq& originalArgs)
     }
 
     Glacier2::RouterPrx router;
-    AdminSessionPrx session;
-    SessionKeepAliveThreadPtr keepAlive;
-    int status = EXIT_SUCCESS;
+    IceGrid::AdminSessionPrx session;
+    int status = 0;
     try
     {
-        int sessionTimeout;
         int acmTimeout = 0;
-        if(!communicator()->getDefaultLocator() && !communicator()->getDefaultRouter())
+        if(!communicator->getDefaultLocator() && !communicator->getDefaultRouter())
         {
             if(!host.empty())
             {
@@ -455,21 +357,21 @@ Client::run(StringSeq& originalArgs)
                 os << "Ice/LocatorFinder" << (ssl ? " -s" : "");
                 os << ":tcp -h \"" << host << "\" -p " << (port == 0 ? 4061 : port) << " -t " << timeout;
                 os << ":ssl -h \"" << host << "\" -p " << (port == 0 ? 4062 : port) << " -t " << timeout;
-                LocatorFinderPrx finder = LocatorFinderPrx::uncheckedCast(communicator()->stringToProxy(os.str()));
+                Ice::LocatorFinderPrx finder = Ice::LocatorFinderPrx::uncheckedCast(communicator->stringToProxy(os.str()));
                 try
                 {
-                    communicator()->setDefaultLocator(finder->getLocator());
+                    communicator->setDefaultLocator(finder->getLocator());
                 }
                 catch(const Ice::LocalException&)
                 {
                     // Ignore.
                 }
                 if(!instanceName.empty() &&
-                   communicator()->getDefaultLocator()->ice_getIdentity().category != instanceName)
+                   communicator->getDefaultLocator()->ice_getIdentity().category != instanceName)
                 {
-                    consoleErr << _appName << ": registry running on `" << host << "' uses a different instance name:\n";
-                    consoleErr << communicator()->getDefaultLocator()->ice_getIdentity().category << endl;
-                    return EXIT_FAILURE;
+                    consoleErr << args[0] << ": registry running on `" << host << "' uses a different instance name:\n";
+                    consoleErr << communicator->getDefaultLocator()->ice_getIdentity().category << endl;
+                    return 1;
                 }
             }
             else
@@ -480,8 +382,8 @@ Client::run(StringSeq& originalArgs)
                 // to lookup for locator proxies. We destroy the plugin, once we have selected a
                 // locator.
                 //
-                Ice::PluginPtr p = createIceLocatorDiscovery(communicator(), "IceGridAdmin.Discovery", Ice::StringSeq());
-                IceLocatorDiscovery::PluginPtr plugin = IceLocatorDiscovery::PluginPtr::dynamicCast(p);
+                Ice::PluginPtr pluginObj = createIceLocatorDiscovery(communicator, "IceGridAdmin.Discovery", Ice::StringSeq());
+                IceLocatorDiscovery::PluginPtr plugin = IceLocatorDiscovery::PluginPtr::dynamicCast(pluginObj);
                 plugin->initialize();
 
                 vector<Ice::LocatorPrx> locators = plugin->getLocators(instanceName, IceUtil::Time::milliSeconds(300));
@@ -502,7 +404,7 @@ Client::run(StringSeq& originalArgs)
                         getline(cin, line);
                         if(!cin.good() || line.empty())
                         {
-                            return EXIT_FAILURE;
+                            return 1;
                         }
                         line = IceUtilInternal::trim(line);
 
@@ -515,16 +417,16 @@ Client::run(StringSeq& originalArgs)
                     }
 
                     assert(num <= locators.size());
-                    communicator()->setDefaultLocator(locators[num - 1]);
+                    communicator->setDefaultLocator(locators[num - 1]);
                 }
                 else if(locators.size() == 1)
                 {
                     consoleOut << "using discovered locator:\nproxy = `" << locators[0] << "'" << endl;
-                    communicator()->setDefaultLocator(locators[0]);
+                    communicator->setDefaultLocator(locators[0]);
                 }
                 else
                 {
-                    communicator()->setDefaultLocator(0);
+                    communicator->setDefaultLocator(0);
                 }
 
                 //
@@ -534,33 +436,33 @@ Client::run(StringSeq& originalArgs)
             }
         }
 
-        if(communicator()->getDefaultRouter())
+        if(communicator->getDefaultRouter())
         {
             try
             {
                 // Use SSL if available.
-                router = Glacier2::RouterPrx::checkedCast(communicator()->getDefaultRouter()->ice_preferSecure(true));
+                router = Glacier2::RouterPrx::checkedCast(communicator->getDefaultRouter()->ice_preferSecure(true));
                 if(!router)
                 {
-                    consoleErr << _appName << ": configured router is not a Glacier2 router" << endl;
-                    return EXIT_FAILURE;
+                    consoleErr << args[0] << ": configured router is not a Glacier2 router" << endl;
+                    return 1;
                 }
             }
-            catch(const LocalException& ex)
+            catch(const Ice::LocalException& ex)
             {
-                consoleErr << _appName << ": could not contact the default router:" << endl << ex << endl;
-                return EXIT_FAILURE;
+                consoleErr << args[0] << ": could not contact the default router:" << endl << ex << endl;
+                return 1;
             }
 
             if(ssl)
             {
-                session = AdminSessionPrx::uncheckedCast(router->createSessionFromSecureConnection());
+                session = IceGrid::AdminSessionPrx::uncheckedCast(router->createSessionFromSecureConnection());
                 if(!session)
                 {
-                    consoleErr << _appName
+                    consoleErr << args[0]
                          << ": Glacier2 returned a null session, please set the Glacier2.SSLSessionManager property"
                          << endl;
-                    return EXIT_FAILURE;
+                    return 1;
                 }
             }
             else
@@ -571,7 +473,7 @@ Client::run(StringSeq& originalArgs)
                     getline(cin, id);
                     if(!cin.good())
                     {
-                        return EXIT_FAILURE;
+                        return 1;
                     }
                     id = IceUtilInternal::trim(id);
                 }
@@ -582,38 +484,40 @@ Client::run(StringSeq& originalArgs)
 #ifndef _WIN32
                     if(!cin.good())
                     {
-                        return EXIT_FAILURE;
+                        return 1;
                     }
 #endif
                 }
 
-                session = AdminSessionPrx::uncheckedCast(router->createSession(id, password));
+                session = IceGrid::AdminSessionPrx::uncheckedCast(router->createSession(id, password));
                 fill(password.begin(), password.end(), '\0'); // Zero the password string.
 
                 if(!session)
                 {
-                    consoleErr << _appName
+                    consoleErr << args[0]
                          << ": Glacier2 returned a null session, please set the Glacier2.SessionManager property"
                          << endl;
-                    return EXIT_FAILURE;
+                    return 1;
                 }
             }
-            sessionTimeout = static_cast<int>(router->getSessionTimeout());
+
             try
             {
                 acmTimeout = router->getACMTimeout();
             }
             catch(const Ice::OperationNotExistException&)
             {
+                consoleErr << args[0] << ": can't talk to old Glacier2 router version" << endl;
+                return 1;
             }
         }
-        else if(communicator()->getDefaultLocator())
+        else if(communicator->getDefaultLocator())
         {
             //
             // Create the identity of the registry to connect to.
             //
-            Identity registryId;
-            registryId.category = communicator()->getDefaultLocator()->ice_getIdentity().category;
+            Ice::Identity registryId;
+            registryId.category = communicator->getDefaultLocator()->ice_getIdentity().category;
             registryId.name = "Registry";
             if(!replica.empty() && replica != "Master")
             {
@@ -626,21 +530,21 @@ Client::run(StringSeq& originalArgs)
             // proxy.
             //
             IceGrid::LocatorPrx locator;
-            RegistryPrx localRegistry;
+            IceGrid::RegistryPrx localRegistry;
             try
             {
-                locator = IceGrid::LocatorPrx::checkedCast(communicator()->getDefaultLocator());
+                locator = IceGrid::LocatorPrx::checkedCast(communicator->getDefaultLocator());
                 if(!locator)
                 {
-                    consoleErr << _appName << ": configured locator is not an IceGrid locator" << endl;
-                    return EXIT_FAILURE;
+                    consoleErr << args[0] << ": configured locator is not an IceGrid locator" << endl;
+                    return 1;
                 }
                 localRegistry = locator->getLocalRegistry();
             }
-            catch(const LocalException& ex)
+            catch(const Ice::LocalException& ex)
             {
-                consoleErr << _appName << ": could not contact the default locator:" << endl << ex << endl;
-                return EXIT_FAILURE;
+                consoleErr << args[0] << ": could not contact the default locator:" << endl << ex << endl;
+                return 1;
             }
 
             IceGrid::RegistryPrx registry;
@@ -656,24 +560,24 @@ Client::run(StringSeq& originalArgs)
 
                 try
                 {
-                    registry = RegistryPrx::checkedCast(locator->findObjectById(registryId));
+                    registry = IceGrid::RegistryPrx::checkedCast(locator->findObjectById(registryId));
                     if(!registry)
                     {
-                        consoleErr << _appName << ": could not contact an IceGrid registry" << endl;
+                        consoleErr << args[0] << ": could not contact an IceGrid registry" << endl;
                     }
                 }
-                catch(const ObjectNotFoundException&)
+                catch(const Ice::ObjectNotFoundException&)
                 {
-                    consoleErr << _appName << ": no active registry replica named `" << replica << "'" << endl;
-                    return EXIT_FAILURE;
+                    consoleErr << args[0] << ": no active registry replica named `" << replica << "'" << endl;
+                    return 1;
                 }
-                catch(const LocalException& ex)
+                catch(const Ice::LocalException& ex)
                 {
                     if(!replica.empty())
                     {
-                        consoleErr << _appName << ": could not contact the registry replica named `" << replica << "':\n";
+                        consoleErr << args[0] << ": could not contact the registry replica named `" << replica << "':\n";
                         consoleErr << ex << endl;
-                        return EXIT_FAILURE;
+                        return 1;
                     }
                     else
                     {
@@ -688,7 +592,7 @@ Client::run(StringSeq& originalArgs)
                         {
                             name = name.substr(prefix.size());
                         }
-                        consoleErr << _appName << ": warning: could not contact master, using slave `" << name << "'" << endl;
+                        consoleErr << args[0] << ": warning: could not contact master, using slave `" << name << "'" << endl;
                     }
                 }
             }
@@ -700,10 +604,10 @@ Client::run(StringSeq& originalArgs)
             //
             if(registry->ice_getIdentity() == localRegistry->ice_getIdentity())
             {
-                ObjectAdapterPtr colloc = communicator()->createObjectAdapter(""); // colloc-only adapter
-                ObjectPrx router = colloc->addWithUUID(new ReuseConnectionRouter(locator));
-                communicator()->setDefaultRouter(RouterPrx::uncheckedCast(router));
-                registry = registry->ice_router(communicator()->getDefaultRouter());
+                Ice::ObjectAdapterPtr colloc = communicator->createObjectAdapter(""); // colloc-only adapter
+                communicator->setDefaultRouter(Ice::RouterPrx::uncheckedCast(
+                    colloc->addWithUUID(new ReuseConnectionRouter(locator))));
+                registry = registry->ice_router(communicator->getDefaultRouter());
             }
 
             // Prefer SSL.
@@ -721,7 +625,7 @@ Client::run(StringSeq& originalArgs)
                     getline(cin, id);
                     if(!cin.good())
                     {
-                        return EXIT_FAILURE;
+                        return 1;
                     }
                     id = IceUtilInternal::trim(id);
                 }
@@ -732,7 +636,7 @@ Client::run(StringSeq& originalArgs)
 #ifndef _WIN32
                     if(!cin.good())
                     {
-                        return EXIT_FAILURE;
+                        return 1;
                     }
 #endif
                 }
@@ -741,79 +645,69 @@ Client::run(StringSeq& originalArgs)
                 fill(password.begin(), password.end(), '\0'); // Zero the password string.
             }
 
-            sessionTimeout = registry->getSessionTimeout();
             try
             {
                 acmTimeout = registry->getACMTimeout();
             }
             catch(const Ice::OperationNotExistException&)
             {
+                consoleErr << args[0] << ": can't talk to old IceGrid registry version" << endl;
+                return 1;
             }
         }
         else // No default locator or router set.
         {
-            consoleErr << _appName << ": could not contact the registry:" << endl;
+            consoleErr << args[0] << ": could not contact the registry:" << endl;
             consoleErr << "no default locator or router configured" << endl;
-            return EXIT_FAILURE;
+            return 1;
         }
 
         if(acmTimeout > 0)
         {
-            session->ice_getConnection()->setACM(acmTimeout, IceUtil::None, ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
-        }
-        else if(sessionTimeout > 0)
-        {
-            keepAlive = new SessionKeepAliveThread(session, sessionTimeout / 2);
-            keepAlive->start();
+            session->ice_getConnection()->setACM(acmTimeout, IceUtil::None, Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
         }
 
         {
-            Lock sync(*this);
-            _parser = Parser::createParser(communicator(), session, session->getAdmin(), commands.empty());
+            IceUtilInternal::MutexPtrLock<IceUtil::Mutex> lock(_staticMutex);
+            parser = IceGrid::Parser::createParser(communicator, session, session->getAdmin(), commands.empty());
         }
 
         if(!commands.empty()) // Commands were given
         {
-            int parseStatus = _parser->parse(commands, debug);
-            if(parseStatus == EXIT_FAILURE)
+            int parseStatus = parser->parse(commands, debug);
+            if(parseStatus == 1)
             {
-                status = EXIT_FAILURE;
+                status = 1;
             }
         }
         else // No commands, let's use standard input
         {
-            _parser->showBanner();
+            parser->showBanner();
 
-            int parseStatus = _parser->parse(stdin, debug);
-            if(parseStatus == EXIT_FAILURE)
+            int parseStatus = parser->parse(stdin, debug);
+            if(parseStatus == 1)
             {
-                status = EXIT_FAILURE;
+                status = 1;
             }
         }
     }
     catch(const IceGrid::PermissionDeniedException& ex)
     {
         consoleOut << "permission denied:\n" << ex.reason << endl;
-        return EXIT_FAILURE;
+        return 1;
     }
     catch(const Glacier2::PermissionDeniedException& ex)
     {
         consoleOut << "permission denied:\n" << ex.reason << endl;
-        return EXIT_FAILURE;
+        return 1;
     }
     catch(const Glacier2::CannotCreateSessionException& ex)
     {
         consoleOut << "session creation failed:\n" << ex.reason << endl;
-        return EXIT_FAILURE;
+        return 1;
     }
     catch(...)
     {
-        if(keepAlive)
-        {
-            keepAlive->destroy();
-            keepAlive->getThreadControl().join();
-        }
-
         try
         {
             if(router)
@@ -825,16 +719,10 @@ Client::run(StringSeq& originalArgs)
                 session->destroy();
             }
         }
-        catch(const Exception&)
+        catch(const Ice::Exception&)
         {
         }
         throw;
-    }
-
-    if(keepAlive)
-    {
-        keepAlive->destroy();
-        keepAlive->getThreadControl().join();
     }
 
     if(session)
@@ -850,7 +738,7 @@ Client::run(StringSeq& originalArgs)
                 session->destroy();
             }
         }
-        catch(const Exception&)
+        catch(const Ice::Exception&)
         {
             // Ignore. If the registry has been shutdown this will cause
             // an exception.
@@ -858,29 +746,4 @@ Client::run(StringSeq& originalArgs)
     }
 
     return status;
-}
-
-string
-Client::getPassword(const string& prompt)
-{
-    consoleOut << prompt << flush;
-    string password;
-#ifndef _WIN32
-    struct termios oldConf;
-    struct termios newConf;
-    tcgetattr(0, &oldConf);
-    newConf = oldConf;
-    newConf.c_lflag &= (~ECHO);
-    tcsetattr(0, TCSANOW, &newConf);
-    getline(cin, password);
-    tcsetattr(0, TCSANOW, &oldConf);
-#else
-    char c;
-    while((c = _getch()) != '\r')
-    {
-        password += c;
-    }
-#endif
-    consoleOut << endl;
-    return IceUtilInternal::trim(password);
 }

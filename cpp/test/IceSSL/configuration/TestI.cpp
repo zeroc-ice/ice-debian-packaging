@@ -1,16 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <IceUtil/Thread.h>
 #include <TestI.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <IceSSL/Plugin.h>
 #include <IceSSL/ConnectionInfo.h>
 

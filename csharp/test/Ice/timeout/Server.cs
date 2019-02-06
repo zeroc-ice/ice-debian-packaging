@@ -1,66 +1,54 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-using System;
-using System.Reflection;
-
-[assembly: CLSCompliant(true)]
-
-[assembly: AssemblyTitle("IceTest")]
-[assembly: AssemblyDescription("Ice test")]
-[assembly: AssemblyCompany("ZeroC, Inc.")]
-
-public class Server : TestCommon.Application
+namespace Ice
 {
-    public override int run(string[] args)
+    namespace timeout
     {
-        communicator().getProperties().setProperty("TestAdapter.Endpoints", getTestEndpoint(0));
-        communicator().getProperties().setProperty("ControllerAdapter.Endpoints", getTestEndpoint(1));
-        communicator().getProperties().setProperty("ControllerAdapter.ThreadPool.Size", "1");
+        public class Server : global::Test.TestHelper
+        {
+            public override void run(string[] args)
+            {
+                var properties = createTestProperties(ref args);
+                //
+                // This test kills connections, so we don't want warnings.
+                //
+                properties.setProperty("Ice.Warn.Connections", "0");
 
-        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
-        adapter.add(new TimeoutI(), Ice.Util.stringToIdentity("timeout"));
-        adapter.activate();
+                //
+                // The client sends large messages to cause the transport
+                // buffers to fill up.
+                //
+                properties.setProperty("Ice.MessageSizeMax", "20000");
 
-        Ice.ObjectAdapter controllerAdapter = communicator().createObjectAdapter("ControllerAdapter");
-        controllerAdapter.add(new ControllerI(adapter), Ice.Util.stringToIdentity("controller"));
-        controllerAdapter.activate();
+                //
+                // Limit the recv buffer size, this test relies on the socket
+                // send() blocking after sending a given amount of data.
+                //
+                properties.setProperty("Ice.TCP.RcvSize", "50000");
+                using(var communicator = initialize(properties))
+                {
+                    communicator.getProperties().setProperty("TestAdapter.Endpoints", getTestEndpoint(0));
+                    communicator.getProperties().setProperty("ControllerAdapter.Endpoints", getTestEndpoint(1));
+                    communicator.getProperties().setProperty("ControllerAdapter.ThreadPool.Size", "1");
 
-        communicator().waitForShutdown();
-        return 0;
-    }
+                    var adapter = communicator.createObjectAdapter("TestAdapter");
+                    adapter.add(new TimeoutI(), Ice.Util.stringToIdentity("timeout"));
+                    adapter.activate();
 
-    protected override Ice.InitializationData getInitData(ref string[] args)
-    {
-        Ice.InitializationData initData = base.getInitData(ref args);
-        //
-        // This test kills connections, so we don't want warnings.
-        //
-        initData.properties.setProperty("Ice.Warn.Connections", "0");
+                    var controllerAdapter = communicator.createObjectAdapter("ControllerAdapter");
+                    controllerAdapter.add(new ControllerI(adapter), Ice.Util.stringToIdentity("controller"));
+                    controllerAdapter.activate();
+                    serverReady();
+                    communicator.waitForShutdown();
+                }
+            }
 
-        //
-        // The client sends large messages to cause the transport
-        // buffers to fill up.
-        //
-        initData.properties.setProperty("Ice.MessageSizeMax", "20000");
-
-        //
-        // Limit the recv buffer size, this test relies on the socket
-        // send() blocking after sending a given amount of data.
-        //
-        initData.properties.setProperty("Ice.TCP.RcvSize", "50000");
-        return initData;
-    }
-
-    public static int Main(string[] args)
-    {
-        Server app = new Server();
-        return app.runmain(args);
+            public static int Main(string[] args)
+            {
+                return global::Test.TestDriver.runTest<Server>(args);
+            }
+        }
     }
 }

@@ -1,24 +1,20 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 
 using namespace std;
 using namespace Test;
 
 InitialPrxPtr
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
     cout << "testing stringToProxy... " << flush;
-    string ref = "initial:" + getTestEndpoint(communicator, 0);
+    string ref = "initial:" + helper->getTestEndpoint();
     Ice::ObjectPrxPtr base = communicator->stringToProxy(ref);
     test(base);
     cout << "ok" << endl;

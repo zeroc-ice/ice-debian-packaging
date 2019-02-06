@@ -1,2 +1,2 @@
-ParamsOutOfOrder.ice:17: `l3': in parameters cannot follow out parameters
-ParamsOutOfOrder.ice:18: `l3': in parameters cannot follow out parameters
+ParamsOutOfOrder.ice:10: `l3': in parameters cannot follow out parameters
+ParamsOutOfOrder.ice:11: `l3': in parameters cannot follow out parameters

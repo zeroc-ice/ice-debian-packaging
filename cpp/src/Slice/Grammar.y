@@ -1,13 +1,8 @@
 %{
 
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Slice/GrammarUtil.h>
 #include <IceUtil/InputUtil.h>
@@ -15,11 +10,12 @@
 #include <cstring>
 
 #ifdef _MSC_VER
-// I get these warnings from some bison versions:
 // warning C4102: 'yyoverflowlab' : unreferenced label
-#   pragma warning( disable : 4102 )
+#   pragma warning(disable:4102)
 // warning C4065: switch statement contains 'default' but no 'case' labels
-#   pragma warning( disable : 4065 )
+#   pragma warning(disable:4065)
+// warning C4244: '=': conversion from 'int' to 'yytype_int16', possible loss of data
+#   pragma warning(disable:4244)
 #endif
 
 //

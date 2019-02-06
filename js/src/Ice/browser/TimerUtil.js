@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 //
 // jshint browser: true
@@ -15,67 +10,22 @@
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 
-//
-// Create a timer object that uses the default browser methods. Note that we also
-// have to use apply with null as the first argument to workaround an issue where
-// IE doesn't like these functions to be called with an unknown object (it reports
-// an "Invalid calling object" error).
-//
-function createTimerObject()
+function isIE()
 {
-    const Timer = class
-    {
-        static setTimeout(cb, ms)
-        {
-            return setTimeout.apply(null, arguments);
-        }
-
-        static clearTimeout(id)
-        {
-            return clearTimeout.apply(null, arguments);
-        }
-
-        static setInterval()
-        {
-            return setInterval.apply(null, arguments);
-        }
-
-        static clearInterval()
-        {
-            return clearInterval.apply(null, arguments);
-        }
-    };
-
-    if(typeof(setImmediate) == "function")
-    {
-        Timer.setImmediate = function()
-        {
-            return setImmediate.apply(null, arguments);
-        };
-    }
-    else
-    {
-        Timer.setImmediate = function()
-        {
-            return setTimeout.apply(null, arguments);
-        };
-    }
-
-    return Timer;
+    return (navigator.userAgent.indexOf("MSIE") !== -1 || navigator.userAgent.match(/Trident.*rv:11\./));
 }
 
-const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER  || 9007199254740991;
+function isEdge()
+{
+    return (/Edge/).test(navigator.userAgent);
+}
 
-const _timers = new Map();
+function isWorker()
+{
+    return typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+}
 
-const _SetTimeoutType = 0;
-const _SetIntervalType = 1;
-const _SetImmediateType = 2;
-const _ClearTimeoutType = 3;
-const _ClearIntervalType = 4;
-
-let worker;
-
+const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || 9007199254740991;
 let _nextId = 0;
 const nextId = function()
 {
@@ -85,6 +35,82 @@ const nextId = function()
     }
     return _nextId++;
 };
+const _timers = new Map();
+
+//
+// Create a timer object that uses the default browser methods.
+//
+function createTimerObject()
+{
+    const Timer = class
+    {
+        static setTimeout(cb, ms)
+        {
+            return setTimeout(cb, ms);
+        }
+
+        static clearTimeout(id)
+        {
+            return clearTimeout(id);
+        }
+
+        static setInterval(cb, ms)
+        {
+            return setInterval(cb, ms);
+        }
+
+        static clearInterval(id)
+        {
+            return clearInterval(id);
+        }
+    };
+
+    //
+    // For Browsers that support setImmediate prefer that,
+    // otherwise implement it using MessageChannel
+    //
+    if(isEdge() || isIE())
+    {
+        Timer.setImmediate = function(cb)
+        {
+            setImmediate(cb);
+        };
+    }
+    else
+    {
+        //
+        // Should be only call for workers
+        //
+        const channel = new MessageChannel();
+        channel.port1.onmessage = event =>
+        {
+            const id = event.data;
+            const cb = _timers.get(id);
+            if(cb !== undefined)
+            {
+                cb.call();
+                _timers.delete(id);
+            }
+        };
+
+        Timer.setImmediate = function(cb)
+        {
+            const id = nextId();
+            _timers.set(id, cb);
+            channel.port2.postMessage(id);
+        };
+    }
+
+    return Timer;
+}
+
+const _SetTimeoutType = 0;
+const _SetIntervalType = 1;
+const _SetImmediateType = 2;
+const _ClearTimeoutType = 3;
+const _ClearIntervalType = 4;
+
+let worker;
 
 class Timer
 {
@@ -186,16 +212,14 @@ const workerCode = function()
     }.toString() + "());";
 };
 
-if(typeof navigator !== "undefined" &&
-   (navigator.userAgent.indexOf("MSIE") !== -1 ||
-    navigator.userAgent.match(/Trident.*rv:11\./)))
+if(isIE())
 {
     //
     // With IE always use the setInterval/setTimeout browser functions directly
     //
     Ice.Timer = createTimerObject();
 }
-else if(typeof WorkerGlobalScope !== 'undefined' && this instanceof WorkerGlobalScope)
+else if(isWorker())
 {
     //
     // If we are running in a worker don't spawn a separate worker for the timer
@@ -204,7 +228,7 @@ else if(typeof WorkerGlobalScope !== 'undefined' && this instanceof WorkerGlobal
 }
 else if(worker === undefined)
 {
-    const url = URL.createObjectURL(new Blob([workerCode()], {type : 'text/javascript'}));
+    const url = URL.createObjectURL(new Blob([workerCode()], {type: 'text/javascript'}));
     worker = new Worker(url);
     worker.onmessage = Timer.onmessage;
     Ice.Timer = Timer;

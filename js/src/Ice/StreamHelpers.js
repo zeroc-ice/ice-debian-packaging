@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/OptionalFormat").Ice;
 
@@ -154,11 +149,10 @@ class SequenceHelper
 
 // Speacialization optimized for ByteSeq
 const byteSeqHelper = new SequenceHelper();
-byteSeqHelper.write = function(os, v) { return os.writeByteSeq(v); };
-byteSeqHelper.read = function(is) { return is.readByteSeq(); };
-defineProperty(byteSeqHelper, "elementHelper", {
-    get: function(){ return Ice.ByteHelper; }
-});
+byteSeqHelper.write = (os, v) => os.writeByteSeq(v);
+byteSeqHelper.read = is => is.readByteSeq();
+
+defineProperty(byteSeqHelper, "elementHelper", {get: () => Ice.ByteHelper});
 StreamHelpers.VSizeContainer1OptHelper.call(byteSeqHelper);
 
 // Read method for value sequences
@@ -170,7 +164,10 @@ const valueSequenceHelperRead = function(is)
     const elementType = this.elementType;
     const readValueAtIndex = function(idx)
     {
-        is.readValue(obj => v[idx] = obj, elementType);
+        is.readValue(obj =>
+                     {
+                         v[idx] = obj;
+                     }, elementType);
     };
 
     for(let i = 0; i < sz; ++i)
@@ -204,15 +201,11 @@ StreamHelpers.generateSeqHelper = function(elementHelper, fixed, elementType)
         StreamHelpers.FSizeOptHelper.call(helper);
     }
 
-    defineProperty(helper, "elementHelper", {
-        get: function(){ return elementHelper; }
-    });
+    defineProperty(helper, "elementHelper", {get: () => elementHelper});
 
     if(elementHelper == Ice.ObjectHelper)
     {
-        defineProperty(helper, "elementType", {
-            get: function(){ return elementType; }
-        });
+        defineProperty(helper, "elementType", {get: () => elementType});
         helper.read = valueSequenceHelperRead;
     }
 
@@ -301,23 +294,28 @@ StreamHelpers.generateDictHelper = function(keyHelper, valueHelper, fixed, value
         StreamHelpers.FSizeOptHelper.call(helper);
     }
 
-    defineProperty(helper, "mapType", {
-        get: function(){ return mapType; }
-    });
+    defineProperty(helper,
+                   "mapType",
+                   {
+                       get: () => mapType
+                   });
 
-    defineProperty(helper, "keyHelper", {
-        get: function(){ return keyHelper; }
-    });
+    defineProperty(helper, "keyHelper",
+                   {
+                       get: () => keyHelper
+                   });
 
-    defineProperty(helper, "valueHelper", {
-        get: function(){ return valueHelper; }
-    });
+    defineProperty(helper, "valueHelper",
+                   {
+                       get: () => valueHelper
+                   });
 
     if(valueHelper == Ice.ObjectHelper)
     {
-        defineProperty(helper, "valueType", {
-            get: function(){ return valueType; }
-        });
+        defineProperty(helper, "valueType",
+                       {
+                           get: () => valueType
+                       });
 
         helper.read = valueDictionaryHelperRead;
     }

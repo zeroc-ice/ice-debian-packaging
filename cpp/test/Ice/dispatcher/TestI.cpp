@@ -1,16 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <TestI.h>
 #include <Ice/Ice.h>
 #include <Dispatcher.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <IceUtil/Thread.h>
 
 using namespace std;

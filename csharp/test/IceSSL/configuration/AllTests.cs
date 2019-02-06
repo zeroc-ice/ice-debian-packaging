@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 //
 // NOTE: This test is not interoperable with other language mappings.
@@ -27,6 +22,11 @@ public class AllTests
         {
             throw new Exception();
         }
+    }
+
+    private static X509Certificate2 createCertificate(string certPEM)
+    {
+        return new X509Certificate2(System.Text.Encoding.ASCII.GetBytes(certPEM));
     }
 
     private static Ice.InitializationData
@@ -94,10 +94,10 @@ public class AllTests
         return initData;
     }
 
-    public static Test.ServerFactoryPrx allTests(TestCommon.Application app, string testDir)
+    public static Test.ServerFactoryPrx allTests(Test.TestHelper helper, string testDir)
     {
-        Ice.Communicator communicator = app.communicator();
-        string factoryRef = "factory:" + app.getTestEndpoint(0, "tcp");
+        Ice.Communicator communicator = helper.communicator();
+        string factoryRef = "factory:" + helper.getTestEndpoint(0, "tcp");
 
         Ice.ObjectPrx b = communicator.stringToProxy(factoryRef);
         test(b != null);
@@ -124,8 +124,8 @@ public class AllTests
         X509Certificate2 caCert1 = new X509Certificate2(caCert1File);
         X509Certificate2 caCert2 = new X509Certificate2(caCert2File);
 
-        test(Enumerable.SequenceEqual(IceSSL.Util.createCertificate(File.ReadAllText(caCert1File)).RawData, caCert1.RawData));
-        test(Enumerable.SequenceEqual(IceSSL.Util.createCertificate(File.ReadAllText(caCert2File)).RawData, caCert2.RawData));
+        test(Enumerable.SequenceEqual(createCertificate(File.ReadAllText(caCert1File)).RawData, caCert1.RawData));
+        test(Enumerable.SequenceEqual(createCertificate(File.ReadAllText(caCert2File)).RawData, caCert2.RawData));
 
         X509Store store = new X509Store(StoreName.AuthRoot, StoreLocation.LocalMachine);
         bool isAdministrator = false;
@@ -880,7 +880,7 @@ public class AllTests
                     // the cert size should be 2.
                     //
                     d = createServerProps(defaultProperties, "s_rsa_wroot_ca1", "");
-                    d["IceSSL.VerifyPeer"] = "0";;
+                    d["IceSSL.VerifyPeer"] = "0";
                     server = fact.createServer(d);
                     try
                     {
@@ -907,7 +907,7 @@ public class AllTests
 
                     {
                         d = createServerProps(defaultProperties, "s_rsa_ca1", "");
-                        d["IceSSL.VerifyPeer"] = "0";;
+                        d["IceSSL.VerifyPeer"] = "0";
                         server = fact.createServer(d);
                         try
                         {
@@ -936,7 +936,7 @@ public class AllTests
 
                     {
                         d = createServerProps(defaultProperties, "s_rsa_cai1", "");
-                        d["IceSSL.VerifyPeer"] = "0";;
+                        d["IceSSL.VerifyPeer"] = "0";
                         server = fact.createServer(d);
                         try
                         {
@@ -994,7 +994,7 @@ public class AllTests
 
                         {
                             d = createServerProps(defaultProperties, "s_rsa_cai2", "");
-                            d["IceSSL.VerifyPeer"] = "0";;
+                            d["IceSSL.VerifyPeer"] = "0";
                             server = fact.createServer(d);
                             try
                             {
@@ -1022,7 +1022,7 @@ public class AllTests
 
                         {
                             d = createServerProps(defaultProperties, "s_rsa_cai2", "");
-                            d["IceSSL.VerifyPeer"] = "0";;
+                            d["IceSSL.VerifyPeer"] = "0";
                             server = fact.createServer(d);
                             try
                             {

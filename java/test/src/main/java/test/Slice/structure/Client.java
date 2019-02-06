@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Slice.structure;
 
@@ -16,16 +11,8 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 
-public class Client
+public class Client extends test.TestHelper
 {
-    private static void test(boolean b)
-    {
-        if(!b)
-        {
-            throw new RuntimeException();
-        }
-    }
-
     private static void allTests(com.zeroc.Ice.Communicator communicator)
     {
         System.out.print("testing equals() for Slice structures... ");
@@ -272,27 +259,11 @@ public class Client
         System.out.println("ok");
     }
 
-    private static int run(String[] args, com.zeroc.Ice.Communicator communicator)
+    public void run(String[] args)
     {
-        allTests(communicator);
-
-        return 0;
-    }
-
-    public static void main(String[] args)
-    {
-        int status;
-        java.util.List<String> rArgs = new java.util.ArrayList<>();
-        try(com.zeroc.Ice.Communicator communicator = com.zeroc.Ice.Util.initialize(args, rArgs))
+        try(com.zeroc.Ice.Communicator communicator = initialize(args))
         {
-            status = run(rArgs.toArray(new String[rArgs.size()]), communicator);
+            allTests(communicator);
         }
-        catch(Exception ex)
-        {
-            ex.printStackTrace();
-            status = 1;
-        }
-        System.gc();
-        System.exit(status);
     }
 }

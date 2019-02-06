@@ -1,14 +1,12 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import sys, os
 from Util import *
+from IceBoxUtil import *
+from Glacier2Util import *
+from IcePatch2Util import *
 
 class IceGridProcess:
 
@@ -45,7 +43,7 @@ class IceGridClient(IceGridProcess, Client):
 
     getParentProps = Client.getProps # Used by IceGridProcess to get the client properties
 
-class IceGridAdmin(ProcessFromBinDir, IceGridClient):
+class IceGridAdmin(ProcessFromBinDir, ProcessIsReleaseOnly, IceGridClient):
 
     def __init__(self, replica=None, username="admin1", password="test1", *args, **kargs):
         IceGridClient.__init__(self, replica=replica, exe="icegridadmin", mapping=Mapping.getByName("cpp"),
@@ -109,7 +107,7 @@ class IceGridNode(ProcessFromBinDir, Server):
     def getPropertiesOverride(self, current):
         # Add properties for servers based on the test case mapping.
         props = Server().getEffectiveProps(current, {})
-        return ' '.join(["{0}={1}".format(k, val(v, escapeQuotes=True)) for k, v in props.items()])
+        return ' '.join(["{0}={1}".format(k, val(v)) for k, v in props.items()])
 
     def shutdown(self, current):
         current.testcase.runadmin(current, "node shutdown {0}".format(self.name))
@@ -228,7 +226,7 @@ class IceGridTestCase(TestCase):
             javaHome = os.environ.get("JAVA_HOME", None)
             serverProps = Server().getProps(current)
             variables = {
-                "test.dir" : self.getPath(),
+                "test.dir" : self.getPath(current),
                 "java.exe" : os.path.join(javaHome, "bin", "java") if javaHome else "java",
                 "icebox.exe" : IceBox().getCommandLine(current),
                 "icegridnode.exe" : IceGridNode().getCommandLine(current),
@@ -238,19 +236,19 @@ class IceGridTestCase(TestCase):
                 "properties-override" : self.icegridnode[0].getPropertiesOverride(current),
             }
 
-            if platform.getDotnetExe():
-                variables["dotnet.exe"] = platform.getDotnetExe()
+            if platform.getDotNetExe():
+                variables["dotnet.exe"] = platform.getDotNetExe()
 
             # Add variables that point to the directories containing the built executables
             for (k, v) in self.exevars.items():
                 variables[k] = current.getBuildDir(v)
 
             variables.update(self.variables)
-            varStr = " ".join(["{0}={1}".format(k, val(v, True)) for k,v in variables.items()])
+            varStr = " ".join(["{0}={1}".format(k, val(v)) for k,v in variables.items()])
             targets = " ".join(self.targets)
             application = self.application
-            if current.config.netframework == "netcoreapp2.0":
-                application = application.replace(".xml", ".{0}.xml".format("netcoreapp2.0"))
+            if isinstance(self.mapping, CSharpMapping) and current.config.dotnetcore:
+                application = application.replace(".xml", ".netcoreapp.xml")
             self.runadmin(current, "application add -n {0} {1} {2}".format(application, varStr, targets))
 
     def teardownClientSide(self, current, success):

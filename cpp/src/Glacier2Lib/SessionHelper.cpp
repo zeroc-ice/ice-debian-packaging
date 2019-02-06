@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Glacier2/SessionHelper.h>
 
@@ -352,7 +347,7 @@ Glacier2::SessionCallback::~SessionCallback()
 namespace
 {
 
-class ConnectStrategySecureConnection : public ConnectStrategy
+class ConnectStrategySecureConnection ICE_FINAL : public ConnectStrategy
 {
 
 public:
@@ -373,7 +368,7 @@ private:
     const map<string, string> _context;
 };
 
-class ConnectStrategyUserPassword : public ConnectStrategy
+class ConnectStrategyUserPassword ICE_FINAL : public ConnectStrategy
 {
 
 public:

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.enums;
 
@@ -22,11 +17,11 @@ public class AllTests
         }
     }
 
-    public static TestIntfPrx allTests(test.Util.Application app)
+    public static TestIntfPrx allTests(test.TestHelper helper)
     {
-        com.zeroc.Ice.Communicator communicator=app.communicator();
-        PrintWriter out = app.getWriter();
-        String ref = "test:" + app.getTestEndpoint(0);
+        com.zeroc.Ice.Communicator communicator = helper.communicator();
+        PrintWriter out = helper.getWriter();
+        String ref = "test:" + helper.getTestEndpoint(0);
         com.zeroc.Ice.ObjectPrx obj = communicator.stringToProxy(ref);
         test(obj != null);
         TestIntfPrx proxy = TestIntfPrx.checkedCast(obj);

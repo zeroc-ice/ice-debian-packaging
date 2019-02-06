@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package com.zeroc.Ice;
 
@@ -78,6 +73,10 @@ public abstract class Value implements java.lang.Cloneable, java.io.Serializable
         return "::Ice::Object";
     }
 
+    /**
+     * @hidden
+     * @param ostr -
+     **/
     public void _iceWrite(OutputStream ostr)
     {
         ostr.startValue(null);
@@ -85,6 +84,10 @@ public abstract class Value implements java.lang.Cloneable, java.io.Serializable
         ostr.endValue();
     }
 
+    /**
+     * @hidden
+     * @param istr -
+     **/
     public void _iceRead(InputStream istr)
     {
         istr.startValue();
@@ -92,13 +95,22 @@ public abstract class Value implements java.lang.Cloneable, java.io.Serializable
         istr.endValue(false);
     }
 
+    /**
+     * @hidden
+     * @param ostr -
+     **/
     protected void _iceWriteImpl(OutputStream ostr)
     {
     }
 
+    /**
+     * @hidden
+     * @param istr -
+     **/
     protected void _iceReadImpl(InputStream istr)
     {
     }
 
+    /** @hidden */
     public static final long serialVersionUID = 0L;
 }

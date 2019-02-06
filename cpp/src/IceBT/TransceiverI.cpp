@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceBT/TransceiverI.h>
 #include <IceBT/ConnectionInfo.h>
@@ -31,7 +26,7 @@ IceBT::TransceiverI::getNativeInfo()
 }
 
 IceInternal::SocketOperation
-IceBT::TransceiverI::initialize(IceInternal::Buffer& readBuffer, IceInternal::Buffer& writeBuffer)
+IceBT::TransceiverI::initialize(IceInternal::Buffer& /*readBuffer*/, IceInternal::Buffer& /*writeBuffer*/)
 {
     IceUtil::Monitor<IceUtil::Mutex>::Lock lock(_lock);
 

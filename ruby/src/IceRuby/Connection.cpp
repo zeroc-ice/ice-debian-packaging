@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Connection.h>
 #include <Endpoint.h>
@@ -26,9 +21,7 @@ static VALUE _udpConnectionInfoClass;
 static VALUE _wsConnectionInfoClass;
 static VALUE _sslConnectionInfoClass;
 
-// **********************************************************************
 // Connection
-// **********************************************************************
 
 extern "C"
 void
@@ -333,9 +326,7 @@ IceRuby_Connection_equals(VALUE self, VALUE other)
     return Qnil;
 }
 
-// **********************************************************************
 // ConnectionInfo
-// **********************************************************************
 
 extern "C"
 void

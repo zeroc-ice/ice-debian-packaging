@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceSSL/Config.h>
 #include <IceSSL/UWPTransceiverI.h>
@@ -289,7 +284,7 @@ UWP::TransceiverI::finishWrite(IceInternal::Buffer& buf)
     if(_connected && !_upgraded)
     {
         IceInternal::AsyncInfo* asyncInfo = getNativeInfo()->getAsyncInfo(IceInternal::SocketOperationWrite);
-        if(asyncInfo->count == SOCKET_ERROR)
+        if(asyncInfo->error != ERROR_SUCCESS)
         {
             if(CERT_E_CN_NO_MATCH == asyncInfo->error)
             {
@@ -368,9 +363,9 @@ UWP::TransceiverI::setBufferSize(int rcvSize, int sndSize)
 }
 
 UWP::TransceiverI::TransceiverI(const InstancePtr& instance,
-                                   const IceInternal::TransceiverPtr& delegate,
-                                   const string& hostOrAdapterName,
-                                   bool incoming) :
+                                const IceInternal::TransceiverPtr& delegate,
+                                const string& hostOrAdapterName,
+                                bool incoming) :
     _instance(instance),
     _engine(UWP::SSLEnginePtr::dynamicCast(instance->engine())),
     _host(incoming ? "" : hostOrAdapterName),

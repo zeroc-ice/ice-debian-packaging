@@ -1,14 +1,9 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <InstrumentationI.h>
 #include <Test.h>
 
@@ -59,7 +54,7 @@ string
 getPort(const Ice::PropertiesAdminPrxPtr& p)
 {
     ostringstream os;
-    os << getTestPort(p->ice_getCommunicator()->getProperties(), 0);
+    os << TestHelper::getTestPort(p->ice_getCommunicator()->getProperties(), 0);
     return os.str();
 }
 
@@ -278,7 +273,7 @@ struct Void
 
 struct Connect
 {
-    Connect(const Ice::ObjectPrxPtr& proxy) : proxy(proxy)
+    Connect(const Ice::ObjectPrxPtr& proxyP) : proxy(proxyP)
     {
     }
 
@@ -307,7 +302,7 @@ struct Connect
 
 struct InvokeOp
 {
-    InvokeOp(const Test::MetricsPrxPtr& proxy) : proxy(proxy)
+    InvokeOp(const Test::MetricsPrxPtr& proxyP) : proxy(proxyP)
     {
     }
 
@@ -384,7 +379,8 @@ clearView(const Ice::PropertiesAdminPrxPtr& cprops, const Ice::PropertiesAdminPr
 }
 
 void
-checkFailure(const IceMX::MetricsAdminPrxPtr& m, const string& map, const string& id, const string& failure, int count = 0)
+checkFailure(const IceMX::MetricsAdminPrxPtr& m, const string& map, const string& id, const string& failure,
+             int count = 0)
 {
     IceMX::MetricsFailures f = m->getMetricsFailures("View", map, id);
     if(f.failures.find(failure) == f.failures.end())
@@ -414,18 +410,18 @@ toMap(const IceMX::MetricsMap& mmap)
 }
 
 MetricsPrxPtr
-allTests(const Ice::CommunicatorPtr& communicator, const CommunicatorObserverIPtr& obsv)
+allTests(Test::TestHelper* helper, const CommunicatorObserverIPtr& obsv)
 {
-    Ice::PropertiesPtr properties = communicator->getProperties();
-    string host = getTestHost(properties);
+    Ice::CommunicatorPtr communicator = helper->communicator();
+    string host = helper->getTestHost();
     string port;
     {
         ostringstream os;
-        os << getTestPort(properties, 0);
+        os << helper->getTestPort();
         port = os.str();
     }
     string hostAndPort = host + ":" + port;
-    string protocol = getTestProtocol(properties);
+    string protocol = helper->getTestProtocol();
     string endpoint;
     {
         ostringstream os;
@@ -514,13 +510,13 @@ allTests(const Ice::CommunicatorPtr& communicator, const CommunicatorObserverIPt
     if(!collocated)
     {
         test(invoke->remotes.size() == 2);
-        test(invoke->remotes[0]->total = 2);
-        test(invoke->remotes[1]->total = 3);
+        test(invoke->remotes[0]->total == 2);
+        test(invoke->remotes[1]->total == 3);
     }
     else
     {
         test(invoke->collocated.size() == 1);
-        test(invoke->collocated[0]->total = 5);
+        test(invoke->collocated[0]->total == 5);
     }
 
     view = serverMetrics->getMetricsView("View", timestamp);
@@ -638,7 +634,7 @@ allTests(const Ice::CommunicatorPtr& communicator, const CommunicatorObserverIPt
         map = toMap(clientMetrics->getMetricsView("View", timestamp)["Connection"]);
         test(map["active"]->current == 1);
 
-        Ice::ObjectPrxPtr cprx = communicator->stringToProxy("controller:" + getTestEndpoint(communicator, 1));
+        Ice::ObjectPrxPtr cprx = communicator->stringToProxy("controller:" + helper->getTestEndpoint(1));
         ControllerPrxPtr controller = ICE_CHECKED_CAST(ControllerPrx, cprx);
         controller->hold();
 
@@ -1425,6 +1421,82 @@ allTests(const Ice::CommunicatorPtr& communicator, const CommunicatorObserverIPt
     testAttribute(clientMetrics, clientProps, update.get(), "Invocation", "mode", "batch-oneway",
                   InvokeOp(metricsBatchOneway));
 
+    //
+    // Tests flushBatchRequests
+    //
+    props["IceMX.Metrics.View.Map.Invocation.GroupBy"] = "operation";
+    props["IceMX.Metrics.View.Map.Invocation.Map.Remote.GroupBy"] = "localPort";
+    updateProps(clientProps, serverProps, update.get(), props, "Invocation");
+
+    metricsBatchOneway = metrics->ice_batchOneway();
+    metricsBatchOneway->op();
+
+    metricsBatchOneway->ice_flushBatchRequests();
+#ifdef ICE_CPP11_MAPPING
+    metricsBatchOneway->ice_flushBatchRequestsAsync().get();
+    metricsBatchOneway->ice_flushBatchRequestsAsync([cb](exception_ptr) {});
+#else
+    metricsBatchOneway->end_ice_flushBatchRequests(metricsBatchOneway->begin_ice_flushBatchRequests());
+    metricsBatchOneway->begin_ice_flushBatchRequests(
+                    Ice::newCallback_Object_ice_flushBatchRequests(cb, &Callback::exception))->waitForCompleted();
+#endif
+
+    map = toMap(clientMetrics->getMetricsView("View", timestamp)["Invocation"]);
+    test(map.size() == 2);
+
+    im1 = ICE_DYNAMIC_CAST(IceMX::InvocationMetrics, map["ice_flushBatchRequests"]);
+    test(im1->current <= 1 && im1->total == 3 && im1->failures == 0 && im1->retry == 0);
+    if(!collocated)
+    {
+        test(im1->remotes.size() == 1); // The first operation got sent over a connection
+    }
+
+    if(!collocated)
+    {
+        clearView(clientProps, serverProps, update.get());
+
+        Ice::ConnectionPtr con = metricsBatchOneway->ice_getConnection();
+
+        metricsBatchOneway = metricsBatchOneway->ice_fixed(con);
+        metricsBatchOneway->op();
+
+        con->flushBatchRequests(ICE_SCOPED_ENUM(Ice::CompressBatch, No));
+#ifdef ICE_CPP11_MAPPING
+        con->flushBatchRequestsAsync(ICE_SCOPED_ENUM(Ice::CompressBatch, No)).get();
+        con->flushBatchRequestsAsync(ICE_SCOPED_ENUM(Ice::CompressBatch, No), [cb](exception_ptr) {});
+#else
+        con->end_flushBatchRequests(con->begin_flushBatchRequests(ICE_SCOPED_ENUM(Ice::CompressBatch, No)));
+        con->begin_flushBatchRequests(ICE_SCOPED_ENUM(Ice::CompressBatch, No),
+            Ice::newCallback_Connection_flushBatchRequests(cb, &Callback::exception))->waitForCompleted();
+#endif
+        map = toMap(clientMetrics->getMetricsView("View", timestamp)["Invocation"]);
+        test(map.size() == 3);
+
+        im1 = ICE_DYNAMIC_CAST(IceMX::InvocationMetrics, map["flushBatchRequests"]);
+        test(im1->current == 0 && im1->total == 3 && im1->failures == 0 && im1->retry == 0);
+        test(im1->remotes.size() == 1); // The first operation got sent over a connection
+
+        clearView(clientProps, serverProps, update.get());
+        metricsBatchOneway->op();
+
+        communicator->flushBatchRequests(ICE_SCOPED_ENUM(Ice::CompressBatch, No));
+#ifdef ICE_CPP11_MAPPING
+        communicator->flushBatchRequestsAsync(ICE_SCOPED_ENUM(Ice::CompressBatch, No)).get();
+        communicator->flushBatchRequestsAsync(ICE_SCOPED_ENUM(Ice::CompressBatch, No),
+                                              [cb](exception_ptr) {});
+#else
+        communicator->end_flushBatchRequests(
+            communicator->begin_flushBatchRequests(ICE_SCOPED_ENUM(Ice::CompressBatch, No)));
+        communicator->begin_flushBatchRequests(ICE_SCOPED_ENUM(Ice::CompressBatch, No),
+            Ice::newCallback_Communicator_flushBatchRequests(cb, &Callback::exception))->waitForCompleted();
+#endif
+        map = toMap(clientMetrics->getMetricsView("View", timestamp)["Invocation"]);
+        test(map.size() == 2);
+
+        im1 = ICE_DYNAMIC_CAST(IceMX::InvocationMetrics, map["flushBatchRequests"]);
+        test(im1->current <= 1 && im1->total == 3 && im1->failures == 0 && im1->retry == 0);
+        test(im1->remotes.size() == 1); // The first operation got sent over a connection
+    }
     cout << "ok" << endl;
 
     cout << "testing metrics view enable/disable..." << flush;

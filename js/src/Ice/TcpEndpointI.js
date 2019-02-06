@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 Ice._ModuleRegistry.require(module,
@@ -24,7 +19,7 @@ const IceSSL = Ice._ModuleRegistry.require(module, ["../Ice/EndpointInfo"]).IceS
 const Debug = Ice.Debug;
 const HashUtil = Ice.HashUtil;
 const StringUtil = Ice.StringUtil;
-const TcpTransceiver = typeof(Ice.TcpTransceiver) !== "undefined" ? Ice.TcpTransceiver : null;
+const TcpTransceiver = typeof Ice.TcpTransceiver !== "undefined" ? Ice.TcpTransceiver : null;
 
 class TcpEndpointI extends Ice.IPEndpointI
 {

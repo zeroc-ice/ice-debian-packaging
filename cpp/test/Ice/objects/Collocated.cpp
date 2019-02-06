@@ -1,25 +1,17 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <TestI.h>
 
-DEFINE_TEST("collocated")
-
-#ifdef _MSC_VER
+//
 // For 'Ice::Communicator::addObjectFactory()' deprecation
-#pragma warning( disable : 4996 )
-#endif
-
-#if defined(__GNUC__)
-// For 'Ice::Communicator::addObjectFactory()' deprecation
+//
+#if defined(_MSC_VER)
+#   pragma warning( disable : 4996 )
+#elif defined(__GNUC__)
 #   pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
@@ -81,6 +73,7 @@ public:
 
 };
 #endif
+
 class MyObjectFactory : public Ice::ObjectFactory
 {
 public:
@@ -93,7 +86,7 @@ public:
         assert(_destroyed);
     }
 
-    virtual Ice::ValuePtr create(const string& type)
+    virtual Ice::ValuePtr create(const string&)
     {
         return ICE_NULLPTR;
     }
@@ -106,9 +99,23 @@ private:
     bool _destroyed;
 };
 
-int
-run(int, char**, const Ice::CommunicatorPtr& communicator)
+class Collocated : public Test::TestHelper
 {
+public:
+
+    void run(int, char**);
+};
+
+void
+Collocated::run(int argc, char** argv)
+{
+    Ice::PropertiesPtr properties = createTestProperties(argc, argv);
+#ifndef ICE_CPP11_MAPPING
+    properties->setProperty("Ice.CollectObjects", "1");
+#endif
+    properties->setProperty("Ice.Warn.Dispatch", "0");
+    Ice::CommunicatorHolder communicator = initialize(argc, argv, properties);
+
 #ifdef ICE_CPP11_MAPPING
     communicator->getValueFactoryManager()->add(makeFactory<BI>(), "::Test::B");
     communicator->getValueFactoryManager()->add(makeFactory<CI>(), "::Test::C");
@@ -132,39 +139,15 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     communicator->addObjectFactory(new MyObjectFactory(), "TestOF");
 #endif
 
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0));
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint());
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
     adapter->add(ICE_MAKE_SHARED(InitialI, adapter), Ice::stringToIdentity("initial"));
     adapter->add(ICE_MAKE_SHARED(TestIntfI), Ice::stringToIdentity("test"));
     adapter->add(ICE_MAKE_SHARED(UnexpectedObjectExceptionTestI), Ice::stringToIdentity("uoet"));
-    InitialPrxPtr allTests(const Ice::CommunicatorPtr&);
-    InitialPrxPtr initial = allTests(communicator);
+    InitialPrxPtr allTests(Test::TestHelper*);
+    InitialPrxPtr initial = allTests(this);
     // We must call shutdown even in the collocated case for cyclic dependency cleanup
     initial->shutdown();
-    return EXIT_SUCCESS;
 }
 
-int
-main(int argc, char* argv[])
-{
-#ifdef ICE_STATIC_LIBS
-    Ice::registerIceSSL(false);
-    Ice::registerIceWS(true);
-#endif
-
-    try
-    {
-        Ice::InitializationData initData = getTestInitData(argc, argv);
-#ifndef ICE_CPP11_MAPPING
-        initData.properties->setProperty("Ice.CollectObjects", "1");
-#endif
-        initData.properties->setProperty("Ice.Warn.Dispatch", "0");
-        Ice::CommunicatorHolder ich(argc, argv, initData);
-        return run(argc, argv, ich.communicator());
-    }
-    catch(const Ice::Exception& ex)
-    {
-        cerr << ex << endl;
-        return  EXIT_FAILURE;
-    }
-}
+DEFINE_TEST(Collocated)

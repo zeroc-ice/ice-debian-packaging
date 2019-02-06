@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <TestI.h>
 #include <Ice/Ice.h>
@@ -47,7 +42,7 @@ TimeoutI::sendData(ICE_IN(Test::ByteSeq), const Ice::Current&)
 }
 
 void
-TimeoutI::sleep(Ice::Int to, const Ice::Current& c)
+TimeoutI::sleep(Ice::Int to, const Ice::Current&)
 {
     IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(to));
 }

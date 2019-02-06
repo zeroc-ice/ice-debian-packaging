@@ -1,14 +1,9 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Test.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 #if defined(_MSC_VER)
 #   pragma comment(lib, ICE_LIBNAME("gencode"))

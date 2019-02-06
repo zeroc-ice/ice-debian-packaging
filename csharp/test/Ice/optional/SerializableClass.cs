@@ -1,43 +1,41 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 
-[assembly: CLSCompliant(true)]
-
-namespace Test
+namespace Ice
 {
-
-[Serializable]
-public class SerializableClass
-{
-    public SerializableClass(int v)
+    namespace optional
     {
-        _v = v;
-    }
-
-    public override bool Equals(object obj)
-    {
-        if(obj is SerializableClass)
+        namespace Test
         {
-            return _v == (obj as SerializableClass)._v;
+            [Serializable]
+            public class SerializableClass
+            {
+                public SerializableClass(int v)
+                {
+                    _v = v;
+                }
+
+                public override bool Equals(object obj)
+                {
+                    if(obj is SerializableClass)
+                    {
+                        return _v == (obj as SerializableClass)._v;
+                    }
+
+                    return false;
+                }
+
+                public override int GetHashCode()
+                {
+                    return base.GetHashCode();
+                }
+
+                private int _v;
+            }
+
         }
-
-        return false;
     }
-
-    public override int GetHashCode()
-    {
-        return base.GetHashCode();
-    }
-
-    private int _v;
-}
-
 }

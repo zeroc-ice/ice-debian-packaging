@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.operations;
 
@@ -21,35 +16,22 @@ class Oneways
         }
     }
 
-    static void oneways(test.Util.Application app, MyClassPrx p)
+    static void oneways(test.TestHelper helper, MyClassPrx p)
     {
         p = p.ice_oneway();
 
-        {
-            p.ice_ping();
-        }
+        p.ice_ping();
+        p.opVoid();
+        p.opIdempotent();
+        p.opNonmutating();
 
+        try
         {
-            p.opVoid();
+            p.opByte((byte)0xff, (byte)0x0f);
+            test(false);
         }
-
+        catch(com.zeroc.Ice.TwowayOnlyException ex)
         {
-            p.opIdempotent();
-        }
-
-        {
-            p.opNonmutating();
-        }
-
-        {
-            try
-            {
-                p.opByte((byte)0xff, (byte)0x0f);
-                test(false);
-            }
-            catch(com.zeroc.Ice.TwowayOnlyException ex)
-            {
-            }
         }
     }
 }

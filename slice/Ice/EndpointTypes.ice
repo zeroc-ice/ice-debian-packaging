@@ -1,15 +1,21 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #pragma once
 
-[["ice-prefix", "cpp:header-ext:h", "cpp:dll-export:ICE_API", "cpp:doxygen:include:Ice/Ice.h", "objc:header-dir:objc", "objc:dll-export:ICE_API", "js:ice-build", "python:pkgdir:Ice"]]
+[["cpp:dll-export:ICE_API"]]
+[["cpp:doxygen:include:Ice/Ice.h"]]
+[["cpp:header-ext:h"]]
+
+[["ice-prefix"]]
+
+[["js:module:ice"]]
+
+[["objc:dll-export:ICE_API"]]
+[["objc:header-dir:objc"]]
+
+[["python:pkgdir:Ice"]]
 
 #ifndef __SLICE2JAVA_COMPAT__
 [["java:package:com.zeroc"]]
@@ -28,11 +34,11 @@ module Ice
 local enum EndpointSelectionType
 {
     /**
-     * <tt>Random</tt> causes the endpoints to be arranged in a random order.
+     * <code>Random</code> causes the endpoints to be arranged in a random order.
      */
     Random,
     /**
-     * <tt>Ordered</tt> forces the Ice run time to use the endpoints in the
+     * <code>Ordered</code> forces the Ice run time to use the endpoints in the
      * order they appeared in the proxy.
      */
     Ordered

@@ -1,21 +1,17 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #pragma once
 
 //
 // Suppress invalid metadata warnings
 //
-[["suppress-warning:invalid-metadata, deprecated"]]
+[["cs:typeid-namespace:Ice.stream.TypeId", "suppress-warning:invalid-metadata, deprecated"]]
 
 #include <Ice/BuiltinSequences.ice>
 
+["cs:namespace:Ice.stream"]
 module Test
 {
 
@@ -147,7 +143,7 @@ sequence<Ice::StringSeq> StringSStack;
 ["clr:generic:SortedDictionary"]
 dictionary<string, string> SortedStringStringD;
 
-["clr:serializable:Serialize.Small"] sequence<byte> SerialSmall;
+["clr:serializable:Ice.stream.Serialize.Small"] sequence<byte> SerialSmall;
 
 class MyClass
 {

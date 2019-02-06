@@ -1,62 +1,51 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-using System;
-using System.Reflection;
+using Test;
 
-[assembly: CLSCompliant(true)]
-
-[assembly: AssemblyTitle("IceTest")]
-[assembly: AssemblyDescription("Ice test")]
-[assembly: AssemblyCompany("ZeroC, Inc.")]
-
-public class Collocated : TestCommon.Application
+namespace Ice
 {
-    public override int run(string[] args)
+    namespace retry
     {
-        //
-        // Configure a second communicator for the invocation timeout
-        // + retry test, we need to configure a large retry interval
-        // to avoid time-sensitive failures.
-        //
-        Ice.InitializationData initData2 = new Ice.InitializationData();
-        initData2.properties = communicator().getProperties().ice_clone_();
-        initData2.properties.setProperty("Ice.RetryIntervals", "0 1 10000");
-        initData2.observer = Instrumentation.getObserver();
-        Ice.Communicator communicator2 = Ice.Util.initialize(initData2);
+        public class Collocated : TestHelper
+        {
+            public override void run(string[] args)
+            {
+                var initData = new Ice.InitializationData();
+                initData.observer = Instrumentation.getObserver();
 
-        communicator().createObjectAdapter("").add(new RetryI(), Ice.Util.stringToIdentity("retry"));
-        communicator2.createObjectAdapter("").add(new RetryI(), Ice.Util.stringToIdentity("retry"));
+                initData.properties = createTestProperties(ref args);
+                initData.properties.setProperty("Ice.RetryIntervals", "0 1 10 1");
+                initData.properties.setProperty("Ice.Warn.Dispatch", "0");
 
-        Test.RetryPrx retry = AllTests.allTests(this, communicator2, "retry");
-        retry.shutdown();
-        return 0;
-    }
+                //
+                // This test kills connections, so we don't want warnings.
+                //
+                initData.properties.setProperty("Ice.Warn.Connections", "0");
+                using(var communicator = initialize(initData))
+                {
+                    //
+                    // Configure a second communicator for the invocation timeout
+                    // + retry test, we need to configure a large retry interval
+                    // to avoid time-sensitive failures.
+                    //
+                    initData.properties.setProperty("Ice.RetryIntervals", "0 1 10000");
+                    using(var communicator2 = initialize(initData))
+                    {
+                        communicator.createObjectAdapter("").add(new RetryI(), Ice.Util.stringToIdentity("retry"));
+                        communicator2.createObjectAdapter("").add(new RetryI(), Ice.Util.stringToIdentity("retry"));
 
-    protected override Ice.InitializationData getInitData(ref string[] args)
-    {
-        Ice.InitializationData initData = base.getInitData(ref args);
-        initData.observer = Instrumentation.getObserver();
+                        Test.RetryPrx retry = AllTests.allTests(this, communicator, communicator2, "retry");
+                        retry.shutdown();
+                    }
+                }
+            }
+            public static int Main(string[] args)
+            {
+                return TestDriver.runTest<Collocated>(args);
+            }
 
-        initData.properties.setProperty("Ice.RetryIntervals", "0 1 10 1");
-        initData.properties.setProperty("Ice.Warn.Dispatch", "0");
-
-        //
-        // This test kills connections, so we don't want warnings.
-        //
-        initData.properties.setProperty("Ice.Warn.Connections", "0");
-        return initData;
-    }
-
-    public static int Main(string[] args)
-    {
-        Collocated app = new Collocated();
-        return app.runmain(args);
+        }
     }
 }

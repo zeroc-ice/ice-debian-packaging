@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/Debug").Ice;
 const Debug = Ice.Debug;
@@ -30,6 +25,7 @@ Ice.StringUtil = class
         }
         return -1;
     }
+
     //
     // Return the index of the first character in str which does
     // not appear in match, starting from start. Returns -1 if none is
@@ -48,6 +44,7 @@ Ice.StringUtil = class
         }
         return -1;
     }
+
     //
     // Add escape sequences (such as "\n", or "\123") to s
     //
@@ -60,7 +57,7 @@ Ice.StringUtil = class
             {
                 if(special.charCodeAt(i) < 32 || special.charCodeAt(i) > 126)
                 {
-                    throw new Error("special characters must be in ASCII range 32-126");
+                    throw new RangeError("special characters must be in ASCII range 32-126");
                 }
             }
         }
@@ -91,7 +88,7 @@ Ice.StringUtil = class
                     Debug.assert(toStringMode === Ice.ToStringMode.ASCII && c >= 0xD800 && c <= 0xDFFF);
                     if(i + 1 === s.length)
                     {
-                        throw new Error("High surrogate without low surrogate");
+                        throw new RangeError("High surrogate without low surrogate");
                     }
                     else
                     {
@@ -113,6 +110,7 @@ Ice.StringUtil = class
         }
         return result.join("");
     }
+
     //
     // Remove escape sequences added by escapeString. Throws Error
     // for an invalid input string.
@@ -131,7 +129,7 @@ Ice.StringUtil = class
             {
                 if(special.charCodeAt(i) < 32 || special.charCodeAt(i) > 126)
                 {
-                    throw new Error("special characters must be in ASCII range 32-126");
+                    throw new RangeError("special characters must be in ASCII range 32-126");
                 }
             }
         }
@@ -157,6 +155,7 @@ Ice.StringUtil = class
             return arr.join("");
         }
     }
+
     //
     // Split string helper; returns null for unmatched quotes
     //
@@ -220,6 +219,7 @@ Ice.StringUtil = class
 
         return v;
     }
+
     //
     // If a single or double quotation mark is found at the start position,
     // then the position of the matching closing quote is returned. If no
@@ -247,6 +247,7 @@ Ice.StringUtil = class
         }
         return 0; // Not quoted
     }
+
     static hashCode(s)
     {
         let hash = 0;
@@ -256,12 +257,13 @@ Ice.StringUtil = class
         }
         return hash;
     }
+
     static toInt(s)
     {
         const n = parseInt(s, 10);
         if(isNaN(n))
         {
-            throw new Error("conversion of `" + s + "' to int failed");
+            throw new RangeError("conversion of `" + s + "' to int failed");
         }
         return n;
     }
@@ -347,54 +349,51 @@ function encodeChar(c, sb, special, toStringMode)
                 sb.push('\\');
                 sb.push(s);
             }
-            else
+            else if(c < 32 || c > 126)
             {
-                if(c < 32 || c > 126)
+                if(toStringMode === Ice.ToStringMode.Compat)
                 {
-                    if(toStringMode === Ice.ToStringMode.Compat)
+                    //
+                    // When ToStringMode=Compat, c is a UTF-8 byte
+                    //
+                    Debug.assert(c < 256);
+                    sb.push('\\');
+                    const octal = c.toString(8);
+                    //
+                    // Add leading zeroes so that we avoid problems during
+                    // decoding. For example, consider the encoded string
+                    // \0013 (i.e., a character with value 1 followed by
+                    // the character '3'). If the leading zeroes were omitted,
+                    // the result would be incorrectly interpreted by the
+                    // decoder as a single character with value 11.
+                    //
+                    for(let j = octal.length; j < 3; j++)
                     {
-                        //
-                        // When ToStringMode=Compat, c is a UTF-8 byte
-                        //
-                        Debug.assert(c < 256);
-                        sb.push('\\');
-                        const octal = c.toString(8);
-                        //
-                        // Add leading zeroes so that we avoid problems during
-                        // decoding. For example, consider the encoded string
-                        // \0013 (i.e., a character with value 1 followed by
-                        // the character '3'). If the leading zeroes were omitted,
-                        // the result would be incorrectly interpreted by the
-                        // decoder as a single character with value 11.
-                        //
-                        for(let j = octal.length; j < 3; j++)
-                        {
-                            sb.push('0');
-                        }
-                        sb.push(octal);
+                        sb.push('0');
                     }
-                    else if(c < 32 || c == 127 || toStringMode === Ice.ToStringMode.ASCII)
+                    sb.push(octal);
+                }
+                else if(c < 32 || c == 127 || toStringMode === Ice.ToStringMode.ASCII)
+                {
+                    // append \\unnnn
+                    sb.push("\\u");
+                    const hex = c.toString(16);
+                    for(let j = hex.length; j < 4; j++)
                     {
-                        // append \\unnnn
-                        sb.push("\\u");
-                        const hex = c.toString(16);
-                        for(let j = hex.length; j < 4; j++)
-                        {
-                            sb.push('0');
-                        }
-                        sb.push(hex);
+                        sb.push('0');
                     }
-                    else
-                    {
-                        // keep as is
-                        sb.push(s);
-                    }
+                    sb.push(hex);
                 }
                 else
                 {
-                    // printable ASCII character
+                    // keep as is
                     sb.push(s);
                 }
+            }
+            else
+            {
+                // printable ASCII character
+                sb.push(s);
             }
             break;
         }
@@ -416,7 +415,7 @@ function checkChar(s, pos)
             msg = "first character";
         }
         msg += " has invalid ordinal value" + c;
-        throw new Error(msg);
+        throw new RangeError(msg);
     }
     return s.charAt(pos);
 }
@@ -528,11 +527,11 @@ function decodeChar(s, start, end, special, result)
                 }
                 if(size > 0)
                 {
-                    throw new Error("Invalid universal character name: too few hex digits");
+                    throw new RangeError("Invalid universal character name: too few hex digits");
                 }
                 if(codePoint >= 0xD800 && codePoint <= 0xDFFF)
                 {
-                    throw new Error("A universal character name cannot designate a surrogate");
+                    throw new RangeError("A universal character name cannot designate a surrogate");
                 }
                 if(inBMP || codePoint <= 0xFFFF)
                 {
@@ -589,7 +588,7 @@ function decodeChar(s, start, end, special, result)
                         }
                         if(size === 2)
                         {
-                            throw new Error("Invalid \\x escape sequence: no hex digit");
+                            throw new RangeError("Invalid \\x escape sequence: no hex digit");
                         }
                     }
                     else
@@ -607,7 +606,7 @@ function decodeChar(s, start, end, special, result)
                         }
                         if(val > 255)
                         {
-                            throw new Error("octal value \\" + val.toString(8) + " (" + val + ") is out of range");
+                            throw new RangeError("octal value \\" + val.toString(8) + " (" + val + ") is out of range");
                         }
                     }
 

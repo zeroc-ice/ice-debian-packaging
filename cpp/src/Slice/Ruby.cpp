@@ -1,13 +1,8 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-#include <IceUtil/DisableWarnings.h>
+#include <IceUtil/StringUtil.h>
 #include <IceUtil/Options.h>
 #include <IceUtil/CtrlCHandler.h>
 #include <IceUtil/Mutex.h>
@@ -296,9 +291,9 @@ Slice::Ruby::compile(const vector<string>& argv)
                         out.open(file.c_str());
                         if(!out)
                         {
-                            ostringstream os;
-                            os << "cannot open`" << file << "': " << strerror(errno);
-                            throw FileException(__FILE__, __LINE__, os.str());
+                            ostringstream oss;
+                            oss << "cannot open`" << file << "': " << IceUtilInternal::errorToString(errno);
+                            throw FileException(__FILE__, __LINE__, oss.str());
                         }
                         FileTracker::instance()->addFile(file);
                         //

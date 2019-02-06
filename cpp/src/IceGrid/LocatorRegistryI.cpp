@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <IceGrid/LocatorRegistryI.h>
@@ -180,9 +175,9 @@ public:
         {
             ex.ice_throw();
         }
-        catch(const Ice::Exception& ex)
+        catch(const Ice::Exception& e)
         {
-            _amiCB->exception(ex);
+            _amiCB->exception(e);
         }
     }
 
@@ -221,11 +216,11 @@ public:
     }
 
     virtual void
-    synchronized(const Ice::Exception& ex)
+    synchronized(const Ice::Exception& sex)
     {
         try
         {
-            ex.ice_throw();
+            sex.ice_throw();
         }
         catch(const ServerNotExistException&)
         {

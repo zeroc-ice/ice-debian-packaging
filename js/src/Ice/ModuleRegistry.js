@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const modules = {};
 
@@ -13,11 +8,11 @@ class _ModuleRegistry
 {
     static module(name)
     {
-        let m =  modules[name];
+        let m = modules[name];
         if(m === undefined)
         {
             m = {};
-            modules[name] =  m;
+            modules[name] = m;
         }
         return m;
     }

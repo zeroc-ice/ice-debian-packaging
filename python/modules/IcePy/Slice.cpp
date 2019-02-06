@@ -1,15 +1,7 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-#ifdef _WIN32
-#   include <IceUtil/Config.h>
-#endif
 #include <Slice.h>
 #include <Util.h>
 #include <Slice/Preprocessor.h>
@@ -236,16 +228,6 @@ IcePy_compile(PyObject* /*self*/, PyObject* args)
     catch(const std::exception& ex)
     {
         consoleErr << argSeq[0] << ": error:" << ex.what() << endl;
-        rc = EXIT_FAILURE;
-    }
-    catch(const std::string& msg)
-    {
-        consoleErr << argSeq[0] << ": error:" << msg << endl;
-        rc = EXIT_FAILURE;
-    }
-    catch(const char* msg)
-    {
-        consoleErr << argSeq[0] << ": error:" << msg << endl;
         rc = EXIT_FAILURE;
     }
     catch(...)

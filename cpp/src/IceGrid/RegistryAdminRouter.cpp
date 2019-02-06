@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceGrid/RegistryAdminRouter.h>
 #include <Ice/Ice.h>
@@ -25,7 +20,7 @@ public:
                              const AMD_Object_ice_invokePtr& cb,
                              const pair<const Byte*, const Byte*>& inParams,
                              const Current& current) :
-        _callback(cb), _inParams(inParams.first, inParams.second), _current(current)
+        _adminRouter(adminRouter), _callback(cb), _inParams(inParams.first, inParams.second), _current(current)
     {
     }
 
@@ -37,7 +32,7 @@ public:
         _adminRouter->ice_invoke_async(_callback, make_pair(&_inParams[0], &_inParams[0] + _inParams.size()), _current);
     }
 
-    void synchronized(const Ice::Exception& ex)
+    void synchronized(const Ice::Exception&)
     {
         _callback->ice_exception(Ice::ObjectNotExistException(__FILE__, __LINE__));
     }

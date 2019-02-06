@@ -1,11 +1,6 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 $(test)_server_impl     = Test
 $(test)_serveramd_impl  = TestAMD
@@ -18,7 +13,7 @@ define make-impl-with-config
 ifneq ($$($2_impl),)
 $5_sources      += $$($5_objdir)/$$($2_impl)I.cpp
 $5_objects      += $$(addprefix $$($5_objdir)/,$$(call source-to-object,$$($5_objdir)/$$($2_impl)I.cpp))
-$5_cppflags     += -I$$($5_objdir)
+$5_cppflags     += -I$$($5_objdir) $(nounusedparameter-cppflags)
 
 $$($5_objects): $$($5_objdir)/$$($2_impl)I.cpp
 

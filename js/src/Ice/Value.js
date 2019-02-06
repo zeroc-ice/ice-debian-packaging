@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 //
 // Ice.Value
@@ -63,15 +58,21 @@ Ice.Value = class
 
     static read(is)
     {
-        const v = { value: null };
-        is.readValue(o => v.value = o, this);
+        const v = {value: null};
+        is.readValue(o =>
+                     {
+                         v.value = o;
+                     }, this);
         return v;
     }
 
     static readOptional(is, tag)
     {
-        const v = { value: undefined };
-        is.readOptionalValue(tag, o => v.value = o, this);
+        const v = {value: undefined};
+        is.readOptionalValue(tag, o =>
+                             {
+                                 v.value = o;
+                             }, this);
         return v;
     }
 };
@@ -123,7 +124,7 @@ const writeImpl = function(obj, os, type)
     }
 
     os.startSlice(type.ice_staticId(),
-                  Object.prototype.hasOwnProperty.call(type, '_iceCompactId') ? type._iceCompactId : -1 ,
+                  Object.prototype.hasOwnProperty.call(type, '_iceCompactId') ? type._iceCompactId : -1,
                   Object.getPrototypeOf(type) === Ice.Value);
     if(type.prototype.hasOwnProperty('_iceWriteMemberImpl'))
     {

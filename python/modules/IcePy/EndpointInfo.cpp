@@ -1,15 +1,7 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-#ifdef _WIN32
-#   include <IceUtil/Config.h>
-#endif
 #include <EndpointInfo.h>
 #include <Util.h>
 #include <IceSSL/IceSSL.h>
@@ -55,7 +47,7 @@ endpointInfoDealloc(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-endpointInfoType(EndpointInfoObject* self)
+endpointInfoType(EndpointInfoObject* self, PyObject* /*args*/)
 {
     assert(self->endpointInfo);
     try
@@ -77,7 +69,7 @@ endpointInfoType(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-endpointInfoDatagram(EndpointInfoObject* self)
+endpointInfoDatagram(EndpointInfoObject* self, PyObject* /*args*/)
 {
     assert(self->endpointInfo);
     PyObject* b;
@@ -102,7 +94,7 @@ endpointInfoDatagram(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-endpointInfoSecure(EndpointInfoObject* self)
+endpointInfoSecure(EndpointInfoObject* self, PyObject* /*args*/)
 {
     assert(self->endpointInfo);
     PyObject* b;
@@ -124,7 +116,7 @@ endpointInfoSecure(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-endpointInfoGetUnderlying(EndpointInfoObject* self)
+endpointInfoGetUnderlying(EndpointInfoObject* self, PyObject* /*args*/)
 {
     return createEndpointInfo((*self->endpointInfo)->underlying);
 }
@@ -133,7 +125,7 @@ endpointInfoGetUnderlying(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-endpointInfoGetTimeout(EndpointInfoObject* self)
+endpointInfoGetTimeout(EndpointInfoObject* self, PyObject* /*args*/)
 {
     return PyLong_FromLong((*self->endpointInfo)->timeout);
 }
@@ -142,7 +134,7 @@ endpointInfoGetTimeout(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-endpointInfoGetCompress(EndpointInfoObject* self)
+endpointInfoGetCompress(EndpointInfoObject* self, PyObject* /*args*/)
 {
     return (*self->endpointInfo)->compress ? incTrue() : incFalse();
 }
@@ -151,7 +143,7 @@ endpointInfoGetCompress(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-ipEndpointInfoGetHost(EndpointInfoObject* self)
+ipEndpointInfoGetHost(EndpointInfoObject* self, PyObject* /*args*/)
 {
     Ice::IPEndpointInfoPtr info = Ice::IPEndpointInfoPtr::dynamicCast(*self->endpointInfo);
     assert(info);
@@ -162,7 +154,7 @@ ipEndpointInfoGetHost(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-ipEndpointInfoGetSourceAddress(EndpointInfoObject* self)
+ipEndpointInfoGetSourceAddress(EndpointInfoObject* self, PyObject* /*args*/)
 {
     Ice::IPEndpointInfoPtr info = Ice::IPEndpointInfoPtr::dynamicCast(*self->endpointInfo);
     assert(info);
@@ -173,7 +165,7 @@ ipEndpointInfoGetSourceAddress(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-ipEndpointInfoGetPort(EndpointInfoObject* self)
+ipEndpointInfoGetPort(EndpointInfoObject* self, PyObject* /*args*/)
 {
     Ice::IPEndpointInfoPtr info = Ice::IPEndpointInfoPtr::dynamicCast(*self->endpointInfo);
     assert(info);
@@ -184,7 +176,7 @@ ipEndpointInfoGetPort(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-udpEndpointInfoGetMcastInterface(EndpointInfoObject* self)
+udpEndpointInfoGetMcastInterface(EndpointInfoObject* self, PyObject* /*args*/)
 {
     Ice::UDPEndpointInfoPtr info = Ice::UDPEndpointInfoPtr::dynamicCast(*self->endpointInfo);
     assert(info);
@@ -195,7 +187,7 @@ udpEndpointInfoGetMcastInterface(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-udpEndpointInfoGetMcastTtl(EndpointInfoObject* self)
+udpEndpointInfoGetMcastTtl(EndpointInfoObject* self, PyObject* /*args*/)
 {
     Ice::UDPEndpointInfoPtr info = Ice::UDPEndpointInfoPtr::dynamicCast(*self->endpointInfo);
     assert(info);
@@ -206,7 +198,7 @@ udpEndpointInfoGetMcastTtl(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-wsEndpointInfoGetResource(EndpointInfoObject* self)
+wsEndpointInfoGetResource(EndpointInfoObject* self, PyObject* /*args*/)
 {
     Ice::WSEndpointInfoPtr info = Ice::WSEndpointInfoPtr::dynamicCast(*self->endpointInfo);
     assert(info);
@@ -217,7 +209,7 @@ wsEndpointInfoGetResource(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-opaqueEndpointInfoGetRawBytes(EndpointInfoObject* self)
+opaqueEndpointInfoGetRawBytes(EndpointInfoObject* self, PyObject* /*args*/)
 {
     Ice::OpaqueEndpointInfoPtr info = Ice::OpaqueEndpointInfoPtr::dynamicCast(*self->endpointInfo);
     assert(info);
@@ -234,7 +226,7 @@ opaqueEndpointInfoGetRawBytes(EndpointInfoObject* self)
 extern "C"
 #endif
 static PyObject*
-opaqueEndpointInfoGetRawEncoding(EndpointInfoObject* self)
+opaqueEndpointInfoGetRawEncoding(EndpointInfoObject* self, PyObject* /*args*/)
 {
     Ice::OpaqueEndpointInfoPtr info = Ice::OpaqueEndpointInfoPtr::dynamicCast(*self->endpointInfo);
     assert(info);

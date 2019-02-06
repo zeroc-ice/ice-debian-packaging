@@ -1,13 +1,8 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-public class AllTests : TestCommon.AllTests
+public class AllTests : Test.AllTests
 {
     private static Ice.IPConnectionInfo getIPConnectionInfo(Ice.ConnectionInfo info)
     {
@@ -21,10 +16,10 @@ public class AllTests : TestCommon.AllTests
         return null;
     }
 
-    public static void allTests(TestCommon.Application app)
+    public static void allTests(Test.TestHelper helper)
     {
-        Ice.Communicator communicator = app.communicator();
-        string sref = "test:" + app.getTestEndpoint(0);
+        Ice.Communicator communicator = helper.communicator();
+        string sref = "test:" + helper.getTestEndpoint(0);
         Ice.ObjectPrx obj = communicator.stringToProxy(sref);
         test(obj != null);
 
@@ -36,31 +31,31 @@ public class AllTests : TestCommon.AllTests
 
         Test.TestIntfPrx testPrx = Test.TestIntfPrxHelper.checkedCast(obj);
         test(testPrx != null);
-
-        Write("testing connection... ");
-        Flush();
+        var output = helper.getWriter();
+        output.Write("testing connection... ");
+        output.Flush();
         {
             testPrx.ice_ping();
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing connection information... ");
-        Flush();
+        output.Write("testing connection information... ");
+        output.Flush();
         {
             Ice.IPConnectionInfo info = getIPConnectionInfo(testPrx.ice_getConnection().getInfo());
             test(info.remotePort == proxyPort); // make sure we are connected to the proxy port.
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("shutting down server... ");
-        Flush();
+        output.Write("shutting down server... ");
+        output.Flush();
         {
             testPrx.shutdown();
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing connection failure... ");
-        Flush();
+        output.Write("testing connection failure... ");
+        output.Flush();
         {
             try
             {
@@ -71,6 +66,6 @@ public class AllTests : TestCommon.AllTests
             {
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
     }
 }

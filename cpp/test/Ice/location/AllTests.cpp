@@ -1,16 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <Ice/Router.h>
 #include <IceUtil/IceUtil.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 #include <list>
 
@@ -60,8 +55,9 @@ public:
 typedef IceUtil::Handle<AMICallback> AMICallbackPtr;
 
 void
-allTests(const Ice::CommunicatorPtr& communicator, const string& ref)
+allTests(Test::TestHelper* helper, const string& ref)
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
     ServerManagerPrxPtr manager = ICE_CHECKED_CAST(ServerManagerPrx, communicator->stringToProxy(ref));
     TestLocatorPrxPtr locator = ICE_UNCHECKED_CAST(TestLocatorPrx, communicator->getDefaultLocator());
     test(manager);
@@ -276,20 +272,21 @@ allTests(const Ice::CommunicatorPtr& communicator, const string& ref)
     cout << "testing locator cache timeout... " << flush;
 
     int count = locator->getRequestCount();
-    communicator->stringToProxy("test@TestAdapter")->ice_locatorCacheTimeout(0)->ice_ping(); // No locator cache.
+    Ice::ObjectPrxPtr basencc = communicator->stringToProxy("test@TestAdapter")->ice_connectionCached(false);
+    basencc->ice_locatorCacheTimeout(0)->ice_ping(); // No locator cache.
     test(++count == locator->getRequestCount());
-    communicator->stringToProxy("test@TestAdapter")->ice_locatorCacheTimeout(0)->ice_ping(); // No locator cache.
+    basencc->ice_locatorCacheTimeout(0)->ice_ping(); // No locator cache.
     test(++count == locator->getRequestCount());
-    communicator->stringToProxy("test@TestAdapter")->ice_locatorCacheTimeout(1)->ice_ping(); // 1s timeout.
+    basencc->ice_locatorCacheTimeout(2)->ice_ping(); // 2s timeout.
     test(count == locator->getRequestCount());
     IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(1300));
-    communicator->stringToProxy("test@TestAdapter")->ice_locatorCacheTimeout(1)->ice_ping(); // 1s timeout.
+    basencc->ice_locatorCacheTimeout(1)->ice_ping(); // 1s timeout.
     test(++count == locator->getRequestCount());
 
     communicator->stringToProxy("test")->ice_locatorCacheTimeout(0)->ice_ping(); // No locator cache.
     count += 2;
     test(count == locator->getRequestCount());
-    communicator->stringToProxy("test")->ice_locatorCacheTimeout(1)->ice_ping(); // 1s timeout
+    communicator->stringToProxy("test")->ice_locatorCacheTimeout(2)->ice_ping(); // 2s timeout
     test(count == locator->getRequestCount());
     IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(1300));
     communicator->stringToProxy("test")->ice_locatorCacheTimeout(1)->ice_ping(); // 1s timeout
@@ -449,7 +446,8 @@ allTests(const Ice::CommunicatorPtr& communicator, const string& ref)
     try
     {
         communicator->stringToProxy("test@TestAdapter3")->ice_ping();
-        registry->setAdapterDirectProxy("TestAdapter3", communicator->stringToProxy("dummy:tcp"));
+        registry->setAdapterDirectProxy("TestAdapter3",
+                                        communicator->stringToProxy("dummy:" + helper->getTestEndpoint(99)));
         communicator->stringToProxy("test@TestAdapter3")->ice_ping();
     }
     catch(const Ice::LocalException&)
@@ -498,7 +496,8 @@ allTests(const Ice::CommunicatorPtr& communicator, const string& ref)
         test(ex.id == "TestUnknown");
     }
     registry->addObject(communicator->stringToProxy("test3@TestAdapter4")); // Update
-    registry->setAdapterDirectProxy("TestAdapter4", communicator->stringToProxy("dummy:tcp"));
+    registry->setAdapterDirectProxy("TestAdapter4",
+                                    communicator->stringToProxy("dummy:" + helper->getTestEndpoint(99)));
     try
     {
         communicator->stringToProxy("test3")->ice_ping();
@@ -517,7 +516,8 @@ allTests(const Ice::CommunicatorPtr& communicator, const string& ref)
         test(false);
     }
 
-    registry->setAdapterDirectProxy("TestAdapter4", communicator->stringToProxy("dummy:tcp"));
+    registry->setAdapterDirectProxy("TestAdapter4",
+                                    communicator->stringToProxy("dummy:" + helper->getTestEndpoint(99)));
     try
     {
         communicator->stringToProxy("test3")->ice_ping();
@@ -582,13 +582,13 @@ allTests(const Ice::CommunicatorPtr& communicator, const string& ref)
         registry->setAdapterDirectProxy("TestAdapter5", locator->findAdapterById("TestAdapter"));
         registry->addObject(communicator->stringToProxy("test3@TestAdapter"));
 
-        int count = locator->getRequestCount();
+        count = locator->getRequestCount();
         ic->stringToProxy("test@TestAdapter5")->ice_locatorCacheTimeout(0)->ice_ping(); // No locator cache.
         ic->stringToProxy("test3")->ice_locatorCacheTimeout(0)->ice_ping(); // No locator cache.
         count += 3;
         test(count == locator->getRequestCount());
         registry->setAdapterDirectProxy("TestAdapter5", 0);
-        registry->addObject(communicator->stringToProxy("test3:tcp"));
+        registry->addObject(communicator->stringToProxy("test3:" + helper->getTestEndpoint(99)));
         ic->stringToProxy("test@TestAdapter5")->ice_locatorCacheTimeout(10)->ice_ping(); // 10s timeout.
         ic->stringToProxy("test3")->ice_locatorCacheTimeout(10)->ice_ping(); // 10s timeout.
         test(count == locator->getRequestCount());

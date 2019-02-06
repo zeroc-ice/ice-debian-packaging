@@ -1,16 +1,8 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/DisableWarnings.h>
-#ifdef _WIN32
-#   include <IceUtil/Config.h>
-#endif
 #include <Proxy.h>
 #include <structmember.h>
 #include <Communicator.h>
@@ -28,6 +20,10 @@
 
 using namespace std;
 using namespace IcePy;
+
+#if defined(__GNUC__) && ((__GNUC__ >= 8))
+#   pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
 
 namespace IcePy
 {
@@ -153,7 +149,7 @@ proxyCompare(ProxyObject* p1, PyObject* other, int op)
 extern "C"
 #endif
 static PyObject*
-proxyRepr(ProxyObject* self)
+proxyRepr(ProxyObject* self, PyObject* /*args*/)
 {
     string str = (*self->proxy)->ice_toString();
     return createString(str);
@@ -172,7 +168,7 @@ proxyHash(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetCommunicator(ProxyObject* self)
+proxyIceGetCommunicator(ProxyObject* self, PyObject* /*args*/)
 {
     return getCommunicatorWrapper(*self->communicator);
 }
@@ -513,7 +509,7 @@ proxyEndIceId(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetIdentity(ProxyObject* self)
+proxyIceGetIdentity(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -571,7 +567,7 @@ proxyIceIdentity(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetContext(ProxyObject* self)
+proxyIceGetContext(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -632,7 +628,7 @@ proxyIceContext(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetFacet(ProxyObject* self)
+proxyIceGetFacet(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -688,7 +684,7 @@ proxyIceFacet(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetAdapterId(ProxyObject* self)
+proxyIceGetAdapterId(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -744,7 +740,7 @@ proxyIceAdapterId(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetEndpoints(ProxyObject* self)
+proxyIceGetEndpoints(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -819,7 +815,7 @@ proxyIceEndpoints(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetLocatorCacheTimeout(ProxyObject* self)
+proxyIceGetLocatorCacheTimeout(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -839,7 +835,7 @@ proxyIceGetLocatorCacheTimeout(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetInvocationTimeout(ProxyObject* self)
+proxyIceGetInvocationTimeout(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -859,7 +855,7 @@ proxyIceGetInvocationTimeout(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetConnectionId(ProxyObject* self)
+proxyIceGetConnectionId(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -945,7 +941,7 @@ proxyIceInvocationTimeout(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceIsConnectionCached(ProxyObject* self)
+proxyIceIsConnectionCached(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1002,7 +998,7 @@ proxyIceConnectionCached(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetEndpointSelection(ProxyObject* self)
+proxyIceGetEndpointSelection(ProxyObject* self,  PyObject* /*args*/)
 {
     PyObject* cls = lookupType("Ice.EndpointSelectionType");
     assert(cls);
@@ -1090,7 +1086,7 @@ proxyIceEndpointSelection(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceIsSecure(ProxyObject* self)
+proxyIceIsSecure(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1147,7 +1143,7 @@ proxyIceSecure(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetEncodingVersion(ProxyObject* self)
+proxyIceGetEncodingVersion(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1206,7 +1202,7 @@ proxyIceEncodingVersion(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceIsPreferSecure(ProxyObject* self)
+proxyIceIsPreferSecure(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1263,7 +1259,7 @@ proxyIcePreferSecure(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetRouter(ProxyObject* self)
+proxyIceGetRouter(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1329,7 +1325,7 @@ proxyIceRouter(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetLocator(ProxyObject* self)
+proxyIceGetLocator(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1395,7 +1391,7 @@ proxyIceLocator(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceTwoway(ProxyObject* self)
+proxyIceTwoway(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1417,7 +1413,7 @@ proxyIceTwoway(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceIsTwoway(ProxyObject* self)
+proxyIceIsTwoway(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1440,7 +1436,7 @@ proxyIceIsTwoway(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceOneway(ProxyObject* self)
+proxyIceOneway(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1462,7 +1458,7 @@ proxyIceOneway(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceIsOneway(ProxyObject* self)
+proxyIceIsOneway(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1485,7 +1481,7 @@ proxyIceIsOneway(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceBatchOneway(ProxyObject* self)
+proxyIceBatchOneway(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1507,7 +1503,7 @@ proxyIceBatchOneway(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceIsBatchOneway(ProxyObject* self)
+proxyIceIsBatchOneway(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1530,7 +1526,7 @@ proxyIceIsBatchOneway(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceDatagram(ProxyObject* self)
+proxyIceDatagram(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1552,7 +1548,7 @@ proxyIceDatagram(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceIsDatagram(ProxyObject* self)
+proxyIceIsDatagram(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1575,7 +1571,7 @@ proxyIceIsDatagram(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceBatchDatagram(ProxyObject* self)
+proxyIceBatchDatagram(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1597,7 +1593,7 @@ proxyIceBatchDatagram(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceIsBatchDatagram(ProxyObject* self)
+proxyIceIsBatchDatagram(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1654,7 +1650,7 @@ proxyIceCompress(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetCompress(ProxyObject* self)
+proxyIceGetCompress(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1717,7 +1713,7 @@ proxyIceTimeout(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetTimeout(ProxyObject* self)
+proxyIceGetTimeout(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1745,7 +1741,7 @@ proxyIceGetTimeout(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceIsCollocationOptimized(ProxyObject* self)
+proxyIceIsCollocationOptimized(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1870,7 +1866,7 @@ proxyIceFixed(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetConnection(ProxyObject* self)
+proxyIceGetConnection(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -1997,9 +1993,9 @@ proxyBeginIceGetConnection(ProxyObject* self, PyObject* args, PyObject* kwds)
             result = (*self->proxy)->begin_ice_getConnection();
         }
     }
-    catch(const Ice::Exception& ex)
+    catch(const Ice::Exception& e)
     {
-        setPythonException(ex);
+        setPythonException(e);
         return 0;
     }
 
@@ -2049,7 +2045,7 @@ proxyEndIceGetConnection(ProxyObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceGetCachedConnection(ProxyObject* self)
+proxyIceGetCachedConnection(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -2079,7 +2075,7 @@ proxyIceGetCachedConnection(ProxyObject* self)
 extern "C"
 #endif
 static PyObject*
-proxyIceFlushBatchRequests(ProxyObject* self)
+proxyIceFlushBatchRequests(ProxyObject* self, PyObject* /*args*/)
 {
     assert(self->proxy);
 
@@ -2196,9 +2192,9 @@ proxyBeginIceFlushBatchRequests(ProxyObject* self, PyObject* args, PyObject* kwd
             result = (*self->proxy)->begin_ice_flushBatchRequests();
         }
     }
-    catch(const Ice::Exception& ex)
+    catch(const Ice::Exception& e)
     {
-        setPythonException(ex);
+        setPythonException(e);
         return 0;
     }
 
@@ -2630,7 +2626,7 @@ proxyUncheckedCast(PyObject* /*self*/, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-proxyIceStaticId(PyObject* /*self*/)
+proxyIceStaticId(PyObject* /*self*/, PyObject* /*args*/)
 {
     return createString(Ice::Object::ice_staticId());
 }

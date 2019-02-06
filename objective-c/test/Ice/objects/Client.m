@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #import <objc/Ice.h>
 #import <TestCommon.h>
@@ -70,7 +65,7 @@ static ICEValueFactory factory = ^ICEObject* (NSString* type)
 
 @implementation ClientMyObjectFactory
 
--(ICEObject*) create:(NSString*)type
+-(ICEObject*) create:(NSString*)__unused type
 {
     return nil;
 }

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #pragma once
 
@@ -50,7 +45,7 @@ interface TestIntf
     bool supportsAMD();
     bool supportsFunctionalTests();
 
-    void pingBiDir(Ice::Identity id);
+    void pingBiDir(PingReply* reply);
 }
 
 interface TestIntfController

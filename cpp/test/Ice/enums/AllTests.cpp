@@ -1,23 +1,19 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 
 using namespace std;
 using namespace Test;
 
 TestIntfPrxPtr
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
-    string ref = "test:" + getTestEndpoint(communicator, 0);
+    Ice::CommunicatorPtr communicator = helper->communicator();
+    string ref = "test:" + helper->getTestEndpoint();
     Ice::ObjectPrxPtr obj = communicator->stringToProxy(ref);
     test(obj);
     TestIntfPrxPtr proxy = ICE_CHECKED_CAST(TestIntfPrx, obj);
@@ -86,14 +82,14 @@ allTests(const Ice::CommunicatorPtr& communicator)
         Ice::OutputStream out(communicator);
         out.write(ICE_ENUM(ShortEnum, senum11));
         out.finished(bytes);
-        test(bytes.size() == (encoding_1_0 ? 2 : 5));
+        test(bytes.size() == (encoding_1_0 ? size_t(2) : size_t(5)));
     }
 
     {
         Ice::OutputStream out(communicator);
         out.write(ICE_ENUM(IntEnum, ienum11));
         out.finished(bytes);
-        test(bytes.size() == (encoding_1_0 ? 4 : 5));
+        test(bytes.size() == (encoding_1_0 ? size_t(4) : size_t(5)));
     }
 
     {

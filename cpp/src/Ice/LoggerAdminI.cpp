@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/LoggerAdminI.h>
 #include <Ice/Initialize.h>
@@ -434,9 +429,9 @@ LoggerAdminI::attachRemoteLogger(const RemoteLoggerPrx& prx,
                 {
                     rethrow_exception(e);
                 }
-                catch(const Ice::LocalException& e)
+                catch(const Ice::LocalException& le)
                 {
-                    self->deadRemoteLogger(remoteLogger, logger, e, "init");
+                    self->deadRemoteLogger(remoteLogger, logger, le, "init");
                 }
             });
     }
@@ -539,7 +534,7 @@ LoggerAdminI::destroy()
 
     //
     // Destroy outside lock to avoid deadlock when there are outstanding two-way log calls sent to
-    // remote logggers
+    // remote loggers
     //
     if(sendLogCommunicator)
     {
@@ -618,16 +613,16 @@ LoggerAdminI::log(const LogMessage& logMessage)
         //
         // Queue updated, now find which remote loggers want this message
         //
-        for(RemoteLoggerMap::const_iterator p = _remoteLoggerMap.begin(); p != _remoteLoggerMap.end(); ++p)
+        for(RemoteLoggerMap::const_iterator q = _remoteLoggerMap.begin(); q != _remoteLoggerMap.end(); ++q)
         {
-            const Filters& filters = p->second;
+            const Filters& filters = q->second;
 
             if(filters.messageTypes.empty() || filters.messageTypes.count(logMessage.type) != 0)
             {
                 if(logMessage.type != ICE_ENUM(LogMessageType, TraceMessage) || filters.traceCategories.empty() ||
                    filters.traceCategories.count(logMessage.traceCategory) != 0)
                 {
-                    remoteLoggers.push_back(p->first);
+                    remoteLoggers.push_back(q->first);
                 }
             }
         }

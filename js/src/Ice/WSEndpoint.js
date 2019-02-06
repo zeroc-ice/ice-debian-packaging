@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 
@@ -213,21 +208,11 @@ class WSEndpoint extends EndpointI
         }
         return true;
     }
-}
 
-if(typeof(Ice.WSTransceiver) !== "undefined")
-{
-    WSEndpoint.prototype.connectable = function()
+    connectable()
     {
-        return true;
-    };
-}
-else
-{
-    WSEndpoint.prototype.connectable = function()
-    {
-        return false;
-    };
+        return typeof Ice.WSTransceiver !== "undefined";
+    }
 }
 
 Ice.WSEndpoint = WSEndpoint;

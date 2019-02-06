@@ -1,11 +1,6 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import Ice, Test, sys, threading, time, traceback
 
@@ -150,8 +145,8 @@ class TestCase(threading.Thread):
         self._serverACMClose = close
         self._serverACMHeartbeat = heartbeat
 
-def allTests(communicator):
-    ref = "communicator:default -p 12010"
+def allTests(helper, communicator):
+    ref = "communicator:{0}".format(helper.getTestEndpoint(num=0))
     com = Test.RemoteCommunicatorPrx.uncheckedCast(communicator.stringToProxy(ref))
 
     tests = []

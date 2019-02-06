@@ -1,17 +1,14 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
+
+#ifdef _MSC_VER
+#   pragma warning(disable:4244) // '=': conversion from 'int' to 'Ice::Short', possible loss of data
+#endif
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
-
-DEFINE_TEST("client")
 
 using namespace std;
 using namespace Test;
@@ -85,22 +82,22 @@ namespace Ice
 template<class S>
 struct StreamWriter<TestObjectWriter, S>
 {
-    static void write(S* ostr, const TestObjectWriter&) { assert(false); }
+    static void write(S*, const TestObjectWriter&) { assert(false); }
 };
 template<class S>
 struct StreamReader<TestObjectWriter, S>
 {
-    static void read(S* istr, TestObjectWriter&) { assert(false); }
+    static void read(S*, TestObjectWriter&) { assert(false); }
 };
 template<class S>
 struct StreamWriter<TestObjectReader, S>
 {
-    static void write(S* ostr, const TestObjectReader&) { assert(false); }
+    static void write(S*, const TestObjectReader&) { assert(false); }
 };
 template<class S>
 struct StreamReader<TestObjectReader, S>
 {
-    static void read(S* istr, TestObjectReader&) { assert(false); }
+    static void read(S*, TestObjectReader&) { assert(false); }
 };
 }
 #endif
@@ -227,9 +224,10 @@ public:
 };
 #endif
 
-int
-run(int, char**, const Ice::CommunicatorPtr& communicator)
+void
+allTests(Test::TestHelper* helper)
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
 #ifdef ICE_CPP11_MAPPING
     MyClassFactoryWrapper factoryWrapper;
     function<Ice::ValuePtr(const string&)> f =
@@ -901,8 +899,8 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
         test(arr2S[2].size() == arrS[2].size());
 
 #ifdef ICE_CPP11_MAPPING
-        auto clearS = [](MyClassS& arr) {
-            for(MyClassS::iterator p = arr.begin(); p != arr.end(); ++p)
+        auto clearS = [](MyClassS& arr3) {
+            for(MyClassS::iterator p = arr3.begin(); p != arr3.end(); ++p)
             {
                 if(*p)
                 {
@@ -912,8 +910,8 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
                 }
             }
         };
-        auto clearSS = [clearS](MyClassSS& arr) {
-            for(MyClassSS::iterator p = arr.begin(); p != arr.end(); ++p)
+        auto clearSS = [clearS](MyClassSS& arr3) {
+            for(MyClassSS::iterator p = arr3.begin(); p != arr3.end(); ++p)
             {
                 clearS(*p);
             }
@@ -1334,36 +1332,21 @@ run(int, char**, const Ice::CommunicatorPtr& communicator)
     }
 
     cout << "ok" << endl;
-    return 0;
 }
 
-int
-main(int argc, char* argv[])
+class Client : public Test::TestHelper
 {
-#ifdef ICE_STATIC_LIBS
-    Ice::registerIceSSL(false);
-    Ice::registerIceWS(true);
-#endif
+public:
 
-    int status;
-    Ice::CommunicatorPtr communicator;
+    void run(int, char**);
+};
 
-    try
-    {
-        Ice::InitializationData initData = getTestInitData(argc, argv);
-        communicator = Ice::initialize(argc, argv, initData);
-        status = run(argc, argv, communicator);
-    }
-    catch(const Ice::Exception& ex)
-    {
-        cerr << ex << endl;
-        status = EXIT_FAILURE;
-    }
-
-    if(communicator)
-    {
-        communicator->destroy();
-    }
-
-    return status;
+void
+Client::run(int argc, char** argv)
+{
+    Ice::CommunicatorHolder communicator = initialize(argc, argv);
+    void allTests(Test::TestHelper*);
+    allTests(this);
 }
+
+DEFINE_TEST(Client)

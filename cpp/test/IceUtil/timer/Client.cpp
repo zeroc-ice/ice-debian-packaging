@@ -1,14 +1,10 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/Timer.h>
-#include <TestCommon.h>
+#include <IceUtil/Random.h>
+#include <TestHelper.h>
 
 #include <vector>
 
@@ -151,7 +147,16 @@ private:
 };
 ICE_DEFINE_PTR(DestroyTaskPtr, DestroyTask);
 
-int main(int, char**)
+class Client : public Test::TestHelper
+{
+public:
+
+    void run(int argc, char* argv[]);
+
+};
+
+void
+Client::run(int, char*[])
 {
     cout << "testing timer... " << flush;
     {
@@ -197,7 +202,7 @@ int main(int, char**)
                 tasks.push_back(ICE_MAKE_SHARED(TestTask, IceUtil::Time::milliSeconds(500 + i * 50)));
             }
 
-            random_shuffle(tasks.begin(), tasks.end());
+            IceUtilInternal::shuffle(tasks.begin(), tasks.end());
             vector<TestTaskPtr>::const_iterator p;
             for(p = tasks.begin(); p != tasks.end(); ++p)
             {
@@ -274,6 +279,6 @@ int main(int, char**)
         }
     }
     cout << "ok" << endl;
-
-    return EXIT_SUCCESS;
 }
+
+DEFINE_TEST(Client)

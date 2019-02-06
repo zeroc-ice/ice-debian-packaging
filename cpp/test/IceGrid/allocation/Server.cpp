@@ -1,37 +1,29 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <TestI.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 using namespace std;
 
-class Server : public Ice::Application
+class Server : public Test::TestHelper
 {
 public:
 
-    virtual int run(int argc, char* argv[]);
+    void run(int, char**);
 };
 
-int
-Server::run(int argc, char* argv[])
+void
+Server::run(int argc, char** argv)
 {
-    Ice::PropertiesPtr properties = communicator()->getProperties();
-
-    Ice::StringSeq args = Ice::argsToStringSeq(argc, argv);
-    args = properties->parseCommandLineOptions("Test", args);
-    Ice::stringSeqToArgs(args, argc, argv);
+    Ice::CommunicatorHolder communicator = initialize(argc, argv);
+    Ice::PropertiesPtr properties = communicator->getProperties();
 
     string name = properties->getProperty("Ice.ProgramName");
 
-    Ice::ObjectAdapterPtr adapter = communicator()->createObjectAdapter("Server");
+    Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("Server");
     adapter->add(new TestI(properties), Ice::stringToIdentity("allocatable"));
     adapter->add(new TestI(properties), Ice::stringToIdentity("nonallocatable"));
     adapter->add(new TestI(properties), Ice::stringToIdentity("allocatable1"));
@@ -43,7 +35,6 @@ Server::run(int argc, char* argv[])
     adapter->add(new TestI(properties), Ice::stringToIdentity("allocatable31"));
     adapter->add(new TestI(properties), Ice::stringToIdentity("allocatable41"));
 
-    shutdownOnInterrupt();
     try
     {
         adapter->activate();
@@ -51,15 +42,7 @@ Server::run(int argc, char* argv[])
     catch(const Ice::ObjectAdapterDeactivatedException&)
     {
     }
-    communicator()->waitForShutdown();
-    ignoreInterrupt();
-    return EXIT_SUCCESS;
+    communicator->waitForShutdown();
 }
 
-int
-main(int argc, char* argv[])
-{
-    Server app;
-    int rc = app.main(argc, argv);
-    return rc;
-}
+DEFINE_TEST(Server)

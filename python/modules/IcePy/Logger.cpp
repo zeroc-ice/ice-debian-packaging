@@ -1,15 +1,7 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-#ifdef _WIN32
-#   include <IceUtil/Config.h>
-#endif
 #include <Logger.h>
 #include <Thread.h>
 #include <Ice/Initialize.h>
@@ -288,7 +280,7 @@ loggerError(LoggerObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-loggerGetPrefix(LoggerObject* self)
+loggerGetPrefix(LoggerObject* self, PyObject* /*args*/)
 {
     string prefix;
 
@@ -462,7 +454,7 @@ IcePy::createLogger(const Ice::LoggerPtr& logger)
 
 extern "C"
 PyObject*
-IcePy_getProcessLogger(PyObject* /*self*/)
+IcePy_getProcessLogger(PyObject* /*self*/, PyObject* /*args*/)
 {
     Ice::LoggerPtr logger;
     try

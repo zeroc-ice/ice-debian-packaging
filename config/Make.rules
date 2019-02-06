@@ -1,11 +1,6 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 #
 # Select an installation base directory. The directory will be created
@@ -103,7 +98,7 @@ dotnet := $(shell command -v dotnet 2> /dev/null)
 supported-languages     ?= cpp $(if $(filter %/dotnet,$(dotnet)),csharp) java java-compat python js ruby php $(if $(filter Darwin,$(os)),objective-c)
 supported-configs       ?= shared
 
-version                 = 3.7.1
+version                 = 3.7.2
 mmversion               = 3.7
 soversion               = 37
 
@@ -171,3 +166,17 @@ bz2_home                := $(BZ2_HOME)
 lmdb_home               := $(LMDB_HOME)
 
 $(foreach l,$(thirdparties),$(eval $(call make-lib,$l)))
+
+#
+# When building on Sierra, use clang from the Xcode macOS X SDK instead of relying on the
+# command line tools. Outdated Security.framework system headers are used otherwise with
+# the command line compiler (no TLS1.3 enum support).
+#
+ifeq ($(os),Darwin)
+ifneq ($(filter 16.%,$(shell uname -r)),)
+macosx_cc                       = xcrun -sdk macosx clang
+macosx_cxx                      = xcrun -sdk macosx clang++
+macosx_cppflags                 += -I/usr/local/include
+macosx_ldflags                  += -L/usr/local/lib
+endif
+endif

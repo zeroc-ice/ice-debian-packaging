@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef ICE_GRID_SERVERCACHE_H
 #define ICE_GRID_SERVERCACHE_H
@@ -51,6 +46,7 @@ private:
 
     const std::string _server;
     const std::string _node;
+    const bool _remove;
     const bool _noRestart;
     const Ice::AsyncResultPtr _result;
 };
@@ -130,7 +126,7 @@ private:
     bool _noRestart;
     std::vector<SynchronizationCallbackPtr> _callbacks;
 
-    SessionIPtr _session;
+    SessionIPtr _allocationSession;
 };
 typedef IceUtil::Handle<ServerEntry> ServerEntryPtr;
 typedef std::vector<ServerEntryPtr> ServerEntrySeq;

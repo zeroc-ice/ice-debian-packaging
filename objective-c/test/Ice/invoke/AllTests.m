@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #import <objc/Ice.h>
 #import <TestCommon.h>
@@ -233,8 +228,8 @@ invokeAllTests(id<ICECommunicator> communicator)
 
         TestInvokeCallback* cb = [[TestInvokeCallback alloc] initWithCommunicator:communicator];
         [cl begin_ice_invoke:@"opString" mode:ICENormal inEncaps:inEncaps
-            response:^(BOOL ok, NSMutableData* outEncaps) { [cb opString:ok outEncaps:outEncaps]; }
-            exception:^(ICEException* ex) { test(NO); }];
+            response:^(BOOL ok, NSMutableData* outEncapsP) { [cb opString:ok outEncaps:outEncapsP]; }
+            exception:^(ICEException* __unused ex) { test(NO); }];
         [cb check];
         ICE_RELEASE(cb);
     }
@@ -271,7 +266,7 @@ invokeAllTests(id<ICECommunicator> communicator)
         TestInvokeCallback* cb = [[TestInvokeCallback alloc] initWithCommunicator:communicator];
         [cl begin_ice_invoke:@"opException" mode:ICENormal inEncaps:inEncaps
             response:^(BOOL ok, NSMutableData* outP) { [cb opException:ok outEncaps:outP]; }
-            exception:^(ICEException* ex) { test(NO); }];
+            exception:^(ICEException* __unused ex) { test(NO); }];
         [cb check];
         ICE_RELEASE(cb);
     }

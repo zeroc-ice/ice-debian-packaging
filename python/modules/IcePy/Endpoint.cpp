@@ -1,15 +1,7 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-#ifdef _WIN32
-#   include <IceUtil/Config.h>
-#endif
 #include <Endpoint.h>
 #include <EndpointInfo.h>
 #include <Util.h>
@@ -106,7 +98,7 @@ endpointCompare(EndpointObject* p1, PyObject* other, int op)
 extern "C"
 #endif
 static PyObject*
-endpointToString(EndpointObject* self)
+endpointToString(EndpointObject* self, PyObject* /*args*/)
 {
     assert(self->endpoint);
     try
@@ -127,14 +119,14 @@ extern "C"
 static PyObject*
 endpointRepr(EndpointObject* self)
 {
-    return endpointToString(self);
+    return endpointToString(self, 0);
 }
 
 #ifdef WIN32
 extern "C"
 #endif
 static PyObject*
-endpointGetInfo(EndpointObject* self)
+endpointGetInfo(EndpointObject* self, PyObject* /*args*/)
 {
     assert(self->endpoint);
     try

@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/LocalException").Ice;
 
@@ -24,8 +19,8 @@ Ice.ExUtil =
     throwUOE: function(expectedType, v)
     {
         const type = v.ice_id();
-        throw new UnexpectedObjectException("expected element of type `" + expectedType + "' but received '" +
-                                            type, type, expectedType);
+        throw new UnexpectedObjectException("expected element of type `" + expectedType + "' but received `" +
+                                            type + "'", type, expectedType);
     },
     throwMemoryLimitException: function(requested, maximum)
     {

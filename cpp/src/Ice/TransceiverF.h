@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef ICE_TRANSCEIVER_F_H
 #define ICE_TRANSCEIVER_F_H
@@ -30,8 +25,8 @@ ICE_API IceUtil::Shared* upCast(UdpTransceiver*);
 typedef Handle<UdpTransceiver> UdpTransceiverPtr;
 
 class WSTransceiver;
-ICE_API IceUtil::Shared* upCast(Transceiver*);
-typedef Handle<Transceiver> TransceiverPtr;
+ICE_API IceUtil::Shared* upCast(WSTransceiver*);
+typedef Handle<WSTransceiver> WSTransceiverPtr;
 
 }
 

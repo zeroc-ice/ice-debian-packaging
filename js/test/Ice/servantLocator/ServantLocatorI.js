@@ -1,28 +1,16 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 (function(module, require, exports)
 {
     const Ice = require("ice").Ice;
     const Test = require("Test").Test;
     const TestI = require("TestI").TestI;
+    const test = require("TestHelper").TestHelper.test;
 
     class MyError
     {
-    }
-
-    function test(value)
-    {
-        if(!value)
-        {
-            throw new Error("test failed");
-        }
     }
 
     class CookieI
@@ -78,7 +66,7 @@
             test(this._requestId == current.requestId);
             this._requestId = -1;
 
-            test(current.id.category == this._category  || this._category.length == 0);
+            test(current.id.category == this._category || this._category.length == 0);
             test(current.id.name == "locate" || current.id.name == "finished");
 
             if(current.id.name == "finished")
@@ -153,7 +141,8 @@
     }
 
     exports.ServantLocatorI = ServantLocatorI;
-}
-(typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? module : undefined,
- typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice._require,
- typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? exports : this));
+}(typeof global !== "undefined" && typeof global.process !== "undefined" ? module : undefined,
+  typeof global !== "undefined" && typeof global.process !== "undefined" ? require :
+  (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) ? self.Ice._require : window.Ice._require,
+  typeof global !== "undefined" && typeof global.process !== "undefined" ? exports :
+  (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) ? self : window));

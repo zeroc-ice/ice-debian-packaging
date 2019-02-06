@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef TEST_API_EXPORTS
 #   define TEST_API_EXPORTS
@@ -30,6 +25,7 @@
 #import <Foundation/NSString.h>
 #import <Foundation/NSObject.h>
 #import <Foundation/NSThread.h>
+#import <Foundation/NSLock.h>
 
 #include <objc/Ice.h>
 
@@ -39,6 +35,7 @@ static SEL readySelector;
 static SEL outputSelector;
 static id<ICECommunicator> communicator = nil;
 static NSString* protocol;
+static NSLock* mutex = nil;
 
 static BOOL sliced;
 static BOOL encoding10;
@@ -160,10 +157,25 @@ defaultClientProperties(int* argc, char** argv)
 #if TARGET_OS_IPHONE
 
 void
-TestCommonInit(id target, SEL output)
+TestCommonSetOutput(id target, SEL output)
 {
-    outputTarget = target;
-    outputSelector = output;
+    if(mutex == nil)
+    {
+        mutex = [NSLock new];
+    }
+    [mutex lock];
+    if(target != nil)
+    {
+        outputTarget = ICE_RETAIN(target);
+        outputSelector = output;
+    }
+    else
+    {
+        ICE_RELEASE(outputTarget);
+        outputTarget = nil;
+        outputSelector = nil;
+    }
+    [mutex unlock];
 }
 
 void
@@ -206,7 +218,13 @@ tprintf(const char* fmt, ...)
                                                                                       encoding:NSUTF8StringEncoding]
                                                          arguments:va]);
     va_end(va);
-    [outputTarget performSelectorOnMainThread:outputSelector withObject:s waitUntilDone:NO];
+
+    [mutex lock];
+    if(outputTarget != nil)
+    {
+        [outputTarget performSelectorOnMainThread:outputSelector withObject:s waitUntilDone:NO];
+    }
+    [mutex unlock];
 }
 
 void
@@ -235,7 +253,7 @@ tprintf(const char* fmt, ...)
 }
 
 void
-serverReady(id<ICECommunicator> c)
+serverReady(id<ICECommunicator>__unused c)
 {
 }
 

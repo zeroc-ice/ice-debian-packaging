@@ -1,46 +1,36 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 (function(module, require, exports)
 {
     const Ice = require("ice").Ice;
     const Test = require("Test").Test;
+    const TestHelper = require("TestHelper").TestHelper;
     const TestI = require("TestI");
+    const test = TestHelper.test;
 
     const DI = TestI.DI;
     const FI = TestI.FI;
     const HI = TestI.HI;
     const EmptyI = TestI.EmptyI;
 
-    function test(value)
+    class Server extends TestHelper
     {
-        if(!value)
+        async run(args)
         {
-            throw new Error("test failed");
-        }
-    }
-
-    async function run(out, initData, ready)
-    {
-        let communicator;
-        try
-        {
+            let communicator;
             let echo;
             try
             {
-                communicator = Ice.initialize(initData);
-                echo = await Test.EchoPrx.checkedCast(communicator.stringToProxy("__echo:default -p 12010"));
+                [communicator] = this.initialize(args);
+                const out = this.getWriter();
+                echo = await Test.EchoPrx.checkedCast(communicator.stringToProxy("__echo:" + this.getTestEndpoint()));
 
                 out.write("testing facet registration exceptions... ");
                 let adapter = await communicator.createObjectAdapter("");
 
-                let obj = new EmptyI();
+                const obj = new EmptyI();
                 adapter.add(obj, Ice.stringToIdentity("d"));
                 adapter.addFacet(obj, Ice.stringToIdentity("d"), "facetABCD");
                 try
@@ -66,11 +56,11 @@
                 out.writeLine("ok");
 
                 out.write("testing removeAllFacets... ");
-                let obj1 = new EmptyI();
-                let obj2 = new EmptyI();
+                const obj1 = new EmptyI();
+                const obj2 = new EmptyI();
                 adapter.addFacet(obj1, Ice.stringToIdentity("id1"), "f1");
                 adapter.addFacet(obj2, Ice.stringToIdentity("id1"), "f2");
-                let obj3 = new EmptyI();
+                const obj3 = new EmptyI();
                 adapter.addFacet(obj1, Ice.stringToIdentity("id2"), "f1");
                 adapter.addFacet(obj2, Ice.stringToIdentity("id2"), "f2");
                 adapter.addFacet(obj3, Ice.stringToIdentity("id2"), "");
@@ -97,21 +87,17 @@
                 await adapter.deactivate();
                 adapter = await communicator.createObjectAdapter("");
 
-                let di = new DI();
+                const di = new DI();
                 adapter.add(di, Ice.stringToIdentity("d"));
                 adapter.addFacet(di, Ice.stringToIdentity("d"), "facetABCD");
-                let fi = new FI();
+                const fi = new FI();
                 adapter.addFacet(fi, Ice.stringToIdentity("d"), "facetEF");
-                let hi = new HI();
+                const hi = new HI();
                 adapter.addFacet(hi, Ice.stringToIdentity("d"), "facetGH");
                 await echo.setConnection();
                 echo.ice_getCachedConnection().setAdapter(adapter);
-                ready.resolve();
+                this.serverReady();
                 await communicator.waitForShutdown();
-            }
-            catch(ex)
-            {
-                ready.reject(ex);
             }
             finally
             {
@@ -119,19 +105,17 @@
                 {
                     await echo.shutdown();
                 }
-            }
-        }
-        finally
-        {
-            if(communicator)
-            {
-                await communicator.destroy();
+
+                if(communicator)
+                {
+                    await communicator.destroy();
+                }
             }
         }
     }
-
-    exports._server = run;
-}
-(typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? module : undefined,
- typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice._require,
- typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? exports : this));
+    exports.Server = Server;
+}(typeof global !== "undefined" && typeof global.process !== "undefined" ? module : undefined,
+  typeof global !== "undefined" && typeof global.process !== "undefined" ? require :
+  (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) ? self.Ice._require : window.Ice._require,
+  typeof global !== "undefined" && typeof global.process !== "undefined" ? exports :
+  (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) ? self : window));

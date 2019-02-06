@@ -1,22 +1,18 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using Test;
 using System;
 using System.Collections.Generic;
 
-public class AllTests : TestCommon.AllTests
+public class AllTests : Test.AllTests
 {
     public static void
-    allTests(TestCommon.Application app, int num)
+    allTests(Test.TestHelper helper, int num)
     {
-        Ice.Communicator communicator = app.communicator();
+        var output = helper.getWriter();
+        Ice.Communicator communicator = helper.communicator();
         List<ControllerPrx> proxies = new List<ControllerPrx>();
         List<ControllerPrx> indirectProxies = new List<ControllerPrx>();
         for(int i = 0; i < num; ++i)
@@ -26,28 +22,28 @@ public class AllTests : TestCommon.AllTests
             indirectProxies.Add(ControllerPrxHelper.uncheckedCast(communicator.stringToProxy(id + "@control" + i)));
         }
 
-        Write("testing indirect proxies... ");
-        Flush();
+        output.Write("testing indirect proxies... ");
+        output.Flush();
         {
             foreach(ControllerPrx prx in indirectProxies)
             {
                 prx.ice_ping();
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing well-known proxies... ");
-        Flush();
+        output.Write("testing well-known proxies... ");
+        output.Flush();
         {
             foreach(ControllerPrx prx in proxies)
             {
                 prx.ice_ping();
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing object adapter registration... ");
-        Flush();
+        output.Write("testing object adapter registration... ");
+        output.Flush();
         {
             try
             {
@@ -80,10 +76,10 @@ public class AllTests : TestCommon.AllTests
             {
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing object adapter migration...");
-        Flush();
+        output.Write("testing object adapter migration...");
+        output.Flush();
         {
             proxies[0].activateObjectAdapter("oa", "oa1", "");
             proxies[0].addObject("oa", "object");
@@ -97,10 +93,10 @@ public class AllTests : TestCommon.AllTests
             proxies[1].removeObject("oa", "object");
             proxies[1].deactivateObjectAdapter("oa");
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing object migration...");
-        Flush();
+        output.Write("testing object migration...");
+        output.Flush();
         {
             proxies[0].activateObjectAdapter("oa", "oa1", "");
             proxies[1].activateObjectAdapter("oa", "oa2", "");
@@ -133,10 +129,10 @@ public class AllTests : TestCommon.AllTests
             proxies[0].deactivateObjectAdapter("oa");
             proxies[1].deactivateObjectAdapter("oa");
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing replica groups...");
-        Flush();
+        output.Write("testing replica groups...");
+        output.Flush();
         {
             proxies[0].activateObjectAdapter("oa", "oa1", "rg");
             proxies[1].activateObjectAdapter("oa", "oa2", "rg");
@@ -196,10 +192,10 @@ public class AllTests : TestCommon.AllTests
                      communicator.stringToProxy("object @ rg")).getAdapterId().Equals("oa1"));
             proxies[0].deactivateObjectAdapter("oa");
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("testing invalid lookup endpoints... ");
-        Flush();
+        output.Write("testing invalid lookup endpoints... ");
+        output.Flush();
         {
             String multicast;
             if(communicator.getProperties().getProperty("Ice.IPv6").Equals("1"))
@@ -245,14 +241,14 @@ public class AllTests : TestCommon.AllTests
                 comm.destroy();
             }
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
 
-        Write("shutting down... ");
-        Flush();
+        output.Write("shutting down... ");
+        output.Flush();
         foreach(ControllerPrx prx in proxies)
         {
             prx.shutdown();
         }
-        WriteLine("ok");
+        output.WriteLine("ok");
     }
 }

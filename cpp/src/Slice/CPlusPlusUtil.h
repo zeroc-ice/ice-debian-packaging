@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef C_PLUS_PLUS_UTIL_H
 #define C_PLUS_PLUS_UTIL_H
@@ -37,7 +32,7 @@ const int TypeContextCpp11 = 64;
 
 bool isMovable(const TypePtr&);
 
-std::string getAbsolute(const std::string&, const std::string&);
+std::string getUnqualified(const std::string&, const std::string&);
 std::string typeToString(const TypePtr&, const std::string& = "", const StringList& = StringList(), int = 0);
 std::string typeToString(const TypePtr&, bool, const std::string& = "", const StringList& = StringList(), int = 0);
 std::string returnTypeToString(const TypePtr&, bool, const std::string& = "", const StringList& = StringList(), int = 0);

@@ -1,18 +1,13 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/IceUtil.h>
 
 #include <stdio.h>
 
 #include <StartTest.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 using namespace std;
 using namespace IceUtil;
@@ -64,8 +59,8 @@ StartTest::run()
     {
         for(int j = 0; j < 40; j++)
         {
-            Thread* t = new StartTestThread;
-            t->start().detach();
+            Thread* thread = new StartTestThread;
+            thread->start().detach();
         }
         ThreadControl::sleep(Time::milliSeconds(5));
     }

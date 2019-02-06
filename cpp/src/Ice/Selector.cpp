@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Selector.h>
 #include <Ice/EventHandler.h>
@@ -74,10 +69,16 @@ Selector::initialize(EventHandler* handler)
     }
 
 #ifdef ICE_USE_IOCP
-    HANDLE socket = reinterpret_cast<HANDLE>(handler->getNativeInfo()->fd());
-    if(CreateIoCompletionPort(socket, _handle, reinterpret_cast<ULONG_PTR>(handler), 0) == ICE_NULLPTR)
+    SOCKET socket = handler->getNativeInfo()->fd();
+    if (socket != INVALID_SOCKET)
     {
-        throw Ice::SocketException(__FILE__, __LINE__, GetLastError());
+        if (CreateIoCompletionPort(reinterpret_cast<HANDLE>(socket),
+                                   _handle,
+                                   reinterpret_cast<ULONG_PTR>(handler),
+                                   0) == ICE_NULLPTR)
+        {
+            throw Ice::SocketException(__FILE__, __LINE__, GetLastError());
+        }
     }
     handler->getNativeInfo()->initialize(_handle, reinterpret_cast<ULONG_PTR>(handler));
 #else
@@ -153,7 +154,7 @@ Selector::getNextHandler(SocketOperation& status, int timeout)
 #ifdef ICE_USE_IOCP
     ULONG_PTR key;
     LPOVERLAPPED ol;
-    error = 0;
+    error = ERROR_SUCCESS;
 
     if(!GetQueuedCompletionStatus(_handle, &count, &key, &ol, timeout > 0 ? timeout * 1000 : INFINITE))
     {
@@ -177,7 +178,7 @@ Selector::getNextHandler(SocketOperation& status, int timeout)
         {
             status = info->status;
         }
-        count = SOCKET_ERROR;
+        count = 0;
         error = WSAGetLastError();
         return reinterpret_cast<EventHandler*>(key);
     }
@@ -379,8 +380,14 @@ Selector::enable(EventHandler* handler, SocketOperation status)
         epoll_event event;
         memset(&event, 0, sizeof(epoll_event));
         event.data.ptr = handler;
-        event.events |= newStatus & SocketOperationRead ? EPOLLIN : 0;
-        event.events |= newStatus & SocketOperationWrite ? EPOLLOUT : 0;
+        if(newStatus & SocketOperationRead)
+        {
+            event.events |= EPOLLIN;
+        }
+        if(newStatus & SocketOperationWrite)
+        {
+            event.events |= EPOLLOUT;
+        }
         if(epoll_ctl(_queueFd, previous ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, fd, &event) != 0)
         {
             Ice::Error out(_instance->initializationData().logger);
@@ -426,8 +433,14 @@ Selector::disable(EventHandler* handler, SocketOperation status)
         epoll_event event;
         memset(&event, 0, sizeof(epoll_event));
         event.data.ptr = handler;
-        event.events |= newStatus & SocketOperationRead ? EPOLLIN : 0;
-        event.events |= newStatus & SocketOperationWrite ? EPOLLOUT : 0;
+        if(newStatus & SocketOperationRead)
+        {
+            event.events |= EPOLLIN;
+        }
+        if(newStatus & SocketOperationWrite)
+        {
+            event.events |= EPOLLOUT;
+        }
         if(epoll_ctl(_queueFd, newStatus ? EPOLL_CTL_MOD : EPOLL_CTL_DEL, fd, &event) != 0)
         {
             Ice::Error out(_instance->initializationData().logger);
@@ -929,8 +942,14 @@ Selector::updateSelectorForEventHandler(EventHandler* handler, SocketOperation r
         status = static_cast<SocketOperation>(status & ~handler->_disabled);
         previous = static_cast<SocketOperation>(previous & ~handler->_disabled);
     }
-    event.events |= status & SocketOperationRead ? EPOLLIN : 0;
-    event.events |= status & SocketOperationWrite ? EPOLLOUT : 0;
+    if(status & SocketOperationRead)
+    {
+        event.events |= EPOLLIN;
+    }
+    if(status & SocketOperationWrite)
+    {
+        event.events |= EPOLLOUT;
+    }
     int op;
     if(!previous && status)
     {
@@ -1031,6 +1050,16 @@ public:
     virtual void run()
     {
         _selector.run();
+
+#if TARGET_IPHONE_SIMULATOR != 0
+        //
+        // Workaround for CFSocket bug where the CFSocketManager thread crashes if an
+        // invalidated socket is being processed for reads/writes. We add this sleep
+        // mostly to prevent spurious crashes with testing. This bug is very unlikely
+        // to be hit otherwise.
+        //
+        IceUtil::ThreadControl::sleep(IceUtil::Time::milliSeconds(100));
+#endif
     }
 
 private:

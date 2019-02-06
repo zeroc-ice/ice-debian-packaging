@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.location;
 
@@ -20,7 +15,6 @@ import test.Ice.location.Test.ServerManagerPrx;
 import test.Ice.location.Test.TestIntfPrx;
 import test.Ice.location.Test.TestLocatorPrx;
 import test.Ice.location.Test.TestLocatorRegistryPrx;
-import test.Util.Application;
 
 public class AllTests
 {
@@ -33,14 +27,14 @@ public class AllTests
     }
 
     public static void
-    allTests(Application app)
+    allTests(test.TestHelper helper)
         throws com.zeroc.Ice.AdapterAlreadyActiveException, com.zeroc.Ice.AdapterNotFoundException, InterruptedException
     {
-        com.zeroc.Ice.Communicator communicator = app.communicator();
-        PrintWriter out = app.getWriter();
+        com.zeroc.Ice.Communicator communicator = helper.communicator();
+        PrintWriter out = helper.getWriter();
 
         ServerManagerPrx manager = ServerManagerPrx.checkedCast(
-                                        communicator.stringToProxy("ServerManager:" + app.getTestEndpoint(0)));
+            communicator.stringToProxy("ServerManager:" + helper.getTestEndpoint(0)));
         test(manager != null);
 
         TestLocatorPrx locator = TestLocatorPrx.uncheckedCast(communicator.getDefaultLocator());
@@ -266,24 +260,24 @@ public class AllTests
 
         out.print("testing locator cache timeout... ");
         out.flush();
-
+        com.zeroc.Ice.ObjectPrx basencc = communicator.stringToProxy("test@TestAdapter").ice_connectionCached(false);
         int count = locator.getRequestCount();
-        communicator.stringToProxy("test@TestAdapter").ice_locatorCacheTimeout(0).ice_ping(); // No locator cache.
+        basencc.ice_locatorCacheTimeout(0).ice_ping(); // No locator cache.
         test(++count == locator.getRequestCount());
-        communicator.stringToProxy("test@TestAdapter").ice_locatorCacheTimeout(0).ice_ping(); // No locator cache.
+        basencc.ice_locatorCacheTimeout(0).ice_ping(); // No locator cache.
         test(++count == locator.getRequestCount());
-        communicator.stringToProxy("test@TestAdapter").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout.
+        basencc.ice_locatorCacheTimeout(2).ice_ping(); // 2s timeout.
         test(count == locator.getRequestCount());
-        Thread.sleep(1200);
-        communicator.stringToProxy("test@TestAdapter").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout.
+        Thread.sleep(1300);
+        basencc.ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout.
         test(++count == locator.getRequestCount());
 
         communicator.stringToProxy("test").ice_locatorCacheTimeout(0).ice_ping(); // No locator cache.
         count += 2;
         test(count == locator.getRequestCount());
-        communicator.stringToProxy("test").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout
+        communicator.stringToProxy("test").ice_locatorCacheTimeout(2).ice_ping(); // 2s timeout
         test(count == locator.getRequestCount());
-        Thread.sleep(1200);
+        Thread.sleep(1300);
         communicator.stringToProxy("test").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout
         count += 2;
         test(count == locator.getRequestCount());
@@ -395,7 +389,8 @@ public class AllTests
         try
         {
             communicator.stringToProxy("test@TestAdapter3").ice_ping();
-            registry.setAdapterDirectProxy("TestAdapter3", communicator.stringToProxy("dummy:tcp"));
+            registry.setAdapterDirectProxy("TestAdapter3",
+                                           communicator.stringToProxy("dummy:" + helper.getTestEndpoint(99)));
             communicator.stringToProxy("test@TestAdapter3").ice_ping();
         }
         catch(com.zeroc.Ice.LocalException ex)
@@ -447,7 +442,8 @@ public class AllTests
             test(ex.id.equals("TestUnknown"));
         }
         registry.addObject(communicator.stringToProxy("test3@TestAdapter4")); // Update
-        registry.setAdapterDirectProxy("TestAdapter4", communicator.stringToProxy("dummy:tcp"));
+        registry.setAdapterDirectProxy("TestAdapter4",
+                                       communicator.stringToProxy("dummy:" + helper.getTestEndpoint(99)));
 
         try
         {
@@ -468,7 +464,8 @@ public class AllTests
             test(false);
         }
 
-        registry.setAdapterDirectProxy("TestAdapter4", communicator.stringToProxy("dummy:tcp"));
+        registry.setAdapterDirectProxy("TestAdapter4",
+                                       communicator.stringToProxy("dummy:" + helper.getTestEndpoint(99)));
         try
         {
             communicator.stringToProxy("test3").ice_ping();
@@ -527,56 +524,56 @@ public class AllTests
         out.print("testing locator cache background updates... ");
         out.flush();
         {
-            com.zeroc.Ice.InitializationData initData = app.createInitializationData();
-            initData.properties = communicator.getProperties()._clone();
-            initData.properties.setProperty("Ice.BackgroundLocatorCacheUpdates", "1");
-            com.zeroc.Ice.Communicator ic = app.initialize(initData);
-
-            registry.setAdapterDirectProxy("TestAdapter5", locator.findAdapterById("TestAdapter"));
-            registry.addObject(communicator.stringToProxy("test3@TestAdapter"));
-
-            count = locator.getRequestCount();
-            ic.stringToProxy("test@TestAdapter5").ice_locatorCacheTimeout(0).ice_ping(); // No locator cache.
-            ic.stringToProxy("test3").ice_locatorCacheTimeout(0).ice_ping(); // No locator cache.
-            count += 3;
-            test(count == locator.getRequestCount());
-            registry.setAdapterDirectProxy("TestAdapter5", null);
-            registry.addObject(communicator.stringToProxy("test3:tcp"));
-            ic.stringToProxy("test@TestAdapter5").ice_locatorCacheTimeout(10).ice_ping(); // 10s timeout.
-            ic.stringToProxy("test3").ice_locatorCacheTimeout(10).ice_ping(); // 10s timeout.
-            test(count == locator.getRequestCount());
-            Thread.sleep(1200);
-
-            // The following request should trigger the background updates but still use the cached endpoints
-            // and therefore succeed.
-            ic.stringToProxy("test@TestAdapter5").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout.
-            ic.stringToProxy("test3").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout.
-
-            try
+            com.zeroc.Ice.Properties properties = communicator.getProperties()._clone();
+            properties.setProperty("Ice.BackgroundLocatorCacheUpdates", "1");
+            try(com.zeroc.Ice.Communicator ic = helper.initialize(properties))
             {
-                while(true)
+                registry.setAdapterDirectProxy("TestAdapter5", locator.findAdapterById("TestAdapter"));
+                registry.addObject(communicator.stringToProxy("test3@TestAdapter"));
+
+                count = locator.getRequestCount();
+                ic.stringToProxy("test@TestAdapter5").ice_locatorCacheTimeout(0).ice_ping(); // No locator cache.
+                ic.stringToProxy("test3").ice_locatorCacheTimeout(0).ice_ping(); // No locator cache.
+                count += 3;
+                test(count == locator.getRequestCount());
+                registry.setAdapterDirectProxy("TestAdapter5", null);
+                registry.addObject(communicator.stringToProxy("test3:" + helper.getTestEndpoint(99)));
+                ic.stringToProxy("test@TestAdapter5").ice_locatorCacheTimeout(10).ice_ping(); // 10s timeout.
+                ic.stringToProxy("test3").ice_locatorCacheTimeout(10).ice_ping(); // 10s timeout.
+                test(count == locator.getRequestCount());
+                Thread.sleep(1200);
+
+                // The following request should trigger the background updates but still use the cached endpoints
+                // and therefore succeed.
+                ic.stringToProxy("test@TestAdapter5").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout.
+                ic.stringToProxy("test3").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout.
+
+                try
                 {
-                    ic.stringToProxy("test@TestAdapter5").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout.
-                    Thread.sleep(10);
+                    while(true)
+                    {
+                        ic.stringToProxy("test@TestAdapter5").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout.
+                        Thread.sleep(10);
+                    }
+                }
+                catch(com.zeroc.Ice.LocalException ex)
+                {
+                    // Expected to fail once they endpoints have been updated in the background.
+                }
+
+                try
+                {
+                    while(true)
+                    {
+                        ic.stringToProxy("test3").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout.
+                        Thread.sleep(10);
+                    }
+                }
+                catch(com.zeroc.Ice.LocalException ex)
+                {
+                    // Expected to fail once they endpoints have been updated in the background.
                 }
             }
-            catch(com.zeroc.Ice.LocalException ex)
-            {
-                // Expected to fail once they endpoints have been updated in the background.
-            }
-            try
-            {
-                while(true)
-                {
-                    ic.stringToProxy("test3").ice_locatorCacheTimeout(1).ice_ping(); // 1s timeout.
-                    Thread.sleep(10);
-                }
-            }
-            catch(com.zeroc.Ice.LocalException ex)
-            {
-                // Expected to fail once they endpoints have been updated in the background.
-            }
-            ic.destroy();
         }
         out.println("ok");
 
@@ -627,6 +624,7 @@ public class AllTests
         catch(com.zeroc.Ice.LocalException ex)
         {
         }
+
         try
         {
             obj3.ice_ping();
@@ -635,6 +633,7 @@ public class AllTests
         catch(com.zeroc.Ice.LocalException ex)
         {
         }
+
         try
         {
             obj5.ice_ping();

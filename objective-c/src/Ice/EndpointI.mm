@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in
-// the ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #import <EndpointI.h>
 #import <Util.h>
@@ -45,7 +40,7 @@ registerEndpointInfoClass(Class cl)
 
 @implementation ICEEndpointInfo(ICEInternal)
 
-+(id) checkedEndpointInfoWithEndpointInfo:(Ice::EndpointInfo*)endpointInfo
++(id) checkedEndpointInfoWithEndpointInfo:(Ice::EndpointInfo*)__unused endpointInfo
 {
     assert(false);
     return nil;
@@ -104,7 +99,7 @@ registerEndpointInfoClass(Class cl)
     return [[ICEEndpointInfo alloc] initWithEndpointInfo:info];
 }
 
--(id) initWithEndpointInfo:(Ice::EndpointInfo*)endpointInfo;
+-(id) initWithEndpointInfo:(Ice::EndpointInfo*)endpointInfo
 {
     self = [super initWithCxxObject:endpointInfo];
     if(self)
@@ -122,12 +117,12 @@ registerEndpointInfoClass(Class cl)
     return ENDPOINTINFO->type();
 }
 
--(BOOL) datagram;
+-(BOOL) datagram
 {
     return ENDPOINTINFO->datagram();
 }
 
--(BOOL) secure;
+-(BOOL) secure
 {
     return ENDPOINTINFO->secure();
 }
@@ -135,7 +130,7 @@ registerEndpointInfoClass(Class cl)
 
 @implementation ICEIPEndpointInfo(ICEInternal)
 
--(id) initWithIPEndpointInfo:(Ice::IPEndpointInfo*)ipEndpointInfo;
+-(id) initWithIPEndpointInfo:(Ice::IPEndpointInfo*)ipEndpointInfo
 {
     self = [super initWithEndpointInfo:ipEndpointInfo];
     if(self)

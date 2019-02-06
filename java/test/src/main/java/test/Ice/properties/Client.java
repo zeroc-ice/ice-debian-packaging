@@ -1,18 +1,13 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.properties;
 
 import com.zeroc.Ice.Properties;
 import com.zeroc.Ice.Util;
 
-public class Client extends test.Util.Application
+public class Client extends test.TestHelper
 {
     public static void test(boolean b)
     {
@@ -37,8 +32,7 @@ public class Client extends test.Util.Application
         }
     }
 
-    @Override
-    public int run(String[] args)
+    public void run(String[] args)
     {
         {
             System.out.print("testing load properties from UTF-8 path... ");
@@ -101,16 +95,6 @@ public class Client extends test.Util.Application
             }
             System.out.println("ok");
         }
-
-        return 0;
-    }
-
-    public static void main(String[] args)
-    {
-        Client c = new Client();
-        int status = c.main("Client", args);
-        System.gc();
-        System.exit(status);
     }
 
     private static String configPath = "./config/\u4E2D\u56FD_client.config";

@@ -1,23 +1,15 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <TestI.h>
 
-#ifdef _MSC_VER
 // For 'Ice::Communicator::addObjectFactory()' deprecation
-#pragma warning( disable : 4996 )
-#endif
-
-#if defined(__GNUC__)
-// For 'Ice::Communicator::addObjectFactory()' deprecation
+#if defined(_MSC_VER)
+#   pragma warning( disable : 4996 )
+#elif defined(__GNUC__)
 #   pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
@@ -39,7 +31,7 @@ public:
 void
 testUOE(const Ice::CommunicatorPtr& communicator)
 {
-    string ref = "uoet:" + getTestEndpoint(communicator, 0);
+    string ref = "uoet:" + TestHelper::getTestEndpoint(communicator->getProperties());
     Ice::ObjectPrxPtr base = communicator->stringToProxy(ref);
     test(base);
     UnexpectedObjectExceptionTestPrxPtr uoet = ICE_UNCHECKED_CAST(UnexpectedObjectExceptionTestPrx, base);
@@ -67,10 +59,10 @@ testUOE(const Ice::CommunicatorPtr& communicator)
 
 void clear(const CPtr&);
 
+#ifdef ICE_CPP11_MAPPING
 void
 clear(const BPtr& b)
 {
-#ifdef ICE_CPP11_MAPPING
     // No GC with the C++11 mapping
     if(dynamic_pointer_cast<B>(b->theA))
     {
@@ -85,23 +77,33 @@ clear(const BPtr& b)
         clear(dynamic_pointer_cast<B>(tmp));
     }
     b->theC = nullptr;
-#endif
 }
+#else
+void
+clear(const BPtr&)
+{
+}
+#endif
 
+#ifdef ICE_CPP11_MAPPING
 void
 clear(const CPtr& c)
 {
-#ifdef ICE_CPP11_MAPPING
     // No GC with the C++11 mapping
     clear(c->theB);
     c->theB = nullptr;
-#endif
 }
+#else
+void
+clear(const CPtr&)
+{
+}
+#endif
 
+#ifdef ICE_CPP11_MAPPING
 void
 clear(const DPtr& d)
 {
-#ifdef ICE_CPP11_MAPPING
     // No GC with the C++11 mapping
     if(dynamic_pointer_cast<B>(d->theA))
     {
@@ -110,16 +112,22 @@ clear(const DPtr& d)
     d->theA = nullptr;
     clear(d->theB);
     d->theB = nullptr;
-#endif
 }
+#else
+void
+clear(const DPtr&)
+{
+}
+#endif
 
 }
 
 InitialPrxPtr
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
     cout << "testing stringToProxy... " << flush;
-    string ref = "initial:" + getTestEndpoint(communicator, 0);
+    string ref = "initial:" + helper->getTestEndpoint();
     Ice::ObjectPrxPtr base = communicator->stringToProxy(ref);
     test(base);
     cout << "ok" << endl;
@@ -342,6 +350,45 @@ allTests(const Ice::CommunicatorPtr& communicator)
 #endif
     cout << "ok" << endl;
 
+    cout << "getting K... " << flush;
+    {
+        KPtr k = initial->getK();
+        LPtr l = ICE_DYNAMIC_CAST(L, k->value);
+        test(l);
+        test(l->data == "l");
+    }
+    cout << "ok" << endl;
+
+    cout << "testing Value as parameter..." << flush;
+    {
+        LPtr v1 = ICE_MAKE_SHARED(L, "l");
+        Ice::ValuePtr v2;
+        Ice::ValuePtr v3 = initial->opValue(v1, v2);
+        test(ICE_DYNAMIC_CAST(L, v2)->data == "l");
+        test(ICE_DYNAMIC_CAST(L, v3)->data == "l");
+    }
+
+    {
+        LPtr l = ICE_MAKE_SHARED(L, "l");
+        Test::ValueSeq v1;
+        v1.push_back(l);
+        Test::ValueSeq v2;
+        Test::ValueSeq v3 = initial->opValueSeq(v1, v2);
+        test(ICE_DYNAMIC_CAST(L, v2[0])->data == "l");
+        test(ICE_DYNAMIC_CAST(L, v3[0])->data == "l");
+    }
+
+    {
+        LPtr l = ICE_MAKE_SHARED(L, "l");
+        Test::ValueMap v1;
+        v1["l"] = l;
+        Test::ValueMap v2;
+        Test::ValueMap v3 = initial->opValueMap(v1, v2);
+        test(ICE_DYNAMIC_CAST(L, v2["l"])->data == "l");
+        test(ICE_DYNAMIC_CAST(L, v3["l"])->data == "l");
+    }
+    cout << "ok" << endl;
+
     cout << "getting D1... " << flush;
     D1Ptr d1 = ICE_MAKE_SHARED(D1,
                                ICE_MAKE_SHARED(A1, "a1"),
@@ -399,10 +446,10 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     cout << "testing recursive type... " << flush;
     RecursivePtr top = ICE_MAKE_SHARED(Recursive);
-    RecursivePtr p = top;
     int depth = 0;
     try
     {
+        RecursivePtr p = top;
 #if defined(NDEBUG) || !defined(__APPLE__)
         const int maxDepth = 2000;
 #else
@@ -471,14 +518,16 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     try
     {
-        TestIntfPrxPtr p = ICE_CHECKED_CAST(TestIntfPrx,
-                                            communicator->stringToProxy("test:" + getTestEndpoint(communicator, 0)));
+        Ice::PropertiesPtr properties = communicator->getProperties();
+        TestIntfPrxPtr p =
+            ICE_CHECKED_CAST(TestIntfPrx,
+                             communicator->stringToProxy("test:" + TestHelper::getTestEndpoint(properties)));
 
         cout << "testing Object factory registration... " << flush;
         {
-            BasePtr base = p->opDerived();
-            test(base);
-            test(base->ice_id() == "::Test::Derived");
+            BasePtr basePtr = p->opDerived();
+            test(basePtr);
+            test(basePtr->ice_id() == "::Test::Derived");
         }
         cout << "ok" << endl;
 
@@ -498,6 +547,35 @@ allTests(const Ice::CommunicatorPtr& communicator)
     catch(const Ice::ObjectNotExistException&)
     {
     }
+
+    cout << "testing class containing complex dictionary... " << flush;
+    {
+        Test::MPtr m = ICE_MAKE_SHARED(Test::M);
+
+        Test::StructKey k1;
+        k1.i = 1;
+        k1.s = "1";
+        m->v[k1] = ICE_MAKE_SHARED(L, "one");
+
+        Test::StructKey k2;
+        k2.i = 2;
+        k2.s = "2";
+        m->v[k2] = ICE_MAKE_SHARED(L, "two");
+
+        Test::MPtr m1;
+        Test::MPtr m2 = initial->opM(m, m1);
+
+        test(m1->v.size() == 2);
+        test(m2->v.size() == 2);
+
+        test(m1->v[k1]->data == "one");
+        test(m2->v[k1]->data == "one");
+
+        test(m1->v[k2]->data == "two");
+        test(m2->v[k2]->data == "two");
+
+    }
+    cout << "ok" << endl;
 
     return initial;
 }

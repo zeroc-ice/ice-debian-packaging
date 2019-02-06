@@ -1,17 +1,12 @@
-﻿// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include "pch.h"
-#include "ViewController.xaml.h"
+#include "ControllerView.xaml.h"
 #include <ppltasks.h>
 
-using namespace Controller;
+using namespace Test;
 
 using namespace Platform;
 using namespace Windows::ApplicationModel;
@@ -63,7 +58,7 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
 
     // Create a Frame to act navigation context and navigate to the first page
     auto rootFrame = ref new Frame();
-    if(!rootFrame->Navigate(TypeName(ViewController::typeid)))
+    if(!rootFrame->Navigate(TypeName(ControllerView::typeid)))
     {
         throw ref new FailureException("Failed to create initial page");
     }

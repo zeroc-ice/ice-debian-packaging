@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.objects;
 
@@ -22,6 +17,10 @@ import test.Ice.objects.Test.F;
 import test.Ice.objects.Test.G;
 import test.Ice.objects.Test.H;
 import test.Ice.objects.Test.I;
+import test.Ice.objects.Test.K;
+import test.Ice.objects.Test.L;
+import test.Ice.objects.Test.ValueSeqHolder;
+import test.Ice.objects.Test.ValueMapHolder;
 import test.Ice.objects.Test.A1;
 import test.Ice.objects.Test.B1;
 import test.Ice.objects.Test.D1;
@@ -35,6 +34,9 @@ import test.Ice.objects.Test.J;
 import test.Ice.objects.Test.Recursive;
 import test.Ice.objects.Test.UnexpectedObjectExceptionTestPrx;
 import test.Ice.objects.Test.UnexpectedObjectExceptionTestPrxHelper;
+import test.Ice.objects.Test.StructKey;
+import test.Ice.objects.Test.M;
+import test.Ice.objects.Test.MHolder;
 
 public class AllTests
 {
@@ -49,13 +51,13 @@ public class AllTests
 
     @SuppressWarnings("deprecation")
     public static InitialPrx
-    allTests(test.Util.Application app)
+    allTests(test.TestHelper helper)
     {
-        Ice.Communicator communicator = app.communicator();
-        PrintWriter out = app.getWriter();
+        Ice.Communicator communicator = helper.communicator();
+        PrintWriter out = helper.getWriter();
         out.print("testing stringToProxy... ");
         out.flush();
-        String ref = "initial:" + app.getTestEndpoint(0);
+        String ref = "initial:" + helper.getTestEndpoint(0);
         Ice.ObjectPrx base = communicator.stringToProxy(ref);
         test(base != null);
         out.println("ok");
@@ -202,6 +204,42 @@ public class AllTests
         test(h != null && ((H)h) != null);
         out.println("ok");
 
+        out.print("getting K... ");
+        out.flush();
+        {
+            K k = initial.getK();
+            test(k.value instanceof L);
+            L l = (L)k.value;
+            test(l.data.equals("l"));
+        }
+        out.println("ok");
+
+        out.print("testing Value as parameter... ");
+        out.flush();
+        {
+            L v1 = new L("l");
+            Ice.ObjectHolder v2 = new Ice.ObjectHolder();
+            Ice.Object v3 = initial.opValue(v1, v2);
+            test(((L)v2.value).data.equals("l"));
+            test(((L)v3).data.equals("l"));
+        }
+        {
+            L[] v1 = { new L("l") };
+            ValueSeqHolder v2 = new ValueSeqHolder();
+            Ice.Object[] v3 = initial.opValueSeq(v1, v2);
+            test(((L)v2.value[0]).data.equals("l"));
+            test(((L)v3[0]).data.equals("l"));
+        }
+        {
+            java.util.Map<String, Ice.Object> v1 = new java.util.HashMap<String, Ice.Object>();
+            v1.put("l", new L("l"));
+            ValueMapHolder v2 = new ValueMapHolder();
+            java.util.Map<String, Ice.Object> v3 = initial.opValueMap(v1, v2);
+            test(((L)v2.value.get("l")).data.equals("l"));
+            test(((L)v3.get("l")).data.equals("l"));
+        }
+        out.println("ok");
+
         out.print("getting D1... ");
         out.flush();
         D1 d1 = new D1(new A1("a1"), new A1("a2"), new A1("a3"), new A1("a4"));
@@ -314,7 +352,7 @@ public class AllTests
 
         out.print("testing UnexpectedObjectException...");
         out.flush();
-        ref = "uoet:" + app.getTestEndpoint(0);
+        ref = "uoet:" + helper.getTestEndpoint(0);
         base = communicator.stringToProxy(ref);
         test(base != null);
         UnexpectedObjectExceptionTestPrx uoet = UnexpectedObjectExceptionTestPrxHelper.uncheckedCast(base);
@@ -342,6 +380,30 @@ public class AllTests
         out.println("ok");
         out.print("testing getting ObjectFactory as ValueFactory...");
         test(communicator.getValueFactoryManager().find("TestOF") != null);
+        out.println("ok");
+
+        out.print("testing class containing complex dictionary... ");
+        out.flush();
+        {
+            M m = new M();
+            m.v = new java.util.HashMap<StructKey, L>();
+            StructKey k1 = new StructKey(1, "1");
+            m.v.put(k1, new L("one"));
+            StructKey k2 = new StructKey(2, "2");
+            m.v.put(k2, new L("two"));
+
+            MHolder m1 = new MHolder();
+            M m2 = initial.opM(m, m1);
+            test(m1.value.v.size() == 2);
+            test(m2.v.size() == 2);
+
+            test(m1.value.v.get(k1).data.equals("one"));
+            test(m2.v.get(k1).data.equals("one"));
+
+            test(m1.value.v.get(k2).data.equals("two"));
+            test(m2.v.get(k2).data.equals("two"));
+
+        }
         out.println("ok");
 
         return initial;

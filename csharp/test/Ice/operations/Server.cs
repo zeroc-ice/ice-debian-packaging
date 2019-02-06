@@ -1,54 +1,45 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-using System;
-using System.Reflection;
+using Test;
 
-[assembly: CLSCompliant(true)]
-
-[assembly: AssemblyTitle("IceTest")]
-[assembly: AssemblyDescription("Ice test")]
-[assembly: AssemblyCompany("ZeroC, Inc.")]
-
-public class Server : TestCommon.Application
+namespace Ice
 {
-    public override int run(string[] args)
+    namespace operations
     {
-        //
-        // We don't want connection warnings because of the timeout test.
-        //
-        communicator().getProperties().setProperty("Ice.Warn.Connections", "0");
+        public class Server : TestHelper
+        {
+            public override void run(string[] args)
+            {
+                var initData = new InitializationData();
+                initData.typeIdNamespaces = new string[]{"Ice.operations.TypeId"};
+                initData.properties = createTestProperties(ref args);
+                //
+                // Its possible to have batch oneway requests dispatched
+                // after the adapter is deactivated due to thread
+                // scheduling so we supress this warning.
+                //
+                initData.properties.setProperty("Ice.Warn.Dispatch", "0");
+                //
+                // We don't want connection warnings because of the timeout test.
+                //
+                initData.properties.setProperty("Ice.Warn.Connections", "0");
+                using(var communicator = initialize(initData))
+                {
+                    communicator.getProperties().setProperty("TestAdapter.Endpoints", getTestEndpoint(0));
+                    Ice.ObjectAdapter adapter = communicator.createObjectAdapter("TestAdapter");
+                    adapter.add(new MyDerivedClassI(), Ice.Util.stringToIdentity("test"));
+                    adapter.activate();
+                    serverReady();
+                    communicator.waitForShutdown();
+                }
+            }
 
-        communicator().getProperties().setProperty("TestAdapter.Endpoints", getTestEndpoint(0));
-        Ice.ObjectAdapter adapter = communicator().createObjectAdapter("TestAdapter");
-        adapter.add(new MyDerivedClassI(), Ice.Util.stringToIdentity("test"));
-        adapter.activate();
-
-        communicator().waitForShutdown();
-        return 0;
-    }
-
-    protected override Ice.InitializationData getInitData(ref string[] args)
-    {
-        Ice.InitializationData initData = base.getInitData(ref args);
-        //
-        // Its possible to have batch oneway requests dispatched
-        // after the adapter is deactivated due to thread
-        // scheduling so we supress this warning.
-        //
-        initData.properties.setProperty("Ice.Warn.Dispatch", "0");
-        return initData;
-    }
-
-    public static int Main(string[] args)
-    {
-        Server app = new Server();
-        return app.runmain(args);
+            public static int Main(string[] args)
+            {
+                return TestDriver.runTest<Server>(args);
+            }
+        }
     }
 }

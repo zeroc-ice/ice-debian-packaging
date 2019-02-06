@@ -1,56 +1,35 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <Controller.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 using namespace std;
 using namespace Ice;
 using namespace Test;
 
-int
-run(int argc, char* argv[], const CommunicatorPtr& communicator)
+class Control : public Test::TestHelper
 {
+public:
+
+    void run(int, char**);
+};
+
+void
+Control::run(int argc, char** argv)
+{
+    Ice::CommunicatorHolder communicator = initialize(argc, argv);
     if(argc < 2)
     {
-        cerr << "Usage: " << argv[0] << " proxy" << endl;
-        return EXIT_FAILURE;
+        ostringstream os;
+        os << "Usage: " << argv[0] << " proxy";
+        throw invalid_argument(os.str());
     }
 
     ControllerPrx control = ControllerPrx::uncheckedCast(communicator->stringToProxy(argv[1]));
     control->stop();
-
-    return EXIT_SUCCESS;
 }
 
-int
-main(int argc, char* argv[])
-{
-    int status;
-    CommunicatorPtr communicator;
-    InitializationData initData = getTestInitData(argc, argv);
-    try
-    {
-        communicator = initialize(argc, argv, initData);
-        status = run(argc, argv, communicator);
-    }
-    catch(const Exception& ex)
-    {
-        cerr << ex << endl;
-        status = EXIT_FAILURE;
-    }
-
-    if(communicator)
-    {
-        communicator->destroy();
-    }
-
-    return status;
-}
+DEFINE_TEST(Control)

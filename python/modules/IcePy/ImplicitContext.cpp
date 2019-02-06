@@ -1,15 +1,7 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-#ifdef _WIN32
-#   include <IceUtil/Config.h>
-#endif
 #include <ImplicitContext.h>
 #include <ObjectAdapter.h>
 #include <Proxy.h>
@@ -115,7 +107,7 @@ implicitContextCompare(ImplicitContextObject* c1, PyObject* other, int op)
 extern "C"
 #endif
 static PyObject*
-implicitContextGetContext(ImplicitContextObject* self)
+implicitContextGetContext(ImplicitContextObject* self, PyObject* /*args*/)
 {
     Ice::Context ctx = (*self->implicitContext)->getContext();
 
@@ -290,7 +282,7 @@ implicitContextRemove(ImplicitContextObject* self, PyObject* args)
 
 static PyMethodDef ImplicitContextMethods[] =
 {
-    { STRCAST("getContext"), reinterpret_cast<PyCFunction>(implicitContextGetContext), METH_VARARGS,
+    { STRCAST("getContext"), reinterpret_cast<PyCFunction>(implicitContextGetContext), METH_NOARGS,
       PyDoc_STR(STRCAST("getContext() -> Ice.Context")) },
     { STRCAST("setContext"), reinterpret_cast<PyCFunction>(implicitContextSetContext), METH_VARARGS,
       PyDoc_STR(STRCAST("setContext(ctx) -> string")) },

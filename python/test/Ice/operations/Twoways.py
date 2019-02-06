@@ -1,11 +1,6 @@
-# **********************************************************************
 #
-# Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+# Copyright (c) ZeroC, Inc. All rights reserved.
 #
-# This copy of Ice is licensed to you under the terms described in the
-# ICE_LICENSE file included in this distribution.
-#
-# **********************************************************************
 
 import Ice, math, Test, array, sys
 from sys import version_info
@@ -14,8 +9,9 @@ def test(b):
     if not b:
         raise RuntimeError('test assertion failed')
 
-def twoways(communicator, p):
+def twoways(helper, p):
 
+    communicator = helper.communicator()
     literals = p.opStringLiterals()
 
     test(Test.s0 == "\\")
@@ -1341,7 +1337,7 @@ def twoways(communicator, p):
 
             ctx = {'one': 'ONE', 'two': 'TWO', 'three': 'THREE'}
 
-            p1 = Test.MyClassPrx.uncheckedCast(ic.stringToProxy('test:default -p 12010'))
+            p1 = Test.MyClassPrx.uncheckedCast(ic.stringToProxy('test:{0}'.format(helper.getTestEndpoint())))
 
             ic.getImplicitContext().setContext(ctx)
             test(ic.getImplicitContext().getContext() == ctx)

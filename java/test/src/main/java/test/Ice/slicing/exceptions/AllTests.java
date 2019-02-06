@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.slicing.exceptions;
 
@@ -105,14 +100,14 @@ public class AllTests
         }
     }
 
-    public static TestIntfPrx allTests(test.Util.Application app, boolean collocated)
+    public static TestIntfPrx allTests(test.TestHelper helper, boolean collocated)
     {
-        java.io.PrintWriter out = app.getWriter();
-        com.zeroc.Ice.Communicator communicator = app.communicator();
+        java.io.PrintWriter out = helper.getWriter();
+        com.zeroc.Ice.Communicator communicator = helper.communicator();
 
         out.print("testing stringToProxy... ");
         out.flush();
-        String ref = "Test:" + app.getTestEndpoint(0) + " -t 10000";
+        String ref = "Test:" + helper.getTestEndpoint(0) + " -t 10000";
         com.zeroc.Ice.ObjectPrx base = communicator.stringToProxy(ref);
         test(base != null);
         out.println("ok");

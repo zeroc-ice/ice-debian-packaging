@@ -1,15 +1,10 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <IceUtil/Random.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 
 using namespace std;
@@ -78,13 +73,14 @@ typedef IceUtil::Handle<SetCB> SetCBPtr;
 }
 
 void
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
     cout << "testing stringToProxy... " << flush;
-    string ref = "hold:" + getTestEndpoint(communicator, 0);
+    string ref = "hold:" + helper->getTestEndpoint();
     Ice::ObjectPrxPtr base = communicator->stringToProxy(ref);
     test(base);
-    string refSerialized = "hold:" + getTestEndpoint(communicator, 1);
+    string refSerialized = "hold:" + helper->getTestEndpoint(1);
     Ice::ObjectPrxPtr baseSerialized = communicator->stringToProxy(refSerialized);
     test(base);
     cout << "ok" << endl;
@@ -108,20 +104,19 @@ allTests(const Ice::CommunicatorPtr& communicator)
     cout << "ok" << endl;
 
     cout << "changing state between active and hold rapidly... " << flush;
-    int i;
-    for(i = 0; i < 100; ++i)
+    for(int i = 0; i < 100; ++i)
     {
         hold->putOnHold(0);
     }
-    for(i = 0; i < 100; ++i)
+    for(int i = 0; i < 100; ++i)
     {
         hold->ice_oneway()->putOnHold(0);
     }
-    for(i = 0; i < 100; ++i)
+    for(int i = 0; i < 100; ++i)
     {
         holdSerialized->putOnHold(0);
     }
-    for(i = 0; i < 100; ++i)
+    for(int i = 0; i < 100; ++i)
     {
         holdSerialized->ice_oneway()->putOnHold(0);
     }
@@ -139,9 +134,9 @@ allTests(const Ice::CommunicatorPtr& communicator)
             auto sent = make_shared<promise<bool>>();
             auto expected = value;
             hold->setAsync(value + 1, IceUtilInternal::random(5),
-                [cond, expected, completed](int value)
+                [cond, expected, completed](int val)
                 {
-                    if(value != expected)
+                    if(val != expected)
                     {
                         cond->set(false);
                     }
@@ -214,9 +209,9 @@ allTests(const Ice::CommunicatorPtr& communicator)
             holdSerialized->setAsync(
                 value + 1,
                 IceUtilInternal::random(1),
-                [cond, expected, completed](int value)
+                [cond, expected, completed](int val)
                 {
-                    if(value != expected)
+                    if(val != expected)
                     {
                         cond->set(false);
                     }
@@ -281,7 +276,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
                 [](exception_ptr)
                 {
                 },
-                [completed](bool sentSynchronously)
+                [completed](bool /*sentSynchronously*/)
                 {
                     completed->set_value();
                 });
@@ -317,7 +312,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
     {
         hold->waitForHold();
         hold->waitForHold();
-        for(i = 0; i < 1000; ++i)
+        for(int i = 0; i < 1000; ++i)
         {
             hold->ice_oneway()->ice_ping();
             if((i % 20) == 0)

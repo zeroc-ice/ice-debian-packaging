@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 namespace IceLocatorDiscovery
 {
@@ -732,5 +727,14 @@ namespace IceLocatorDiscovery
         private LocatorI _locator;
         private Ice.LocatorPrx _locatorPrx;
         private Ice.LocatorPrx _defaultLocator;
+    }
+
+    public class Util
+    {
+        public static void
+        registerIceLocatorDiscovery(bool loadOnInitialize)
+        {
+            Ice.Util.registerPluginFactory("IceLocatorDiscovery", new PluginFactory(), loadOnInitialize);
+        }
     }
 }

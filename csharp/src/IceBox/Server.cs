@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 using System.Collections.Generic;
@@ -15,68 +10,82 @@ namespace IceBox
 
 public class Server
 {
-    public class App : Ice.Application
+    private static void usage()
     {
-        private static void usage()
+        Console.Error.WriteLine("Usage: iceboxnet [options] --Ice.Config=<file>\n");
+        Console.Error.WriteLine(
+            "Options:\n" +
+            "-h, --help           Show this message.\n" +
+            "-v, --version        Display the Ice version."
+        );
+    }
+
+    private static int run(Ice.Communicator communicator, string[] args)
+    {
+        const string prefix = "IceBox.Service.";
+        Ice.Properties properties = communicator.getProperties();
+        Dictionary<string, string> services = properties.getPropertiesForPrefix(prefix);
+
+        var argSeq = new List<string>(args);
+        foreach(KeyValuePair<string, string> pair in services)
         {
-            Console.Error.WriteLine("Usage: iceboxnet [options] --Ice.Config=<file>\n");
-            Console.Error.WriteLine(
-                "Options:\n" +
-                "-h, --help           Show this message.\n"
-            );
+            string name = pair.Key.Substring(prefix.Length);
+            argSeq.RemoveAll(v => v.StartsWith("--" + name));
         }
 
-        public override int run(string[] args)
+        foreach(string arg in args)
         {
-            List<string> argSeq = new List<string>(args);
-            const string prefix = "IceBox.Service.";
-            Ice.Properties properties = communicator().getProperties();
-            Dictionary<string, string> services = properties.getPropertiesForPrefix(prefix);
-            foreach(KeyValuePair<string, string> pair in services)
+            if(arg.Equals("-h") || arg.Equals("--help"))
             {
-                string name = pair.Key.Substring(prefix.Length);
-                for(int i = 0; i < argSeq.Count; ++i)
-                {
-                    if(argSeq[i].StartsWith("--" + name, StringComparison.CurrentCulture))
-                    {
-                        argSeq.RemoveAt(i);
-                        i--;
-                    }
-                }
+                usage();
+                return 0;
             }
-
-            foreach(string s in argSeq)
+            else if(arg.Equals("-v") || arg.Equals("--version"))
             {
-                if(s.Equals("-h") || s.Equals("--help"))
-                {
-                    usage();
-                    return 0;
-                }
-                else if(s.Equals("-v") || s.Equals("--version"))
-                {
-                    Console.Out.WriteLine(Ice.Util.stringVersion());
-                    return 0;
-                }
-                else
-                {
-                    Console.Error.WriteLine("Server: unknown option `" + s + "'");
-                    usage();
-                    return 1;
-                }
+                Console.Out.WriteLine(Ice.Util.stringVersion());
+                return 0;
             }
-
-            ServiceManagerI serviceManagerImpl = new ServiceManagerI(communicator(), args);
-            return serviceManagerImpl.run();
+            else
+            {
+                Console.Error.WriteLine("IceBox.Server: unknown option `" + arg + "'");
+                usage();
+                return 1;
+            }
         }
+
+        ServiceManagerI serviceManagerImpl = new ServiceManagerI(communicator, args);
+        return serviceManagerImpl.run();
     }
 
     public static int Main(string[] args)
     {
+        int status = 0;
+
         Ice.InitializationData initData = new Ice.InitializationData();
         initData.properties = Ice.Util.createProperties();
         initData.properties.setProperty("Ice.Admin.DelayCreation", "1");
-        App server = new App();
-        return server.main(args, initData);
+
+        try
+        {
+            using(var communicator = Ice.Util.initialize(ref args, initData))
+            {
+                Console.CancelKeyPress += (sender, eventArgs) =>
+                {
+                    eventArgs.Cancel = true;
+                    communicator.shutdown();
+                };
+
+                status = run(communicator, args);
+            }
+        }
+        catch(Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+            status = 1;
+        }
+
+        return status;
     }
 }
+
 }

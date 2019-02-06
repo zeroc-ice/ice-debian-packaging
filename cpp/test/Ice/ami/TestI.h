@@ -1,17 +1,12 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef TEST_I_H
 #define TEST_I_H
 
 #include <Test.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 class TestIntfControllerI;
 ICE_DEFINE_PTR(TestIntfControllerIPtr, TestIntfControllerI);
@@ -46,7 +41,7 @@ public:
     virtual bool supportsAMD(const Ice::Current&);
     virtual bool supportsFunctionalTests(const Ice::Current&);
 
-    virtual void pingBiDir(ICE_IN(Ice::Identity), const Ice::Current&);
+    virtual void pingBiDir(ICE_IN(Test::PingReplyPrxPtr), const Ice::Current&);
 
 private:
 

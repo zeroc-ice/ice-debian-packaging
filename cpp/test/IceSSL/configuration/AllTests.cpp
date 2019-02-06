@@ -1,28 +1,29 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <IceSSL/IceSSL.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 #include <fstream>
 #include <algorithm>
 
 #include <Ice/UniqueRef.h>
+
+#ifdef _MSC_VER
+#   pragma warning(disable:4189) // 'elCapitanUpdate2OrLower': local variable is initialized but not referenced
+#endif
+
 #if defined(__APPLE__)
-#  include <sys/sysctl.h>
-#  if TARGET_OS_IPHONE != 0
-#    include <IceSSL/SecureTransportUtil.h> // For loadCertificateChain
-#  endif
+#   include <sys/sysctl.h>
+#   if TARGET_OS_IPHONE != 0
+#       include <IceSSL/SecureTransportUtil.h> // For loadCertificateChain
+#   endif
 #elif defined(ICE_OS_UWP)
-#  include <ppltasks.h>
-#  include <nserror.h>
+#   include <ppltasks.h>
+#   include <nserror.h>
+
 using namespace concurrency;
 using namespace Platform;
 using namespace Windows::Foundation;
@@ -31,6 +32,7 @@ using namespace Windows::Storage;
 using namespace Windows::Storage::Streams;
 using namespace Windows::Security::Cryptography;
 using namespace Windows::Security::Cryptography::Certificates;
+
 #endif
 
 #ifdef ICE_CPP11_MAPPING
@@ -40,22 +42,22 @@ using namespace Windows::Security::Cryptography::Certificates;
 #endif
 
 #if defined(__APPLE__)
-#  define ICE_USE_SECURE_TRANSPORT 1
-#if defined(__APPLE__) && TARGET_OS_IPHONE != 0
-#  define ICE_USE_SECURE_TRANSPORT_IOS 1
-#else
-#  define ICE_USE_SECURE_TRANSPORT_MACOS 1
-#endif
+#   define ICE_USE_SECURE_TRANSPORT 1
+#   if defined(__APPLE__) && TARGET_OS_IPHONE != 0
+#       define ICE_USE_SECURE_TRANSPORT_IOS 1
+#   else
+#       define ICE_USE_SECURE_TRANSPORT_MACOS 1
+#   endif
 #elif defined(_WIN32)
-#  if !defined(ICE_OS_UWP) && !defined(ICE_USE_OPENSSL)
-#    define ICE_USE_SCHANNEL 1
-#  endif
+#   if !defined(ICE_OS_UWP) && !defined(ICE_USE_OPENSSL)
+#       define ICE_USE_SCHANNEL 1
+#   endif
 #else
-#  define ICE_USE_OPENSSL 1
+#   define ICE_USE_OPENSSL 1
 #endif
 
 #if defined(_WIN32) && defined(ICE_USE_OPENSSL)
-#  include <IceSSL/OpenSSL.h>
+#   include <IceSSL/OpenSSL.h>
 #endif
 
 using namespace std;
@@ -248,7 +250,7 @@ public:
             do
             {
                 if((next = CertFindCertificateInStore(p12, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, 0,
-                                                      CERT_FIND_ANY, 0, next)))
+                                                      CERT_FIND_ANY, 0, next)) != 0)
                 {
                     if(CertAddCertificateContextToStore(_store, next, CERT_STORE_ADD_ALWAYS, &newCert))
                     {
@@ -389,7 +391,7 @@ class ImportCerts
 {
 public:
 
-    ImportCerts(const string& defaultDir, const char* certificates[])
+    ImportCerts(const string& /*defaultDir*/, const char* /*certificates*/[])
     {
         // Nothing to do.
     }
@@ -400,7 +402,7 @@ public:
 };
 #endif
 
-class PasswordPromptI
+class PasswordPromptI ICE_FINAL
 #ifndef ICE_CPP11_MAPPING
  : public IceSSL::PasswordPrompt
 #endif
@@ -429,7 +431,7 @@ private:
 };
 ICE_DEFINE_PTR(PasswordPromptIPtr, PasswordPromptI);
 
-class CertificateVerifierI
+class CertificateVerifierI ICE_FINAL
 #ifndef ICE_CPP11_MAPPING
 : public IceSSL::CertificateVerifier
 #endif
@@ -685,8 +687,13 @@ void verify(const IceSSL::CertificatePtr& cert, const IceSSL::CertificatePtr& ca
 }
 
 Test::ServerFactoryPrxPtr
-allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
+#if !defined(__APPLE__) || TARGET_OS_IPHONE == 0
+allTests(Test::TestHelper* helper, const string& testDir, bool p12)
+#else
+allTests(Test::TestHelper* helper, const string& /*testDir*/, bool p12)
+#endif
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
     bool elCapitanUpdate2OrLower = false;
 #ifdef __APPLE__
     bool isElCapitanOrGreater = false;
@@ -706,7 +713,7 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         elCapitanUpdate2OrLower = (majorVersion == 15) && (minorVersion <= 2);
     }
 #endif
-    string factoryRef = "factory:" + getTestEndpoint(communicator, 0, "tcp");
+    string factoryRef = "factory:" + helper->getTestEndpoint("tcp");
     ObjectPrxPtr base = communicator->stringToProxy(factoryRef);
     test(base);
     Test::ServerFactoryPrxPtr factory = ICE_CHECKED_CAST(Test::ServerFactoryPrx, base);
@@ -1630,9 +1637,9 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         test(fact);
 
         {
-            Test::Properties d = createServerProps(defaultProps, p12, "s_rsa_ca1", "");
+            d = createServerProps(defaultProps, p12, "s_rsa_ca1", "");
             d["IceSSL.VerifyPeer"] = "0";
-            Test::ServerPrxPtr server = fact->createServer(d);
+            server = fact->createServer(d);
             try
             {
                 info = ICE_DYNAMIC_CAST(IceSSL::ConnectionInfo, server->ice_getConnection()->getInfo());
@@ -1666,12 +1673,12 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         test(fact);
 
         {
-            Test::Properties d = createServerProps(defaultProps, p12, "s_rsa_cai1", "");
+            d = createServerProps(defaultProps, p12, "s_rsa_cai1", "");
             d["IceSSL.VerifyPeer"] = "0";
-            Test::ServerPrxPtr server = fact->createServer(d);
+            server = fact->createServer(d);
             try
             {
-                ICE_DYNAMIC_CAST(IceSSL::ConnectionInfo, server->ice_getConnection()->getInfo());
+                server->ice_getConnection()->getInfo();
                 import.cleanup();
                 test(false);
             }
@@ -1700,9 +1707,9 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         fact = ICE_CHECKED_CAST(Test::ServerFactoryPrx, comm->stringToProxy(factoryRef));
         test(fact);
         {
-            Test::Properties d = createServerProps(defaultProps, p12, "s_rsa_cai1", "");
+            d = createServerProps(defaultProps, p12, "s_rsa_cai1", "");
             d["IceSSL.VerifyPeer"] = "0";
-            Test::ServerPrxPtr server = fact->createServer(d);
+            server = fact->createServer(d);
             try
             {
                 info = ICE_DYNAMIC_CAST(IceSSL::ConnectionInfo, server->ice_getConnection()->getInfo());
@@ -1719,12 +1726,12 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         }
 
         {
-            Test::Properties d = createServerProps(defaultProps, p12, "s_rsa_cai2", "");
+            d = createServerProps(defaultProps, p12, "s_rsa_cai2", "");
             d["IceSSL.VerifyPeer"] = "0";
-            Test::ServerPrxPtr server = fact->createServer(d);
+            server = fact->createServer(d);
             try
             {
-                ICE_DYNAMIC_CAST(IceSSL::ConnectionInfo, server->ice_getConnection()->getInfo());
+                server->ice_getConnection()->getInfo();
                 import.cleanup();
                 test(false);
             }
@@ -1748,9 +1755,9 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         test(fact);
 
         {
-            Test::Properties d = createServerProps(defaultProps, p12, "s_rsa_cai2", "");
+            d = createServerProps(defaultProps, p12, "s_rsa_cai2", "");
             d["IceSSL.VerifyPeer"] = "0";
-            Test::ServerPrxPtr server = fact->createServer(d);
+            server = fact->createServer(d);
             try
             {
                 info = ICE_DYNAMIC_CAST(IceSSL::ConnectionInfo, server->ice_getConnection()->getInfo());
@@ -1780,9 +1787,9 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         test(fact);
 
         {
-            Test::Properties d = createServerProps(defaultProps, p12, "s_rsa_cai2", "cacert1");
+            d = createServerProps(defaultProps, p12, "s_rsa_cai2", "cacert1");
             d["IceSSL.VerifyPeer"] = "2";
-            Test::ServerPrxPtr server = fact->createServer(d);
+            server = fact->createServer(d);
             try
             {
                 server->ice_getConnection();
@@ -1807,10 +1814,10 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         }
 
         {
-            Test::Properties d = createServerProps(defaultProps, p12, "s_rsa_cai2", "cacert1");
+            d = createServerProps(defaultProps, p12, "s_rsa_cai2", "cacert1");
             d["IceSSL.VerifyPeer"] = "2";
             d["IceSSL.VerifyDepthMax"] = "4";
-            Test::ServerPrxPtr server = fact->createServer(d);
+            server = fact->createServer(d);
             try
             {
                 server->ice_getConnection();
@@ -1933,8 +1940,8 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         CertificateVerifierIPtr verifier = ICE_MAKE_SHARED(CertificateVerifierI);
 
 #ifdef ICE_CPP11_MAPPING
-        plugin->setCertificateVerifier([verifier](const shared_ptr<IceSSL::ConnectionInfo>& info)
-                                       { return verifier->verify(info); });
+        plugin->setCertificateVerifier([verifier](const shared_ptr<IceSSL::ConnectionInfo>& infoP)
+                                       { return verifier->verify(infoP); });
 #else
         plugin->setCertificateVerifier(verifier);
 #endif
@@ -2009,8 +2016,8 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         CertificateVerifierIPtr verifier = ICE_MAKE_SHARED(CertificateVerifierI);
 
 #ifdef ICE_CPP11_MAPPING
-        plugin->setCertificateVerifier([verifier](const shared_ptr<IceSSL::ConnectionInfo>& info)
-                                       { return verifier->verify(info); });
+        plugin->setCertificateVerifier([verifier](const shared_ptr<IceSSL::ConnectionInfo>& infoP)
+                                       { return verifier->verify(infoP); });
 #else
         plugin->setCertificateVerifier(verifier);
 #endif
@@ -2042,73 +2049,79 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
     cout << "testing protocols... " << flush;
     {
 #  ifndef ICE_USE_SECURE_TRANSPORT
-        //
-        // This should fail because the client and server have no protocol
-        // in common.
-        //
-        InitializationData initData;
-        initData.properties = createClientProps(defaultProps, p12, "c_rsa_ca1", "cacert1");
-        initData.properties->setProperty("IceSSL.VerifyPeer", "0");
-        initData.properties->setProperty("IceSSL.Protocols", "tls1_1");
-        CommunicatorPtr comm = initialize(initData);
-
-        Test::ServerFactoryPrxPtr fact = ICE_CHECKED_CAST(Test::ServerFactoryPrx, comm->stringToProxy(factoryRef));
-        test(fact);
-        Test::Properties d = createServerProps(defaultProps, p12, "s_rsa_ca1", "cacert1");
-        d["IceSSL.VerifyPeer"] = "0";
-        d["IceSSL.Protocols"] = "tls1_2";
-        Test::ServerPrxPtr server = fact->createServer(d);
-        try
-        {
-            server->ice_ping();
-            test(false);
-        }
-        catch(const ProtocolException&)
-        {
-            // Expected on some platforms.
-        }
-        catch(const ConnectionLostException&)
-        {
-            // Expected on some platforms.
-        }
-        catch(const LocalException& ex)
-        {
-            cerr << ex << endl;
-            test(false);
-        }
-        fact->destroyServer(server);
-        comm->destroy();
-
-        //
-        // This should succeed.
-        //
-        comm = initialize(initData);
-        fact = ICE_CHECKED_CAST(Test::ServerFactoryPrx, comm->stringToProxy(factoryRef));
-        test(fact);
-        d = createServerProps(defaultProps, p12, "s_rsa_ca1", "cacert1");
-        d["IceSSL.VerifyPeer"] = "0";
-        d["IceSSL.Protocols"] = "tls1_1, tls1_2";
-        server = fact->createServer(d);
-        try
-        {
-            server->ice_ping();
-        }
-        catch(const LocalException& ex)
         {
             //
-            // OpenSSL < 1.0 doesn't support tls 1.1 so it will fail, we ignore the error in this case.
+            // This should fail because the client and server have no protocol
+            // in common.
             //
-#ifdef ICE_USE_OPENSSL
-            if(openSSLVersion < 0x1000000)
-#endif
+            InitializationData initData;
+            initData.properties = createClientProps(defaultProps, p12, "c_rsa_ca1", "cacert1");
+            initData.properties->setProperty("IceSSL.VerifyPeer", "0");
+            initData.properties->setProperty("IceSSL.Protocols", "tls1_1");
+            CommunicatorPtr comm = initialize(initData);
+
+            Test::ServerFactoryPrxPtr fact = ICE_CHECKED_CAST(Test::ServerFactoryPrx, comm->stringToProxy(factoryRef));
+            test(fact);
+            Test::Properties d = createServerProps(defaultProps, p12, "s_rsa_ca1", "cacert1");
+            d["IceSSL.VerifyPeer"] = "0";
+            d["IceSSL.Protocols"] = "tls1_2";
+            Test::ServerPrxPtr server = fact->createServer(d);
+            try
+            {
+                server->ice_ping();
+                test(false);
+            }
+            catch(const ProtocolException&)
+            {
+                // Expected on some platforms.
+            }
+            catch(const ConnectionLostException&)
+            {
+                // Expected on some platforms.
+            }
+            catch(const LocalException& ex)
             {
                 cerr << ex << endl;
                 test(false);
             }
-        }
-        fact->destroyServer(server);
-        comm->destroy();
+            fact->destroyServer(server);
+            comm->destroy();
 
+            //
+            // This should succeed.
+            //
+            comm = initialize(initData);
+            fact = ICE_CHECKED_CAST(Test::ServerFactoryPrx, comm->stringToProxy(factoryRef));
+            test(fact);
+            d = createServerProps(defaultProps, p12, "s_rsa_ca1", "cacert1");
+            d["IceSSL.VerifyPeer"] = "0";
+            d["IceSSL.Protocols"] = "tls1_1, tls1_2";
+            server = fact->createServer(d);
+            try
+            {
+                server->ice_ping();
+            }
+            catch(const LocalException& ex)
+            {
+                //
+                // OpenSSL < 1.0 doesn't support tls 1.1 so it will fail, we ignore the error in this case.
+                //
+#ifdef ICE_USE_OPENSSL
+                if(openSSLVersion < 0x1000000)
+#endif
+                {
+                    cerr << ex << endl;
+                    test(false);
+                }
+            }
+            fact->destroyServer(server);
+            comm->destroy();
+        }
+
+        //
+        // Skip the test if OpenSSL was build without SSL3 support
+        //
+#if !defined(OPENSSL_NO_SSL3_METHOD)
         //
         // This should fail because the client only accept SSLv3 and the server
         // use the default protocol set that disables SSLv3
@@ -2146,6 +2159,7 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
             fact->destroyServer(server);
             comm->destroy();
         }
+#endif
 
         //
         // SSLv3 is now disabled by default with some SSL implementations.
@@ -2183,69 +2197,71 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         // enabled protocol versions. See the test bellow.
         //
 
-        //
-        // This should fail because the client and server have no protocol
-        // in common.
-        //
-        InitializationData initData;
-        initData.properties = createClientProps(defaultProps, p12);
-        initData.properties->setProperty("IceSSL.Ciphers", "(DH_anon*)");
-        initData.properties->setProperty("IceSSL.VerifyPeer", "0");
-        initData.properties->setProperty("IceSSL.ProtocolVersionMax", "tls1");
-        initData.properties->setProperty("IceSSL.ProtocolVersionMin", "tls1");
-        CommunicatorPtr comm = initialize(initData);
-        Test::ServerFactoryPrxPtr fact = ICE_CHECKED_CAST(Test::ServerFactoryPrx, comm->stringToProxy(factoryRef));
-        test(fact);
-        Test::Properties d = createServerProps(defaultProps, p12);
-        d["IceSSL.Ciphers"] = "(DH_anon*)";
-        d["IceSSL.VerifyPeer"] = "0";
-        d["IceSSL.ProtocolVersionMax"] = "tls1_2";
-        d["IceSSL.ProtocolVersionMin"] = "tls1_2";
-        Test::ServerPrxPtr server = fact->createServer(d);
-        try
         {
-            server->ice_ping();
-            test(false);
-        }
-        catch(const ProtocolException&)
-        {
-            // Expected on some platforms.
-        }
-        catch(const ConnectionLostException&)
-        {
-            // Expected on some platforms.
-        }
-        catch(const LocalException& ex)
-        {
-            cerr << ex << endl;
-            test(false);
-        }
-        fact->destroyServer(server);
-        comm->destroy();
+            //
+            // This should fail because the client and server have no protocol
+            // in common.
+            //
+            InitializationData initData;
+            initData.properties = createClientProps(defaultProps, p12);
+            initData.properties->setProperty("IceSSL.Ciphers", "(DH_anon*)");
+            initData.properties->setProperty("IceSSL.VerifyPeer", "0");
+            initData.properties->setProperty("IceSSL.ProtocolVersionMax", "tls1");
+            initData.properties->setProperty("IceSSL.ProtocolVersionMin", "tls1");
+            CommunicatorPtr comm = initialize(initData);
+            Test::ServerFactoryPrxPtr fact = ICE_CHECKED_CAST(Test::ServerFactoryPrx, comm->stringToProxy(factoryRef));
+            test(fact);
+            Test::Properties d = createServerProps(defaultProps, p12);
+            d["IceSSL.Ciphers"] = "(DH_anon*)";
+            d["IceSSL.VerifyPeer"] = "0";
+            d["IceSSL.ProtocolVersionMax"] = "tls1_2";
+            d["IceSSL.ProtocolVersionMin"] = "tls1_2";
+            Test::ServerPrxPtr server = fact->createServer(d);
+            try
+            {
+                server->ice_ping();
+                test(false);
+            }
+            catch(const ProtocolException&)
+            {
+                // Expected on some platforms.
+            }
+            catch(const ConnectionLostException&)
+            {
+                // Expected on some platforms.
+            }
+            catch(const LocalException& ex)
+            {
+                cerr << ex << endl;
+                test(false);
+            }
+            fact->destroyServer(server);
+            comm->destroy();
 
-        //
-        // This should succeed.
-        //
-        comm = initialize(initData);
-        fact = ICE_CHECKED_CAST(Test::ServerFactoryPrx, comm->stringToProxy(factoryRef));
-        test(fact);
-        d = createServerProps(defaultProps, p12);
-        d["IceSSL.Ciphers"] = "(DH_anon*)";
-        d["IceSSL.VerifyPeer"] = "0";
-        d["IceSSL.ProtocolVersionMax"] = "tls1";
-        d["IceSSL.ProtocolVersionMin"] = "ssl3";
-        server = fact->createServer(d);
-        try
-        {
-            server->ice_ping();
+            //
+            // This should succeed.
+            //
+            comm = initialize(initData);
+            fact = ICE_CHECKED_CAST(Test::ServerFactoryPrx, comm->stringToProxy(factoryRef));
+            test(fact);
+            d = createServerProps(defaultProps, p12);
+            d["IceSSL.Ciphers"] = "(DH_anon*)";
+            d["IceSSL.VerifyPeer"] = "0";
+            d["IceSSL.ProtocolVersionMax"] = "tls1";
+            d["IceSSL.ProtocolVersionMin"] = "ssl3";
+            server = fact->createServer(d);
+            try
+            {
+                server->ice_ping();
+            }
+            catch(const LocalException& ex)
+            {
+                cerr << ex << endl;
+                test(false);
+            }
+            fact->destroyServer(server);
+            comm->destroy();
         }
-        catch(const LocalException& ex)
-        {
-            cerr << ex << endl;
-            test(false);
-        }
-        fact->destroyServer(server);
-        comm->destroy();
 
         //
         // This should fail because the client only accept SSLv3 and the server
@@ -2588,6 +2604,13 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
 #ifndef ICE_OS_UWP
     cout << "testing ciphers... " << flush;
     {
+
+        //
+        // With OpenSSL 1.1.1 the initialization will success because TLS 1.3
+        // ciphersuites are still enabled. They are not affected by IceSSL.Ciphers
+        // properties
+        //
+#  if !(defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x1010100fL)
         InitializationData initData;
         initData.properties = createClientProps(defaultProps, p12, "c_rsa_ca1", "cacert1");
         initData.properties->setProperty("IceSSL.Ciphers", "UNKNOWN");
@@ -2599,6 +2622,7 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         catch(const Ice::PluginInitializationException&)
         {
         }
+#  endif
     }
 #  ifndef ICE_USE_SCHANNEL
     {
@@ -2610,6 +2634,13 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         initData.properties = createClientProps(defaultProps, p12);
 #    ifdef ICE_USE_OPENSSL
         initData.properties->setProperty("IceSSL.Ciphers", anonCiphers);
+#       if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x1010100fL
+        //
+        // With OpenSSL 1.1 disable tls1.3 so that client and server negotiate
+        // an anon cipher
+        //
+        initData.properties->setProperty("IceSSL.Protocols", "tls1_2,tls1_1");
+#       endif
 #    else
         initData.properties->setProperty("IceSSL.Ciphers", "(DH_anon*)");
 #    endif
@@ -2916,6 +2947,13 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
         //
         initData.properties = createClientProps(defaultProps, p12);
         initData.properties->setProperty("IceSSL.Ciphers", "ADH");
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x1010100fL
+        //
+        // With OpenSSL 1.1 disable tls1.3 so that client and server negotiate
+        // an anon cipher
+        //
+        initData.properties->setProperty("IceSSL.Protocols", "tls1_2,tls1_1");
+#endif
         comm = initialize(initData);
         fact = ICE_CHECKED_CAST(Test::ServerFactoryPrx, comm->stringToProxy(factoryRef));
         test(fact);
@@ -4250,9 +4288,9 @@ allTests(const CommunicatorPtr& communicator, const string& testDir, bool p12)
             {
                 try
                 {
-                    Ice::WSConnectionInfoPtr info =
+                    Ice::WSConnectionInfoPtr wsinfo =
                         ICE_DYNAMIC_CAST(Ice::WSConnectionInfo, p->ice_getConnection()->getInfo());
-                    IceSSL::ConnectionInfoPtr sslInfo = ICE_DYNAMIC_CAST(IceSSL::ConnectionInfo, info->underlying);
+                    IceSSL::ConnectionInfoPtr sslInfo = ICE_DYNAMIC_CAST(IceSSL::ConnectionInfo, wsinfo->underlying);
                     test(sslInfo->verified);
                     break;
                 }

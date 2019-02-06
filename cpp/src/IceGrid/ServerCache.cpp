@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/DisableWarnings.h>
 #include <Ice/LoggerUtil.h>
@@ -80,7 +75,7 @@ CheckUpdateResult::CheckUpdateResult(const string& server,
                                      bool noRestart,
                                      bool remove,
                                      const Ice::AsyncResultPtr& result) :
-    _server(server), _node(node), _noRestart(noRestart), _result(result)
+    _server(server), _node(node), _remove(remove), _noRestart(noRestart), _result(result)
 {
 }
 
@@ -94,7 +89,14 @@ CheckUpdateResult::getResult()
     catch(const DeploymentException& ex)
     {
         ostringstream os;
-        os << "check for server `" << _server << "' update failed: " << ex.reason;
+        if(_remove)
+        {
+            os << "check for server `" << _server << "' remove failed: " << ex.reason;
+        }
+        else
+        {
+            os << "check for server `" << _server << "' update failed: " << ex.reason;
+        }
         throw DeploymentException(os.str());
     }
     catch(const Ice::OperationNotExistException&)
@@ -111,7 +113,6 @@ CheckUpdateResult::getResult()
         os << ex;
         throw NodeUnreachableException(_node, os.str());
     }
-    return false;
 }
 
 ServerCache::ServerCache(const Ice::CommunicatorPtr& communicator,
@@ -449,7 +450,7 @@ ServerEntry::update(const ServerInfo& info, bool noRestart)
     if(info.descriptor->activation == "session")
     {
         _allocatable = true;
-        _load->sessionId = _session ? _session->getId() : string("");
+        _load->sessionId = _allocationSession ? _allocationSession->getId() : string("");
     }
 }
 
@@ -493,7 +494,7 @@ ServerEntry::getInfo(bool resolve) const
             throw ServerNotExistException();
         }
         info = _loaded.get() ? *_loaded : *_load;
-        session = _session;
+        session = _allocationSession;
     }
     assert(info.descriptor);
     if(resolve)
@@ -696,7 +697,7 @@ ServerEntry::syncImpl()
         else if(_load.get())
         {
             load = *_load;
-            session = _session;
+            session = _allocationSession;
             timeout = _deactivationTimeout; // loadServer might block to deactivate the previous server.
         }
         else
@@ -874,7 +875,7 @@ ServerEntry::loadCallback(const ServerPrx& proxy, const AdapterPrxDict& adpts, i
             {
                 load = *_load;
                 noRestart = _noRestart;
-                session = _session;
+                session = _allocationSession;
                 timeout = _deactivationTimeout; // loadServer might block to deactivate the previous server.
             }
         }
@@ -937,7 +938,7 @@ ServerEntry::destroyCallback()
             _updated = false;
             load = *_load;
             noRestart = _noRestart;
-            session = _session;
+            session = _allocationSession;
         }
     }
 
@@ -988,7 +989,7 @@ ServerEntry::exception(const Ice::Exception& ex)
             _updated = false;
             load = *_load.get();
             noRestart = _noRestart;
-            session = _session;
+            session = _allocationSession;
             timeout = _deactivationTimeout; // loadServer might block to deactivate the previous server.
         }
     }
@@ -1041,7 +1042,7 @@ ServerEntry::checkUpdate(const ServerInfo& info, bool noRestart)
         }
 
         oldInfo = _loaded.get() ? *_loaded : *_load;
-        session = _session;
+        session = _allocationSession;
     }
 
     NodeEntryPtr node;
@@ -1131,7 +1132,7 @@ ServerEntry::allocated(const SessionIPtr& session)
         {
             _load.reset(_loaded.release());
         }
-        _session = session;
+        _allocationSession = session;
         _load->sessionId = session->getId();
     }
 
@@ -1218,7 +1219,7 @@ ServerEntry::released(const SessionIPtr& session)
             _load.reset(_loaded.release());
         }
         _load->sessionId = "";
-        _session = 0;
+        _allocationSession = 0;
     }
 
     TraceLevelsPtr traceLevels = _cache.getTraceLevels();

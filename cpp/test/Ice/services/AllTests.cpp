@@ -1,17 +1,12 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <Glacier2/Glacier2.h>
 #include <IceStorm/IceStorm.h>
 #include <IceGrid/IceGrid.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 
 using namespace std;
@@ -55,12 +50,12 @@ public:
     }
 
     virtual void
-    connectFailed(const Glacier2::SessionHelperPtr&, const Ice::Exception& ex)
+    connectFailed(const Glacier2::SessionHelperPtr&, const Ice::Exception&)
     {
     }
 
     virtual void
-    createdCommunicator(const Glacier2::SessionHelperPtr& session)
+    createdCommunicator(const Glacier2::SessionHelperPtr&)
     {
     }
 };
@@ -69,7 +64,7 @@ class SessionHelperClient
 {
 public:
 
-    int run(int argc, char* argv[])
+    int run(int, char*[])
     {
         _factory = ICE_MAKE_SHARED(Glacier2::SessionFactoryHelper, ICE_MAKE_SHARED(SessionCallbackI));
         return EXIT_SUCCESS;
@@ -85,8 +80,9 @@ private:
 } // Anonymous namespace end
 
 void
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
+    Ice::CommunicatorPtr communicator = helper->communicator();
     {
         cout << "Testing Glacier2 stub... " << flush;
         char** argv = 0;
@@ -143,7 +139,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
     {
         cout << "Testing IceGrid stub... " << flush;
 
-        Ice::ObjectPrxPtr base = communicator->stringToProxy("test:" + getTestEndpoint(communicator, 0));
+        Ice::ObjectPrxPtr base = communicator->stringToProxy("test:" + helper->getTestEndpoint());
         IceGrid::RegistryPrxPtr registry = ICE_UNCHECKED_CAST(IceGrid::RegistryPrx, base);
         IceGrid::AdminSessionPrxPtr session;
         IceGrid::AdminPrxPtr admin;

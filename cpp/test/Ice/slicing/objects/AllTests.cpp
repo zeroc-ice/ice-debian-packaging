@@ -1,14 +1,9 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <ClientPrivate.h>
 
 using namespace std;
@@ -754,9 +749,10 @@ testUOO(const TestIntfPrxPtr& test)
 }
 
 TestIntfPrxPtr
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
-    Ice::ObjectPrxPtr obj = communicator->stringToProxy("Test:" + getTestEndpoint(communicator, 0));
+    Ice::CommunicatorPtr communicator = helper->communicator();
+    Ice::ObjectPrxPtr obj = communicator->stringToProxy("Test:" + helper->getTestEndpoint());
     TestIntfPrxPtr test = ICE_CHECKED_CAST(TestIntfPrx, obj);
 
     cout << "base as Object... " << flush;
@@ -3136,8 +3132,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         //
         // Sending more than 254 objects exercises the encoding for object ids.
         //
-        int i;
-        for(i = 0; i < 300; ++i)
+        for(int i = 0; i < 300; ++i)
         {
             PCDerived2Ptr p2 = ICE_MAKE_SHARED(PCDerived2);
             p2->pi = i;

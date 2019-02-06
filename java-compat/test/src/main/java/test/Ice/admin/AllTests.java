@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.admin;
 
@@ -100,9 +95,9 @@ public class AllTests
     }
 
     public static void
-    allTests(test.Util.Application app)
+    allTests(test.TestHelper helper)
     {
-        PrintWriter out = app.getWriter();
+        PrintWriter out = helper.getWriter();
 
         out.print("testing communicator operations... ");
         out.flush();
@@ -110,81 +105,84 @@ public class AllTests
             //
             // Test: Exercise addAdminFacet, findAdminFacet, removeAdminFacet with a typical configuration.
             //
-            Ice.InitializationData init = app.createInitializationData();
+            Ice.InitializationData init = new Ice.InitializationData();
             init.properties = Ice.Util.createProperties();
             init.properties.setProperty("Ice.Admin.Endpoints", "tcp -h 127.0.0.1");
             init.properties.setProperty("Ice.Admin.InstanceName", "Test");
-            Ice.Communicator com = Ice.Util.initialize(init);
-            testFacets(com, true);
-            com.destroy();
+            try(Ice.Communicator com = Ice.Util.initialize(init))
+            {
+                testFacets(com, true);
+            }
         }
         {
             //
             // Test: Verify that the operations work correctly in the presence of facet filters.
             //
-            Ice.InitializationData init = app.createInitializationData();
+            Ice.InitializationData init = new Ice.InitializationData();
             init.properties = Ice.Util.createProperties();
             init.properties.setProperty("Ice.Admin.Endpoints", "tcp -h 127.0.0.1");
             init.properties.setProperty("Ice.Admin.InstanceName", "Test");
             init.properties.setProperty("Ice.Admin.Facets", "Properties");
-            Ice.Communicator com = Ice.Util.initialize(init);
-            testFacets(com, false);
-            com.destroy();
+            try(Ice.Communicator com = Ice.Util.initialize(init))
+            {
+                testFacets(com, false);
+            }
         }
         {
             //
             // Test: Verify that the operations work correctly with the Admin object disabled.
             //
-            Ice.Communicator com = Ice.Util.initialize();
-            testFacets(com, false);
-            com.destroy();
+            try(Ice.Communicator com = Ice.Util.initialize())
+            {
+                testFacets(com, false);
+            }
         }
         {
             //
             // Test: Verify that the operations work correctly when Ice.Admin.Enabled is set
             //
-            Ice.InitializationData init = app.createInitializationData();
+            Ice.InitializationData init = new Ice.InitializationData();
             init.properties = Ice.Util.createProperties();
             init.properties.setProperty("Ice.Admin.Enabled", "1");
-            Ice.Communicator com = Ice.Util.initialize(init);
-
-            test(com.getAdmin() == null);
-            Ice.Identity id = Ice.Util.stringToIdentity("test-admin");
-            try
+            try(Ice.Communicator com = Ice.Util.initialize(init))
             {
-                com.createAdmin(null, id);
-                test(false);
+                test(com.getAdmin() == null);
+                Ice.Identity id = Ice.Util.stringToIdentity("test-admin");
+                try
+                {
+                    com.createAdmin(null, id);
+                    test(false);
+                }
+                catch(Ice.InitializationException ex)
+                {
+                }
+                Ice.ObjectAdapter adapter = com.createObjectAdapter("");
+                test(com.createAdmin(adapter, id) != null);
+                test(com.getAdmin() != null);
+                testFacets(com, true);
             }
-            catch(Ice.InitializationException ex)
-            {
-            }
-
-            Ice.ObjectAdapter adapter = com.createObjectAdapter("");
-            test(com.createAdmin(adapter, id) != null);
-            test(com.getAdmin() != null);
-            testFacets(com, true);
-            com.destroy();
         }
         {
             //
             // Test: Verify that the operations work correctly when creation of the Admin object is delayed.
             //
-            Ice.InitializationData init = app.createInitializationData();
+            Ice.InitializationData init = new Ice.InitializationData();
             init.properties = Ice.Util.createProperties();
             init.properties.setProperty("Ice.Admin.Endpoints", "tcp -h 127.0.0.1");
             init.properties.setProperty("Ice.Admin.InstanceName", "Test");
             init.properties.setProperty("Ice.Admin.DelayCreation", "1");
-            Ice.Communicator com = Ice.Util.initialize(init);
-            testFacets(com, true);
-            com.getAdmin();
-            testFacets(com, true);
-            com.destroy();
+            try(Ice.Communicator com = Ice.Util.initialize(init))
+            {
+                testFacets(com, true);
+                com.getAdmin();
+                testFacets(com, true);
+            }
         }
         out.println("ok");
 
-        String ref = "factory:" + app.getTestEndpoint(0) + " -t 10000";
+        String ref = "factory:" + helper.getTestEndpoint(0) + " -t 10000";
         RemoteCommunicatorFactoryPrx factory =
-            RemoteCommunicatorFactoryPrxHelper.uncheckedCast(app.communicator().stringToProxy(ref));
+            RemoteCommunicatorFactoryPrxHelper.uncheckedCast(helper.communicator().stringToProxy(ref));
 
         out.print("testing process facet... ");
         out.flush();
@@ -352,7 +350,7 @@ public class AllTests
             // Now, test RemoteLogger
             //
             Ice.ObjectAdapter adapter =
-                app.communicator().createObjectAdapterWithEndpoints("RemoteLoggerAdapter", "tcp -h localhost");
+                helper.communicator().createObjectAdapterWithEndpoints("RemoteLoggerAdapter", "tcp -h localhost");
 
             RemoteLoggerI remoteLogger = new RemoteLoggerI();
 
@@ -364,7 +362,6 @@ public class AllTests
             // No filtering
             //
             logMessages = logger.getLog(null, null, -1, prefix);
-            remoteLogger.checkNextInit(prefix.value, logMessages);
 
             try
             {
@@ -374,13 +371,13 @@ public class AllTests
             {
                 test(false);
             }
-
             remoteLogger.wait(1);
 
-            remoteLogger.checkNextLog(Ice.LogMessageType.TraceMessage, "rtrace", "testCat");
-            remoteLogger.checkNextLog(Ice.LogMessageType.WarningMessage, "rwarning", "");
-            remoteLogger.checkNextLog(Ice.LogMessageType.ErrorMessage, "rerror", "");
-            remoteLogger.checkNextLog(Ice.LogMessageType.PrintMessage, "rprint", "");
+            for(int i = 0; i < logMessages.length; ++i)
+            {
+                Ice.LogMessage m = logMessages[i];
+                remoteLogger.checkNextInit(prefix.value, m.type, m.message, m.traceCategory);
+            }
 
             com.trace("testCat", "rtrace");
             com.warning("rwarning");
@@ -388,6 +385,11 @@ public class AllTests
             com.print("rprint");
 
             remoteLogger.wait(4);
+
+            remoteLogger.checkNextLog(Ice.LogMessageType.TraceMessage, "rtrace", "testCat");
+            remoteLogger.checkNextLog(Ice.LogMessageType.WarningMessage, "rwarning", "");
+            remoteLogger.checkNextLog(Ice.LogMessageType.ErrorMessage, "rerror", "");
+            remoteLogger.checkNextLog(Ice.LogMessageType.PrintMessage, "rprint", "");
 
             test(logger.detachRemoteLogger(myProxy));
             test(!logger.detachRemoteLogger(myProxy));
@@ -397,7 +399,6 @@ public class AllTests
             //
             logMessages = logger.getLog(messageTypes, categories, 4, prefix);
             test(logMessages.length == 4);
-            remoteLogger.checkNextInit(prefix.value, logMessages);
 
             try
             {
@@ -409,9 +410,11 @@ public class AllTests
             }
 
             remoteLogger.wait(1);
-
-            remoteLogger.checkNextLog(Ice.LogMessageType.TraceMessage, "rtrace2", "testCat");
-            remoteLogger.checkNextLog(Ice.LogMessageType.ErrorMessage, "rerror2", "");
+            for(int i = 0; i < logMessages.length; ++i)
+            {
+                Ice.LogMessage m = logMessages[i];
+                remoteLogger.checkNextInit(prefix.value, m.type, m.message, m.traceCategory);
+            }
 
             com.warning("rwarning2");
             com.trace("testCat", "rtrace2");
@@ -420,6 +423,9 @@ public class AllTests
             com.print("rprint2");
 
             remoteLogger.wait(2);
+
+            remoteLogger.checkNextLog(Ice.LogMessageType.TraceMessage, "rtrace2", "testCat");
+            remoteLogger.checkNextLog(Ice.LogMessageType.ErrorMessage, "rerror2", "");
 
             //
             // Attempt reconnection with slightly different proxy

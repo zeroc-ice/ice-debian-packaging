@@ -1,16 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <IceUtil/Thread.h>
 #include <Ice/Ice.h>
 #include <IceGrid/IceGrid.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 
 using namespace std;
@@ -63,14 +58,17 @@ hasProperty(const CommunicatorDescriptorPtr& desc, const string& name, const str
 }
 
 void
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
+    const Ice::CommunicatorPtr& communicator = helper->communicator();
     IceGrid::RegistryPrx registry = IceGrid::RegistryPrx::checkedCast(
         communicator->stringToProxy(communicator->getDefaultLocator()->ice_getIdentity().category + "/Registry"));
     test(registry);
     AdminSessionPrx session = registry->createAdminSession("foo", "bar");
 
-    session->ice_getConnection()->setACM(registry->getACMTimeout(), IceUtil::None, Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
+    session->ice_getConnection()->setACM(registry->getACMTimeout(),
+                                         IceUtil::None,
+                                         Ice::ICE_ENUM(ACMHeartbeat, HeartbeatAlways));
 
     AdminPrx admin = session->getAdmin();
     test(admin);
@@ -1192,6 +1190,11 @@ allTests(const Ice::CommunicatorPtr& communicator)
         {
             admin->startServer("Server");
             test(admin->getServerState("Server") == Active);
+        }
+        catch(const ServerStartException& ex)
+        {
+            cerr << ex << "\nreason = " << ex.reason << endl;
+            test(false);
         }
         catch(const Ice::Exception& ex)
         {

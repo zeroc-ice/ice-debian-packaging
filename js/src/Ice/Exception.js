@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 
@@ -50,17 +45,6 @@ const toString = function(key, object, objectTable, ident)
     }
     return s;
 };
-
-class ServantError extends Error
-{
-    constructor(cause)
-    {
-        super();
-        this.cause = cause;
-    }
-}
-
-Ice.ServantError = ServantError;
 
 //
 // Ice.Exception
@@ -281,7 +265,7 @@ const readPreserved = function(is)
 const ice_getSlicedData = function()
 {
     return this._slicedData;
-}
+};
 
 Ice.Slice.PreservedUserException = function(ex)
 {

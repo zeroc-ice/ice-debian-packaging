@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef JAVA_UTIL_H
 #define JAVA_UTIL_H
@@ -107,13 +102,13 @@ protected:
     //
     std::string getPackage(const ContainedPtr&) const;
 
-    std::string getAbsolute(const std::string&, const std::string&) const;
+    std::string getUnqualified(const std::string&, const std::string&) const;
     //
     // Returns the Java name for a Contained entity. If the optional
     // package argument matches the entity's package name, then the
     // package is removed from the result.
     //
-    std::string getAbsolute(const ContainedPtr&,
+    std::string getUnqualified(const ContainedPtr&,
                             const std::string& = std::string(),
                             const std::string& = std::string(),
                             const std::string& = std::string()) const;
@@ -277,14 +272,14 @@ protected:
     // Returns the Java type without a package if the package
     // matches the current package
     //
-    std::string getAbsolute(const std::string&, const std::string&) const;
+    std::string getUnqualified(const std::string&, const std::string&) const;
 
     //
     // Returns the Java name for a Contained entity. If the optional
     // package argument matches the entity's package name, then the
     // package is removed from the result.
     //
-    std::string getAbsolute(const ContainedPtr&,
+    std::string getUnqualified(const ContainedPtr&,
                             const std::string& = std::string(),
                             const std::string& = std::string(),
                             const std::string& = std::string()) const;

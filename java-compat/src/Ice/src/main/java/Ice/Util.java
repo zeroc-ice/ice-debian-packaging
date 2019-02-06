@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package Ice;
 
@@ -568,7 +563,7 @@ public final class Util
     public static String
     stringVersion()
     {
-        return "3.7.1"; // "A.B.C", with A=major, B=minor, C=patch
+        return "3.7.2"; // "A.B.C", with A=major, B=minor, C=patch
     }
 
     /**
@@ -581,7 +576,7 @@ public final class Util
     public static int
     intVersion()
     {
-        return 30701; // AABBCC, with AA=major, BB=minor, CC=patch
+        return 30702; // AABBCC, with AA=major, BB=minor, CC=patch
     }
 
     /**

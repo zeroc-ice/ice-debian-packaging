@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #import <objc/Ice.h>
 #import <TestCommon.h>
@@ -68,7 +63,7 @@
 {
     [self called];
 }
--(void) exception:(ICEException*)ex
+-(void) exception:(ICEException*)__unused ex
 {
     test(NO);
 }
@@ -184,8 +179,8 @@ timeoutAllTests(id<ICECommunicator> communicator)
         [controller holdAdapter:200];
         @try
         {
-            TestTimeoutByteSeq* seq = [TestTimeoutMutableByteSeq dataWithLength:1000000];
-            [to sendData:seq];
+            TestTimeoutByteSeq* seq2 = [TestTimeoutMutableByteSeq dataWithLength:1000000];
+            [to sendData:seq2];
         }
         @catch(ICETimeoutException*)
         {

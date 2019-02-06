@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Util.h>
 #include <Ice/UUID.h>
@@ -265,9 +260,12 @@ IcePHP::extractIdentity(zval* zv, Ice::Identity& id)
     zval categoryVal;
     ZVAL_UNDEF(&categoryVal);
     zval nameVal;
+    ZVAL_UNDEF(&nameVal);
 
-    if(!getMember(zv, "category", &categoryVal, IS_STRING, false) ||
-       !getMember(zv, "name", &nameVal, IS_STRING, true))
+    bool catOk = getMember(zv, "category", &categoryVal, IS_STRING, false);
+    bool nameOk = getMember(zv, "name", &nameVal, IS_STRING, true);
+
+    if(!catOk || !nameOk)
     {
         return false;
     }

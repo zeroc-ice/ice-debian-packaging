@@ -1,14 +1,9 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Glacier2/PermissionsVerifier.h>
 #include <SessionI.h>
 
@@ -16,28 +11,22 @@ using namespace std;
 using namespace Ice;
 using namespace Test;
 
-class SessionControlServer : public Application
+class SessionControlServer : public Test::TestHelper
 {
 public:
 
-    virtual int run(int, char*[]);
+    void run(int, char**);
 };
 
-int
-main(int argc, char* argv[])
+void
+SessionControlServer::run(int argc, char** argv)
 {
-    SessionControlServer app;
-    Ice::InitializationData initData = getTestInitData(argc, argv);
-    return app.main(argc, argv, initData);
-}
-
-int
-SessionControlServer::run(int, char**)
-{
-    communicator()->getProperties()->setProperty("SessionControlAdapter.Endpoints", getTestEndpoint(communicator(), 0));
-    ObjectAdapterPtr adapter = communicator()->createObjectAdapter("SessionControlAdapter");
+    Ice::CommunicatorHolder communicator = initialize(argc, argv);
+    communicator->getProperties()->setProperty("SessionControlAdapter.Endpoints", getTestEndpoint());
+    ObjectAdapterPtr adapter = communicator->createObjectAdapter("SessionControlAdapter");
     adapter->add(new SessionManagerI, Ice::stringToIdentity("SessionManager"));
     adapter->activate();
-    communicator()->waitForShutdown();
-    return EXIT_SUCCESS;
+    communicator->waitForShutdown();
 }
+
+DEFINE_TEST(SessionControlServer)

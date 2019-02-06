@@ -1,27 +1,26 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-using Test;
-
-public sealed class BI : BDisp_
+namespace Ice
 {
-    public BI()
+    namespace facets
     {
-    }
+        public sealed class BI : Test.BDisp_
+        {
+            public BI()
+            {
+            }
 
-    public override string callA(Ice.Current current)
-    {
-        return "A";
-    }
+            public override string callA(Ice.Current current)
+            {
+                return "A";
+            }
 
-    public override string callB(Ice.Current current)
-    {
-        return "B";
+            public override string callB(Ice.Current current)
+            {
+                return "B";
+            }
+        }
     }
 }

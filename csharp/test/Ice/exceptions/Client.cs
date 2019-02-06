@@ -1,43 +1,34 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using Test;
-using System;
-using System.Reflection;
 
-[assembly: CLSCompliant(true)]
-
-[assembly: AssemblyTitle("IceTest")]
-[assembly: AssemblyDescription("Ice test")]
-[assembly: AssemblyCompany("ZeroC, Inc.")]
-
-public class Client : TestCommon.Application
+namespace Ice
 {
-    public override int run(string[] args)
+    namespace exceptions
     {
-        ThrowerPrx thrower = AllTests.allTests(this);
-        thrower.shutdown();
-        return 0;
-    }
+        public class Client : TestHelper
+        {
+            public override void run(string[] args)
+            {
+                var initData = new InitializationData();
+                initData.typeIdNamespaces = new string[]{"Ice.exceptions.TypeId"};
+                initData.properties = createTestProperties(ref args);
+                initData.properties.setProperty("Ice.Warn.Connections", "0");
+                initData.properties.setProperty("Ice.MessageSizeMax", "10"); // 10KB max
+                using(var communicator = initialize(initData))
+                {
+                    communicator.getProperties().setProperty("TestAdapter.Endpoints", getTestEndpoint(0));
+                    var thrower = AllTests.allTests(this);
+                    thrower.shutdown();
+                }
+            }
 
-    protected override Ice.InitializationData getInitData(ref string[] args)
-    {
-        Ice.InitializationData initData = base.getInitData(ref args);
-        initData.properties.setProperty("Ice.Warn.Connections", "0");
-        initData.properties.setProperty("TestAdapter.Endpoints", getTestEndpoint(initData.properties, 0));
-        initData.properties.setProperty("Ice.MessageSizeMax", "10"); // 10KB max
-        return initData;
-    }
-
-    public static int Main(string[] args)
-    {
-        Client app = new Client();
-        return app.runmain(args);
+            public static int Main(string[] args)
+            {
+                return TestDriver.runTest<Client>(args);
+            }
+        }
     }
 }

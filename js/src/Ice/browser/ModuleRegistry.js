@@ -1,18 +1,13 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 /* global
     self : false
 */
-const root = typeof(window) !== "undefined" ? window :
-             typeof(global) !== "undefined" ? global :
-             typeof(self) !== "undefined" ? self : {};
+const root = typeof window !== "undefined" ? window :
+             typeof global !== "undefined" ? global :
+             typeof self !== "undefined" ? self : {};
 /* global
     self : true
 */
@@ -25,7 +20,7 @@ class _ModuleRegistry
         if(m === undefined)
         {
             m = {};
-            root[name] =  m;
+            root[name] = m;
         }
         return m;
     }

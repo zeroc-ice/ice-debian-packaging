@@ -1,15 +1,10 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <TestAMDI.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 
 using namespace Test;
 using namespace std;
@@ -200,7 +195,7 @@ ThrowerI::throwCasCAsync(int a, int b, int c,
 void
 ThrowerI::throwModAAsync(int a, int a2,
                          function<void()>,
-                         function<void(exception_ptr)> exception,
+                         function<void(exception_ptr)>,
                          const Ice::Current&)
 {
     Mod::A ex;

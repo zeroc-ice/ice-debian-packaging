@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
 using System.Threading;
@@ -106,6 +101,11 @@ namespace Ice
         /// The value factory manager.
         /// </summary>
         public ValueFactoryManager valueFactoryManager;
+
+        /// <summary>
+        /// The list of TypeId namespaces. Default is Ice.TypeId.
+        /// </summary>
+        public string[] typeIdNamespaces = { "Ice.TypeId" };
     }
 
     /// <summary>
@@ -515,7 +515,7 @@ namespace Ice
         /// <returns>The Ice version.</returns>
         public static string stringVersion()
         {
-            return "3.7.1"; // "A.B.C", with A=major, B=minor, C=patch
+            return "3.7.2"; // "A.B.C", with A=major, B=minor, C=patch
         }
 
         /// <summary>
@@ -526,7 +526,7 @@ namespace Ice
         /// <returns>The Ice version.</returns>
         public static int intVersion()
         {
-            return 30701; // AABBCC, with AA=major, BB=minor, CC=patch
+            return 30702; // AABBCC, with AA=major, BB=minor, CC=patch
         }
 
         /// <summary>
@@ -607,6 +607,11 @@ namespace Ice
         static private string majorMinorToString(byte major, byte minor)
         {
             return string.Format("{0}.{1}", major, minor);
+        }
+
+        public static void registerPluginFactory(string name, PluginFactory factory, bool loadOnInit)
+        {
+            PluginManagerI.registerPluginFactory(name, factory, loadOnInit);
         }
 
         public static readonly ProtocolVersion currentProtocol =

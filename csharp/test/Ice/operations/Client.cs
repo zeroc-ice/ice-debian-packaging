@@ -1,55 +1,47 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 using System;
-using System.Reflection;
+using Test;
 
-[assembly: CLSCompliant(true)]
-
-[assembly: AssemblyTitle("IceTest")]
-[assembly: AssemblyDescription("Ice test")]
-[assembly: AssemblyCompany("ZeroC, Inc.")]
-
-public class Client : TestCommon.Application
+namespace Ice
 {
-    public override int run(string[] args)
+    namespace operations
     {
-        Test.MyClassPrx myClass = AllTests.allTests(this);
-
-        Console.Out.Write("testing server shutdown... ");
-        Console.Out.Flush();
-        myClass.shutdown();
-        try
+        public class Client : TestHelper
         {
-            myClass.ice_timeout(100).ice_ping(); // Use timeout to speed up testing on Windows
-            throw new System.Exception();
+            public override void run(string[] args)
+            {
+                var initData = new InitializationData();
+                initData.typeIdNamespaces = new string[]{"Ice.operations.TypeId"};
+                initData.properties = createTestProperties(ref args);
+                initData.properties.setProperty("Ice.ThreadPool.Client.Size", "2");
+                initData.properties.setProperty("Ice.ThreadPool.Client.SizeWarn", "0");
+                initData.properties.setProperty("Ice.BatchAutoFlushSize", "100");
+                using(var communicator = initialize(initData))
+                {
+                    var myClass = AllTests.allTests(this);
+
+                    Console.Out.Write("testing server shutdown... ");
+                    Console.Out.Flush();
+                    myClass.shutdown();
+                    try
+                    {
+                        myClass.ice_timeout(100).ice_ping(); // Use timeout to speed up testing on Windows
+                        test(false);
+                    }
+                    catch (Ice.LocalException)
+                    {
+                        Console.Out.WriteLine("ok");
+                    }
+                }
+            }
+
+            public static int Main(string[] args)
+            {
+                return TestDriver.runTest<Client>(args);
+            }
         }
-        catch(Ice.LocalException)
-        {
-            Console.Out.WriteLine("ok");
-        }
-
-        return 0;
-    }
-
-    protected override Ice.InitializationData getInitData(ref string[] args)
-    {
-        Ice.InitializationData initData = base.getInitData(ref args);
-        initData.properties.setProperty("Ice.ThreadPool.Client.Size", "2");
-        initData.properties.setProperty("Ice.ThreadPool.Client.SizeWarn", "0");
-        initData.properties.setProperty("Ice.BatchAutoFlushSize", "100");
-        return initData;
-    }
-
-    public static int Main(string[] args)
-    {
-        Client app = new Client();
-        return app.runmain(args);
     }
 }

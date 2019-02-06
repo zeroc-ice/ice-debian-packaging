@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Endpoint.h>
 #include <Util.h>
@@ -25,9 +20,7 @@ static VALUE _wsEndpointInfoClass;
 static VALUE _opaqueEndpointInfoClass;
 static VALUE _sslEndpointInfoClass;
 
-// **********************************************************************
 // Endpoint
-// **********************************************************************
 
 extern "C"
 void
@@ -115,9 +108,7 @@ IceRuby_Endpoint_equals(VALUE self, VALUE other)
     return IceRuby_Endpoint_cmp(self, other) == INT2NUM(0) ? Qtrue : Qfalse;
 }
 
-// **********************************************************************
 // EndpointInfo
-// **********************************************************************
 
 extern "C"
 void

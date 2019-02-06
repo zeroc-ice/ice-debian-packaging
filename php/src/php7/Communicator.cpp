@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Communicator.h>
 #include <Logger.h>
@@ -1224,7 +1219,7 @@ ZEND_FUNCTION(Ice_initialize)
 
         member = "properties";
         {
-            if((data = zend_hash_str_find(Z_OBJPROP_P(zvinit), STRCAST(member.c_str()), member.size())))
+            if((data = zend_hash_str_find(Z_OBJPROP_P(zvinit), STRCAST(member.c_str()), member.size())) != 0)
             {
                 assert(Z_TYPE_P(data) == IS_INDIRECT);
                 if(!fetchProperties(Z_INDIRECT_P(data), initData.properties))
@@ -1236,7 +1231,7 @@ ZEND_FUNCTION(Ice_initialize)
 
         member = "logger";
         {
-            if((data = zend_hash_str_find(Z_OBJPROP_P(zvinit), STRCAST(member.c_str()), member.size())))
+            if((data = zend_hash_str_find(Z_OBJPROP_P(zvinit), STRCAST(member.c_str()), member.size())) != 0)
             {
                 assert(Z_TYPE_P(data) == IS_INDIRECT);
                 if(!fetchLogger(Z_INDIRECT_P(data), initData.logger))
@@ -1274,7 +1269,7 @@ ZEND_FUNCTION(Ice_register)
     zval* comm;
     char* s;
     size_t sLen;
-    long expires = 0;
+    zend_long expires = 0;
     if(zend_parse_parameters(ZEND_NUM_ARGS(), const_cast<char*>("Os|l"), &comm, communicatorClassEntry, &s,
                              &sLen, &expires) != SUCCESS)
     {
@@ -1449,7 +1444,7 @@ ZEND_FUNCTION(Ice_identityToString)
     assert(identityClass);
 
     zval* zv;
-    long mode = 0;
+    zend_long mode = 0;
 
     if(zend_parse_parameters(ZEND_NUM_ARGS(), const_cast<char*>("O|l"), &zv, identityClass, &mode) != SUCCESS)
     {

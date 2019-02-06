@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include "ice.h"
 #include <Ice/ImplicitContext.h>
@@ -35,7 +30,6 @@ Ice_ImplicitContext_getContext(void* self)
     {
         return createResultException(convertException(ex));
     }
-    return 0;
 }
 
 mxArray*
@@ -65,7 +59,6 @@ Ice_ImplicitContext_containsKey(void* self, mxArray* key)
     {
         return createResultException(convertException(ex));
     }
-    return 0;
 }
 
 mxArray*
@@ -79,7 +72,6 @@ Ice_ImplicitContext_get(void* self, mxArray* key)
     {
         return createResultException(convertException(ex));
     }
-    return 0;
 }
 
 mxArray*
@@ -95,7 +87,6 @@ Ice_ImplicitContext_put(void* self, mxArray* key, mxArray* value)
     {
         return createResultException(convertException(ex));
     }
-    return 0;
 }
 
 mxArray*
@@ -110,7 +101,6 @@ Ice_ImplicitContext_remove(void* self, mxArray* key)
     {
         return createResultException(convertException(ex));
     }
-    return 0;
 }
 
 }

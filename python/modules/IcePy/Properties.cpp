@@ -1,15 +1,7 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
-#ifdef _WIN32
-#   include <IceUtil/Config.h>
-#endif
 #include <Properties.h>
 #include <Util.h>
 #include <Ice/Initialize.h>
@@ -496,7 +488,7 @@ propertiesSetProperty(PropertiesObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-propertiesGetCommandLineOptions(PropertiesObject* self)
+propertiesGetCommandLineOptions(PropertiesObject* self, PyObject* /*args*/)
 {
     Ice::StringSeq options;
     assert(self->properties);
@@ -653,7 +645,7 @@ propertiesLoad(PropertiesObject* self, PyObject* args)
 extern "C"
 #endif
 static PyObject*
-propertiesClone(PropertiesObject* self)
+propertiesClone(PropertiesObject* self, PyObject* /*args*/)
 {
     Ice::PropertiesPtr properties;
     assert(self->properties);

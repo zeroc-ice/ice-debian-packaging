@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #import <InitializeI.h>
 #import <PropertiesI.h>
@@ -166,7 +161,6 @@ private:
 {
     Ice::InitializationData data;
     data.properties = [(ICEProperties*)properties properties];
-    data.logger = [ICELogger loggerWithLogger:logger];
     if(batchRequestInterceptor)
     {
         data.batchRequestInterceptor = [ICEBatchRequestInterceptor
@@ -191,7 +185,7 @@ private:
 
 -(id) init:(id<ICEProperties>)props logger:(id<ICELogger>)log
                                 dispatcher:(void(^)(id<ICEDispatcherCall>, id<ICEConnection>))d
-                   batchRequestInterceptor:(void(^)(id<ICEBatchRequest>, int, int))i;
+                   batchRequestInterceptor:(void(^)(id<ICEBatchRequest>, int, int))i
 {
     self = [super init];
     if(!self)
@@ -205,7 +199,7 @@ private:
     return self;
 }
 
-+(id) initializationData;
++(id) initializationData
 {
    ICEInitializationData *s = [[ICEInitializationData alloc] init];
    [s autorelease];
@@ -214,7 +208,7 @@ private:
 
 +(id) initializationData:(id<ICEProperties>)p logger:(id<ICELogger>)l
                                           dispatcher:(void(^)(id<ICEDispatcherCall>, id<ICEConnection>))d
-                             batchRequestInterceptor:(void(^)(id<ICEBatchRequest>, int, int))i;
+                             batchRequestInterceptor:(void(^)(id<ICEBatchRequest>, int, int))i
 {
    return [[((ICEInitializationData *)[ICEInitializationData alloc]) init:p logger:l dispatcher:d
             batchRequestInterceptor:i] autorelease];
@@ -231,7 +225,7 @@ private:
     return copy;
 }
 
--(NSUInteger) hash;
+-(NSUInteger) hash
 {
     NSUInteger h = 0;
     h = (h << 5 ^ [properties hash]);
@@ -242,7 +236,7 @@ private:
     return h;
 }
 
--(BOOL) isEqual:(id)anObject;
+-(BOOL) isEqual:(id)anObject
 {
     if(self == anObject)
     {
@@ -326,7 +320,7 @@ private:
     return YES;
 }
 
--(void) dealloc;
+-(void) dealloc
 {
     [properties release];
     [logger release];
@@ -415,6 +409,17 @@ private:
         if(argc != nil && argv != nil)
         {
             data.properties = createProperties(*argc, argv, data.properties);
+        }
+
+        //
+        // If no logger is specified, install a default logger unless Ice.UseSyslog
+        // or Ice.LogFile is configured
+        //
+        if(!data.logger && data.properties->getPropertyAsInt("Ice.UseSyslog") <= 0 &&
+           data.properties->getProperty("Ice.LogFile").empty())
+        {
+            id<ICELogger> logger = initData ? initData.logger : nil;
+            data.logger = [ICELogger loggerWithLogger:logger];
         }
 
         Ice::CommunicatorPtr communicator;

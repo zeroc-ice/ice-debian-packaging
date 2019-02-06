@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 (function(module, require, exports)
 {
@@ -38,7 +33,7 @@
         {
         }
 
-        javaException(current)
+        jsException(current)
         {
         }
 
@@ -51,7 +46,7 @@
         {
             if(throwEx)
             {
-                throw new TestImpossibleException();
+                throw new Test.TestImpossibleException();
             }
 
             //
@@ -65,7 +60,7 @@
         {
             if(throwEx)
             {
-                throw new TestIntfUserException();
+                throw new Test.TestIntfUserException();
             }
 
             //
@@ -92,7 +87,8 @@
     }
 
     exports.TestI = TestI;
-}
-(typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? module : undefined,
- typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? require : this.Ice._require,
- typeof(global) !== "undefined" && typeof(global.process) !== "undefined" ? exports : this));
+}(typeof global !== "undefined" && typeof global.process !== "undefined" ? module : undefined,
+  typeof global !== "undefined" && typeof global.process !== "undefined" ? require :
+  (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) ? self.Ice._require : window.Ice._require,
+  typeof global !== "undefined" && typeof global.process !== "undefined" ? exports :
+  (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) ? self : window));

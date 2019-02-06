@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 package test.Ice.serialize;
 import test.Ice.serialize.Test.*;
@@ -23,12 +18,12 @@ public class AllTests
     }
 
     public static InitialPrx
-    allTests(test.Util.Application app, boolean collocated)
+    allTests(test.TestHelper helper, boolean collocated)
     {
-        Ice.Communicator communicator = app.communicator();
-        PrintWriter out = app.getWriter();
+        Ice.Communicator communicator = helper.communicator();
+        PrintWriter out = helper.getWriter();
 
-        String ref = "initial:" + app.getTestEndpoint(0);
+        String ref = "initial:" + helper.getTestEndpoint(0);
         Ice.ObjectPrx base = communicator.stringToProxy(ref);
         InitialPrx initial = InitialPrxHelper.checkedCast(base);
 

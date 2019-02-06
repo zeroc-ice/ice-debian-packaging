@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 Ice._ModuleRegistry.require(module,
@@ -73,11 +68,11 @@ const _suffixes =
 
 const StateUninitialized = 0; // Just constructed.
 const StateHeld = 1;
-//const StateWaitActivate = 2;
+// const StateWaitActivate = 2;
 const StateActive = 3;
-//const StateDeactivating = 4;
+// const StateDeactivating = 4;
 const StateDeactivated = 5;
-const StateDestroyed  = 6;
+const StateDestroyed = 6;
 
 //
 // Only for use by IceInternal.ObjectAdapterFactory
@@ -459,7 +454,11 @@ class ObjectAdapterI
     refreshPublishedEndpoints()
     {
         this.checkForDeactivation();
-        return this.computePublishedEndpoints().then(endpoints => this._publishedEndpoints = endpoints);
+        return this.computePublishedEndpoints().then(
+            endpoints =>
+                {
+                    this._publishedEndpoints = endpoints;
+                });
     }
 
     getPublishedEndpoints()
@@ -488,7 +487,7 @@ class ObjectAdapterI
     setAdapterOnConnection(connection)
     {
         this.checkForDeactivation();
-        connection.setAdapterAndServantManager(this, _servantManager);
+        connection.setAdapterAndServantManager(this, this._servantManager);
     }
 
     messageSizeMax()
@@ -546,21 +545,22 @@ class ObjectAdapterI
         let p;
         if(this._routerInfo !== null)
         {
-            p = this._routerInfo.getServerEndpoints().then((endpts) =>
-            {
-                //
-                // Remove duplicate endpoints, so we have a list of unique endpoints.
-                //
-                const endpoints = [];
-                endpts.forEach(endpoint =>
-                {
-                    if(endpoints.findIndex(value => endpoint.equals(value)) === -1)
+            p = this._routerInfo.getServerEndpoints().then(
+                endpts =>
                     {
-                        endpoints.push(endpoint);
-                    }
-                });
-                return endpoints;
-            });
+                        //
+                        // Remove duplicate endpoints, so we have a list of unique endpoints.
+                        //
+                        const endpoints = [];
+                        endpts.forEach(endpoint =>
+                                       {
+                                           if(endpoints.findIndex(value => endpoint.equals(value)) === -1)
+                                           {
+                                               endpoints.push(endpoint);
+                                           }
+                                       });
+                        return endpoints;
+                    });
         }
         else
         {
@@ -609,7 +609,7 @@ class ObjectAdapterI
                             }
                             else
                             {
-                                quote = s.indexOf('\"', ++quote);
+                                quote = s.indexOf("\"", ++quote);
                                 if(quote == -1)
                                 {
                                     break;
@@ -632,7 +632,7 @@ class ObjectAdapterI
 
                 const es = s.substring(beg, end);
                 const endp = this._instance.endpointFactoryManager().create(es, false);
-                if(endp == null)
+                if(endp === null)
                 {
                     throw new Ice.EndpointParseException("invalid object adapter endpoint `" + s + "'");
                 }
@@ -642,28 +642,30 @@ class ObjectAdapterI
             p = Ice.Promise.resolve(endpoints);
         }
 
-        return p.then((endpoints) =>
-        {
-            if(this._instance.traceLevels().network >= 1 && endpoints.length > 0)
-            {
-                const s = [];
-                s.push("published endpoints for object adapter `");
-                s.push(this._name);
-                s.push("':\n");
-                let first = true;
-                endpoints.forEach(endpoint =>
+        return p.then(
+            endpoints =>
                 {
-                    if(!first)
+                    if(this._instance.traceLevels().network >= 1 && endpoints.length > 0)
                     {
-                        s.push(":");
+                        const s = [];
+                        s.push("published endpoints for object adapter `");
+                        s.push(this._name);
+                        s.push("':\n");
+                        let first = true;
+                        endpoints.forEach(endpoint =>
+                                          {
+                                              if(!first)
+                                              {
+                                                  s.push(":");
+                                              }
+                                              s.push(endpoint.toString());
+                                              first = false;
+                                          });
+                        this._instance.initializationData().logger.trace(this._instance.traceLevels().networkCat,
+                                                                         s.toString());
                     }
-                    s.push(endpoint.toString());
-                    first = false;
+                    return endpoints;
                 });
-                this._instance.initializationData().logger.trace(this._instance.traceLevels().networkCat, s.toString());
-             }
-             return endpoints;
-        });
     }
 
     filterProperties(unknownProps)
@@ -684,7 +686,7 @@ class ObjectAdapterI
 
         let noProps = true;
         const props = this._instance.initializationData().properties.getPropertiesForPrefix(prefix);
-        for(const [key, value] of props)
+        for(const key of props.keys())
         {
             let valid = false;
             for(let i = 0; i < _suffixes.length; ++i)

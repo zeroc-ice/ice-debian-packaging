@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Communicator.h>
 #include <Ice/LoggerUtil.h>
@@ -105,7 +100,6 @@ XmlAttributesHelper::asBool(const string& name) const
     if(p == _attributes.end())
     {
         throw invalid_argument("missing attribute '" + name + "'");
-        return true; // Keep the compiler happy.
     }
     else if(p->second == "true")
     {
@@ -118,7 +112,6 @@ XmlAttributesHelper::asBool(const string& name) const
     else
     {
         throw invalid_argument("invalid attribute `" + name + "': value is not 'false' or 'true'");
-        return true; // Keep the compiler happy.
     }
 }
 
@@ -142,7 +135,6 @@ XmlAttributesHelper::asBool(const string& name, bool def) const
     else
     {
         throw invalid_argument("invalid attribute `" + name + "': value is not 'false' or 'true'");
-        return true; // Keep the compiler happy.
     }
 }
 
@@ -855,14 +847,12 @@ ServiceDescriptorBuilder*
 ServerDescriptorBuilder::createService(const XmlAttributesHelper& /*attrs*/)
 {
     throw invalid_argument("<service> element can only be a child of an <icebox> element");
-    return 0;
 }
 
 ServiceInstanceDescriptorBuilder*
 ServerDescriptorBuilder::createServiceInstance(const XmlAttributesHelper& /*attrs*/)
 {
     throw invalid_argument("<service-instance> element can only be a child of an <icebox> element");
-    return 0;
 }
 
 void

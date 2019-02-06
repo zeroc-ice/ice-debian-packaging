@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #ifndef TEST_I_H
 #define TEST_I_H
@@ -58,20 +53,14 @@ class GI : public virtual Test::G
 {
 public:
 
-    GI(const Ice::CommunicatorPtr&);
     virtual void shutdown(const Ice::Current&);
     virtual std::string callG(const Ice::Current&);
-
-private:
-
-    Ice::CommunicatorPtr _communicator;
 };
 
 class HI : public virtual Test::H, public virtual GI
 {
 public:
 
-    HI(const Ice::CommunicatorPtr&);
     virtual std::string callH(const Ice::Current&);
 };
 

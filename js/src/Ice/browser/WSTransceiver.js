@@ -1,11 +1,6 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 const Ice = require("../Ice/ModuleRegistry").Ice;
 Ice._ModuleRegistry.require(module,
@@ -52,7 +47,7 @@ class WSTransceiver
     writeReadyTimeout()
     {
         const t = Math.round(this._writeReadyTimeout);
-        this._writeReadyTimeout +=  (this._writeReadyTimeout >= 5 ? 5 : 0.2);
+        this._writeReadyTimeout += (this._writeReadyTimeout >= 5 ? 5 : 0.2);
         return Math.min(t, 25);
     }
 
@@ -62,6 +57,7 @@ class WSTransceiver
         this._bytesAvailableCallback = bytesAvailableCallback;
         this._bytesWrittenCallback = bytesWrittenCallback;
     }
+
     //
     // Returns SocketOperation.None when initialization is complete.
     //

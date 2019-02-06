@@ -1,18 +1,11 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <IceUtil/Options.h>
 #include <BlobjectI.h>
-
-DEFINE_TEST("server")
 
 using namespace std;
 
@@ -79,9 +72,17 @@ private:
     Ice::ObjectPtr _blobject;
 };
 
-int
-run(int argc, char* argv[], const Ice::CommunicatorPtr& communicator)
+class Server : public Test::TestHelper
 {
+public:
+
+    void run(int, char**);
+};
+
+void
+Server::run(int argc, char** argv)
+{
+    Ice::CommunicatorHolder communicator = initialize(argc, argv);
     IceUtilInternal::Options opts;
     opts.addOpt("", "array");
     opts.addOpt("", "async");
@@ -93,51 +94,20 @@ run(int argc, char* argv[], const Ice::CommunicatorPtr& communicator)
     }
     catch(const IceUtilInternal::BadOptException& e)
     {
-        cout << argv[0] << ": " << e.reason << endl;
-        return false;
+        cout << argv[0] << ": error: " << e.reason << endl;
+        throw;
     }
     bool array = opts.isSet("array");
     bool async = opts.isSet("async");
 
-    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint(communicator, 0));
+    communicator->getProperties()->setProperty("TestAdapter.Endpoints", getTestEndpoint());
     Ice::ObjectAdapterPtr adapter = communicator->createObjectAdapter("TestAdapter");
     adapter->addServantLocator(ICE_MAKE_SHARED(ServantLocatorI, array, async), "");
     adapter->activate();
 
-    TEST_READY
+    serverReady();
 
     communicator->waitForShutdown();
-    return EXIT_SUCCESS;
 }
 
-int
-main(int argc, char* argv[])
-{
-#ifdef ICE_STATIC_LIBS
-    Ice::registerIceSSL(false);
-    Ice::registerIceWS(true);
-    Ice::registerIceUDP(true);
-#endif
-
-    int status;
-    Ice::CommunicatorPtr communicator;
-
-    try
-    {
-        Ice::InitializationData initData = getTestInitData(argc, argv);
-        communicator = Ice::initialize(argc, argv, initData);
-        status = run(argc, argv, communicator);
-    }
-    catch(const Ice::Exception& ex)
-    {
-        cerr << ex << endl;
-        status = EXIT_FAILURE;
-    }
-
-    if(communicator)
-    {
-        communicator->destroy();
-    }
-
-    return status;
-}
+DEFINE_TEST(Server)

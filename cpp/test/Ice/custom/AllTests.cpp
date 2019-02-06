@@ -1,15 +1,10 @@
-// **********************************************************************
 //
-// Copyright (c) 2003-2018 ZeroC, Inc. All rights reserved.
+// Copyright (c) ZeroC, Inc. All rights reserved.
 //
-// This copy of Ice is licensed to you under the terms described in the
-// ICE_LICENSE file included in this distribution.
-//
-// **********************************************************************
 
 #include <Ice/Ice.h>
 #include <IceUtil/Iterator.h>
-#include <TestCommon.h>
+#include <TestHelper.h>
 #include <Test.h>
 #include <Wstring.h>
 
@@ -566,9 +561,10 @@ typedef IceUtil::Handle<Callback> CallbackPtr;
 #endif
 
 Test::TestIntfPrxPtr
-allTests(const Ice::CommunicatorPtr& communicator)
+allTests(Test::TestHelper* helper)
 {
-    const string endp = getTestEndpoint(communicator, 0);
+    Ice::CommunicatorPtr communicator = helper->communicator();
+    const string endp = helper->getTestEndpoint();
     cout << "testing stringToProxy... " << flush;
     string ref = communicator->getProperties()->getPropertyWithDefault("Custom.Proxy", "test:" + endp);
     Ice::ObjectPrxPtr base = communicator->stringToProxy(ref);
@@ -870,7 +866,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         int i = 0;
         for(MyByteSeq::iterator p = in.begin(); p != in.end(); ++p)
         {
-            *p = '1' + i++;
+            *p = static_cast<Ice::Byte>('1' + i++);
         }
 
         MyByteSeq out;
@@ -1584,7 +1580,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
             int i = 0;
             for(MyByteSeq::iterator p = in.begin(); p != in.end(); ++p)
             {
-                *p = '1' + i++;
+                *p = static_cast<Ice::Byte>('1' + i++);
             }
 
 #ifdef ICE_CPP11_MAPPING
@@ -2534,7 +2530,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         int i = 0;
         for(MyByteSeq::iterator p = in.begin(); p != in.end(); ++p)
         {
-            *p = '1' + i++;
+            *p = static_cast<Ice::Byte>('1' + i++);
         }
 
 #ifdef ICE_CPP11_MAPPING
@@ -3365,10 +3361,10 @@ allTests(const Ice::CommunicatorPtr& communicator)
 
     cout << "testing class mapped structs with AMI... " << flush;
     {
-        Test::ClassStructPtr cs2;
-        Test::ClassStructSeq csseq2;
+        cs2 = 0;
+        csseq2.clear();
         Ice::AsyncResultPtr r = t->begin_opClassStruct(cs, csseq1);
-        Test::ClassStructPtr cs3 = t->end_opClassStruct(cs2, csseq2, r);
+        cs3 = t->end_opClassStruct(cs2, csseq2, r);
         assert(cs3 == cs);
         assert(csseq1.size() == csseq2.size());
         assert(csseq1[0] == csseq2[0]);
@@ -3423,8 +3419,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         test(r.returnValue == wstr);
 #else
         Ice::AsyncResultPtr r = wsc1->begin_opString(wstr);
-        wstring out;
-        wstring ret = wsc1->end_opString(out, r);
+        ret = wsc1->end_opString(out, r);
         test(out == wstr);
         test(ret == wstr);
 #endif
@@ -3435,10 +3430,10 @@ allTests(const Ice::CommunicatorPtr& communicator)
         promise<bool> done;
 
         wsc1->opStringAsync(wstr,
-                            [&](wstring ret, wstring out)
+                            [&](wstring retP, wstring outP)
                             {
-                                test(out == wstr);
-                                test(ret == wstr);
+                                test(outP == wstr);
+                                test(retP == wstr);
                                 done.set_value(true);
                             },
                             [&](std::exception_ptr)
@@ -3466,8 +3461,7 @@ allTests(const Ice::CommunicatorPtr& communicator)
         test(r.returnValue == wstr);
 #else
         Ice::AsyncResultPtr r = wsc2->begin_opString(wstr);
-        wstring out;
-        wstring ret = wsc2->end_opString(out, r);
+        ret = wsc2->end_opString(out, r);
         test(out == wstr);
         test(ret == wstr);
 #endif
@@ -3478,10 +3472,10 @@ allTests(const Ice::CommunicatorPtr& communicator)
         promise<bool> done;
 
         wsc2->opStringAsync(wstr,
-                            [&](wstring ret, wstring out)
+                            [&](wstring retP, wstring outP)
                             {
-                                test(out == wstr);
-                                test(ret == wstr);
+                                test(outP == wstr);
+                                test(retP == wstr);
                                 done.set_value(true);
                             },
                             [&](std::exception_ptr)
