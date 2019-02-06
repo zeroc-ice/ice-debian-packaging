@@ -17,7 +17,14 @@ include /usr/share/dpkg/default.mk
 
 export JAVA_HOME=/usr/lib/jvm/default-java/
 
+#
+# Use the system gradle unless it has been overridden by GRADLE
+# environment variable.
+#
+ifeq ($(GRADLE),)
 export GRADLE		= gradle
+endif
+
 export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
 			  --info \
 			  --console plain \
