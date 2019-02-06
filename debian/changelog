@@ -1,3 +1,9 @@
+zeroc-ice (3.7.2-1) unstable; urgency=medium
+
+  * New upstream version 3.7.2
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Wed, 06 Feb 2019 11:27:15 +0000
+
 zeroc-ice (3.7.1-6) unstable; urgency=medium
 
   * Fix Python 3.7 build failure
