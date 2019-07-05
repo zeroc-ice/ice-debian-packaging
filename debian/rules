@@ -35,6 +35,7 @@ export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
 			  -PicegridguiProguard=false \
 			  -PjgoodiesLooksVersion=debian \
 			  -PjgoodiesFormsVersion=debian \
+			  -PopenjfxVersion=debian \
 			  -PiceBuilderVersion=debian \
 			  -PiceBuilderClassPath=com.zeroc.gradle.ice-builder \
 			  -PjarsClassPath=true
