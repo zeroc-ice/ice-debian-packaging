@@ -1,8 +1,8 @@
-zeroc-ice (3.6.4-2) UNRELEASED; urgency=medium
+zeroc-ice (3.6.5-1) unstable; urgency=medium
 
-  * Don't enable IceGrid and Glacier2 services on install
+  * 3.6.5 release
 
- -- Benoit Foucher <benoit@zeroc.com>  Fri, 17 Nov 2017 11:07:43 +0200
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Fri, 26 Jul 2019 17:10:29 +0000
 
 zeroc-ice (3.6.4-1) unstable; urgency=medium
 
