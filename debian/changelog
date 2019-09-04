@@ -1,3 +1,9 @@
+zeroc-ice (3.7.2-6) unstable; urgency=medium
+
+  * Python2 removal (closes: #938886)
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Wed, 04 Sep 2019 14:50:20 +0200
+
 zeroc-ice (3.7.2-5) unstable; urgency=medium
 
   * Fix GCC 9 build failures
