@@ -36,6 +36,7 @@ export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
 			  -PjgoodiesLooksVersion=debian \
 			  -PjgoodiesFormsVersion=debian \
 			  -PiceBuilderVersion=debian \
+                          -PopenjfxVersion=debian \
 			  -PiceBuilderClassPath=com.zeroc.gradle.ice-builder \
 			  -PjarsClassPath=true
 
