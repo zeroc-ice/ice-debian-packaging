@@ -1,3 +1,12 @@
+zeroc-ice (3.7.3-1) unstable; urgency=medium
+
+  * Do not use dh_install --list-missing deprecated argument
+  * Remove debian patches integrated in new upstream release
+  * Add slice2swift to zeroc-ice-compilers package
+  * New upstream version 3.7.3
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Wed, 16 Oct 2019 17:24:34 +0200
+
 zeroc-ice (3.7.2-6) unstable; urgency=medium
 
   * Python2 removal (closes: #938886)
