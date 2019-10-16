@@ -162,7 +162,7 @@ override_dh_install:
 override_dh_strip:
 	dh_strip
 	# Sadly, perl "-B" test (used by dh_strip) for binary files sometime misses some binary files,
-	# the following ensures, static libraries are always stripped even if the binay check fails.
+	# the following ensures, static libraries are always stripped even if the binary check fails.
 	strip --strip-debug --remove-section=.comment --remove-section=.note --enable-deterministic-archives \
 		debian/libzeroc-ice-dev/usr/lib/*/lib*.a
 
