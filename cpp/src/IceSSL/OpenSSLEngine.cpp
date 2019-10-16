@@ -84,7 +84,7 @@ IceSSL_opensslThreadIdCallback()
     // On some platforms, pthread_t is a pointer to a per-thread structure.
     //
     return reinterpret_cast<unsigned long>(pthread_self());
-#  elif defined(__linux) || defined(__sun) || defined(__hpux) || defined(_AIX) || defined(__GLIBC__)
+#  elif defined(__linux__) || defined(__sun) || defined(__hpux) || defined(_AIX) || defined(__GLIBC__)
     //
     // On Linux, Solaris, HP-UX and AIX, pthread_t is an integer.
     //
@@ -609,14 +609,14 @@ OpenSSL::SSLEngine::initialize()
                                 if(!cert || !SSL_CTX_use_certificate(_ctx, cert))
                                 {
                                     throw PluginInitializationException(__FILE__, __LINE__,
-                                                                "IceSSL: unable to establish SSL certificate:\n" +
+                                                                "IceSSL: unable to load SSL certificate:\n" +
                                                                 (cert ? sslErrors() : "certificate not found"));
                                 }
 
                                 if(!key || !SSL_CTX_use_PrivateKey(_ctx, key))
                                 {
                                     throw PluginInitializationException(__FILE__, __LINE__,
-                                                                "IceSSL: unable to establish SSL private key:\n" +
+                                                                "IceSSL: unable to load SSL private key:\n" +
                                                                 (key ? sslErrors() : "key not found"));
                                 }
                                 keyLoaded = true;
@@ -931,20 +931,8 @@ OpenSSL::SSLEngine::destroy()
     if(_ctx)
     {
         SSL_CTX_free(_ctx);
+        _ctx = 0;
     }
-}
-
-void
-OpenSSL::SSLEngine::verifyPeer(const string& address, const IceSSL::ConnectionInfoPtr& info, const string& desc)
-{
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x10002000L
-    //
-    // Peer hostname verification is new in OpenSSL 1.0.2 for older versions
-    //  we use IceSSL build in hostname verification.
-    //
-    verifyPeerCertName(address, info);
-#endif
-    IceSSL::SSLEngine::verifyPeer(address, info, desc);
 }
 
 IceInternal::TransceiverPtr
