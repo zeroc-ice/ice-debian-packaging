@@ -17,13 +17,7 @@ include /usr/share/dpkg/default.mk
 
 export JAVA_HOME=/usr/lib/jvm/default-java/
 
-#
-# Use the system gradle unless it has been overridden by GRADLE
-# environment variable.
-#
-ifeq ($(GRADLE),)
 export GRADLE		= gradle
-endif
 
 export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
 			  --info \
@@ -39,6 +33,11 @@ export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
                           -PopenjfxVersion=debian \
 			  -PiceBuilderClassPath=com.zeroc.gradle.ice-builder \
 			  -PjarsClassPath=true
+
+#
+# This is required to enable dbgsym packages in Ubuntu
+#
+export DH_BUILD_DDEBS = 1
 
 #
 # These files are not installed with any debian package.
