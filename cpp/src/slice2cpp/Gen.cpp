@@ -6392,14 +6392,7 @@ Slice::Gen::Cpp11TypesVisitor::visitExceptionStart(const ExceptionPtr& p)
                 {
                     H << ", ";
                 }
-                if(isMovable((*q)->type()))
-                {
-                    H << "::std::move(" << fixKwd((*q)->name()) << ")";
-                }
-                else
-                {
-                    H << fixKwd((*q)->name());
-                }
+                H << fixKwd((*q)->name());
             }
 
             H << ")";
@@ -6425,14 +6418,7 @@ Slice::Gen::Cpp11TypesVisitor::visitExceptionStart(const ExceptionPtr& p)
             {
                 H << ",";
             }
-            if(isMovable((*q)->type()))
-            {
-                H << nl << memberName << "(::std::move(" << memberName << "))";
-            }
-            else
-            {
-                H << nl << memberName << "(" << memberName << ")";
-            }
+            H << nl << memberName << "(" << memberName << ")";
         }
 
         H.dec();
@@ -7194,7 +7180,10 @@ Slice::Gen::Cpp11ProxyVisitor::visitOperation(const OperationPtr& p)
 
         H << nl << "return _makeLamdaOutgoing<" << futureT << ">" << spar;
 
-        H << (futureOutParams.size() > 1 ? "_responseCb" : responseParam) << exParam << sentParam << "this";
+        H << "std::move(" + (futureOutParams.size() > 1 ? "_responseCb" : responseParam) + ")"
+          << "std::move(" + exParam + ")"
+          << "std::move(" + sentParam + ")"
+          << "this";
         H << string("&" + getUnqualified(scoped, clScope.substr(2)) + "_iceI_" + name);
         for(ParamDeclList::const_iterator q = inParams.begin(); q != inParams.end(); ++q)
         {
@@ -8718,14 +8707,7 @@ Slice::Gen::Cpp11ObjectVisitor::emitVirtualBaseInitializers(const ClassDefPtr& d
         {
             upcall += ", ";
         }
-        if(isMovable((*q)->type()))
-        {
-            upcall += "::std::move(" + fixKwd((*q)->name()) + ")";
-        }
-        else
-        {
-            upcall += "" + fixKwd((*q)->name());
-        }
+        upcall += "" + fixKwd((*q)->name());
     }
     upcall += ")";
 
@@ -8821,14 +8803,7 @@ Slice::Gen::Cpp11ObjectVisitor::emitOneShotConstructor(const ClassDefPtr& p)
                 H << ',' << nl;
             }
             string memberName = fixKwd((*q)->name());
-            if(isMovable((*q)->type()))
-            {
-                H << memberName << "(::std::move(" << memberName << "))";
-            }
-            else
-            {
-                H << memberName << "(" << memberName << ')';
-            }
+            H << memberName << "(" << memberName << ')';
         }
 
         H.dec();

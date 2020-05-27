@@ -102,7 +102,7 @@ supported-languages     ?= $(strip cpp java java-compat python ruby php \
                                    $(if $(filter Darwin,$(os)),objective-c swift))
 supported-configs       ?= shared
 
-version                 = 3.7.3
+version                 = 3.7.4
 mmversion               = 3.7
 soversion               = 37
 
@@ -117,7 +117,7 @@ compatversion           = $(version)
 ifneq ($(filter all cpp obj%c,$(ICE_BIN_DIST)),)
 # NOTE: on macOS, if ICE_HOME isn't set we build against /usr/local/opt/ice because the
 # XCode SDK is not accessible through /usr/local
-$(eval $(call create-project-dependencies,ice,$(or $(ICE_HOME),$(if $(filter Darwin,$(os)),/usr/local/opt/ice)),cpp))
+$(eval $(call create-project-dependencies,ice,$(or $(ICE_HOME),$(if $(filter Darwin,$(os)),/usr/local/opt/ice),$(if $(filter AIX,$(os)),/opt/freeware)),cpp))
 else ifneq ($(filter compilers,$(ICE_BIN_DIST)),)
 ice_compilers_dir       = $(or $(ICE_HOME),$(if $(filter Darwin,$(os)),/usr/local/opt/ice),$(system-install-dir))
 endif
@@ -146,7 +146,7 @@ use-bin-dist = $(or $(filter all,$(ICE_BIN_DIST)),\
 
 bindir                  = $(if $(use-bin-dist),$(ice_bindir),$(call mappingdir,$(or $1,$(currentdir)),bin))
 libdir                  = $(if $(use-bin-dist),$(ice_libdir),$(call mappingdir,$(or $1,$(currentdir)),lib))
-includedir              = $(if $(use-bin-dist),$(ice_slicedir),$(call mappingdir,$(or $1,$(currentdir)),include))
+includedir              = $(if $(use-bin-dist),$(ice_includedir),$(call mappingdir,$(or $1,$(currentdir)),include))
 slicedir                = $(if $(use-bin-dist),$(ice_slicedir),$(top_srcdir)/slice)
 sdkdir                  = $(if $(use-bin-dist),$(ice_home)/sdk,$(top_srcdir)/sdk)
 srcdir                  = $(call mappingdir,$(or $1,$(currentdir)),src)

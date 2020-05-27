@@ -78,7 +78,7 @@ class to provide component specific information.
 class Component(object):
 
     def __init__(self):
-        self.nugetVersion = None
+        self.nugetVersion = {}
 
     """
     Returns whether or not to use the binary distribution.
@@ -114,7 +114,7 @@ class Component(object):
                                       "net" if isinstance(mapping, CSharpMapping) else platform.getPlatformToolset())
 
     def getNugetPackageVersion(self, mapping):
-        if not self.nugetVersion:
+        if not mapping in self.nugetVersion:
             file = self.getNugetPackageVersionFile(mapping)
             if file.endswith(".nuspec"):
                 expr = "<version>(.*)</version>"
@@ -124,10 +124,10 @@ class Component(object):
                 with open(file, "r") as config:
                     m = re.search(expr, config.read())
                     if m:
-                        self.nugetVersion = m.group(1)
-        if not self.nugetVersion:
+                        self.nugetVersion[mapping] = m.group(1)
+        if not mapping in self.nugetVersion:
             raise RuntimeError("couldn't figure out the nuget version from `{0}'".format(file))
-        return self.nugetVersion
+        return self.nugetVersion[mapping]
 
     def getNugetPackageVersionFile(self, mapping):
         raise RuntimeError("must be overriden if component provides C++ or C# nuget packages")
@@ -214,9 +214,9 @@ class Platform(object):
     def __init__(self):
         try:
             version = run("dotnet --version").split(".")
-            self.nugetPackageCache = re.search("info : global-packages: (.*)",
+            self.nugetPackageCache = re.search("global-packages: (.*)",
                                                run("dotnet nuget locals --list global-packages")).groups(1)[0]
-            self.defaultNetCoreFramework = "netcoreapp{}".format("3.0" if int(version[0]) >= 3 else "2.1")
+            self.defaultNetCoreFramework = "netcoreapp{}".format("3.1" if int(version[0]) >= 3 else "2.1")
         except:
             self.nugetPackageCache = None
 
@@ -1974,15 +1974,18 @@ class TestSuite(object):
     def isMainThreadOnly(self, driver):
         if self.runOnMainThread or driver.getComponent().isMainThreadOnly(self.id):
             return True
-        for m in [CppMapping, JavaMapping, CSharpMapping, PythonMapping, PhpMapping, RubyMapping, JavaScriptMixin,
-                  SwiftMapping]:
-            if isinstance(self.mapping, m):
-                config = driver.configs[self.mapping]
-                if "iphone" in config.buildPlatform or config.uwp or config.browser or config.android:
-                    return True # Not supported yet for tests that require a remote process controller
-                return False
-        else:
+
+        if isinstance(self.mapping, MatlabMapping):
             return True
+
+        # Only Objective-C mapping cross test support workers.
+        if isinstance(self.mapping, ObjCMapping) and not driver.getComponent().isCross(self.id):
+            return True
+
+        config = driver.configs[self.mapping]
+        if "iphone" in config.buildPlatform or config.uwp or config.browser or config.android:
+            return True # Not supported yet for tests that require a remote process controller
+        return False
 
     def addTestCase(self, testcase):
         if testcase.name in self.testcases:
@@ -2234,23 +2237,36 @@ class RemoteProcessController(ProcessController):
         # work we'll wait for 10s for the process controller to register with the registry.
         # If the wait times out, we retry again.
         #
-        nRetry = 0
-        while nRetry < 10:
-            nRetry += 1
-
+        def callback(future):
             try:
-                proxy.ice_ping()
+                future.result()
                 with self.cond:
-                    self.processControllerProxies[ident] = proxy
-                    return self.processControllerProxies[ident]
+                    if not ident in self.processControllerProxies:
+                        self.processControllerProxies[proxy.ice_getIdentity()] = proxy
+                    self.cond.notifyAll()
             except Exception:
                 pass
 
+        nRetry = 0
+        while nRetry < 120:
+            nRetry += 1
+
+            if self.supportsDiscovery():
+                proxy.ice_pingAsync().add_done_callback(callback)
+
             with self.cond:
                 if not ident in self.processControllerProxies:
-                    self.cond.wait(10)
+                    self.cond.wait(5)
                 if ident in self.processControllerProxies:
                     return self.processControllerProxies[ident]
+
+            # If the controller isn't up after a while, we restart it. With the iOS simulator,
+            # it's not uncommon to get Springoard crashes when starting the controller.
+            if nRetry == 50:
+                sys.stdout.write("controller application unreachable, restarting... ")
+                sys.stdout.flush()
+                self.restartControllerApp(current, ident)
+                print("ok")
 
         raise RuntimeError("couldn't reach the remote controller `{0}'".format(ident))
 
@@ -2275,6 +2291,9 @@ class RemoteProcessController(ProcessController):
                 proxy.ice_getConnection().setCallback(CallbackI(self))
 
             self.cond.notifyAll()
+
+    def supportsDiscovery(self):
+        return True
 
     def clearProcessController(self, proxy, conn=None):
         with self.cond:
@@ -2335,6 +2354,9 @@ class AndroidProcessController(RemoteProcessController):
 
     def __str__(self):
         return "Android"
+
+    def supportsDiscovery(self):
+        return self.device is not None  # Discovery is only used with devices
 
     def getControllerIdentity(self, current):
         if isinstance(current.testcase.getMapping(), CSharpMapping):
@@ -2493,12 +2515,24 @@ class iOSSimulatorProcessController(RemoteProcessController):
         sys.stdout.flush()
         try:
             run("xcrun simctl boot \"{0}\"".format(self.device))
+            run("xcrun simctl bootstatus \"{0}\"".format(self.device)) # Wait for the boot to complete
         except Exception as ex:
             if str(ex).find("Booted") >= 0:
                 pass
             elif str(ex).find("Invalid device") >= 0:
+                #
                 # Create the simulator device if it doesn't exist
+                #
+                # We update the watchdog timer scale to prevent issues with the controller app taking too long
+                # to start on the simulator. The security validation of the app can take a significant time and
+                # causes the watch dog to kick-in leaving the springboard app in a bogus state where it's not
+                # possible to terminate and restart the controller
+                #
                 self.simulatorID = run("xcrun simctl create \"{0}\" {1} {2}".format(self.device, self.deviceID, self.runtimeID))
+                run("xcrun simctl boot \"{0}\"".format(self.device))
+                run("xcrun simctl bootstatus \"{0}\"".format(self.device)) # Wait for the boot to complete
+                run("xcrun simctl spawn \"{0}\" defaults write com.apple.springboard FBLaunchWatchdogScale 20".format(self.device))
+                run("xcrun simctl shutdown \"{0}\"".format(self.device))
                 run("xcrun simctl boot \"{0}\"".format(self.device))
             else:
                 raise
@@ -2514,10 +2548,18 @@ class iOSSimulatorProcessController(RemoteProcessController):
         print("ok")
 
     def restartControllerApp(self, current, ident):
-        try:
-            run("xcrun simctl terminate \"{0}\" {1}".format(self.device, ident.name))
-        except:
-            pass
+        # We reboot the simulator if the controller fails to start. Terminating the controller app
+        # with simctl terminate doesn't always work, it can hang if the controller app died because
+        # of the springboard watchdog.
+        run("xcrun simctl shutdown \"{0}\"".format(self.device))
+        nRetry = 0
+        while nRetry < 20:
+            try:
+                run("xcrun simctl boot \"{0}\"".format(self.device))
+                break
+            except Exception:
+                time.sleep(1.0)
+                nRetry += 1
         run("xcrun simctl launch \"{0}\" {1}".format(self.device, ident.name))
 
     def stopControllerApp(self, ident):
@@ -2708,7 +2750,7 @@ class BrowserProcessController(RemoteProcessController):
                     capabilities = webdriver.DesiredCapabilities.INTERNETEXPLORER.copy()
                     capabilities["ie.ensureCleanSession"] = True
                     self.driver = webdriver.Ie(capabilities=capabilities)
-                elif driver == "Safari" and port > 0:
+                elif driver == "Safari" and int(port) > 0:
                     self.driver = webdriver.Safari(port=int(port), reuse_service=True)
                 else:
                     self.driver = getattr(webdriver, driver)()
@@ -2718,6 +2760,9 @@ class BrowserProcessController(RemoteProcessController):
 
     def __str__(self):
         return str(self.driver) if self.driver else "Manual"
+
+    def supportsDiscovery(self):
+        return False
 
     def getControllerIdentity(self, current):
         #
@@ -2804,6 +2849,7 @@ class BrowserProcessController(RemoteProcessController):
             raise ex
 
     def destroy(self, driver):
+        RemoteProcessController.destroy(self, driver)
         if self.httpServer:
             self.httpServer.terminate()
             self.httpServer = None
@@ -3061,11 +3107,10 @@ class Driver:
         initData.properties.setProperty("Ice.Plugin.IceDiscovery", "IceDiscovery:createIceDiscovery")
         initData.properties.setProperty("IceDiscovery.DomainId", "TestController")
         initData.properties.setProperty("IceDiscovery.Interface", self.interface)
-        initData.properties.setProperty("IceDiscovery.RetryCount", "10") # Retry 10 times with the default 300ms timeout
         initData.properties.setProperty("Ice.Default.Host", self.interface)
         initData.properties.setProperty("Ice.ThreadPool.Server.Size", "10")
         # initData.properties.setProperty("Ice.Trace.Protocol", "1")
-        # initData.properties.setProperty("Ice.Trace.Network", "3")
+        # initData.properties.setProperty("Ice.Trace.Network", "2")
         # initData.properties.setProperty("Ice.StdErr", "allTests.log")
         initData.properties.setProperty("Ice.Override.Timeout", "10000")
         initData.properties.setProperty("Ice.Override.ConnectTimeout", "1000")
@@ -3504,9 +3549,8 @@ class CSharpMapping(Mapping):
         else:
             path = os.path.join(current.testcase.getPath(current), current.getBuildDir(exe))
 
-        useDotnetExe = (current.config.dotnetcore and
-                        (current.config.testTargetFramework in ["netcoreapp2.1", "netcoreapp2.2"] or
-                         process.isFromBinDir()))
+        useDotnetExe = current.config.dotnetcore and \
+                        (current.config.testTargetFramework in ["netcoreapp2.1"] or process.isFromBinDir())
         command = ""
         if useDotnetExe:
             command += "dotnet "

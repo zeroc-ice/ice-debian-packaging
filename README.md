@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/zeroc-ice/ice.svg?branch=3.7)](https://travis-ci.org/zeroc-ice/ice) [![Join the chat at https://gitter.im/zeroc-ice/ice](https://badges.gitter.im/zeroc-ice/ice.svg)](https://gitter.im/zeroc-ice/ice?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Join the chat at https://gitter.im/zeroc-ice/ice](https://badges.gitter.im/zeroc-ice/ice.svg)](https://gitter.im/zeroc-ice/ice?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # Ice - Comprehensive RPC Framework
 
@@ -108,5 +108,5 @@ Ice and a commercial Ice are the license terms.
 
 ## Documentation
 
-- [Ice Release Notes](https://doc.zeroc.com/rel/ice-releases/ice-3-7/ice-3-7-3-release-notes)
+- [Ice Release Notes](https://doc.zeroc.com/rel/ice-releases/ice-3-7/ice-3-7-4-release-notes)
 - [Ice Manual](https://doc.zeroc.com/ice/3.7/)
