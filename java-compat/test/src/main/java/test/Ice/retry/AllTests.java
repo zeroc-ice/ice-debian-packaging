@@ -201,6 +201,27 @@ public class AllTests
         instrumentation.testRetryCount(4);
         out.println("ok");
 
+        if(retry1.ice_getCachedConnection() != null)
+        {
+            out.print("testing non-idempotent operation with bi-dir proxy... ");
+            try
+            {
+                ((RetryPrx)retry1.ice_fixed(retry1.ice_getCachedConnection())).opIdempotent(4);
+            }
+            catch (Ice.Exception ex) {
+            }
+            instrumentation.testInvocationCount(1);
+            instrumentation.testFailureCount(1);
+            instrumentation.testRetryCount(0);
+            test(retry1.opIdempotent(4) == 4);
+            instrumentation.testInvocationCount(1);
+            instrumentation.testFailureCount(0);
+            // It suceeded after 3 retry because of the failed opIdempotent on the fixed
+            // proxy above
+            instrumentation.testRetryCount(3);
+            out.println("ok");
+        }
+
         out.print("testing non-idempotent operation... ");
         try
         {
@@ -290,10 +311,10 @@ public class AllTests
                 // The timeout might occur on connection establishment or because of the sleep. What's
                 // important here is to make sure there are 4 retries and that no calls succeed to
                 // ensure retries with the old connection timeout semantics work.
-                RetryPrx retryWithTimeout = (RetryPrx)retry1.ice_invocationTimeout(-2).ice_timeout(200);
+                RetryPrx retryWithTimeout = (RetryPrx)retry1.ice_invocationTimeout(-2).ice_timeout(100);
                 try
                 {
-                    retryWithTimeout.sleep(500);
+                    retryWithTimeout.sleep(1000);
                     test(false);
                 }
                 catch(Ice.TimeoutException ex)

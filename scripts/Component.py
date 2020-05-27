@@ -8,8 +8,8 @@ from Util import *
 
 class Ice(Component):
 
-    # All option values for Ice/IceBox tests.
-    coreOptions = {
+    # Options for all transports (ran only with Ice client/server tests defined for cross testing)
+    transportOptions = {
         "protocol" : ["tcp", "ssl", "wss", "ws"],
         "compress" : [False, True],
         "ipv6" : [False, True],
@@ -17,17 +17,23 @@ class Ice(Component):
         "mx" : [False, True],
     }
 
-    # All option values for IceGrid/IceStorm/Glacier2/IceDiscovery tests.
-    serviceOptions = {
-        "protocol" : ["tcp", "wss"],
+    # Options for Ice tests, run tests with ssl and ws/ipv6/serial/mx/compress
+    coreOptions = {
+        "protocol" : ["ssl", "ws"],
         "compress" : [False, True],
         "ipv6" : [False, True],
         "serialize" : [False, True],
         "mx" : [False, True],
     }
 
-    def __init__(self):
-        self.nugetVersion = None
+    # Options for Ice services, run tests with ssl + mx
+    serviceOptions = {
+        "protocol" : ["ssl"],
+        "compress" : [False],
+        "ipv6" : [False],
+        "serialize" : [False],
+        "mx" : [True],
+    }
 
     def useBinDist(self, mapping, current):
         return Component._useBinDist(self, mapping, current, "ICE_BIN_DIST")
@@ -155,14 +161,9 @@ class Ice(Component):
             if current.config.ipv6 and testId in ["Ice/udp"]:
                 return False
 
-        # IceSSL test doesn't work on macOS/.NET Core
-        if isinstance(mapping, CSharpMapping) and isinstance(platform, Darwin) and parent in ["IceSSL"]:
-            return False
-
         return True
 
     def isMainThreadOnly(self, testId):
-        #return testId.startswith("IceStorm") # TODO: WORKAROUND for ICE-8175
         return False # By default, tests support being run concurrently
 
     def getDefaultProcesses(self, mapping, processType, testId):
@@ -175,10 +176,24 @@ class Ice(Component):
                 return [IceGridServer()]
 
     def getOptions(self, testcase, current):
+
         parent = re.match(r'^([\w]*).*', testcase.getTestSuite().getId()).group(1)
-        if isinstance(testcase, ClientServerTestCase) and parent in ["Ice", "IceBox"]:
+        if parent not in ["Ice", "IceBox", "IceGrid", "Glacier2", "IceStorm", "IceDiscovery", "IceBridge"]:
+            return None
+
+        if not isinstance(testcase, ClientServerTestCase):
+            return None
+
+        # Define here Ice tests which are slow to execute and for which it's not useful to test different options
+        if testcase.getTestSuite().getId() in ["Ice/binding", "Ice/faultTolerance", "Ice/location"]:
+            return self.serviceOptions
+
+        # We only run the client/server tests defined for cross testing with all transports
+        if testcase.__class__.__name__ == 'ClientServerTestCase' and self.isCross(testcase.getTestSuite().getId()):
+            return self.transportOptions
+        elif parent in ["Ice", "IceBox"]:
             return self.coreOptions
-        elif parent in ["IceGrid", "Glacier2", "IceStorm", "IceDiscovery", "IceBridge"]:
+        else:
             return self.serviceOptions
 
     def getRunOrder(self):
@@ -187,7 +202,6 @@ class Ice(Component):
     def isCross(self, testId):
         return testId in [
             "Ice/ami",
-            "Ice/info",
             "Ice/exceptions",
             "Ice/enums",
             "Ice/facets",
@@ -196,7 +210,6 @@ class Ice(Component):
             "Ice/objects",
             "Ice/operations",
             "Ice/proxy",
-            "Ice/servantLocator",
             "Ice/slicing/exceptions",
             "Ice/slicing/objects",
             "Ice/optional",
