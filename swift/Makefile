@@ -13,6 +13,7 @@ PROJECT ?= $(if $(filter $(ICE_BIN_DIST), swift all),ice-test.xcodeproj,ice.xcod
 define make-xcodebuild-rule
 $1:: $(PROJECT)
 	xcodebuild -project $(PROJECT) \
+		   -xcconfig buildsettings.xcconfig \
                    -scheme "$3 $(if $(filter $2,macosx),macOS,iOS)" \
                    -configuration $(CONFIG) \
                    -sdk $2 $4
@@ -26,15 +27,8 @@ ice-test.xcodeproj: Rakefile | carthage
 
 all:: tests
 
-# Workaround for carthage sporadic SEGFAULT (https://github.com/Carthage/Carthage/issues/2760).
-# If it SEGFAULT we retry.
 carthage:
-	$(Q)cd .. && \
-	carthage update --cache-builds || if [ $$? = 139 ]; then \
-	carthage update --cache-builds || if [ $$? = 139 ]; then \
-	carthage update --cache-builds || if [ $$? = 139 ]; then \
-	carthage update --cache-builds || if [ $$? = 139 ]; then \
-	carthage update --cache-builds; fi; fi; fi; fi
+	$(Q)cd .. && ./swift/carthage.sh bootstrap --cache-builds
 
 tests srcs:: carthage
 

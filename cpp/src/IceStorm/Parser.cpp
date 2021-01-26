@@ -9,9 +9,8 @@
 #include <IceStorm/IceStormInternal.h>
 #include <algorithm>
 
-#ifdef HAVE_READLINE
-#   include <readline/readline.h>
-#   include <readline/history.h>
+#if defined(__APPLE__) || defined(__linux__)
+#    include <editline/readline.h>
 #endif
 
 extern FILE* yyin;
@@ -445,77 +444,80 @@ Parser::getInput(char* buf, size_t& result, size_t maxSize)
     }
     else
     {
-#ifdef HAVE_READLINE
-
-        const char* prompt = parser->getPrompt();
-        char* line = readline(const_cast<char*>(prompt));
-        if(!line)
+#if defined(__APPLE__) || defined(__linux__)
+        if (isatty(fileno(stdin)) == 1)
         {
-            result = 0;
-        }
-        else
-        {
-            if(*line)
+            const char* prompt = parser->getPrompt();
+            char* line = readline(const_cast<char*>(prompt));
+            if(!line)
             {
-                add_history(line);
-            }
-
-            result = strlen(line) + 1;
-            if(result > maxSize)
-            {
-                free(line);
-                error("input line too long");
                 result = 0;
             }
             else
             {
-                strcpy(buf, line);
-                strcat(buf, "\n");
-                free(line);
-            }
-        }
-
-#else
-
-        consoleOut << parser->getPrompt() << flush;
-
-        string line;
-        while(true)
-        {
-            int c = getc(yyin);
-            if(c == EOF)
-            {
-                if(line.size())
+                if(*line)
                 {
-                    line += '\n';
+                    add_history(line);
                 }
-                break;
-            }
 
-            line += static_cast<char>(c);
-            if(c == '\n')
-            {
-                break;
+                result = strlen(line) + 1;
+                if(result > maxSize)
+                {
+                    free(line);
+                    error("input line too long");
+                    result = 0;
+                }
+                else
+                {
+                    strcpy(buf, line);
+                    strcat(buf, "\n");
+                    free(line);
+                }
             }
-        }
-#ifdef _WIN32
-        if(windowsConsoleConverter)
-        {
-            line = nativeToUTF8(line, windowsConsoleConverter);
-        }
-#endif
-        result = line.length();
-        if(result > maxSize)
-        {
-            error("input line too long");
-            buf[0] = EOF;
-            result = 1;
         }
         else
         {
-            strcpy(buf, line.c_str());
-        }
+#endif
+            consoleOut << parser->getPrompt() << flush;
 
+            string line;
+            while(true)
+            {
+                int c = getc(yyin);
+                if(c == EOF)
+                {
+                    if(line.size())
+                    {
+                        line += '\n';
+                    }
+                    break;
+                }
+
+                line += static_cast<char>(c);
+                if(c == '\n')
+                {
+                    break;
+                }
+            }
+#ifdef _WIN32
+            if(windowsConsoleConverter)
+            {
+                line = nativeToUTF8(line, windowsConsoleConverter);
+            }
+#endif
+            result = line.length();
+            if(result > maxSize)
+            {
+                error("input line too long");
+                buf[0] = EOF;
+                result = 1;
+            }
+            else
+            {
+                strcpy(buf, line.c_str());
+            }
+#if defined(__APPLE__) || defined(__linux__)
+        }
 #endif
     }
 }

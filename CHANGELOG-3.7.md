@@ -8,54 +8,129 @@ We recommend that you use the release notes as a guide for migrating your
 applications to this release, and the manual for complete details on a
 particular aspect of Ice.
 
+- [Changes in Ice 3.7.5](#changes-in-ice-375)
+  * [General Changes](#general-changes)
+  * [C++ Changes](#c-changes)
+  * [C# Changes](#c-changes-1)
+  * [JavaScript Changes](#javascript-changes)
+  * [PHP Changes](#php-changes)
+  * [Python Changes](#python-changes)
+  * [Ruby Changes](#ruby-changes)
+  * [Swift Changes](#swift-changes)
 - [Changes in Ice 3.7.4](#changes-in-ice-374)
-    - [General Changes](#general-changes)
-    - [C++ Changes](#c-changes)
-    - [C# Changes](#c-changes-1)
-    - [JavaScript Changes](#javascript-changes)
-    - [MATLAB Changes](#matlab-changes)
-    - [Python Changes](#python-changes)
-    - [Ruby Changes](#ruby-changes)
-    - [Swift Changes](#swift-changes)
+  * [General Changes](#general-changes-1)
+  * [C++ Changes](#c-changes-2)
+  * [C# Changes](#c-changes-3)
+  * [JavaScript Changes](#javascript-changes-1)
+  * [MATLAB Changes](#matlab-changes)
+  * [Python Changes](#python-changes-1)
+  * [Ruby Changes](#ruby-changes-1)
+  * [Swift Changes](#swift-changes-1)
 - [Changes in Ice 3.7.3](#changes-in-ice-373)
-    - [General Changes](#general-changes-1)
-    - [C++ Changes](#c-changes-2)
-    - [C# Changes](#c-changes-3)
-    - [Java Changes](#java-changes)
-    - [JavaScript Changes](#javascript-changes-1)
-    - [MATLAB Changes](#matlab-changes-1)
-    - [Python Changes](#python-changes-1)
+  * [General Changes](#general-changes-2)
+  * [C++ Changes](#c-changes-4)
+  * [C# Changes](#c-changes-5)
+  * [Java Changes](#java-changes)
+  * [JavaScript Changes](#javascript-changes-2)
+  * [MATLAB Changes](#matlab-changes-1)
+  * [Python Changes](#python-changes-2)
 - [Changes in Ice 3.7.2](#changes-in-ice-372)
-    - [General Changes](#general-changes-2)
-    - [C++ Changes](#c-changes-4)
-    - [C# Changes](#c-changes-5)
-    - [Java Changes](#java-changes-1)
-    - [JavaScript Changes](#javascript-changes-2)
-    - [MATLAB Changes](#matlab-changes-2)
-    - [Objective-C Changes](#objective-c-changes)
-    - [PHP Changes](#php-changes)
-    - [Python Changes](#python-changes-2)
+  * [General Changes](#general-changes-3)
+  * [C++ Changes](#c-changes-6)
+  * [C# Changes](#c-changes-7)
+  * [Java Changes](#java-changes-1)
+  * [JavaScript Changes](#javascript-changes-3)
+  * [MATLAB Changes](#matlab-changes-2)
+  * [Objective-C Changes](#objective-c-changes)
+  * [PHP Changes](#php-changes-1)
+  * [Python Changes](#python-changes-3)
 - [Changes in Ice 3.7.1](#changes-in-ice-371)
-    - [General Changes](#general-changes-3)
-    - [C++ Changes](#c-changes-6)
-    - [C# Changes](#c-changes-7)
-    - [Java Changes](#java-changes-2)
-    - [JavaScript Changes](#javascript-changes-3)
-    - [MATLAB Changes](#matlab-changes-3)
-    - [Objective-C Changes](#objective-c-changes-1)
-    - [PHP Changes](#php-changes-1)
-    - [Python Changes](#python-changes-3)
-    - [Ruby Changes](#ruby-changes-1)
+  * [General Changes](#general-changes-4)
+  * [C++ Changes](#c-changes-8)
+  * [C# Changes](#c-changes-9)
+  * [Java Changes](#java-changes-2)
+  * [JavaScript Changes](#javascript-changes-4)
+  * [MATLAB Changes](#matlab-changes-3)
+  * [Objective-C Changes](#objective-c-changes-1)
+  * [PHP Changes](#php-changes-2)
+  * [Python Changes](#python-changes-4)
+  * [Ruby Changes](#ruby-changes-2)
 - [Changes in Ice 3.7.0](#changes-in-ice-370)
-    - [General Changes](#general-changes-4)
-    - [C++ Changes](#c-changes-8)
-    - [C# Changes](#c-changes-9)
-    - [Java Changes](#java-changes-3)
-    - [JavaScript Changes](#javascript-changes-4)
-    - [Objective-C Changes](#objective-c-changes-2)
-    - [PHP Changes](#php-changes-2)
-    - [Python Changes](#python-changes-4)
-    - [Ruby Changes](#ruby-changes-2)
+  * [General Changes](#general-changes-5)
+  * [C++ Changes](#c-changes-10)
+  * [C# Changes](#c-changes-11)
+  * [Java Changes](#java-changes-3)
+  * [JavaScript Changes](#javascript-changes-5)
+  * [Objective-C Changes](#objective-c-changes-2)
+  * [PHP Changes](#php-changes-3)
+  * [Python Changes](#python-changes-5)
+  * [Ruby Changes](#ruby-changes-3)
+
+# Changes in Ice 3.7.5
+
+These are the changes since Ice 3.7.4.
+
+## General Changes
+
+- Add support for detection of class cycles during unmarshaling in
+  languages which do not have garbage collection: C++, Swift, and Objective-C.
+  A `MarshalException` is thrown when a cycle is detected.
+
+  The property `Ice.AcceptClassCycles` can be set to a value greater than `0`
+  to change this behavior.
+
+- Add support for readline in `icegridadmin` and `icestormadmin`, this feature is only supported
+  with macOS and Linux platforms.
+
+- Fixed IceGridGUI bug where service metrics were missing [#1203](https://github.com/zeroc-ice/ice/issues/1203)
+
+- Fixed a bug in the marshaling of exceptions optional data members, that affects Swift and C# mappings,
+  other language mappings where not affected. See [#889](https://github.com/zeroc-ice/ice/issues/889)
+
+## C++ Changes
+
+- string literals using the narrow string mapping are no longer map to u8 string literals, instead
+  they are map to a regular string with unicode characters encoded in utf-8 using octal escape
+  sequences.
+
+## C# Changes
+
+- Fixed dispatch warnings and unknown exceptions to report the original exception raised by
+  the servant implementation.
+
+- Add .NET 5.0 support, Ice for C# assemblies are now build for .NET 5.0, .NET Standard 2.1 and .NET 4.5.
+
+- Fixed a bug that can result in the file logger log files not correctly close.
+
+- Fixed slice2cs to disable FxCop warnings in the generated code, some generated methods didn't include
+  the required attributes to disable FxCop warnings.
+
+## JavaScript Changes
+
+- Add default constructor for Promise derived objects, this works around problems with
+  JavaScript frameworks that don't support Symbol.species with their Promise implementations.
+
+- Fix JavaScript OutputStream to better handle undefined values, see [#1170](https://github.com/zeroc-ice/ice/pull/1188)
+
+## PHP Changes
+
+- Add support for PHP 8.0
+
+## Python Changes
+
+- Fix Python 3.9 build failures
+
+## Ruby Changes
+
+- Fix a bug that can result in a segmentation fault when unmarshal a dictionary
+  with a class value type see [#1220](https://github.com/zeroc-ice/ice/pull/1220)
+
+- Fix a bug that can result in a segmentation fault when unmarshal an exception
+  with a class data member see [#1224](https://github.com/zeroc-ice/ice/issues/1224)
+
+## Swift Changes
+
+- Fix XCode 12 build failures
 
 # Changes in Ice 3.7.4
 
@@ -483,7 +558,7 @@ These are the changes since Ice 3.7.0.
 ## Java Changes
 
 - The java:package metadata can now be applied to modules. It can still
-  be used as global metadata, in which case it serves as the default
+  be used as file metadata, in which case it serves as the default
   directive unless overridden by module metadata.
 
 ## JavaScript Changes
@@ -508,7 +583,7 @@ These are the changes since Ice 3.7.0.
 ## Python Changes
 
 - The python:package metadata can now be applied to modules. It can still
-  be used as global metadata, in which case it serves as the default
+  be used as file metadata, in which case it serves as the default
   directive unless overridden by module metadata.
 
 - Fixed a bug that caused Python to crash on exit when the extension is
@@ -768,7 +843,7 @@ These are the changes since the Ice 3.6 release or snapshot described in
 - Replaced `Ice::NoObjectFactoryException` with `Ice::NoValueFactoryException`.
 
 - The Slice compiler options `--ice` and `--underscore` are now deprecated, and
-  replaced by the global Slice metadata `ice-prefix` and `underscore`.
+  replaced by the file Slice metadata `ice-prefix` and `underscore`.
 
 - Renamed local interface metadata `async` to `async-oneway`.
 
@@ -808,7 +883,7 @@ These are the changes since the Ice 3.6 release or snapshot described in
   https://github.com/zeroc-ice/freeze.
 
 - Added support for suppressing Slice warnings using the `[["suppress-warning"]]`
-  global metadata directive. If one or more categories are specified (for
+  file metadata directive. If one or more categories are specified (for
   example `"suppress-warning:invalid-metadata"` or
   `"suppress-warning:deprecated, invalid-metadata"`) only warnings matching these
   categories are suppressed, otherwise all warnings are suppressed.
@@ -834,7 +909,7 @@ These are the changes since the Ice 3.6 release or snapshot described in
   creates a `Communicator` in its constructor and destroys it in its destructor.
 
 - The `--dll-export` option of `slice2cpp` is now deprecated, and replaced by
-  the global Slice metadata `cpp:dll-export:SYMBOL`.
+  the file Slice metadata `cpp:dll-export:SYMBOL`.
 
 - The UDP and WS transports are no longer enabled by default with static builds
   of the Ice library. You need to register them explicitly with the
@@ -983,7 +1058,7 @@ These are the changes since the Ice 3.6 release or snapshot described in
 - `Ice.HashMap` API has been aligned with the API of JavaScript `Map` type.
 
 - Added support to map Slice modules to JavaScript native modules this requires
-  using the global metadata `[["js:es6-module"]]`.
+  using the file metadata `[["js:es6-module"]]`.
 
 - The `["amd"]` metadata is now ignored in JavaScript. An operation can now be
   be dispatched asynchronously by just returning a JavaScript Promise object.
@@ -1014,7 +1089,7 @@ These are the changes since the Ice 3.6 release or snapshot described in
   trigger an assert on marshaling.
 
 - The `--dll-export` option of `slice2objc` is now deprecated, and replaced by
-  the global Slice metadata `objc:dll-export:SYMBOL`.
+  the file Slice metadata `objc:dll-export:SYMBOL`.
 
 - Added `objc:scoped` metadata for enums. The generated Objective-C enumerators
   for a "scoped enum" are prefixed with the enumeration's name. For example:
