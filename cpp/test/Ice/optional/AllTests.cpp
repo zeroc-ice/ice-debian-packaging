@@ -587,6 +587,7 @@ allTests(Test::TestHelper* helper, bool)
 
     mo1->k = mo1;
     MultiOptionalPtr mo5 = ICE_DYNAMIC_CAST(MultiOptional, initial->pingPong(mo1));
+
     test(mo5->a == mo1->a);
     test(mo5->b == mo1->b);
     test(mo5->c == mo1->c);
@@ -2073,6 +2074,8 @@ allTests(Test::TestHelper* helper, bool)
             test(!ex.o);
             test(!ex.ss);
             test(!ex.o2);
+            test(ex.d1 == "d1");
+            test(ex.d2 == "d2");
         }
         catch(const OptionalException&)
         {
@@ -2094,6 +2097,8 @@ allTests(Test::TestHelper* helper, bool)
             test((*ex.o)->a == 53);
             test(ex.ss == string("test2"));
             test((*ex.o2)->a == 53);
+            test(ex.d1 == "d1");
+            test(ex.d2 == "d2");
         }
         catch(const OptionalException&)
         {

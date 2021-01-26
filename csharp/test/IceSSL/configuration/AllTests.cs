@@ -16,9 +16,6 @@ using System.Threading;
 
 public class AllTests
 {
-    private static bool IsCatalinaOrGreater =
-        IceInternal.AssemblyUtil.isMacOS && Environment.OSVersion.Version.Major >= 19;
-
     private static void test(bool b)
     {
         if(!b)
@@ -591,7 +588,7 @@ public class AllTests
                         catch(Ice.LocalException ex)
                         {
                             //
-                            // macOS catalina does not check the certificate common name
+                            // macOS catalina or greater does not check the certificate common name
                             //
                             if(!IceInternal.AssemblyUtil.isMacOS)
                             {
@@ -648,7 +645,7 @@ public class AllTests
                         catch(Ice.LocalException)
                         {
                             // macOS >= Catalina requires a DNS altName. DNS name as the Common Name is not trusted
-                            test(IsCatalinaOrGreater);
+                            test(IceInternal.AssemblyUtil.isMacOS);
                         }
                         fact.destroyServer(server);
                         comm.destroy();
@@ -784,7 +781,7 @@ public class AllTests
                         catch(Ice.SecurityException ex)
                         {
                             //
-                            // macOS catalina does not check the certificate common name
+                            // macOS catalina or greater does not check the certificate common name
                             //
                             if(!IceInternal.AssemblyUtil.isMacOS)
                             {
@@ -1000,6 +997,10 @@ public class AllTests
                         catch(Ice.SecurityException)
                         {
                             // Chain length too long
+                        }
+                        catch(Ice.ConnectionLostException)
+                        {
+                            // Expected
                         }
                         catch(Ice.LocalException ex)
                         {
@@ -1235,10 +1236,7 @@ public class AllTests
             Console.Out.Write("testing protocols... ");
             Console.Out.Flush();
             {
-                //
-                // This should fail because the client and server have no protocol
-                // in common.
-                //
+                // Check if the platform supports tls1_1
                 initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
                 initData.properties.setProperty("IceSSL.Protocols", "tls1_1");
                 Ice.Communicator comm = Ice.Util.initialize(ref args, initData);
@@ -1246,8 +1244,34 @@ public class AllTests
                 test(fact != null);
                 d = createServerProps(defaultProperties, "s_rsa_ca1", "cacert1");
                 d["IceSSL.VerifyPeer"] = "2";
-                d["IceSSL.Protocols"] = "tls1_2";
+                d["IceSSL.Protocols"] = "tls1_1";
+                bool tls11;
                 Test.ServerPrx server = fact.createServer(d);
+                try
+                {
+                    server.ice_ping();
+                    tls11 = true;
+                }
+                catch(Exception)
+                {
+                    tls11 = false;
+                }
+                fact.destroyServer(server);
+                comm.destroy();
+
+                //
+                // This should fail because the client and server have no protocol
+                // in common.
+                //
+                initData = createClientProps(defaultProperties, "c_rsa_ca1", "cacert1");
+                initData.properties.setProperty("IceSSL.Protocols", "tls1_1");
+                comm = Ice.Util.initialize(ref args, initData);
+                fact = Test.ServerFactoryPrxHelper.checkedCast(comm.stringToProxy(factoryRef));
+                test(fact != null);
+                d = createServerProps(defaultProperties, "s_rsa_ca1", "cacert1");
+                d["IceSSL.VerifyPeer"] = "2";
+                d["IceSSL.Protocols"] = "tls1_2";
+                server = fact.createServer(d);
                 try
                 {
                     server.ice_ping();
@@ -1269,30 +1293,20 @@ public class AllTests
                 fact.destroyServer(server);
                 comm.destroy();
 
-                //
-                // This should succeed.
-                //
-                comm = Ice.Util.initialize(ref args, initData);
-                fact = Test.ServerFactoryPrxHelper.checkedCast(comm.stringToProxy(factoryRef));
-                test(fact != null);
-                d = createServerProps(defaultProperties, "s_rsa_ca1", "cacert1");
-                d["IceSSL.VerifyPeer"] = "2";
-                d["IceSSL.Protocols"] = "tls1_1, tls1_2";
-                server = fact.createServer(d);
-                try
+                if(tls11)
                 {
+                    // This should succeed.
+                    comm = Ice.Util.initialize(ref args, initData);
+                    fact = Test.ServerFactoryPrxHelper.checkedCast(comm.stringToProxy(factoryRef));
+                    test(fact != null);
+                    d = createServerProps(defaultProperties, "s_rsa_ca1", "cacert1");
+                    d["IceSSL.VerifyPeer"] = "2";
+                    d["IceSSL.Protocols"] = "tls1_1, tls1_2";
+                    server = fact.createServer(d);
                     server.ice_ping();
+                    fact.destroyServer(server);
+                    comm.destroy();
                 }
-                catch(Ice.LocalException ex)
-                {
-                    if(ex.ToString().IndexOf("no protocols available") < 0) // Expected if TLS1.1 is disabled (RHEL8)
-                    {
-                        Console.WriteLine(ex.ToString());
-                        test(false);
-                    }
-                }
-                fact.destroyServer(server);
-                comm.destroy();
 
                 try
                 {

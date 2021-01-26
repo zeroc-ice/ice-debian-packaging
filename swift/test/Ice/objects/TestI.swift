@@ -174,6 +174,18 @@ class InitialI: Initial {
         return true
     }
 
+    func setCycle(r: Recursive?, current _: Ice.Current) {
+        precondition(r != nil)
+        precondition(r!.v === r)
+        // break the cycle
+        r!.v = nil
+    }
+
+    func acceptsClassCycles(current: Ice.Current) throws -> Bool {
+        let properties = current.adapter!.getCommunicator().getProperties()
+        return properties.getPropertyAsIntWithDefault(key: "Ice.AcceptClassCycles", value: 0) > 0
+    }
+
     func getD1(d1: D1?, current _: Ice.Current) throws -> D1? {
         return d1
     }
@@ -267,7 +279,7 @@ class UnexpectedObjectExceptionTestI: Ice.Blobject {
     func ice_invoke(inEncaps _: Data, current: Ice.Current) throws -> (ok: Bool, outParams: Data) {
         let communicator = current.adapter!.getCommunicator()
         let ostr = Ice.OutputStream(communicator: communicator)
-        _ = ostr.startEncapsulation(encoding: current.encoding, format: .DefaultFormat)
+        ostr.startEncapsulation(encoding: current.encoding, format: .DefaultFormat)
         let ae = AlsoEmpty()
         ostr.write(ae)
         ostr.writePendingValues()

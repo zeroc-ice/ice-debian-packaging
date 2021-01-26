@@ -216,7 +216,10 @@ class Platform(object):
             version = run("dotnet --version").split(".")
             self.nugetPackageCache = re.search("global-packages: (.*)",
                                                run("dotnet nuget locals --list global-packages")).groups(1)[0]
-            self.defaultNetCoreFramework = "netcoreapp{}".format("3.1" if int(version[0]) >= 3 else "2.1")
+            if int(version[0]) == 5:
+                self.defaultFramework = "net5.0"
+            else:
+                self.defaultFramework = "netcoreapp{}".format("3.1" if int(version[0]) >= 3 else "2.1")
         except:
             self.nugetPackageCache = None
 
@@ -334,7 +337,10 @@ class AIX(Platform):
 
     def _getLibDir(self, component, process, mapping, current):
         installDir = component.getInstallDir(mapping, current)
-        return os.path.join(installDir, "lib32" if current.config.buildPlatform == "ppc" else "lib")
+        if component.useBinDist(mapping, current):
+            return os.path.join(installDir, "lib")
+        else:
+            return os.path.join(installDir, "lib32" if current.config.buildPlatform == "ppc" else "lib")
 
     def getDefaultBuildPlatform(self):
         return "ppc64"
@@ -516,7 +522,7 @@ class Windows(Platform):
 
     def getDotNetExe(self):
         try:
-            return run("where dotnet").strip()
+            return run("where dotnet").strip().splitlines()[0]
         except:
             return None
 
@@ -625,6 +631,7 @@ class Mapping(object):
             self.device = ""
             self.avd = ""
             self.phpVersion = "7.1"
+            self.python = sys.executable
 
             parseOptions(self, options, { "config" : "buildConfig", "platform" : "buildPlatform" })
 
@@ -800,7 +807,8 @@ class Mapping(object):
     @classmethod
     def getByName(self, name):
         if not name in self.mappings:
-            raise RuntimeError("unknown mapping `{0}'".format(name))
+            raise RuntimeError("unknown mapping: `{0}', known mappings: `{1}'".format(
+                name, list(self.mappings)))
         return self.mappings.get(name)
 
     @classmethod
@@ -884,6 +892,8 @@ class Mapping(object):
     def loadTestSuites(self, tests, config, filters=[], rfilters=[]):
         global currentMapping
         currentMapping = self
+        global currentConfig
+        currentConfig = config
         try:
             origsyspath = sys.path
             prefix = os.path.commonprefix([toplevel, self.component.getScriptDir()])
@@ -1416,7 +1426,7 @@ class ProcessFromBinDir:
 
 #
 # Executables for processes inheriting this marker class are only provided
-# as a Release executble on Windows
+# as a Release executable on Windows
 #
 class ProcessIsReleaseOnly:
 
@@ -1430,20 +1440,15 @@ class SliceTranslator(ProcessFromBinDir, ProcessIsReleaseOnly, SimpleClient):
 
     def getCommandLine(self, current, args=""):
         #
-        # Look for slice2py installed by Pip if not found in the bin directory
+        # Look for slice2py installed by pip if not found in the bin directory
         #
         if self.exe == "slice2py":
             translator = self.getMapping(current).getCommandLine(current, self, self.getExe(current), "")
-            if os.path.exists(translator):
-                return translator + " " + args if args else translator
-            elif isinstance(platform, Windows):
-                return os.path.join(os.path.dirname(sys.executable), "Scripts", "slice2py.exe")
-            elif os.path.exists("/usr/local/bin/slice2py"):
-                return "/usr/local/bin/slice2py"
-            else:
-                import slice2py
-                return sys.executable + " " + os.path.normpath(
-                            os.path.join(slice2py.__file__, "..", "..", "..", "..", "bin", "slice2py"))
+            if not os.path.exists(translator):
+                # TODO: Switch to "sys.executable -m slice2py" once Ice 3.7.5 is released
+                # See https://github.com/zeroc-ice/ice/issues/893
+                translator = sys.executable + " -c " + "'import slice2py; slice2py.main()'"
+            return (translator + " " + args).strip()
         else:
             return Process.getCommandLine(self, current, args)
 
@@ -1903,7 +1908,7 @@ class Result:
             if hostname:
                 name += " on " + hostname
             out.write('    <testcase name="{0}" time="{1:.9f}" classname="{2}.{3}">\n'
-                      .format(name,
+                      .format(escapeXml(name),
                               d,
                               self.testsuite.getMapping(),
                               self.testsuite.getId().replace("/", ".")))
@@ -2440,6 +2445,11 @@ class AndroidProcessController(RemoteProcessController):
         elif current.config.device != "usb":
             run("adb connect {}".format(current.config.device))
 
+        # First try uninstall in case the controller was left behind from a previous run
+        try:
+            run("{} shell pm uninstall com.zeroc.testcontroller".format(self.adb()))
+        except:
+            pass
         run("{} install -t -r {}".format(self.adb(), current.testcase.getMapping().getApk(current)))
         run("{} shell am start -n \"{}\" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER".format(
             self.adb(), current.testcase.getMapping().getActivityName()))
@@ -3422,23 +3432,22 @@ class CSharpMapping(Mapping):
         @classmethod
         def usage(self):
             print("")
+            print("C# mapping options:")
             print("--dotnetcore                    Run C# tests using .NET Core")
             print("--framework=<TargetFramework>   Choose the framework used to run .NET tests")
 
         def __init__(self, options=[]):
             Mapping.Config.__init__(self, options)
 
+            if self.framework == "":
+                self.framework = "net45" if isinstance(platform, Windows) else platform.defaultFramework
+
             if not self.dotnetcore and not isinstance(platform, Windows):
                 self.dotnetcore = True
 
-            if self.dotnetcore:
-                self.libTargetFramework = "netstandard2.0"
-                self.binTargetFramework = platform.defaultNetCoreFramework if self.framework == "" else self.framework
-                self.testTargetFramework = platform.defaultNetCoreFramework if self.framework == "" else self.framework
-            else:
-                self.libTargetFramework = "net45" if self.framework == "" else "netstandard2.0"
-                self.binTargetFramework = "net45" if self.framework == "" else self.framework
-                self.testTargetFramework = "net45" if self.framework == "" else self.framework
+            self.libTargetFramework = "netstandard2.0" if self.framework not in ["net5.0", "net45"] else self.framework
+            self.binTargetFramework = self.framework
+            self.testTargetFramework = self.framework
 
             # Set Xamarin flag if UWP/iOS or Android testing flag is also specified
             if self.uwp or self.android or "iphone" in self.buildPlatform:
@@ -3454,10 +3463,10 @@ class CSharpMapping(Mapping):
         return current.config.testTargetFramework
 
     def getBuildDir(self, name, current):
-        if current.config.dotnetcore or current.config.framework != "":
-            return os.path.join("msbuild", name, "netstandard2.0", self.getTargetFramework(current))
+        if current.config.framework in ["net5.0", "net45"]:
+            return os.path.join("msbuild", name, current.config.framework)
         else:
-            return os.path.join("msbuild", name, self.getTargetFramework(current))
+            return os.path.join("msbuild", name, "netstandard2.0", self.getTargetFramework(current))
 
     def getProps(self, process, current):
         props = Mapping.getProps(self, process, current)
@@ -3549,8 +3558,8 @@ class CSharpMapping(Mapping):
         else:
             path = os.path.join(current.testcase.getPath(current), current.getBuildDir(exe))
 
-        useDotnetExe = current.config.dotnetcore and \
-                        (current.config.testTargetFramework in ["netcoreapp2.1"] or process.isFromBinDir())
+        useDotnetExe = ((process.isFromBinDir() and current.config.testTargetFramework != "net45")
+                        or current.config.testTargetFramework in ["netcoreapp2.1"])
         command = ""
         if useDotnetExe:
             command += "dotnet "
@@ -3672,8 +3681,33 @@ class PythonMapping(CppBasedMapping):
         mappingName = "python"
         mappingDesc = "Python"
 
+        @classmethod
+        def getSupportedArgs(self):
+            return ("", ["python="])
+
+        @classmethod
+        def usage(self):
+            print("")
+            print("Python mapping options:")
+            print("--python=<interpreter>   Choose the interperter used to run python tests")
+
+        def __init__(self, options=[]):
+            Mapping.Config.__init__(self, options)
+            self.pythonVersion = None
+
+        def getPythonVersion(self):
+            if self.pythonVersion is None:
+                version = subprocess.check_output(
+                    [currentConfig.python,
+                     "-c",
+                     "import sys; print(\"{0}.{1}\".format(sys.version_info[0], sys.version_info[1]))"])
+                if type(version) != str:
+                    version = version.decode("utf-8")
+                self.pythonVersion = tuple(int(num) for num in version.split("."))
+            return self.pythonVersion
+
     def getCommandLine(self, current, process, exe, args):
-        return "\"{0}\"  {1} {2} {3}".format(sys.executable,
+        return "\"{0}\"  {1} {2} {3}".format(current.config.python,
                                              os.path.join(self.path, "test", "TestHelper.py"),
                                              exe,
                                              args)

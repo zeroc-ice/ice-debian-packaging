@@ -2571,11 +2571,13 @@ Slice::Gen::TypesVisitor::visitClassDefEnd(const ClassDefPtr& p)
              << p->scoped() << "\";";
 
         _out << sp;
+        emitGeneratedCodeAttribute();
         _out << nl << "public static new string ice_staticId()";
         _out << sb;
         _out << nl << "return _id;";
         _out << eb;
 
+        emitGeneratedCodeAttribute();
         _out << nl << "public override string ice_id()";
         _out << sb;
         _out << nl << "return _id;";
@@ -3002,8 +3004,17 @@ Slice::Gen::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
         _out << nl << "ostr_.startSlice(\"" << scoped << "\", -1, " << (!base ? "true" : "false") << ");";
         for(DataMemberList::const_iterator q = dataMembers.begin(); q != dataMembers.end(); ++q)
         {
+            if(!(*q)->optional())
+            {
+                writeMarshalDataMember(*q, fixId((*q)->name(), DotNet::Exception), ns);
+            }
+        }
+
+        for(DataMemberList::const_iterator q = optionalMembers.begin(); q != optionalMembers.end(); ++q)
+        {
             writeMarshalDataMember(*q, fixId((*q)->name(), DotNet::Exception), ns);
         }
+
         _out << nl << "ostr_.endSlice();";
         if(base)
         {
@@ -3018,6 +3029,14 @@ Slice::Gen::TypesVisitor::visitExceptionEnd(const ExceptionPtr& p)
         _out << nl << "istr_.startSlice();";
 
         for(DataMemberList::const_iterator q = dataMembers.begin(); q != dataMembers.end(); ++q)
+        {
+            if(!(*q)->optional())
+            {
+                writeUnmarshalDataMember(*q, fixId((*q)->name(), DotNet::Exception), ns);
+            }
+        }
+
+        for(DataMemberList::const_iterator q = optionalMembers.begin(); q != optionalMembers.end(); ++q)
         {
             writeUnmarshalDataMember(*q, fixId((*q)->name(), DotNet::Exception), ns);
         }
@@ -3328,6 +3347,7 @@ Slice::Gen::TypesVisitor::visitEnum(const EnumPtr& p)
 
     _out << sp;
     emitDeprecate(p, 0, _out, "type");
+    writeDocComment(p, getDeprecateReason(p, 0, "type"));
     emitAttributes(p);
     emitGeneratedCodeAttribute();
     _out << nl << "public enum " << name;
@@ -3338,6 +3358,7 @@ Slice::Gen::TypesVisitor::visitEnum(const EnumPtr& p)
         {
             _out << ',';
         }
+        writeDocComment(*en, "");
         _out << nl << fixId((*en)->name());
         if(explicitValue)
         {

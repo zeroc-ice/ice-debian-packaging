@@ -130,7 +130,7 @@ class FValueReader: Ice.Value {
 
     public override func _iceRead(from istr: Ice.InputStream) throws {
         _f = F()
-        _ = istr.startValue()
+        istr.startValue()
         _ = try istr.startSlice()
         // Don't read af on purpose
         // in.read(1, _f.af);
@@ -661,7 +661,7 @@ func allTests(_ helper: TestHelper) throws -> InitialPrx {
 
         factory.setEnabled(enabled: true)
         let ostr = Ice.OutputStream(communicator: communicator)
-        _ = ostr.startEncapsulation()
+        ostr.startEncapsulation()
         ostr.write(b)
         ostr.endEncapsulation()
         let inEncaps = ostr.finished()
@@ -1973,7 +1973,7 @@ func allTests(_ helper: TestHelper) throws -> InitialPrx {
         try test(p2 == nil && p3 == nil) // Ensure out parameter is cleared.
 
         let ostr = Ice.OutputStream(communicator: communicator)
-        _ = ostr.startEncapsulation()
+        ostr.startEncapsulation()
         ostr.write(tag: 2, value: p1)
         ostr.endEncapsulation()
         let inEncaps = ostr.finished()
@@ -3253,6 +3253,8 @@ func allTests(_ helper: TestHelper) throws -> InitialPrx {
         try test(ex.o == nil)
         try test(ex.ss == nil)
         try test(ex.o2 == nil)
+        try test(ex.d1 == "d1")
+        try test(ex.d2 == "d2")
     }
 
     do {
@@ -3263,6 +3265,8 @@ func allTests(_ helper: TestHelper) throws -> InitialPrx {
         try test(ex.o!.a == 53)
         try test(ex.ss == "test2")
         try test(ex.o2!.a == 53)
+        try test(ex.d1 == "d1")
+        try test(ex.d2 == "d2")
     }
 
     do {

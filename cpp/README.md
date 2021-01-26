@@ -53,6 +53,7 @@ Ice has dependencies on a number of third-party libraries:
 
  - [bzip2][3] 1.0
  - [expat][4] 2.1 or later
+ - [libedit][12] (Linux and macOS)
  - [LMDB][5] 0.9 (LMDB is not required with the C++11 mapping)
  - [mcpp][6] 2.7.2 with patches
  - [OpenSSL][7] 1.0.0 or later (on AIX and Linux)
@@ -66,7 +67,7 @@ bzip2 and bzip2-devel are included in the [IBM AIX Toolbox for Linux Application
 ZeroC provide RPM packages for expat, LDMB and mcpp. You can install these packages
 as shown below:
 ```
-sudo yum install https://zeroc.com/download/ice/3.7/aix7.2/ice-repo.3.7.aix7.2.noarch.rpm
+sudo yum install https://zeroc.com/download/ice/3.7/aix7.2/ice-repo-3.7.aix7.2.noarch.rpm
 sudo yum install expat-devel lmdb-devel mcpp-devel
 ```
 
@@ -75,24 +76,24 @@ xlc_r, together with header files and other development files.
 
 #### Linux
 
-Bzip, Expat and OpenSSL are included with most Linux distributions.
+Bzip, Expat, Libedit and OpenSSL are included with most Linux distributions.
 
 ZeroC supplies binary packages for LMDB and mcpp for several Linux distributions
 that do not include them. You can install these packages as shown below:
 
 ##### Amazon Linux 2
 ```
-sudo yum install https://zeroc.com/download/ice/3.7/amzn2/ice-repo.3.7.amzn2.noarch.rpm
+sudo yum install https://zeroc.com/download/ice/3.7/amzn2/ice-repo-3.7.amzn2.noarch.rpm
 sudo yum install lmdb-devel mcpp-devel
 ```
 ##### RHEL 8
 ```
-sudo yum install https://zeroc.com/download/ice/3.7/el8/ice-repo.3.7.el8.noarch.rpm
+sudo yum install https://zeroc.com/download/ice/3.7/el8/ice-repo-3.7.el8.noarch.rpm
 sudo yum install lmdb-devel mcpp-devel
 ```
 ##### RHEL 7
 ```
-sudo yum install https://zeroc.com/download/ice/3.7/el7/ice-repo.3.7.el7.noarch.rpm
+sudo yum install https://zeroc.com/download/ice/3.7/el7/ice-repo-3.7.el7.noarch.rpm
 sudo yum install lmdb-devel mcpp-devel
 ```
 ##### SLES 12
@@ -122,7 +123,7 @@ from BlueZ 5.43.*
 
 #### macOS
 
-Expat and bzip are included with your system.
+bzip, expat and libedit are included with your system.
 
 You can install LMDB and mcpp using Homebrew:
 ```
@@ -164,6 +165,19 @@ linker options with the `CPPFLAGS`, `CXXFLAGS` and `LDFLAGS` variables. For
 example, to build the Ice C++98 mapping with `-std=c++11`, you can use:
 ```
 make CXXFLAGS=-std=c++11
+```
+
+To build the test suite using a binary distribution use:
+```
+make ICE_BIN_DIST=all
+```
+
+If the binary distribution you are using is not installed in a system wide location
+where the C++ compiler can automatically find the header and library files, you also
+need to set `ICE_HOME`
+
+```
+make ICE_HOME=/opt/Ice-3.7.5 ICE_BIN_DIST=all
 ```
 
 ### Build configurations and platforms
@@ -541,7 +555,7 @@ If everything worked out, you should see lots of `ok` messages. In case of a
 failure, the tests abort with `failed`.
 
 [1]: https://zeroc.com/downloads/ice
-[2]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-4
+[2]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-5
 [3]: https://github.com/zeroc-ice/bzip2
 [4]: https://libexpat.github.io
 [5]: https://symas.com/lightning-memory-mapped-database/
@@ -551,3 +565,4 @@ failure, the tests abort with `failed`.
 [9]: https://www.freedesktop.org/wiki/Software/pkg-config
 [10]: https://www.freedesktop.org/wiki/Software/dbus
 [11]: http://www.bluez.org
+[12]: https://thrysoee.dk/editline/
