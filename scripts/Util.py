@@ -1445,9 +1445,7 @@ class SliceTranslator(ProcessFromBinDir, ProcessIsReleaseOnly, SimpleClient):
         if self.exe == "slice2py":
             translator = self.getMapping(current).getCommandLine(current, self, self.getExe(current), "")
             if not os.path.exists(translator):
-                # TODO: Switch to "sys.executable -m slice2py" once Ice 3.7.5 is released
-                # See https://github.com/zeroc-ice/ice/issues/893
-                translator = sys.executable + " -c " + "'import slice2py; slice2py.main()'"
+                translator = sys.executable + " -m slice2py"
             return (translator + " " + args).strip()
         else:
             return Process.getCommandLine(self, current, args)
@@ -2529,7 +2527,7 @@ class iOSSimulatorProcessController(RemoteProcessController):
         except Exception as ex:
             if str(ex).find("Booted") >= 0:
                 pass
-            elif str(ex).find("Invalid device") >= 0:
+            elif str(ex).find("Invalid device") >= 0 or str(ex).find("Assertion failure in SimDevicePair"):
                 #
                 # Create the simulator device if it doesn't exist
                 #
@@ -4049,7 +4047,9 @@ class SwiftMapping(Mapping):
 
     def getXcodeProject(self, current):
         return "{0}/{1}".format(current.testcase.getMapping().getPath(),
-                                "ice-test.xcodeproj" if self.component.useBinDist(self, current) else "ice.xcodeproj")
+                                "ice.xcodeproj")
+    # TODO ice-test.xcodeproj once Carthage supports binary XCFramework projects
+    # "ice-test.xcodeproj" if self.component.useBinDist(self, current) else "ice.xcodeproj")
 
 #
 # Instantiate platform global variable
