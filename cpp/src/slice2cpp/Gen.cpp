@@ -1383,7 +1383,23 @@ Slice::Gen::TypesVisitor::visitExceptionStart(const ExceptionPtr& p)
         }
         H << allParamDecls << epar << ';';
     }
+
+    H.zeroIndent();
+    H << sp << nl << "#ifdef ICE_CPP11_COMPILER";
+    H.restoreIndent();
+    H << nl << name << "(const " << name << "&) = default;";
+    H << nl << "virtual ~" << name << "();";
+
+    H.zeroIndent();
+    H << nl << "#else";
+    H.restoreIndent();
+
     H << nl << "virtual ~" << name << "() throw();";
+
+    H.zeroIndent();
+    H << nl << "#endif";
+    H.restoreIndent();
+
     H << sp;
 
     if(!p->isLocal())
@@ -1478,10 +1494,27 @@ Slice::Gen::TypesVisitor::visitExceptionStart(const ExceptionPtr& p)
         C << eb;
     }
 
-    C << sp << nl;
+    C.zeroIndent();
+    C << sp << nl << "#ifdef ICE_CPP11_COMPILER";
+    C.restoreIndent();
+
+    C << nl;
+    C << scoped.substr(2) << "::~" << name << "()";
+    C << sb;
+    C << eb;
+
+    C.zeroIndent();
+    C << nl << "#else";
+    C.restoreIndent();
+
+    C << nl;
     C << scoped.substr(2) << "::~" << name << "() throw()";
     C << sb;
     C << eb;
+
+    C.zeroIndent();
+    C << nl << "#endif";
+    C.restoreIndent();
 
     H << nl << "/**";
     H << nl << " * Obtains the Slice type ID of this exception.";
@@ -1504,7 +1537,7 @@ Slice::Gen::TypesVisitor::visitExceptionStart(const ExceptionPtr& p)
     }
 
     H << nl << "/**";
-    H << nl << " * Polymporphically clones this exception.";
+    H << nl << " * Polymorphically clones this exception.";
     H << nl << " * @return A shallow copy of this exception.";
     H << nl << " */";
     H << nl << "virtual " << name << "* ice_clone() const;";
@@ -2966,6 +2999,21 @@ Slice::Gen::ObjectVisitor::visitClassDefStart(const ClassDefPtr& p)
         emitOneShotConstructor(p);
     }
 
+    H.zeroIndent();
+    H << sp << nl << "#ifdef ICE_CPP11_COMPILER";
+    H.restoreIndent();
+    if (p->isInterface())
+    {
+        // If this is not an interface it's defined above
+        H << nl << name << "() = default;";
+    }
+    H << nl << name << "(const " << name << "&) = default;";
+    H << nl <<  name << "& operator=(const " << name << "&) = default;";
+
+    H.zeroIndent();
+    H << nl << "#endif";
+    H.restoreIndent();
+
     if(!p->isLocal())
     {
         C << sp;
@@ -2985,7 +3033,7 @@ Slice::Gen::ObjectVisitor::visitClassDefStart(const ClassDefPtr& p)
         {
             H << sp;
             H << nl << "/**";
-            H << nl << " * Polymporphically clones this object.";
+            H << nl << " * Polymorphically clones this object.";
             H << nl << " * @return A shallow copy of this object.";
             H << nl << " */";
             H << nl << "virtual " << getUnqualified("::Ice::ObjectPtr", scope) << " ice_clone() const;";

@@ -7,30 +7,31 @@ top_srcdir := ..
 include $(top_srcdir)/config/Make.rules
 
 CONFIG ?= $(if $(filter $(OPTIMIZE),no),Debug,Release)
-PROJECT ?= $(if $(filter $(ICE_BIN_DIST), swift all),ice-test.xcodeproj,ice.xcodeproj)
+# TODO use ice-test.xcodeproj for binary builds once carthage support XCFramework prebuild packages
+PROJECT ?= ice.xcodeproj
+# PROJECT ?= $(if $(filter $(ICE_BIN_DIST), swift all),ice-test.xcodeproj,ice.xcodeproj)
 
 # $(call make-xcodebuild-rule,$1=rule,$2=platform,$3=scheme,$4=target)
 define make-xcodebuild-rule
 $1:: $(PROJECT)
 	xcodebuild -project $(PROJECT) \
-		   -xcconfig buildsettings.xcconfig \
                    -scheme "$3 $(if $(filter $2,macosx),macOS,iOS)" \
                    -configuration $(CONFIG) \
                    -sdk $2 $4
 endef
 
-ice.xcodeproj: Rakefile | carthage
+ice.xcodeproj: Rakefile | carthage-bootstrap
 	rake icesdistproj
 
-ice-test.xcodeproj: Rakefile | carthage
+ice-test.xcodeproj: Rakefile | carthage-bootstrap
 	rake icebdistproj
 
 all:: tests
 
-carthage:
-	$(Q)cd .. && ./swift/carthage.sh bootstrap --cache-builds
+carthage-bootstrap:
+	$(Q)cd .. && carthage bootstrap --cache-builds --use-xcframeworks
 
-tests srcs:: carthage
+tests srcs:: carthage-bootstrap
 
 install::
 	@echo nothing to install

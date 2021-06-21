@@ -39,6 +39,7 @@
       defined(_M_IA64)     || \
       defined(__alpha__)   || \
       defined(__ARMEL__)   || \
+      defined(_M_ARM64)    || \
       defined(_M_ARM_FP)   || \
       defined(__arm64)     || \
       defined(__MIPSEL__)
@@ -283,8 +284,8 @@
 //
 // The Ice version.
 //
-#define ICE_STRING_VERSION "3.7.5" // "A.B.C", with A=major, B=minor, C=patch
-#define ICE_INT_VERSION 30705      // AABBCC, with AA=major, BB=minor, CC=patch
+#define ICE_STRING_VERSION "3.7.6" // "A.B.C", with A=major, B=minor, C=patch
+#define ICE_INT_VERSION 30706      // AABBCC, with AA=major, BB=minor, CC=patch
 #define ICE_SO_VERSION "37"      // "ABC", with A=major, B=minor, C=patch
 
 #if !defined(ICE_BUILDING_ICE) && defined(ICE_API_EXPORTS)

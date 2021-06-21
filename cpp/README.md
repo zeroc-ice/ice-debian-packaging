@@ -177,7 +177,7 @@ where the C++ compiler can automatically find the header and library files, you 
 need to set `ICE_HOME`
 
 ```
-make ICE_HOME=/opt/Ice-3.7.5 ICE_BIN_DIST=all
+make ICE_HOME=/opt/Ice-3.7.6 ICE_BIN_DIST=all
 ```
 
 ### Build configurations and platforms
@@ -207,8 +207,9 @@ make CONFIGS=cpp11-shared -j8
 ### Ice Xcode SDK (macOS only)
 
 The build system supports building Xcode SDKs for Ice. These SDKs allow you to
-easily develop Ice applications with Xcode. To build Xcode SDKs, use the
-`xcodesdk` configurations:
+easily develop Ice applications with Xcode. To build Xcode SDKs, use the `xcodesdk`
+configurations. The [Ice Builder for Xcode][13] must be installed before building
+the SDKs:
 ```
 make CONFIGS=xcodesdk -j8 srcs         # Build the C++98 mapping Xcode SDK
 make CONFIGS=cpp11-xcodesdk -j8 srcs   # Build the C++11 mapping Xcode SDK
@@ -555,7 +556,7 @@ If everything worked out, you should see lots of `ok` messages. In case of a
 failure, the tests abort with `failed`.
 
 [1]: https://zeroc.com/downloads/ice
-[2]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-5
+[2]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-6
 [3]: https://github.com/zeroc-ice/bzip2
 [4]: https://libexpat.github.io
 [5]: https://symas.com/lightning-memory-mapped-database/
@@ -566,3 +567,4 @@ failure, the tests abort with `failed`.
 [10]: https://www.freedesktop.org/wiki/Software/dbus
 [11]: http://www.bluez.org
 [12]: https://thrysoee.dk/editline/
+[13]: https://github.com/zeroc-ice/ice-builder-xcode

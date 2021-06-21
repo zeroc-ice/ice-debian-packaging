@@ -119,3 +119,8 @@ Carthage
 
 **/objs-*/
 **/build-*/
+
+.classpath
+.project
+.settings
+*.dep
