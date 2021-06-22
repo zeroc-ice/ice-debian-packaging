@@ -33,7 +33,7 @@ Build-Depends: debhelper,
                python3-dev,
                python3-setuptools,
                python3-passlib
-Standards-Version: 4.1.3
+Standards-Version: 4.5.1
 Homepage: https://zeroc.com
 Vcs-Git: https://github.com/zeroc-ice/ice-debian-packaging.git
 Vcs-Browser: https://github.com/zeroc-ice/ice-debian-packaging.git
