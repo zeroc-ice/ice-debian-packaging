@@ -1,3 +1,9 @@
+zeroc-ice (3.7.6-2) unstable; urgency=medium
+
+  * Fix G++11 build failures
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Tue, 02 Nov 2021 19:37:37 +0000
+
 zeroc-ice (3.7.6-1) unstable; urgency=medium
 
   * New upstream version 3.7.6
