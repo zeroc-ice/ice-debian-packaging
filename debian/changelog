@@ -1,3 +1,9 @@
+zeroc-ice (3.7.6-3) unstable; urgency=medium
+
+  * Fix OpenSSL 3.0 build failures
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Thu, 02 Dec 2021 19:11:36 +0000
+
 zeroc-ice (3.7.6-2) unstable; urgency=medium
 
   * Fix G++11 build failures
