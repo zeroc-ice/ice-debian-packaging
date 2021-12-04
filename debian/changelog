@@ -1,3 +1,9 @@
+zeroc-ice (3.7.6-4) unstable; urgency=medium
+
+  * PHP 8.1 build patch
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Sat, 04 Dec 2021 12:31:00 +0000
+
 zeroc-ice (3.7.6-3) unstable; urgency=medium
 
   * Fix OpenSSL 3.0 build failures
