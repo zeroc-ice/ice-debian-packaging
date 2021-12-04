@@ -1,2 +1,3 @@
 cc11-build-failures.patch
 openssl3.0.patch
+php8.1.patch
