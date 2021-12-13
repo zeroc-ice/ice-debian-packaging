@@ -23,6 +23,12 @@ export JAVA_HOME=/usr/lib/jvm/default-java/
 #
 ifeq ($(GRADLE),)
 export GRADLE		= gradle
+# When building with gradle debian package use the "debian" version of builder, the new
+# builder is no compatible with old gradle version included in debian.
+#
+# See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=926714
+export GRADLEARGS	= -PiceBuilderVersion=debian \
+			  -PiceBuilderClassPath=com.zeroc.gradle.ice-builder
 endif
 
 export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
@@ -33,12 +39,11 @@ export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
 			  --no-daemon \
 			  --refresh-dependencies \
 			  -PicegridguiProguard=false \
+			  -PjarsClassPath=true \
 			  -PjgoodiesLooksVersion=debian \
 			  -PjgoodiesFormsVersion=debian \
 			  -PopenjfxVersion=debian \
-			  -PiceBuilderVersion=debian \
-			  -PiceBuilderClassPath=com.zeroc.gradle.ice-builder \
-			  -PjarsClassPath=true
+			  $(GRADLEARGS)
 
 #
 # These files are not installed with any debian package.
