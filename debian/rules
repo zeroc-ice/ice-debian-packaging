@@ -27,14 +27,14 @@ export GRADLE		= gradle
 # builder is no compatible with old gradle version included in debian.
 #
 # See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=926714
-GRADLEARGS		:= -PiceBuilderVersion=debian \
+OFFLINE_GRADLEARGS	= --offline \
+			  -PiceBuilderVersion=debian \
 			  -PiceBuilderClassPath=com.zeroc.gradle.ice-builder
 endif
 
-GRADLEARGS		:= --gradle-user-home $(CURDIR)/.gradle \
+export GRADLEARGS	+= --gradle-user-home $(CURDIR)/.gradle \
 			   --info \
 			   --console plain \
-			   --offline \
 			   --stacktrace \
 			   --no-daemon \
 			   --refresh-dependencies \
@@ -43,8 +43,7 @@ GRADLEARGS		:= --gradle-user-home $(CURDIR)/.gradle \
 			   -PjgoodiesLooksVersion=debian \
 			   -PjgoodiesFormsVersion=debian \
 			   -PopenjfxVersion=debian \
-			   $(GRADLEARGS)
-export GRADLEARGS
+			   $(OFFLINE_GRADLEARGS)
 
 #
 # These files are not installed with any debian package.
