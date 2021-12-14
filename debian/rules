@@ -32,18 +32,18 @@ OFFLINE_GRADLEARGS	= --offline \
 			  -PiceBuilderClassPath=com.zeroc.gradle.ice-builder
 endif
 
-export GRADLEARGS	+= --gradle-user-home $(CURDIR)/.gradle \
-			   --info \
-			   --console plain \
-			   --stacktrace \
-			   --no-daemon \
-			   --refresh-dependencies \
-			   -PicegridguiProguard=false \
-			   -PjarsClassPath=true \
-			   -PjgoodiesLooksVersion=debian \
-			   -PjgoodiesFormsVersion=debian \
-			   -PopenjfxVersion=debian \
-			   $(OFFLINE_GRADLEARGS)
+export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
+			  --info \
+			  --console plain \
+			  --stacktrace \
+			  --no-daemon \
+			  --refresh-dependencies \
+			  -PicegridguiProguard=false \
+			  -PjarsClassPath=true \
+			  -PjgoodiesLooksVersion=debian \
+			  -PjgoodiesFormsVersion=debian \
+			  -PopenjfxVersion=debian \
+			  $(OFFLINE_GRADLEARGS)
 
 #
 # These files are not installed with any debian package.
