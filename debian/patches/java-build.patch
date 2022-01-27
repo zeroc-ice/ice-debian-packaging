@@ -1,0 +1,14 @@
+--- a/java/build.gradle
++++ b/java/build.gradle
+@@ -30,11 +30,6 @@
+         mavenCentral()
+     }
+ 
+-    // Only enable infer module path with Java 9 and up
+-    java {
+-        modularity.inferModulePath = targetJavaRelease.toInteger() > 8
+-    }
+-
+     jar {
+         manifest {
+             attributes("Built-By": "ZeroC, Inc.")
