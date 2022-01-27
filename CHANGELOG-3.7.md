@@ -8,16 +8,19 @@ We recommend that you use the release notes as a guide for migrating your
 applications to this release, and the manual for complete details on a
 particular aspect of Ice.
 
-- [Changes in Ice 3.7.6](#changes-in-ice-376)
-  - [General Changes](#general-changes)
+- [Changes in Ice 3.7.7](#changes-in-ice-377)
   - [C++ Changes](#c-changes)
   - [Java Changes](#java-changes)
+- [Changes in Ice 3.7.6](#changes-in-ice-376)
+  - [General Changes](#general-changes)
+  - [C++ Changes](#c-changes-1)
+  - [Java Changes](#java-changes-1)
   - [JavaScript Changes](#javascript-changes)
   - [Swift Changes](#swift-changes)
 - [Changes in Ice 3.7.5](#changes-in-ice-375)
   - [General Changes](#general-changes-1)
-  - [C++ Changes](#c-changes-1)
-  - [C# Changes](#c-changes-2)
+  - [C++ Changes](#c-changes-2)
+  - [C# Changes](#c-changes-3)
   - [JavaScript Changes](#javascript-changes-1)
   - [PHP Changes](#php-changes)
   - [Python Changes](#python-changes)
@@ -25,8 +28,8 @@ particular aspect of Ice.
   - [Swift Changes](#swift-changes-1)
 - [Changes in Ice 3.7.4](#changes-in-ice-374)
   - [General Changes](#general-changes-2)
-  - [C++ Changes](#c-changes-3)
-  - [C# Changes](#c-changes-4)
+  - [C++ Changes](#c-changes-4)
+  - [C# Changes](#c-changes-5)
   - [JavaScript Changes](#javascript-changes-2)
   - [MATLAB Changes](#matlab-changes)
   - [Python Changes](#python-changes-1)
@@ -34,17 +37,17 @@ particular aspect of Ice.
   - [Swift Changes](#swift-changes-2)
 - [Changes in Ice 3.7.3](#changes-in-ice-373)
   - [General Changes](#general-changes-3)
-  - [C++ Changes](#c-changes-5)
-  - [C# Changes](#c-changes-6)
-  - [Java Changes](#java-changes-1)
+  - [C++ Changes](#c-changes-6)
+  - [C# Changes](#c-changes-7)
+  - [Java Changes](#java-changes-2)
   - [JavaScript Changes](#javascript-changes-3)
   - [MATLAB Changes](#matlab-changes-1)
   - [Python Changes](#python-changes-2)
 - [Changes in Ice 3.7.2](#changes-in-ice-372)
   - [General Changes](#general-changes-4)
-  - [C++ Changes](#c-changes-7)
-  - [C# Changes](#c-changes-8)
-  - [Java Changes](#java-changes-2)
+  - [C++ Changes](#c-changes-8)
+  - [C# Changes](#c-changes-9)
+  - [Java Changes](#java-changes-3)
   - [JavaScript Changes](#javascript-changes-4)
   - [MATLAB Changes](#matlab-changes-2)
   - [Objective-C Changes](#objective-c-changes)
@@ -52,9 +55,9 @@ particular aspect of Ice.
   - [Python Changes](#python-changes-3)
 - [Changes in Ice 3.7.1](#changes-in-ice-371)
   - [General Changes](#general-changes-5)
-  - [C++ Changes](#c-changes-9)
-  - [C# Changes](#c-changes-10)
-  - [Java Changes](#java-changes-3)
+  - [C++ Changes](#c-changes-10)
+  - [C# Changes](#c-changes-11)
+  - [Java Changes](#java-changes-4)
   - [JavaScript Changes](#javascript-changes-5)
   - [MATLAB Changes](#matlab-changes-3)
   - [Objective-C Changes](#objective-c-changes-1)
@@ -63,14 +66,39 @@ particular aspect of Ice.
   - [Ruby Changes](#ruby-changes-2)
 - [Changes in Ice 3.7.0](#changes-in-ice-370)
   - [General Changes](#general-changes-6)
-  - [C++ Changes](#c-changes-11)
-  - [C# Changes](#c-changes-12)
-  - [Java Changes](#java-changes-4)
+  - [C++ Changes](#c-changes-12)
+  - [C# Changes](#c-changes-13)
+  - [Java Changes](#java-changes-5)
   - [JavaScript Changes](#javascript-changes-6)
   - [Objective-C Changes](#objective-c-changes-2)
   - [PHP Changes](#php-changes-3)
   - [Python Changes](#python-changes-5)
   - [Ruby Changes](#ruby-changes-3)
+
+# Changes in Ice 3.7.7
+
+These are the changes since Ice 3.7.6.
+
+## C++ Changes
+
+- Added support for SSL certificate revocation checks.
+
+- Added `getKeyUsage` and `getExtendedKeyUsage` methods to `IceSSL::Certificate` to allow
+  retrieving the values of the "Key Usage" and "Extended Key Usage" extensions of an X509
+  certificate.
+
+- Undeprecate `IceSSL.KeyFile` property.
+
+- Added MSBuild target that copy the Ice DLL and PDB files to the projects output directory.
+  The target can be enabled by setting MSbuild property `Ice_CopyDLLs` to `Yes` in the project.
+
+- The iOS transports were updated to ensure potential deadlocks are not
+  possible when using the CFStream/NSStream APIs. Such a deadlock could
+  be reproduced with the iAP transport implementation.
+
+## Java Changes
+
+- Updated IceGrid GUI to include the registry instance name in the window title
 
 # Changes in Ice 3.7.6
 
@@ -93,10 +121,10 @@ These are the changes since Ice 3.7.5.
 - Fixed a bug in `IceSSL` that would result in a partial chain when the intermediate CA certificates were not installed
   in the client certificate store and were provided by the peer. This only affects the Windows Schannel implementation.
 
-- Fixed a bug in `IceUtil::Time::toString`that results in bogus result when the microseconds representation of `IceUtil::Time`
+- Fixed a bug in `IceUtil::Time::toString` that gave bogus results when the microsecond representation of `IceUtil::Time`
   didn't fit in a 32 bit word. Thanks Fabio Osorio for reporting this issue [#1283](https://github.com/zeroc-ice/ice/issues/1283).
 
-- The C++ 11 mapping builds now use the compiler default C++ mode when the compiler's default mode is greater or equal to the
+- The C++11 mapping builds now use the compiler's default C++ mode when the compiler's default mode is greater than or equal to the
   required C++11 mode.
 
 - Fixed a bug in IceStorm tracing where the subscribers collection was not locked while it was being traced and could be modified
