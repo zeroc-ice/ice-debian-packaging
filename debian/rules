@@ -52,8 +52,6 @@ INSTALL_EXCLUDE		= usr/bin/slice2confluence
 
 PHP_VERSIONS 		:= $(shell /usr/sbin/phpquery -V)
 
-PYTHON_VERSIONS 	:= 2 3
-export PYTHON2DIR 	:= $(shell python2 -c "import sys;print('python{0}.{1}'.format(sys.version_info.major, sys.version_info.minor))")
 export PYTHON3DIR 	:= $(shell python3 -c "import sys;print('python{0}.{1}'.format(sys.version_info.major, sys.version_info.minor))")
 
 export VERSION   := $(shell echo $(DEB_VERSION_UPSTREAM) | sed -e 's,^\([.0-9|.a-z]*\).*,\1,')
@@ -74,7 +72,7 @@ else
 	endif
 endif
 
-DHARGS	= --parallel --with maven_repo_helper --with systemd --with php --with python3 --with python2 --with javahelper
+DHARGS	= --parallel --with maven_repo_helper --with systemd --with php --with python3 --with javahelper
 
 MAKEOPTS = V=1 prefix=/usr DESTDIR=$(DESTDIR)
 
@@ -90,10 +88,7 @@ endif
 	  cp -a php php-$${v}; \
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) -C php-$${v}; \
 	done
-	for v in $(PYTHON_VERSIONS); do \
-	  cp -a python python-$${v}; \
-	  $(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) PYTHON=python$${v} -C python-$${v}; \
-	done
+	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) PYTHON=python3 -C python;
 
 override_dh_auto_build-indep:
 	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) -C cpp slice2java
@@ -107,9 +102,7 @@ override_dh_auto_install-arch:
 	for v in $(PHP_VERSIONS); do \
 	  PHP_CONFIG=php-config$${v} $(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) -C php-$${v} install; \
 	done
-	for v in $(PYTHON_VERSIONS); do \
-	  $(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) PYTHON=python$${v} -C python-$${v} install; \
-	done
+	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) PYTHON=python3 -C python install
 	rm -rf $(addprefix $(DESTDIR)/,$(INSTALL_EXCLUDE))
 
 override_dh_auto_install-indep:
@@ -120,9 +113,6 @@ override_dh_auto_clean-arch:
 	$(MAKE) $(MAKEOPTS) OPTIMIZE=$(OPTIMIZE) LANGUAGES=cpp CONFIGS="shared cpp11-shared static cpp11-static" distclean
 	for v in $(PHP_VERSIONS); do \
 	  rm -rf php-$${v}; \
-	done
-	for v in $(PYTHON_VERSIONS); do \
-	  rm -rf python-$${v}; \
 	done
 
 override_dh_auto_clean-indep:
@@ -139,14 +129,14 @@ endif
 
 override_dh_auto_test-arch:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	-python cpp/allTests.py --rfilter=IceUtil/stacktrace --rfilter IceGrid/simple --rfilter IceDiscovery
-	-python cpp/allTests.py --config=cpp11-shared --rfilter=IceUtil/stacktrace --rfilter IceGrid/simple --rfilter IceDiscovery
+	-python3 cpp/allTests.py --rfilter=IceUtil/stacktrace --rfilter IceGrid/simple --rfilter IceDiscovery
+	-python3 cpp/allTests.py --config=cpp11-shared --rfilter=IceUtil/stacktrace --rfilter IceGrid/simple --rfilter IceDiscovery
 endif
 
 override_dh_auto_test-indep:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	-python java/allTests.py --rfilter Glacier2 --rfilter IceGrid --rfilter IceDiscovery
-	-python java-compat/allTests.py --rfilter Glacier2 --rfilter IceGrid --rfilter IceDiscovery
+	-python3 java/allTests.py --rfilter Glacier2 --rfilter IceGrid --rfilter IceDiscovery
+	-python3 java-compat/allTests.py --rfilter Glacier2 --rfilter IceGrid --rfilter IceDiscovery
 endif
 
 override_dh_clean:
