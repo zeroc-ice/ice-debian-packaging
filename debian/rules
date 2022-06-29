@@ -72,7 +72,7 @@ else
 	endif
 endif
 
-DHARGS	= --parallel --with maven_repo_helper --with systemd --with php --with python3 --with javahelper
+DHARGS	= --parallel --with maven_repo_helper --with php --with python3 --with javahelper
 
 MAKEOPTS = V=1 prefix=/usr DESTDIR=$(DESTDIR)
 
