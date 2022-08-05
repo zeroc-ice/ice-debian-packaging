@@ -71,14 +71,14 @@ have not built Ice for C++ in this source distribution, you must set the
 example, on Linux:
 
 ```
-export ICE_HOME=/opt/Ice-3.7.7 (For local build)
+export ICE_HOME=/opt/Ice-3.7.8 (For local build)
 export ICE_HOME=/usr (For RPM installation)
 ```
 
 On Windows:
 
 ```
-set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.7 (MSI installation)
+set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.8 (MSI installation)
 ```
 
 On Windows if you are using Ice for C++ from a source distribution, you must set
@@ -124,15 +124,15 @@ gradlew install
 The installation installs the following JAR files to `<prefix>/lib`.
 
 ```
-glacier2-compat-3.7.7.jar
-ice-compat-3.7.7.jar
-icebox-compat-3.7.7.jar
-icebt-compat-3.7.7.jar
-icediscovery-compat-3.7.7.jar
-icegrid-compat-3.7.7.jar
-icelocatordiscovery-compat-3.7.7.jar
-icepatch2-compat-3.7.7.jar
-icestorm-compat-3.7.7.jar
+glacier2-compat-3.7.8.jar
+ice-compat-3.7.8.jar
+icebox-compat-3.7.8.jar
+icebt-compat-3.7.8.jar
+icediscovery-compat-3.7.8.jar
+icegrid-compat-3.7.8.jar
+icelocatordiscovery-compat-3.7.8.jar
+icepatch2-compat-3.7.8.jar
+icestorm-compat-3.7.8.jar
 ```
 
 POM files are also installed for ease of deployment to a Maven-based
@@ -146,14 +146,14 @@ then you must set the `ICE_HOME` environment variable with the path name of your
 Ice installation. On Linux or macOS:
 
 ```
-export ICE_HOME=/opt/Ice-3.7.7 (For local build)
+export ICE_HOME=/opt/Ice-3.7.8 (For local build)
 export ICE_HOME=/usr (For RPM installation)
 ```
 
 On Windows:
 
 ```
-set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.7
+set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.8
 ```
 
 Python is required to run the test suite. To run the tests, open a command
@@ -176,8 +176,8 @@ for the Ice test suite controller.
 Building any Ice application for Android requires Android Studio and the Android
 SDK build tools. We tested with the following components:
 
-- Android Studio 3.5
-- Android SDK 29
+- Android Studio Chipmunk
+- Android SDK 30
 
 Ice requires at minimum API level 21:
 
@@ -216,7 +216,7 @@ directories from the Android SDK to your PATH. On macOS, you can use the
 following commands:
 
 ```
-export PATH=~/Library/Android/sdk/tools/bin:$PATH
+export PATH=~/Library/Android/sdk/cmdline-tools/latest/bin:$PATH
 export PATH=~/Library/Android/sdk/platform-tools:$PATH
 export PATH=~/Library/Android/sdk/emulator:$PATH
 ```
@@ -224,7 +224,7 @@ export PATH=~/Library/Android/sdk/emulator:$PATH
 On Windows, you can use the following commands:
 
 ```
-set PATH=%LOCALAPPDATA%\Android\sdk\tools\bin;%PATH%
+set PATH=%LOCALAPPDATA%\Android\sdk\cmdline-tools\latest\bin;%PATH%
 set PATH=%LOCALAPPDATA%\Android\sdk\platform-tools;%PATH%
 set PATH=%LOCALAPPDATA%\Android\sdk\emulator;%PATH%
 ```
@@ -253,6 +253,6 @@ To run the tests against a `controller` application started from Android
 Studio you should omit the `--controller-app` option from the commands above.
 
 [1]: https://zeroc.com/downloads/ice
-[2]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-7
+[2]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-8
 [3]: https://gradle.org
 [4]: https://commons.apache.org/proper/commons-compress/

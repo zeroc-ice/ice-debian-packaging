@@ -4,6 +4,7 @@
 
 import os, sys, runpy, getopt, traceback, types, threading, time, datetime, re, itertools, random, subprocess, shutil
 import copy, inspect, xml.sax.saxutils
+from platform import machine as platform_machine
 
 isPython2 = sys.version_info[0] == 2
 if isPython2:
@@ -491,6 +492,8 @@ class Windows(Platform):
             config = "Debug" if current.driver.configs[mapping].buildConfig.find("Debug") >= 0 else "Release"
             if isinstance(mapping, PhpMapping):
                 return os.path.join(installDir, "lib", "php-{0}".format(current.config.phpVersion), platform, config)
+            if isinstance(mapping, MatlabMapping):
+                return os.path.join(installDir, "lib", platform, config)
             elif component.useBinDist(mapping, current):
                 return os.path.join(installDir, "build", "native", "bin", platform, config)
             else:
@@ -3387,7 +3390,8 @@ class JavaMapping(Mapping):
         }[processType]
 
     def getSDKPackage(self):
-        return "system-images;android-31;google_apis;x86_64"
+        return "system-images;android-31;google_apis;{}".format(
+            "arm64-v8a" if platform_machine() == "arm64" else "x86_64")
 
     def getApk(self, current):
         return os.path.join(self.getPath(), "test", "android", "controller", "build", "outputs", "apk", "debug",
@@ -3423,7 +3427,8 @@ class JavaCompatMapping(JavaMapping):
         return { "CLASSPATH" : os.pathsep.join(classPath) }
 
     def getSDKPackage(self):
-        return "system-images;android-31;google_apis;x86_64"
+        return "system-images;android-31;google_apis;{}".format(
+            "arm64-v8a" if platform_machine() == "arm64" else "x86_64")
 
 class CSharpMapping(Mapping):
 
@@ -3576,7 +3581,8 @@ class CSharpMapping(Mapping):
         return command
 
     def getSDKPackage(self):
-        return "system-images;android-31;google_apis;x86_64"
+        return "system-images;android-31;google_apis;{}".format(
+            "arm64-v8a" if platform_machine() == "arm64" else "x86_64")
 
     def getApk(self, current):
         return os.path.join(self.getPath(), "test", "xamarin", "controller.Android", "bin", current.config.buildConfig,
@@ -3849,10 +3855,14 @@ class MatlabMapping(CppBasedClientMapping):
         mappingDesc = "MATLAB"
 
     def getCommandLine(self, current, process, exe, args):
-        return "matlab -nodesktop -nosplash -wait -log -minimize -r \"cd '{0}', runTest {1} {2} {3}\"".format(
+        matlabHome = os.getenv("MATLAB_HOME")
+        # -wait and -minimize are not available on Linux, -log causes duplicate output to stdout on Linux
+        return "{0} -nodesktop -nosplash{1} -r \"cd '{2}', runTest {3} {4} {5}\"".format(
+            "matlab" if matlabHome is None else os.path.join(matlabHome, "bin", "matlab"),
+            " -wait -log -minimize" if isinstance(platform, Windows) else "",
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "matlab", "test", "lib")),
             self.getTestCwd(process, current),
-            os.path.join(current.config.buildPlatform, current.config.buildConfig),
+            current.driver.getComponent().getLibDir(process, self, current),
             args)
 
     def getServerMapping(self, testId=None):
@@ -3873,6 +3883,14 @@ class MatlabMapping(CppBasedClientMapping):
 class JavaScriptMixin():
 
     def loadTestSuites(self, tests, config, filters, rfilters):
+        # Exclude es5 directory, these are the same tests but transpiled with babel the JavaScript mapping
+        # use them when --es5 option is set.
+        rfilters += [re.compile("es5/*")]
+
+        # Exclude typescript directory when the mapping is not typescript otherwise we endup with duplicate entries
+        if self.name != "typescript":
+            rfilters += [re.compile("typescript/*")]
+
         Mapping.loadTestSuites(self, tests, config, filters, rfilters)
         self.getServerMapping().loadTestSuites(list(self.testsuites.keys()) + ["Ice/echo"], config)
 
