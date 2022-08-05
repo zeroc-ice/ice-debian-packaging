@@ -33,7 +33,7 @@ Build-Depends: debhelper,
                python3-dev,
                python3-setuptools,
                python3-passlib
-Standards-Version: 4.5.1
+Standards-Version: 4.6.1
 Homepage: https://zeroc.com
 Vcs-Git: https://github.com/zeroc-ice/ice-debian-packaging.git
 Vcs-Browser: https://github.com/zeroc-ice/ice-debian-packaging.git
@@ -287,6 +287,7 @@ Description: IceGrid Admin graphical client
 Package: zeroc-ice-utils-java
 Depends: zeroc-icegridgui, ${misc:Depends}
 Architecture: all
+Multi-Arch: foreign
 Priority: optional
 Section: oldlibs
 Description: zeroc-icegridgui transitional package
