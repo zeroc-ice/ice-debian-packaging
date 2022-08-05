@@ -252,41 +252,26 @@ application.
 
 #### Windows Build Requirements
 
-* Visual Studio 2017 or Visual Studio 2019 with following workloads:
-  * Universal Windows Platform development
+* Visual Studio 2022 with following workloads:
   * Mobile development with .NET
   * .NET Core cross-platform development
 
 #### Building the Android test controller
 
-Open a Visual Studio 2017 or Visual Studio 2019 command prompt:
+Open a Visual Studio 2022 command prompt:
 
 ```
 MSBuild msbuild\ice.proj /t:AndroidXamarinBuild
 ```
 
-#### Building the UWP test controller
-
-Open a Visual Studio 2019 or Visual Studio 2017 command prompt:
-
-```
-MSBuild msbuild\ice.proj /t:UWPXamarinBuild
-```
-
 #### Running the Android test suite
 
 ```
-set PATH=%LOCALAPPDATA%\Android\sdk\tools\bin;%PATH%
+set PATH=%LOCALAPPDATA%\Android\sdk\cmdline-tools\latest\bin;%PATH%
 set PATH=%LOCALAPPDATA%\Android\sdk\platform-tools;%PATH%
 set PATH=%LOCALAPPDATA%\Android\sdk\emulator;%PATH%
 
 python allTests.py --android --controller-app --config Release --platform x64
-```
-
-#### Running the UWP test suite
-
-```
-python allTests.py --uwp --controller-app --config Release --platform x64
 ```
 
 ### Building on macOS
@@ -310,7 +295,7 @@ msbuild msbuild/ice.proj /t:iOSXamarinBuild
 #### Running the Android test suite
 
 ```
-export PATH=~/Library/Android/sdk/tools/bin:$PATH
+export PATH=~/Library/Android/sdk/cmdline-tools/latest/bin:$PATH
 export PATH=~/Library/Android/sdk/platform-tools:$PATH
 export PATH=~/Library/Android/sdk/emulator:$PATH
 
@@ -325,7 +310,7 @@ python allTests.py --controller-app --config Release --platform iphonesimulator
 
 [1]: https://zeroc.com/downloads/ice
 [2]: https://blogs.msdn.microsoft.com/dotnet/2017/08/14/announcing-net-standard-2-0
-[3]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-7
+[3]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-8
 [4]: https://dotnet.microsoft.com/download/dotnet-core/2.1
 [5]: https://dotnet.microsoft.com/download/dotnet-core/3.1
 [6]: https://dotnet.microsoft.com/en-us/download/dotnet/6.0

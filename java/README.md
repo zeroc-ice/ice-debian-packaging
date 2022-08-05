@@ -126,7 +126,7 @@ export ICE_HOME=/usr
 On Windows with an MSI installation:
 ```
 set ICE_BIN_DIST=cpp
-set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.7
+set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.8
 ```
 
 If you are using Ice for C++ from a source build on Windows, you must set
@@ -168,17 +168,17 @@ gradlew install
 The following JAR files will be installed to `<prefix>/lib`.
 
 ```
-glacier2-3.7.7.jar
-ice-3.7.7.jar
-icebox-3.7.7.jar
-icebt-3.7.7.jar
-icediscovery-3.7.7.jar
-icegrid-3.7.7.jar
+glacier2-3.7.8.jar
+ice-3.7.8.jar
+icebox-3.7.8.jar
+icebt-3.7.8.jar
+icediscovery-3.7.8.jar
+icegrid-3.7.8.jar
 icegridgui.jar
-icelocatordiscovery-3.7.7.jar
-icepatch2-3.7.7.jar
-icessl-3.7.7.jar
-icestorm-3.7.7.jar
+icelocatordiscovery-3.7.8.jar
+icepatch2-3.7.8.jar
+icessl-3.7.8.jar
+icestorm-3.7.8.jar
 ```
 
 POM files are also installed for ease of deployment to a Maven-based
@@ -191,13 +191,13 @@ C++ distribution. If you have not built Ice for C++ in this source distribution
 then you must set the `ICE_HOME` environment variable with the path name of your
 Ice installation. On Unix:
 ```
-export ICE_HOME=/opt/Ice-3.7.7 (For local build)
+export ICE_HOME=/opt/Ice-3.7.8 (For local build)
 export ICE_HOME=/usr (For RPM installation)
 ```
 
 On Windows:
 ```
-set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.7
+set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.8
 ```
 
 Python is required to run the test suite. To run the tests, open a command
@@ -219,8 +219,8 @@ the Ice test suite controller.
 Building any Ice application for Android requires Android Studio and the Android
 SDK build tools. We tested with the following components:
 
-- Android Studio 3.5
-- Android SDK 29
+- Android Studio Chipmunk
+- Android SDK 30
 
 Using Ice's Java mapping with Java 8 requires at minimum API level 24:
 
@@ -253,7 +253,7 @@ directories from the Android SDK to your PATH. On macOS, you can use the
 following commands:
 
 ```
-export PATH=~/Library/Android/sdk/tools/bin:$PATH
+export PATH=~/Library/Android/sdk/cmdline-tools/latest/bin:$PATH
 export PATH=~/Library/Android/sdk/platform-tools:$PATH
 export PATH=~/Library/Android/sdk/emulator:$PATH
 ```
@@ -261,7 +261,7 @@ export PATH=~/Library/Android/sdk/emulator:$PATH
 On Windows, you can use the following commands:
 
 ```
-set PATH=%LOCALAPPDATA%\Android\sdk\tools\bin;%PATH%
+set PATH=%LOCALAPPDATA%\Android\sdk\cmdline-tools\latest\bin;%PATH%
 set PATH=%LOCALAPPDATA%\Android\sdk\platform-tools;%PATH%
 set PATH=%LOCALAPPDATA%\Android\sdk\emulator;%PATH%
 ```
@@ -305,7 +305,7 @@ can start the IceGrid GUI tool by double-clicking the IceGrid GUI icon in
 Finder.
 
 [1]: https://zeroc.com/downloads/ice
-[2]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-7
+[2]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-8
 [3]: https://gradle.org
 [4]: http://proguard.sourceforge.net
 [5]: https://commons.apache.org/proper/commons-compress/
