@@ -425,6 +425,7 @@ IceRuby::initConnection(VALUE iceModule)
     // Connection.
     //
     _connectionClass = rb_define_class_under(iceModule, "ConnectionI", rb_cObject);
+    rb_undef_alloc_func(_connectionClass);
 
     //
     // Instance methods.
@@ -450,6 +451,7 @@ IceRuby::initConnection(VALUE iceModule)
     // ConnectionInfo.
     //
     _connectionInfoClass = rb_define_class_under(iceModule, "ConnectionInfo", rb_cObject);
+    rb_undef_alloc_func(_connectionInfoClass);
 
     //
     // Instance members.
@@ -463,6 +465,7 @@ IceRuby::initConnection(VALUE iceModule)
     // IPConnectionInfo
     //
     _ipConnectionInfoClass = rb_define_class_under(iceModule, "IPConnectionInfo", _connectionInfoClass);
+    rb_undef_alloc_func(_ipConnectionInfoClass);
 
     //
     // Instance members.
@@ -476,11 +479,13 @@ IceRuby::initConnection(VALUE iceModule)
     // TCPConnectionInfo
     //
     _tcpConnectionInfoClass = rb_define_class_under(iceModule, "TCPConnectionInfo", _ipConnectionInfoClass);
+    rb_undef_alloc_func(_tcpConnectionInfoClass);
 
     //
     // UDPConnectionInfo
     //
     _udpConnectionInfoClass = rb_define_class_under(iceModule, "UDPConnectionInfo", _ipConnectionInfoClass);
+    rb_undef_alloc_func(_udpConnectionInfoClass);
 
     //
     // Instance members.
@@ -492,6 +497,7 @@ IceRuby::initConnection(VALUE iceModule)
     // WSConnectionInfo
     //
     _wsConnectionInfoClass = rb_define_class_under(iceModule, "WSConnectionInfo", _connectionInfoClass);
+    rb_undef_alloc_func(_wsConnectionInfoClass);
 
     //
     // Instance members.
@@ -502,6 +508,7 @@ IceRuby::initConnection(VALUE iceModule)
     // SSLConnectionInfo
     //
     _sslConnectionInfoClass = rb_define_class_under(iceModule, "SSLConnectionInfo", _connectionInfoClass);
+    rb_undef_alloc_func(_sslConnectionInfoClass);
 
     //
     // Instance members.

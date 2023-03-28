@@ -420,7 +420,7 @@ IcePHP::StreamUtil::getSlicedDataMember(zval* obj, ObjectMap* objectMap)
     Ice::SlicedDataPtr slicedData;
 
     string name = "_ice_slicedData";
-    zval* sd = zend_hash_str_find(Z_OBJPROP_P(obj), STRCAST(name.c_str()), name.size());
+    zval* sd = zend_hash_str_find_ind(Z_OBJPROP_P(obj), STRCAST(name.c_str()), name.size());
     if(sd)
     {
         if(Z_TYPE_P(sd) != IS_NULL)
@@ -1683,11 +1683,8 @@ IcePHP::SequenceInfo::unmarshaled(zval* zv, zval* target, void* closure)
 #    pragma warning(default:4302)
 #    pragma warning(disable:4311)
 #endif
+    Z_TRY_ADDREF(*zv);
     add_index_zval(target, i, zv);
-    if(Z_REFCOUNTED_P(zv))
-    {
-        Z_ADDREF_P(zv);
-    }
 }
 
 void
@@ -2845,8 +2842,19 @@ IcePHP::ProxyInfo::print(zval* zv, IceUtilInternal::Output& out, PrintObjectHist
 void
 IcePHP::ProxyInfo::destroy()
 {
-    const_cast<ProxyInfoPtr&>(base) = 0;
+    const_cast<OperationMap&>(operations).clear();
+
+    for(ProxyInfoList::const_iterator p = interfaces.begin(); p != interfaces.end(); ++p)
+    {
+        (*p)->destroy();
+    }
     const_cast<ProxyInfoList&>(interfaces).clear();
+
+    if (base)
+    {
+        const_cast<ProxyInfoPtr&>(base)->destroy();
+        const_cast<ProxyInfoPtr&>(base) = 0;
+    }
 }
 
 bool
@@ -3076,7 +3084,7 @@ IcePHP::ObjectReader::ObjectReader(zval* object, const ClassInfoPtr& info, const
     _info(info), _communicator(comm)
 {
     assert(Z_TYPE_P(object) == IS_OBJECT);
-    ZVAL_DUP(&_object, object);
+    ZVAL_COPY(&_object, object);
 }
 
 IcePHP::ObjectReader::~ObjectReader()
@@ -3234,7 +3242,6 @@ IcePHP::ReadObjectCallback::invoke(const Ice::ObjectPtr& p)
         //
         // Verify that the unmarshaled object is compatible with the formal type.
         //
-        zval* obj = reader->getObject();
         if(!_info->interface && !reader->getInfo()->isA(_info->id))
         {
             Ice::UnexpectedObjectException ex(__FILE__, __LINE__);
@@ -3243,6 +3250,7 @@ IcePHP::ReadObjectCallback::invoke(const Ice::ObjectPtr& p)
             ex.expectedType = _info->id;
             throw ex;
         }
+        zval* obj = reader->getObject();
         _cb->unmarshaled(obj, &_target, _closure);
     }
     else
@@ -3257,11 +3265,9 @@ IcePHP::ReadObjectCallback::invoke(const Ice::ObjectPtr& p)
 //
 // ExceptionInfo implementation.
 //
-zval*
-IcePHP::ExceptionInfo::unmarshal(Ice::InputStream* is, const CommunicatorInfoPtr& comm)
+void
+IcePHP::ExceptionInfo::unmarshal(Ice::InputStream* is, const CommunicatorInfoPtr& comm, zval* zv)
 {
-    zval* zv = static_cast<zval*>(emalloc(sizeof(zval)));
-
     if(object_init_ex(zv, zce) != SUCCESS)
     {
         runtimeError("unable to initialize object of type %s", zce->name->val);
@@ -3307,8 +3313,6 @@ IcePHP::ExceptionInfo::unmarshal(Ice::InputStream* is, const CommunicatorInfoPtr
 
         info = info->base;
     }
-
-    return zv;
 }
 
 void
@@ -3424,15 +3428,23 @@ IcePHP::ExceptionInfo::isA(const string& typeId) const
 //
 // ExceptionReader implementation.
 //
-IcePHP::ExceptionReader::ExceptionReader(const CommunicatorInfoPtr& communicatorInfo, const ExceptionInfoPtr& info
-                                        ) :
+IcePHP::ExceptionReader::ExceptionReader(const CommunicatorInfoPtr& communicatorInfo, const ExceptionInfoPtr& info) :
     _communicatorInfo(communicatorInfo), _info(info)
 {
+    ZVAL_UNDEF(&_ex);
 }
 
 IcePHP::ExceptionReader::~ExceptionReader()
     throw()
 {
+#ifdef NDEBUG
+    // BUGFIX: releasing this object trigers an assert in PHP objects_store
+    // https://github.com/php/php-src/issues/10593
+    if (!Z_ISUNDEF(_ex))
+    {
+        zval_ptr_dtor(&_ex);
+    }
+#endif
 }
 
 string
@@ -3465,7 +3477,7 @@ IcePHP::ExceptionReader::_read(Ice::InputStream* is)
 {
     is->startException();
 
-    const_cast<zval*&>(_ex) = _info->unmarshal(is, _communicatorInfo);
+    _info->unmarshal(is, _communicatorInfo, const_cast<zval*>(&_ex));
 
     const_cast<Ice::SlicedDataPtr&>(_slicedData) = is->endException(_info->preserve);
 }
@@ -3485,7 +3497,7 @@ IcePHP::ExceptionReader::getInfo() const
 zval*
 IcePHP::ExceptionReader::getException() const
 {
-    return _ex;
+    return const_cast<zval*>(&_ex);
 }
 
 Ice::SlicedDataPtr
@@ -3955,7 +3967,7 @@ IcePHP::isUnset(zval* zv)
 void
 IcePHP::assignUnset(zval* zv)
 {
-    ZVAL_DUP(zv, ICE_G(unset));
+    ZVAL_COPY(zv, ICE_G(unset));
 }
 
 bool
@@ -4025,7 +4037,7 @@ IcePHP::typesRequestInit(void)
     ICE_G(proxyInfoMap) = 0;
     ICE_G(exceptionInfoMap) = 0;
 
-    zval* unset = static_cast<zval*>(emalloc(sizeof(zval)));
+    zval* unset = static_cast<zval*>(ecalloc(1, sizeof(zval)));
     ZVAL_STRINGL(unset, STRCAST(_unsetGUID.c_str()), static_cast<int>(_unsetGUID.length()));
     ICE_G(unset) = unset;
 

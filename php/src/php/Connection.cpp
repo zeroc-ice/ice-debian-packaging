@@ -478,7 +478,7 @@ static zend_function_entry _interfaceMethods[] =
 static zend_function_entry _connectionClassMethods[] =
 {
     ZEND_ME(Ice_Connection, __construct, ice_void_arginfo, ZEND_ACC_PRIVATE|ZEND_ACC_CTOR)
-    ZEND_ME(Ice_Connection, __toString, ice_void_arginfo, ZEND_ACC_PUBLIC)
+    ZEND_ME(Ice_Connection, __toString, ice_to_string_arginfo, ZEND_ACC_PUBLIC)
     ZEND_ME(Ice_Connection, close, Ice_Connection_close_arginfo, ZEND_ACC_PUBLIC)
     ZEND_ME(Ice_Connection, getEndpoint, ice_void_arginfo, ZEND_ACC_PUBLIC)
     ZEND_ME(Ice_Connection, flushBatchRequests, Ice_Connection_flushBatchRequests_arginfo, ZEND_ACC_PUBLIC)
@@ -591,6 +591,8 @@ IcePHP::connectionInit(void)
                                ZEND_ACC_PUBLIC);
     zend_declare_property_string(connectionInfoClassEntry, STRCAST("adapterName"), sizeof("adapterName") - 1,
                                  STRCAST(""), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(connectionInfoClassEntry, STRCAST("underlying"), sizeof("underlying") - 1,
+                               ZEND_ACC_PUBLIC);
 
     //
     // Register the IPConnectionInfo class.
@@ -621,6 +623,10 @@ IcePHP::connectionInit(void)
 #endif
     ce.create_object = handleConnectionInfoAlloc;
     tcpConnectionInfoClassEntry = zend_register_internal_class_ex(&ce, ipConnectionInfoClassEntry);
+    zend_declare_property_long(tcpConnectionInfoClassEntry, STRCAST("rcvSize"), sizeof("rcvSize") - 1, 0,
+                               ZEND_ACC_PUBLIC);
+    zend_declare_property_long(tcpConnectionInfoClassEntry, STRCAST("sndSize"), sizeof("sndSize") - 1, 0,
+                               ZEND_ACC_PUBLIC);
 
     //
     // Register the UDPConnectionInfo class.

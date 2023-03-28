@@ -68,7 +68,7 @@ class CodeVisitor : public ParserVisitor
 {
 public:
 
-    CodeVisitor(IceUtilInternal::Output&, bool);
+    CodeVisitor(IceUtilInternal::Output&, bool, bool);
 
     virtual void visitClassDecl(const ClassDeclPtr&);
     virtual bool visitClassDefStart(const ClassDefPtr&);
@@ -142,14 +142,16 @@ private:
     bool _ns; // Using namespaces?
     list<string> _moduleStack; // TODO: Necessary?
     set<string> _classHistory; // TODO: Necessary?
+    bool _php5; // Generate PHP5 compatible code
 };
 
 //
 // CodeVisitor implementation.
 //
-CodeVisitor::CodeVisitor(Output& out, bool ns) :
+CodeVisitor::CodeVisitor(Output& out, bool ns, bool php5) :
     _out(out),
-    _ns(ns)
+    _ns(ns),
+    _php5(php5)
 {
 }
 
@@ -358,7 +360,15 @@ CodeVisitor::visitClassDefStart(const ClassDefPtr& p)
         //
         // __toString
         //
-        _out << sp << nl << "public function __toString()";
+        if (_php5)
+        {
+            _out << sp << nl << "public function __toString()";
+        }
+        else
+        {
+            _out << sp << nl << "public function __toString(): string";
+        }
+
         _out << sb;
         _out << nl << "global " << type << ';';
         _out << nl << "return IcePHP_stringify($this, " << type << ");";
@@ -792,7 +802,15 @@ CodeVisitor::visitExceptionStart(const ExceptionPtr& p)
     //
     // __toString
     //
-    _out << sp << nl << "public function __toString()";
+    if (_php5)
+    {
+        _out << sp << nl << "public function __toString()";
+    }
+    else
+    {
+        _out << sp << nl << "public function __toString(): string";
+    }
+
     _out << sb;
     _out << nl << "global " << type << ';';
     _out << nl << "return IcePHP_stringifyException($this, " << type << ");";
@@ -910,7 +928,14 @@ CodeVisitor::visitStructStart(const StructPtr& p)
     //
     // __toString
     //
-    _out << sp << nl << "public function __toString()";
+    if (_php5)
+    {
+        _out << sp << nl << "public function __toString()";
+    }
+    else
+    {
+        _out << sp << nl << "public function __toString(): string";
+    }
     _out << sb;
     _out << nl << "global " << type << ';';
     _out << nl << "return IcePHP_stringify($this, " << type << ");";
@@ -962,6 +987,7 @@ CodeVisitor::visitStructStart(const StructPtr& p)
         _out.dec();
     }
     _out << "));";
+
     endNamespace();
 
     return false;
@@ -1484,7 +1510,7 @@ CodeVisitor::collectExceptionMembers(const ExceptionPtr& p, MemberInfoList& allM
 }
 
 static void
-generate(const UnitPtr& un, bool all, bool checksum, bool ns, const vector<string>& includePaths, Output& out)
+generate(const UnitPtr& un, bool all, bool checksum, bool ns, bool php5, const vector<string>& includePaths, Output& out)
 {
     if(!all)
     {
@@ -1515,7 +1541,7 @@ generate(const UnitPtr& un, bool all, bool checksum, bool ns, const vector<strin
         }
     }
 
-    CodeVisitor codeVisitor(out, ns);
+    CodeVisitor codeVisitor(out, ns, php5);
     un->visit(&codeVisitor, false);
 
     if(checksum)
@@ -1645,6 +1671,7 @@ usage(const string& n)
         "                         deprecated: use instead [[\"ice-prefix\"]] metadata.\n"
         "--underscore             Allow underscores in Slice identifiers\n"
         "                         deprecated: use instead [[\"underscore\"]] metadata.\n"
+        "--php5                   Generate PHP5 compatible code.\n"
         ;
 }
 
@@ -1669,6 +1696,7 @@ compile(const vector<string>& argv)
     opts.addOpt("", "all");
     opts.addOpt("", "checksum");
     opts.addOpt("n", "no-namespace");
+    opts.addOpt("", "php5");
 
     bool validate = find(argv.begin(), argv.end(), "--validate") != argv.end();
 
@@ -1739,6 +1767,8 @@ compile(const vector<string>& argv)
     bool checksum = opts.isSet("checksum");
 
     bool ns = !opts.isSet("no-namespace");
+
+    bool php5 = opts.isSet("php5");
 
     if(args.empty())
     {
@@ -1891,7 +1921,7 @@ compile(const vector<string>& argv)
                         //
                         // Generate the PHP mapping.
                         //
-                        generate(u, all, checksum, ns, includePaths, out);
+                        generate(u, all, checksum, ns, php5, includePaths, out);
 
                         out << "?>\n";
                         out.close();
