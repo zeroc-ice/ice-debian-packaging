@@ -9,9 +9,6 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <OutputPath>.</OutputPath>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(AppTargetFramework)' == 'netcoreapp3.1'">
-    <UseAppHost>true</UseAppHost>
-  </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../../../TestCommon/TestHelper.cs" />
     <Compile Include="../../../InterceptorI.cs" />
@@ -26,7 +23,7 @@
   <Choose>
     <When Condition="'$(ICE_BIN_DIST)' == 'all'">
       <ItemGroup>
-        <PackageReference Include="zeroc.ice.net" Version="3.7.8" />
+        <PackageReference Include="zeroc.ice.net" Version="3.7.9" />
       </ItemGroup>
     </When>
     <Otherwise>

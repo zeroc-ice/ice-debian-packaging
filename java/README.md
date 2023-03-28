@@ -97,7 +97,7 @@ GUI tool.
 The Maven package id for the ProGuard gradle plugin is as follows:
 
 ```
-groupId=com.guardsquare, version=7.1.0, artifactId=proguard-gradle
+groupId=com.guardsquare, version=7.3.1, artifactId=proguard-gradle
 ```
 
 ### Java Application Bundler
@@ -126,7 +126,7 @@ export ICE_HOME=/usr
 On Windows with an MSI installation:
 ```
 set ICE_BIN_DIST=cpp
-set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.8
+set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.9
 ```
 
 If you are using Ice for C++ from a source build on Windows, you must set
@@ -168,17 +168,17 @@ gradlew install
 The following JAR files will be installed to `<prefix>/lib`.
 
 ```
-glacier2-3.7.8.jar
-ice-3.7.8.jar
-icebox-3.7.8.jar
-icebt-3.7.8.jar
-icediscovery-3.7.8.jar
-icegrid-3.7.8.jar
+glacier2-3.7.9.jar
+ice-3.7.9.jar
+icebox-3.7.9.jar
+icebt-3.7.9.jar
+icediscovery-3.7.9.jar
+icegrid-3.7.9.jar
 icegridgui.jar
-icelocatordiscovery-3.7.8.jar
-icepatch2-3.7.8.jar
-icessl-3.7.8.jar
-icestorm-3.7.8.jar
+icelocatordiscovery-3.7.9.jar
+icepatch2-3.7.9.jar
+icessl-3.7.9.jar
+icestorm-3.7.9.jar
 ```
 
 POM files are also installed for ease of deployment to a Maven-based
@@ -191,13 +191,13 @@ C++ distribution. If you have not built Ice for C++ in this source distribution
 then you must set the `ICE_HOME` environment variable with the path name of your
 Ice installation. On Unix:
 ```
-export ICE_HOME=/opt/Ice-3.7.8 (For local build)
+export ICE_HOME=/opt/Ice-3.7.9 (For local build)
 export ICE_HOME=/usr (For RPM installation)
 ```
 
 On Windows:
 ```
-set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.8
+set ICE_HOME=C:\Program Files\ZeroC\Ice-3.7.9
 ```
 
 Python is required to run the test suite. To run the tests, open a command
@@ -219,8 +219,8 @@ the Ice test suite controller.
 Building any Ice application for Android requires Android Studio and the Android
 SDK build tools. We tested with the following components:
 
-- Android Studio Chipmunk
-- Android SDK 30
+- Android Studio Electric Eel
+- Android SDK 33
 
 Using Ice's Java mapping with Java 8 requires at minimum API level 24:
 
@@ -235,6 +235,9 @@ for instructions, then follow these steps:
 2. Select "Open an existing Android Studio project"
 3. Navigate to and select the "java/test/android/controller" subdirectory
 4. Click OK and wait for the project to open and build
+
+To build the tests against the Ice binary distribution you must set `ICE_BIN_DIST` environment
+variable to `all` before starting Android Studio.
 
 ### Running the Android Test Suite
 
@@ -305,7 +308,7 @@ can start the IceGrid GUI tool by double-clicking the IceGrid GUI icon in
 Finder.
 
 [1]: https://zeroc.com/downloads/ice
-[2]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-8
+[2]: https://doc.zeroc.com/ice/3.7/release-notes/supported-platforms-for-ice-3-7-9
 [3]: https://gradle.org
 [4]: http://proguard.sourceforge.net
 [5]: https://commons.apache.org/proper/commons-compress/

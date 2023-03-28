@@ -19,7 +19,7 @@ class Client extends TestHelper
             $checksum->shutdown();
             $communicator->destroy();
         }
-        catch(Exception $ex)
+        catch (Exception $ex)
         {
             $communicator->destroy();
             throw $ex;

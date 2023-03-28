@@ -214,13 +214,8 @@ class Platform(object):
 
     def __init__(self):
         try:
-            version = run("dotnet --version").split(".")
             self.nugetPackageCache = re.search("global-packages: (.*)",
                                                run("dotnet nuget locals --list global-packages")).groups(1)[0]
-            if int(version[0]) == 6:
-                self.defaultFramework = "net6.0"
-            else:
-                self.defaultFramework = "netcoreapp{}".format("3.1" if int(version[0]) >= 3 else "2.1")
         except:
             self.nugetPackageCache = None
 
@@ -514,7 +509,7 @@ class Windows(Platform):
         return None # No default installation directory on Windows
 
     def getNugetPackageDir(self, component, mapping, current):
-        if isinstance(mapping, CSharpMapping) and current.config.dotnetcore:
+        if isinstance(mapping, CSharpMapping) and current.config.dotnet:
             return Platform.getNugetPackageDir(self, component, mapping, current)
         else:
             package = "{0}.{1}".format(component.getNugetPackage(mapping), component.getNugetPackageVersion(mapping))
@@ -629,7 +624,7 @@ class Mapping(object):
             self.browser = ""
             self.es5 = False
             self.worker = False
-            self.dotnetcore = False
+            self.dotnet = False
             self.framework = ""
             self.android = False
             self.xamarin = False
@@ -2399,7 +2394,7 @@ class AndroidProcessController(RemoteProcessController):
             raise RuntimeError("cannot find free port in range 5554-5584, to run android emulator")
 
         self.device = "emulator-{}".format(port)
-        cmd = "emulator -avd {0} -port {1} -noaudio -partition-size 768 -no-snapshot".format(avd, port)
+        cmd = "emulator -avd {0} -port {1} -no-audio -partition-size 768 -no-snapshot -gpu auto -no-boot-anim -no-window".format(avd, port)
         self.emulator = subprocess.Popen(cmd, shell=True)
 
         if self.emulator.poll():
@@ -2438,12 +2433,12 @@ class AndroidProcessController(RemoteProcessController):
             sdk = current.testcase.getMapping().getSDKPackage()
             print("creating virtual device ({0})... ".format(sdk))
             try:
-                run("avdmanager delete avd -n IceTests") # Delete the created device
+                run("avdmanager -v delete avd -n IceTests") # Delete the created device
             except:
                 pass
             # The SDK is downloaded by test VMs instead of here.
             #run("sdkmanager \"{0}\"".format(sdk), stdout=True, stdin="yes", stdinRepeat=True) # yes to accept licenses
-            run("avdmanager create avd -k \"{0}\" -d \"Nexus 6\" -n IceTests".format(sdk))
+            run("avdmanager -v create avd -k \"{0}\" -d \"Nexus 6\" -n IceTests".format(sdk))
             self.startEmulator("IceTests")
         elif current.config.device != "usb":
             run("adb connect {}".format(current.config.device))
@@ -2471,7 +2466,7 @@ class AndroidProcessController(RemoteProcessController):
 
             if self.avd == "IceTests":
                 try:
-                    run("avdmanager delete avd -n IceTests") # Delete the created device
+                    run("avdmanager -v delete avd -n IceTests") # Delete the created device
                 except:
                     pass
 
@@ -3130,7 +3125,7 @@ class Driver:
         # initData.properties.setProperty("Ice.Trace.Network", "2")
         # initData.properties.setProperty("Ice.StdErr", "allTests.log")
         initData.properties.setProperty("Ice.Override.Timeout", "10000")
-        initData.properties.setProperty("Ice.Override.ConnectTimeout", "1000")
+        initData.properties.setProperty("Ice.Override.ConnectTimeout", "10000")
         self.communicator = Ice.initialize(initData)
 
     def getProcessController(self, current, process=None):
@@ -3390,7 +3385,7 @@ class JavaMapping(Mapping):
         }[processType]
 
     def getSDKPackage(self):
-        return "system-images;android-31;google_apis;{}".format(
+        return "system-images;android-33;google_apis;{}".format(
             "arm64-v8a" if platform_machine() == "arm64" else "x86_64")
 
     def getApk(self, current):
@@ -3427,7 +3422,7 @@ class JavaCompatMapping(JavaMapping):
         return { "CLASSPATH" : os.pathsep.join(classPath) }
 
     def getSDKPackage(self):
-        return "system-images;android-31;google_apis;{}".format(
+        return "system-images;android-33;google_apis;{}".format(
             "arm64-v8a" if platform_machine() == "arm64" else "x86_64")
 
 class CSharpMapping(Mapping):
@@ -3436,25 +3431,23 @@ class CSharpMapping(Mapping):
 
         @classmethod
         def getSupportedArgs(self):
-            return ("", ["dotnetcore", "framework="])
+            return ("", ["framework="])
 
         @classmethod
         def usage(self):
             print("")
             print("C# mapping options:")
-            print("--dotnetcore                    Run C# tests using .NET Core")
-            print("--framework=<TargetFramework>   Choose the framework used to run .NET tests")
+            print("--framework=net45|net6.0|net7.0   Choose the framework used to run .NET tests")
 
         def __init__(self, options=[]):
             Mapping.Config.__init__(self, options)
 
             if self.framework == "":
-                self.framework = "net45" if isinstance(platform, Windows) else platform.defaultFramework
+                self.framework = "net6.0"
 
-            if not self.dotnetcore and not isinstance(platform, Windows):
-                self.dotnetcore = True
+            self.dotnet = not isinstance(platform, Windows) or self.framework != "net45"
 
-            self.libTargetFramework = "netstandard2.0" if self.framework not in ["net6.0", "net45"] else self.framework
+            self.libTargetFramework = "netstandard2.0" if self.framework != "net45" else self.framework
             self.binTargetFramework = self.framework
             self.testTargetFramework = self.framework
 
@@ -3472,7 +3465,7 @@ class CSharpMapping(Mapping):
         return current.config.testTargetFramework
 
     def getBuildDir(self, name, current):
-        if current.config.framework in ["net6.0", "net45"]:
+        if current.config.framework in ["net45"]:
             return os.path.join("msbuild", name, current.config.framework)
         else:
             return os.path.join("msbuild", name, "netstandard2.0", self.getTargetFramework(current))
@@ -3544,7 +3537,7 @@ class CSharpMapping(Mapping):
                 env['PATH'] = os.path.join(self.component.getSourceDir(), "cpp", "msbuild", "packages",
                                            "bzip2.{0}.1.0.6.10".format(platform.getPlatformToolset()),
                                            "build", "native", "bin", "x64", "Release")
-            if not current.config.dotnetcore:
+            if not current.config.dotnet:
                 env['DEVPATH'] = self.component.getLibDir(process, self, current)
         return env
 
@@ -3567,8 +3560,7 @@ class CSharpMapping(Mapping):
         else:
             path = os.path.join(current.testcase.getPath(current), current.getBuildDir(exe))
 
-        useDotnetExe = ((process.isFromBinDir() and current.config.testTargetFramework != "net45")
-                        or current.config.testTargetFramework in ["netcoreapp2.1"])
+        useDotnetExe = process.isFromBinDir() and current.config.testTargetFramework != "net45"
         command = ""
         if useDotnetExe:
             command += "dotnet "
@@ -3581,7 +3573,7 @@ class CSharpMapping(Mapping):
         return command
 
     def getSDKPackage(self):
-        return "system-images;android-31;google_apis;{}".format(
+        return "system-images;android-33;google_apis;{}".format(
             "arm64-v8a" if platform_machine() == "arm64" else "x86_64")
 
     def getApk(self, current):
@@ -4034,11 +4026,16 @@ class SwiftMapping(Mapping):
 
         targetBuildDir = re.search("\sTARGET_BUILD_DIR = (.*)", run(cmd)).groups(1)[0]
 
-        return "{0}/TestDriver.app/Contents/MacOS/TestDriver {1} {2} {3}".format(
-            targetBuildDir,
-            package,
-            exe,
-            args)
+        testDriver = os.path.join(targetBuildDir, "TestDriver.app/Contents/MacOS/TestDriver")
+        if not os.path.exists(testDriver):
+            # Fallback location, required with Xcode 14.2
+            testDriver = os.path.join(
+                current.testcase.getMapping().getPath(),
+                "build",
+                current.config.buildConfig,
+                "TestDriver.app/Contents/MacOS/TestDriver")
+
+        return "{0} {1} {2} {3}".format(testDriver, package, exe, args)
 
     def _getDefaultSource(self, processType):
         return { "client" : "Client.swift",
@@ -4060,7 +4057,16 @@ class SwiftMapping(Mapping):
                                            current.config.buildConfig,
                                            current.config.buildPlatform)
         targetBuildDir = re.search("\sTARGET_BUILD_DIR = (.*)", run(cmd)).groups(1)[0]
-        return "{0}/TestDriver.app".format(targetBuildDir)
+
+        testDriver = os.path.join(targetBuildDir, "TestDriver.app")
+        if not os.path.exists(testDriver):
+            # Fallback location, required with Xcode 14.2
+            testDriver = os.path.join(
+                current.testcase.getMapping().getPath(),
+                "build",
+                "{0}-{1}".format(current.config.buildConfig, current.config.buildPlatform),
+                "TestDriver.app")
+        return testDriver
 
     def getSSLProps(self, process, current):
         props = Mapping.getByName("cpp").getSSLProps(process, current)

@@ -14,8 +14,8 @@ module Xcodeproj
   end
 end
 
-$projectVersion = "3.7.8"
-$macOSDeploymentTarget = "10.14"
+$projectVersion = "3.7.9"
+$macOSDeploymentTarget = "11"
 $iOSDeploymentTarget = "12.0"
 
 $tests = [
@@ -237,6 +237,7 @@ def create_platform_targets(project, platform, bindist)
         target.frameworks_build_phases.clear()
         cpp_targets.each do |t|
             target.frameworks_build_phases.add_file_reference(t.product_reference, true)
+            target.add_dependency(t)
         end
         target.build_configurations.each { |config|
             config.build_settings["HEADER_SEARCH_PATHS"] = [
@@ -273,6 +274,7 @@ def create_platform_targets(project, platform, bindist)
         #
         ice_target = project.new_target(:framework, "Ice", platform)
         ice_target.name = "Ice #{platform_name}"
+        ice_target.add_dependency(iceimpl_target)
 
         target = ice_target
         target.frameworks_build_phases.clear()
@@ -301,8 +303,6 @@ def create_platform_targets(project, platform, bindist)
             target_add_files(target, group, "../slice/#{item}", ["*.ice"], excludes[item] || [])
             target_add_slice2swift_build_rule(project, target, item, srcPrefix: "../slice/#{item}")
         end
-
-        target_add_swiftlint_build_phase(target, "src/Ice")
 
         #
         # Glacier2, IceStorm and IceGrid Frameworks
@@ -368,7 +368,6 @@ def create_platform_targets(project, platform, bindist)
         target.frameworks_build_phases.add_file_reference(ice_target.product_reference, true)
     end
     target_add_slice2swift_build_rule(project, target, "test/TestCommon", test: true)
-    target_add_swiftlint_build_phase(target, "test/TestCommon")
     test_common_target = target
 
     #
@@ -391,7 +390,6 @@ def create_platform_targets(project, platform, bindist)
                                      swift: true,
                                      identifier: "com.zeroc.Swift-Test-Controller")
     target_add_slice2swift_build_rule(project, target, "test/TestDriver", srcPrefix: "../scripts", test: true)
-    target_add_swiftlint_build_phase(target, "test/TestDriver")
 
     group = project_group(project, "test/TestDriver")
     target_add_files(target, group, "test/TestDriver", ["*.ice", "*.swift"])
@@ -429,6 +427,7 @@ def create_platform_targets(project, platform, bindist)
             file = copy_phase.add_file_reference(t.product_reference)
             file.settings = { 'ATTRIBUTES' => ['CodeSignOnCopy'] }
             target.frameworks_build_phases.add_file_reference(t.product_reference)
+            target.add_dependency(t)
         end
     end
     file = copy_phase.add_file_reference(test_common_target.product_reference)
@@ -449,8 +448,10 @@ def create_platform_targets(project, platform, bindist)
             target_add_carthage_framework(target, platform, "Ice.xcframework")
         else
             target.frameworks_build_phases.add_file_reference(ice_target.product_reference, true)
+            target.add_dependency(ice_target)
         end
         target.frameworks_build_phases.add_file_reference(test_common_target.product_reference, true)
+        target.add_dependency(test_common_target)
 
         extra_frameworks = $test_extra_frameworks[test] || []
         extra_frameworks.each do |f|
@@ -460,6 +461,7 @@ def create_platform_targets(project, platform, bindist)
                 if framework_targets.include? f
                     target_framework = framework_targets[f]
                     target.frameworks_build_phases.add_file_reference(target_framework.product_reference, true)
+                    target.add_dependency(target_framework)
                 else
                     target_add_carthage_framework(target, platform, f)
                 end
@@ -473,7 +475,6 @@ def create_platform_targets(project, platform, bindist)
 
         target_add_carthage_framework(target, platform, "PromiseKit.xcframework")
         target_add_slice2swift_build_rule(project, target, "test/#{test}", test: true)
-        target_add_swiftlint_build_phase(target, "test/#{test}")
 
         #
         # Add .ice and .swift files to the target
@@ -526,6 +527,7 @@ def create_platform_targets(project, platform, bindist)
                     if framework_targets.include? f
                         target_framework = framework_targets[f]
                         target.frameworks_build_phases.add_file_reference(target_framework.product_reference, true)
+                        target.add_dependency(target_framework)
                     else
                         target_add_carthage_framework(target, platform, f)
                     end
@@ -540,7 +542,6 @@ def create_platform_targets(project, platform, bindist)
 
             target_add_carthage_framework(target, platform, "PromiseKit.xcframework")
             target_add_slice2swift_build_rule(project, target, "test/#{test}", test: true)
-            target_add_swiftlint_build_phase(target, "test/#{test}")
 
             #
             # Add .ice and .swift files to the target
@@ -573,6 +574,7 @@ def create_platform_targets(project, platform, bindist)
         scheme.add_build_target(glacier2_target)
         scheme.add_build_target(icestorm_target)
         scheme.add_build_target(icegrid_target)
+        scheme.build_action.parallelize_buildables = false
         scheme.save_as("ice.xcodeproj", "Ice #{platform_name}", true)
     end
 end
@@ -708,17 +710,6 @@ def target_add_slice2cpp_build_rule(project, target, prefix)
     target.build_rules << rule
 end
 
-def target_add_swiftlint_build_phase(target, basedir)
-    phase = target.new_shell_script_build_phase("Swiftformat & Swiftlint")
-    phase.shell_script = <<~EOF
-        if which swiftlint >/dev/null; then
-            swiftlint --path "$SRCROOT/#{basedir}" --config "$SRCROOT/.swiftlint.yml"
-        else
-            echo "warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint"
-        fi
-    EOF
-end
-
 def find_files(basedir, patterns, exclude = [])
     files = []
     Dir.chdir(basedir) do
@@ -753,6 +744,7 @@ def target_set_common_build_settings(target, product, platform, plist: nil, swif
         config.build_settings["GCC_SYMBOLS_PRIVATE_EXTERN"] = "YES"
         config.build_settings["ENABLE_TESTABILITY"] = "NO"
         config.build_settings["GCC_TREAT_WARNINGS_AS_ERRORS"] = "YES"
+        config.build_settings["CLANG_CXX_LANGUAGE_STANDARD"] = "c++17"
         config.build_settings["CURRENT_PROJECT_VERSION"] = $projectVersion
         config.build_settings["DYLIB_CURRENT_VERSION"] = $projectVersion
         config.build_settings["DYLIB_COMPATIBILITY_VERSION"] = "0"
@@ -774,11 +766,18 @@ def target_set_common_build_settings(target, product, platform, plist: nil, swif
         config.build_settings["AVAILABLE_PLATFORMS"] =
             (target.name.include? "macOS") ? "macosx" : "iphoneos iphonesimulator"
 
-        config.build_settings["CODE_SIGN_STYLE"] = "Automatic"
-        if config.name == "Debug" or target.product_type == "com.apple.product-type.application" then
-            config.build_settings["CODE_SIGN_IDENTITY"] = "-";
-        else
-            config.build_settings["CODE_SIGN_IDENTITY"] = "";
+        if ENV.has_key?("DEVELOPMENT_TEAM") then
+            if target.product_type == "com.apple.product-type.application" or
+              target.product_type == "com.apple.product-type.bundle" then
+                config.build_settings["CODE_SIGN_STYLE"] = "Automatic"
+                config.build_settings["CODE_SIGN_IDENTITY"] = "Apple Development"
+                config.build_settings["DEVELOPMENT_TEAM"] = ENV["DEVELOPMENT_TEAM"]
+            end
+        end
+
+        if target.product_type == "com.apple.product-type.application" or
+          target.product_type == "com.apple.product-type.bundle" then
+            config.build_settings["DEAD_CODE_STRIPPING"] = "YES"
         end
 
         if platform == :osx
