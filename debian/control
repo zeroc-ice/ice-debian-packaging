@@ -79,6 +79,7 @@ Depends: libzeroc-ice3.7-java (= ${binary:Version}),
          zeroc-ice-compilers (<< ${source:Version}.1~),
          ${misc:Depends}
 Architecture: all
+Multi-Arch: foreign
 Priority: optional
 Section: oldlibs
 Description: transitional package libzeroc-ice-java
