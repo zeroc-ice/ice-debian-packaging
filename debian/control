@@ -249,8 +249,6 @@ Package: zeroc-icegridgui
 Architecture: all
 Multi-Arch: foreign
 Section: admin
-Replaces: zeroc-ice-utils-java (<< 3.7.0~)
-Breaks: zeroc-ice-utils-java (<= 3.7.0~)
 Depends: default-jre,
          libzeroc-ice3.7-java (= ${source:Version}),
          ${java:Depends},
@@ -266,16 +264,6 @@ Description: IceGrid Admin graphical client
  with minimal effort. Ice takes care of all interactions with low-level
  network programming interfaces and allows you to focus your efforts on
  your application logic.
-
-
-Package: zeroc-ice-utils-java
-Depends: zeroc-icegridgui, ${misc:Depends}
-Architecture: all
-Multi-Arch: foreign
-Priority: optional
-Section: oldlibs
-Description: zeroc-icegridgui transitional package
- This is a transitional package for zeroc-icegridgui. It can safely be removed.
 
 Package: zeroc-icebox
 Architecture: any
