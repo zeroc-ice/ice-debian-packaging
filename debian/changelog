@@ -1,3 +1,9 @@
+zeroc-ice (3.7.9-2) unstable; urgency=medium
+
+  * Fix GCC13 build failure #1037911
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Thu, 20 Jul 2023 10:16:20 +0200
+
 zeroc-ice (3.7.9-1) unstable; urgency=medium
 
   * New upstream version 3.7.9
