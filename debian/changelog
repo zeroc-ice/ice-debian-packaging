@@ -1,3 +1,10 @@
+zeroc-ice (3.7.9-3) unstable; urgency=medium
+
+  * Remove libzeroc-ice-java transitional package - Fix 1032756
+  * Remove zeroc-ice-utils-java - Fix #1032757
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Thu, 20 Jul 2023 11:16:37 +0200
+
 zeroc-ice (3.7.9-2) unstable; urgency=medium
 
   * Fix GCC13 build failure #1037911
