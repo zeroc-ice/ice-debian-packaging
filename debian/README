@@ -34,7 +34,6 @@ Feature highlights:
      communications through firewalls
    - IcePatch2, an efficient software distribution and patching service
 
-
 Getting Started with Ice on Linux
 ---------------------------------
 
@@ -50,10 +49,9 @@ The full documentation for Ice is available online:
 
 https://doc.zeroc.com/ice/3.7/
 
-
 Source Code
 ------------
 
-The source code for Ice 3.7.9 is on GitHub:
+The source code for Ice 3.7.10 is on GitHub:
 
-https://github.com/zeroc-ice/ice/releases/tag/v3.7.9
+https://github.com/zeroc-ice/ice/releases/tag/v3.7.10
