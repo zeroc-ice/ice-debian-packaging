@@ -2,7 +2,7 @@ zeroc-ice (3.7.10-1) unstable; urgency=medium
 
   * New upstream version 3.7.10
 
--- José Gutiérrez de la Concha <jose@zeroc.com>  Mon, 25 Sep 2023 08:52:00 +0000
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Mon, 25 Sep 2023 08:52:00 +0000
 
 zeroc-ice (3.7.9-1) unstable; urgency=medium
 
