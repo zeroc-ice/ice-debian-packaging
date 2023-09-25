@@ -160,7 +160,7 @@ override_dh_install:
 	install -m 0644 debian/zeroc-icegrid.icegridregistry.conf $(DESTDIR)/etc/icegridregistry.conf
 
 	dh_install
-	dh_missing --list-missing -X.pom -XICE_LICENSE -XLICENSE
+	dh_missing --list-missing -X .pom -X ICE_LICENSE -X LICENSE
 	jh_depends -pzeroc-icegridgui
 
 override_dh_strip:
