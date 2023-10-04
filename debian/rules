@@ -38,6 +38,7 @@ export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
 			  --stacktrace \
 			  --no-daemon \
 			  --refresh-dependencies \
+                          -PiceGridGuiUseJavaFx=false \
 			  -PicegridguiProguard=false \
 			  -PjarsClassPath=true \
 			  -PjgoodiesLooksVersion=debian \

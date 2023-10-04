@@ -7,8 +7,7 @@ Build-Depends-Indep: default-jdk,
                      gradle (>= 2),
                      gradle-ice-builder-plugin (>= 1.3.13),
                      libjgoodies-forms-java (>= 1.6.0),
-                     libjgoodies-looks-java (>= 2.5.2),
-                     libopenjfx-java
+                     libjgoodies-looks-java (>= 2.5.2)
 Build-Depends: debhelper (>= 9),
                dh-exec,
                dh-php (>= 0.20),
