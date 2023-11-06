@@ -1,3 +1,9 @@
+zeroc-ice (3.7.10-1) unstable; urgency=medium
+
+  * New upstream version 3.7.10
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Mon, 06 Nov 2023 21:35:37 +0100
+
 zeroc-ice (3.7.9-3) unstable; urgency=medium
 
   * Remove libzeroc-ice-java transitional package - Fix 1032756
