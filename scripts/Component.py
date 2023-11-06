@@ -72,34 +72,8 @@ class Ice(Component):
         elif "static" in config.buildConfig:
             return (["Ice/.*", "IceSSL/configuration", "IceDiscovery/simple", "IceGrid/simple", "Glacier2/application"],
                     ["Ice/library", "Ice/plugin"])
-        elif isinstance(mapping, CppMapping) and config.uwp:
-            return (["Ice/.*", "IceSSL/configuration"],
-                    ["Ice/background",
-                     "Ice/echo",
-                     "Ice/faultTolerance",
-                     "Ice/gc",
-                     "Ice/library",
-                     "Ice/logger",
-                     "Ice/networkProxy",        # SOCKS proxy not supported with UWP
-                     "Ice/properties",          # Property files are not supported with UWP
-                     "Ice/plugin",
-                     "Ice/threadPoolPriority"])
         elif isinstance(platform, Windows) and platform.getCompiler() in ["v100"]:
             return (["Ice/.*", "IceSSL/.*", "IceBox/.*", "IceDiscovery/.*", "IceUtil/.*", "Slice/.*"], [])
-        elif isinstance(mapping, CSharpMapping) and config.xamarin:
-            return (["Ice/.*"],
-                    ["Ice/hash",
-                     "Ice/faultTolerance",
-                     "Ice/metrics",
-                     "Ice/assemblies",
-                     "Ice/background",
-                     "Ice/dispatcher",
-                     "Ice/networkProxy",
-                     "Ice/throughput",
-                     "Ice/plugin",
-                     "Ice/logger",
-                     "Ice/properties",
-                     "Ice/slicing/*"])
         elif isinstance(mapping, JavaMapping) and config.android:
             return (["Ice/.*"],
                     ["Ice/hash",
@@ -152,13 +126,6 @@ class Ice(Component):
             elif parent in ["IceGrid"] and testId not in ["IceGrid/simple"]:
                 return False
             elif parent in ["Glacier2"] and testId not in ["Glacier2/application", "Glacier2/sessionHelper"]:
-                return False
-
-        if current.config.xamarin and not current.config.uwp:
-            #
-            # With Xamarin on Android and iOS Ice/udp is only supported with IPv4
-            #
-            if current.config.ipv6 and testId in ["Ice/udp"]:
                 return False
 
         return True

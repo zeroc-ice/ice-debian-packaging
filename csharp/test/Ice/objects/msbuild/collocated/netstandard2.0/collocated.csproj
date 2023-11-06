@@ -30,14 +30,14 @@
     <Compile Include="generated\Forward.cs">
       <SliceCompileSource>../../../Forward.ice</SliceCompileSource>
     </Compile>
-    <PackageReference Include="zeroc.icebuilder.msbuild" Version="5.0.7" />
+    <PackageReference Include="zeroc.icebuilder.msbuild" Version="5.0.9" />
     <SliceCompile Include="../../../Test.ice" />
     <SliceCompile Include="../../../Forward.ice" />
   </ItemGroup>
   <Choose>
     <When Condition="'$(ICE_BIN_DIST)' == 'all'">
       <ItemGroup>
-        <PackageReference Include="zeroc.ice.net" Version="3.7.9" />
+        <PackageReference Include="zeroc.ice.net" Version="3.7.10" />
       </ItemGroup>
     </When>
     <Otherwise>
