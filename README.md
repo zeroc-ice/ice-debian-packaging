@@ -1,112 +1,129 @@
-[![Join the chat at https://gitter.im/zeroc-ice/ice](https://badges.gitter.im/zeroc-ice/ice.svg)](https://gitter.im/zeroc-ice/ice?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/zeroc-ice/ice/3.7/.github/assets/ice-banner.svg" height="150" width="150" />
+</p>
 
-# Ice - Comprehensive RPC Framework
+[![Join the chat at https://gitter.im/zeroc-ice/ice](https://badges.gitter.im/zeroc-ice/ice.svg)][gitter]
+[![GPLv2](https://img.shields.io/github/license/zeroc-ice/ice?color=red)][GPLv2]
+[![Static Badge](https://img.shields.io/badge/license-Commercial-blue)][Commercial]
 
-Ice helps you network your software with minimal effort. By taking care of all
-interactions with low-level network programming interfaces, Ice allows you to focus
-your efforts on your application logic. When using Ice, there is no need to worry
-about details such as opening network connections, serializing and deserializing
-data for network transmission, or retrying failed connection attempts (to name just
-a few of dozens of such low-level details).
+# The Ice framework
 
-You can download Ice releases from [ZeroC's website](https://zeroc.com/downloads/ice).
-Use this GitHub repository to build from source; see [branches](#branches) for more
-information.
+Ice helps you build networked applications with minimal effort. By taking care of all interactions with low-level
+network programming interfaces, Ice allows you to focus your efforts on your application logic. You don't need to
+worry about details such as opening network connections, encoding and decoding data for network transmission,
+or retrying failed connection attempts (to name just a few of dozens of such low-level details).
 
-## Languages
+[Downloads][downloads] | [Examples][examples] | [Documentation][docs]
 
-Ice supports the following programming languages:
+## RPCs with Ice
 
-- C#
-- C++
-- Java
-- JavaScript
-- MATLAB
-- Objective-C
-- PHP
-- Python
-- Ruby
-- Swift
-- TypeScript
+Remote procedure calls ([RPCs][rpcs]) are at the heart of the Ice framework.
 
-## Platforms
+You create RPCs with an easy 2-step process:
 
-Ice runs on a wide range of platforms:
+1. Define the contract between your client and your server with the [Slice][slice] language—Ice's [IDL][idl].
+2. Run the Slice compiler on these Slice definitions to generate stubs in the programming language(s) of your choice.
 
-- Android
-- iOS
-- Linux
-- Linux on embedded devices
-- macOS
-- Node.js
-- Unix systems such as AIX
-- Web Browser
-- Windows
+For example:
 
-## Features
+```slice
+// The contract specified using Slice.
+interface Hello
+{
+    // The caller says "hello".
+    void sayHello();
+}
+```
 
-- Efficient, high-performance binary protocol
-- Supports a wide range of programming languages and platforms
-- Easy to use and type-safe API, with your own interfaces and types defined in
-  a programming language neutral IDL, Slice
-- Supports secure, encrypted communications by taking advantage of your
-  platform's native SSL/TLS stack
-- Familiar object-oriented programming model, with the ability to transmit
-  proxies (references to remote objects) to remote applications
-- Supports synchronous and asynchronous calls, for both client-side invocations
-  and server-side dispatches
-- Automatic discovery of remote objects through UDP multicast
-- Comes with a number of optional services:
-    - [IceGrid](https://zeroc.com/products/ice/services/icegrid) - a DNS-like
-    service for Ice objects, with support for server deployment, replication,
-    monitoring, load-balancing and more
-    - [IceStorm](https://zeroc.com/products/ice/services/icestorm) - a
-    lightweight topic-based pub-sub service
-    - [Glacier2](https://zeroc.com/products/ice/services/glacier2) - a
-    sysadmin-friendly solution for routing Ice communications through firewalls
+```shell
+# Compile the Slice contract with the Slice compiler for C++ (slice2cpp)
+slice2cpp Hello.ice
+```
 
-## Branches
+```c++
+// C++ client
 
-- `master`
-  Primary development branch (unstable, frequently updated)
+// Call operation sayHello on a remote object that implements
+// interface Hello using the generated proxy class (HelloPrx).
+helloPrx->sayHello();
+```
 
-- `3.7`
-  Ice 3.7.x plus various patches (stable, frequently updated)
+```c++
+// C++ server
 
-- `3.6`
-  Ice 3.6.x plus various patches (stable)
+// Implements the Hello interface by deriving from the generated
+// Hello abstract base class.
+class Printer : public Hello
+{
+public:
 
-- `3.5`
-  Ice 3.5.1 plus various patches (stable)
+    virtual string sayHello(const Ice::Current&) override
+    {
+        cout << "Hello World!" << endl;
+    }
+};
+```
 
-- `3.4`
-  Ice 3.4.2 plus various patches (stable)
+You can use any supported programming language for your client and server. For example, a Python client could call a C++
+server; neither side knows the programming language used by the other side.
 
-## Copyright and License
+## Complete solution with a uniform API
 
-Ice is a single-copyright project: all the source code in this [ice
-repository](https://github.com/zeroc-ice/ice) is Copyright &copy; ZeroC, Inc.,
-with very few exceptions.
+The Ice framework provides everything you need to build networked applications:
 
-As copyright owner, ZeroC can license Ice under different license terms, and
-offers the following licenses for Ice:
-- GPL v2, a popular open-source license with strong
-[copyleft](https://en.wikipedia.org/wiki/Copyleft) conditions (the default
-license)
+- RPCs with a compact binary [protocol][protocol] over a variety of network transports (TCP, UDP, WebSocket,
+Bluetooth...)
+- Secure communications ([IceSSL][icessl])
+- Configuration ([Ice Properties][properties])
+- Logging ([Ice Logger][logger])
+- Instrumentation and metrics ([IceMX][icemx])
+- Pub-sub ([IceStorm][icestorm], [DataStorm][datastorm])
+- Server deployment, replication and monitoring ([IceGrid][icegrid])
+- Application gateway ([Glacier2][glacier2])
+
+The Ice API is defined almost entirely using Slice; as a result, it is essentially the same in all programming
+languages.
+
+## Building Ice from source
+
+[C++](cpp/BUILDING.md) | [C#](csharp/BUILDING.md) | [Java](java/BUILDING.md) | [Java Compat](java-compat/BUILDING.md) | [JavaScript/TypeScript](js/BUILDING.md) | [MATLAB](matlab/BUILDING.md) | [Objective-C](objective-c/BUILDING.md) | [PHP](php/BUILDING.md) | [Python](python/BUILDING.md) | [Ruby](ruby/BUILDING.md) | [Swift](swift/BUILDING.md)
+
+## Copyright and license
+
+Ice is a single-copyright project: all the source code in this [ice repository][ice-repo] is
+Copyright &copy; ZeroC, Inc., with very few exceptions.
+
+As copyright owner, ZeroC can license Ice under different license terms, and offers the following licenses for Ice:
+
+- [GPLv2], a popular open-source license with strong [copyleft][copyleft] conditions (the default license)
 - Commercial or closed-source licenses
 
-If you license Ice under GPL v2, there is no license fee or signed license
-agreement: you just need to comply with the GPL v2 terms and conditions. See
-[ICE_LICENSE](./ICE_LICENSE) and [LICENSE](./LICENSE) for further information.
+If you license Ice under GPLv2, there is no license fee or signed license agreement: you just need to comply with the
+GPLv2 terms and conditions. ZeroC also grants a few [exceptions](ICE_LICENSE) to the GPLv2 terms and conditions.
 
-If you purchase a commercial or closed-source license for Ice, you must comply
-with the terms and conditions listed in the associated license agreement; the
-GPL v2 terms and conditions do not apply.
+If you purchase a commercial or closed-source license for Ice, you must comply with the terms and conditions listed in
+the associated license agreement; the GPLv2 terms and conditions do not apply.
 
-The Ice software itself remains the same: the only difference between an open-source
-Ice and a commercial Ice are the license terms.
+The Ice software itself remains the same: the only difference between an open-source Ice and a commercial Ice are the
+license terms.
 
-## Documentation
-
-- [Ice Release Notes](https://doc.zeroc.com/rel/ice-releases/ice-3-7/ice-3-7-9-release-notes)
-- [Ice Manual](https://doc.zeroc.com/ice/3.7/)
+[Commercial]: https://zeroc.com/ice/pricing
+[copyleft]: https://en.wikipedia.org/wiki/Copyleft
+[datastorm]: https://doc.zeroc.com/datastorm/latest/introduction
+[docs]: https://doc.zeroc.com/ice/3.7
+[downloads]: https://zeroc.com/downloads/ice
+[examples]: https://github.com/zeroc-ice/ice-demos
+[gitter]: https://gitter.im/zeroc-ice/ice?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+[glacier2]: https://doc.zeroc.com/ice/3.7/ice-services/glacier2
+[GPLv2]: https://github.com/zeroc-ice/ice/blob/3.7/LICENSE
+[ice-repo]: https://github.com/zeroc-ice/ice
+[icegrid]: https://doc.zeroc.com/ice/3.7/ice-services/icegrid
+[icemx]: https://doc.zeroc.com/ice/3.7/administration-and-diagnostics/administrative-facility/the-metrics-facet
+[icessl]: https://doc.zeroc.com/ice/3.7/ice-plugins/icessl
+[icestorm]: https://doc.zeroc.com/ice/3.7/ice-services/icestorm
+[idl]: https://en.wikipedia.org/wiki/Interface_description_language
+[logger]: https://doc.zeroc.com/ice/3.7/administration-and-diagnostics/logger-facility
+[properties]: https://doc.zeroc.com/ice/3.7/properties-and-configuration
+[protocol]: https://doc.zeroc.com/ice/3.7/ice-protocol-and-encoding
+[rpcs]: https://en.wikipedia.org/wiki/Remote_procedure_call
+[slice]: https://doc.zeroc.com/ice/3.7/the-slice-language

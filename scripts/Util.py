@@ -619,7 +619,6 @@ class Mapping(object):
 
             # Options bellow are not parsed by the base class by still initialized here for convenience (this
             # avoid having to check the configuration type)
-            self.uwp = False
             self.openssl = False
             self.browser = ""
             self.es5 = False
@@ -627,7 +626,6 @@ class Mapping(object):
             self.dotnet = False
             self.framework = ""
             self.android = False
-            self.xamarin = False
             self.device = ""
             self.avd = ""
             self.phpVersion = "7.1"
@@ -1986,7 +1984,7 @@ class TestSuite(object):
             return True
 
         config = driver.configs[self.mapping]
-        if "iphone" in config.buildPlatform or config.uwp or config.browser or config.android:
+        if "iphone" in config.buildPlatform or config.browser or config.android:
             return True # Not supported yet for tests that require a remote process controller
         return False
 
@@ -2346,7 +2344,7 @@ class AndroidProcessController(RemoteProcessController):
 
     def __init__(self, current):
         endpoint = None
-        if current.config.xamarin or current.config.device:
+        if current.config.device:
             endpoint = "tcp -h 0.0.0.0 -p 15001"
         elif current.config.avd or not current.config.device:
             endpoint = "tcp -h 127.0.0.1 -p 15001"
@@ -2362,9 +2360,7 @@ class AndroidProcessController(RemoteProcessController):
         return self.device is not None  # Discovery is only used with devices
 
     def getControllerIdentity(self, current):
-        if isinstance(current.testcase.getMapping(), CSharpMapping):
-            return "AndroidXamarin/ProcessController"
-        elif isinstance(current.testcase.getMapping(), JavaCompatMapping):
+        if isinstance(current.testcase.getMapping(), JavaCompatMapping):
             return "AndroidCompat/ProcessController"
         else:
             return "Android/ProcessController"
@@ -2495,7 +2491,7 @@ class iOSSimulatorProcessController(RemoteProcessController):
     deviceID = "com.apple.CoreSimulator.SimDeviceType.iPhone-13"
 
     def __init__(self, current):
-        RemoteProcessController.__init__(self, current, "tcp -h 0.0.0.0 -p 15001" if current.config.xamarin else None)
+        RemoteProcessController.__init__(self, current, None)
         self.simulatorID = None
         self.runtimeID = None
         # Pick the last iOS simulator runtime ID in the list of iOS simulators (assumed to be the latest).
@@ -2605,7 +2601,7 @@ class iOSDeviceProcessController(RemoteProcessController):
     appPath = "cpp/test/ios/controller/build"
 
     def __init__(self, current):
-        RemoteProcessController.__init__(self, current, "tcp -h 0.0.0.0 -p 15001" if current.config.xamarin else None)
+        RemoteProcessController.__init__(self, current, None)
 
     def __str__(self):
         return "iOS Device"
@@ -2619,99 +2615,6 @@ class iOSDeviceProcessController(RemoteProcessController):
 
     def stopControllerApp(self, ident):
         pass
-
-class UWPProcessController(RemoteProcessController):
-
-    def __init__(self, current):
-        RemoteProcessController.__init__(self, current, "tcp -h 127.0.0.1 -p 15001")
-        self.name = current.testcase.getMapping().getUWPPackageName()
-        self.appUserModelId = current.testcase.getMapping().getUWPUserModelId()
-
-    def __str__(self):
-        return "UWP"
-
-    def getControllerIdentity(self, current):
-        if isinstance(current.testcase.getMapping(), CSharpMapping):
-            return "UWPXamarin/ProcessController"
-        else:
-            return "UWP/ProcessController"
-
-    def startControllerApp(self, current, ident):
-        platform = current.config.buildPlatform
-        config = current.config.buildConfig
-        arch = "X86" if platform == "Win32" else "X64"
-
-        self.packageFullName = current.testcase.getMapping().getUWPPackageFullName(platform)
-        packageFullPath = current.testcase.getMapping().getUWPPackageFullPath(platform, config)
-
-        #
-        # If the application is already installed remove it, this will also take care
-        # of closing it.
-        #
-        if self.name in run("powershell Get-AppxPackage -Name {0}".format(self.name)):
-            run("powershell Remove-AppxPackage {0}".format(self.packageFullName))
-
-        #
-        # Remove any previous package we have extracted to ensure we use a
-        # fresh build
-        #
-        layout = os.path.join(current.testcase.getMapping().getPath(), "AppX")
-        if os.path.exists(layout):
-            shutil.rmtree(layout)
-        os.makedirs(layout)
-
-        print("Unpacking package: {0} to {1}....".format(os.path.basename(packageFullPath), layout))
-        run("MakeAppx.exe unpack /p \"{0}\" /d \"{1}\" /l".format(packageFullPath, layout))
-
-        print("Registering application to run from layout...")
-
-        for root, dirs, files in os.walk(os.path.join(os.path.dirname(packageFullPath), "Dependencies", arch)):
-            for f in files:
-                self.installPackage(os.path.join(root, f), arch)
-
-        run("powershell Add-AppxPackage -Register \"{0}/AppxManifest.xml\" -ForceApplicationShutdown".format(layout))
-        run("CheckNetIsolation LoopbackExempt -a -n={0}".format(self.appUserModelId))
-
-        #
-        # microsoft.windows.softwarelogo.appxlauncher.exe returns the PID as return code
-        # and 0 on case of failures. We pass err=True to run to handle this.
-        #
-        print("starting UWP controller app...")
-        run('"{0}" {1}!App'.format(
-            "C:/Program Files (x86)/Windows Kits/10/App Certification Kit/microsoft.windows.softwarelogo.appxlauncher.exe",
-            self.appUserModelId), err=True)
-
-    def stopControllerApp(self, ident):
-        try:
-            run("powershell Remove-AppxPackage {0}".format(self.packageFullName))
-            run("CheckNetIsolation LoopbackExempt -c -n={0}".format(self.appUserModelId))
-        except:
-            pass
-
-    def getPackageVersion(self, package):
-        import zipfile
-        import xml.etree.ElementTree as ElementTree
-        with zipfile.ZipFile(package) as zipfile:
-            with zipfile.open('AppxManifest.xml') as file:
-                xml = ElementTree.fromstring(file.read())
-                identity = xml.find("{http://schemas.microsoft.com/appx/manifest/foundation/windows10}Identity")
-                return tuple(map(int, identity.attrib['Version'].split(".")))
-
-    def installPackage(self, package, arch):
-        packages = {
-            "Microsoft.VCLibs.x64.14.00.appx" : "Microsoft.VCLibs.140.00",
-            "Microsoft.VCLibs.x86.14.00.appx" : "Microsoft.VCLibs.140.00",
-            "Microsoft.VCLibs.x64.Debug.14.00.appx" : "Microsoft.VCLibs.140.00.Debug",
-            "Microsoft.VCLibs.x86.Debug.14.00.appx" : "Microsoft.VCLibs.140.00.Debug",
-            "Microsoft.NET.CoreRuntime.2.1.appx" : "Microsoft.NET.CoreRuntime.2.1"
-        }
-        packageName = packages[os.path.basename(package)]
-        output = run("powershell Get-AppxPackage -Name {0}".format(packageName))
-        m = re.search("Architecture.*: {0}\\r\\nResourceId.*:.*\\r\\nVersion.*: (.*)\\r\\n".format(arch), output)
-        installedVersion = tuple(map(int, m.group(1).split("."))) if m else (0, 0, 0, 0)
-        version = self.getPackageVersion(package)
-        if installedVersion <= version:
-            run("powershell Add-AppxPackage -Path \"{0}\" -ForceApplicationShutdown".format(package))
 
 class BrowserProcessController(RemoteProcessController):
 
@@ -2755,15 +2658,17 @@ class BrowserProcessController(RemoteProcessController):
                     # acceptInsecureCerts capability but it's only supported by latest Firefox releases.
                     #
                     profilepath = os.path.join(current.driver.getComponent().getSourceDir(), "scripts", "selenium", "firefox")
-                    profile = webdriver.FirefoxProfile(profilepath)
-                    self.driver = webdriver.Firefox(firefox_profile=profile)
+                    options = webdriver.FirefoxOptions()
+                    options.set_preference("profile", profilepath)
+                    self.driver = webdriver.Firefox(options=options)
                 elif driver == "Ie":
                     # Make sure we start with a clean cache
-                    capabilities = webdriver.DesiredCapabilities.INTERNETEXPLORER.copy()
-                    capabilities["ie.ensureCleanSession"] = True
-                    self.driver = webdriver.Ie(capabilities=capabilities)
+                    options = webdriver.IeOptions()
+                    options.ensure_clean_session = True
+                    self.driver = webdriver.Ie(options=options)
                 elif driver == "Safari" and int(port) > 0:
-                    self.driver = webdriver.Safari(port=int(port), reuse_service=True)
+                    service = webdriver.SafariService(port=port, reuse_service=True)
+                    self.driver = webdriver.Safari(service=service)
                 else:
                     self.driver = getattr(webdriver, driver)()
         except:
@@ -3134,12 +3039,6 @@ class Driver:
             processController = iOSSimulatorProcessController
         elif current.config.buildPlatform == "iphoneos":
             processController = iOSDeviceProcessController
-        elif current.config.uwp:
-            # No SSL server-side support in UWP.
-            if current.config.protocol in ["ssl", "wss"] and not isinstance(process, Client):
-                processController = LocalProcessController
-            else:
-                processController = UWPProcessController
         elif process and current.config.browser and isinstance(process.getMapping(current), JavaScriptMixin):
             processController = BrowserProcessController
         elif process and current.config.android:
@@ -3174,7 +3073,7 @@ class CppMapping(Mapping):
 
         @classmethod
         def getSupportedArgs(self):
-            return ("", ["cpp-config=", "cpp-platform=", "cpp-path=", "uwp", "openssl"])
+            return ("", ["cpp-config=", "cpp-platform=", "cpp-path=", "openssl"])
 
         @classmethod
         def usage(self):
@@ -3183,7 +3082,6 @@ class CppMapping(Mapping):
             print("--cpp-path=<path>         Path of alternate source tree for the C++ mapping.")
             print("--cpp-config=<config>     C++ build configuration for native executables (overrides --config).")
             print("--cpp-platform=<platform> C++ build platform for native executables (overrides --platform).")
-            print("--uwp                     Run UWP (Universal Windows Platform).")
             print("--openssl                 Run SSL tests with OpenSSL instead of the default platform SSL engine.")
 
         def __init__(self, options=[]):
@@ -3200,9 +3098,6 @@ class CppMapping(Mapping):
             if self.pathOverride:
                 self.pathOverride = os.path.abspath(self.pathOverride)
 
-    def getOptions(self, current):
-        return { "compress" : [False] } if current.config.uwp else {}
-
     def getProps(self, process, current):
         props = Mapping.getProps(self, process, current)
         if isinstance(process, IceProcess):
@@ -3213,11 +3108,10 @@ class CppMapping(Mapping):
     def getSSLProps(self, process, current):
         props = Mapping.getSSLProps(self, process, current)
         server = isinstance(process, Server)
-        uwp = current.config.uwp
 
         props.update({
             "IceSSL.CAs": "cacert.pem",
-            "IceSSL.CertFile": "server.p12" if server else "ms-appx:///client.p12" if uwp else "client.p12"
+            "IceSSL.CertFile": "server.p12" if server else "client.p12"
         })
         if isinstance(platform, Darwin):
             props.update({
@@ -3279,21 +3173,6 @@ class CppMapping(Mapping):
 
     def _getDefaultExe(self, processType):
         return Mapping._getDefaultExe(self, processType).lower()
-
-    def getUWPPackageName(self):
-        return "ice-uwp-controller.cpp"
-
-    def getUWPUserModelId(self):
-        return "ice-uwp-controller.cpp_3qjctahehqazm"
-
-    def getUWPPackageFullName(self, platform):
-        return "{0}_1.0.0.0_{1}__3qjctahehqazm".format(self.getUWPPackageName(),
-                                                       "x86" if platform == "Win32" else platform)
-
-    def getUWPPackageFullPath(self, platform, config):
-        prefix = "controller_1.0.0.0_{0}{1}".format(platform, "_{0}".format(config) if config == "Debug" else "")
-        return os.path.join(self.component.getSourceDir(), "cpp", "msbuild", "AppPackages", "controller",
-                            "{0}_Test".format(prefix), "{0}.appx".format(prefix))
 
     def getIOSControllerIdentity(self, current):
         category = "iPhoneSimulator" if current.config.buildPlatform == "iphonesimulator" else "iPhoneOS"
@@ -3451,10 +3330,6 @@ class CSharpMapping(Mapping):
             self.binTargetFramework = self.framework
             self.testTargetFramework = self.framework
 
-            # Set Xamarin flag if UWP/iOS or Android testing flag is also specified
-            if self.uwp or self.android or "iphone" in self.buildPlatform:
-                self.xamarin = True
-
     def getBinTargetFramework(self, current):
         return current.config.binTargetFramework
 
@@ -3470,26 +3345,6 @@ class CSharpMapping(Mapping):
         else:
             return os.path.join("msbuild", name, "netstandard2.0", self.getTargetFramework(current))
 
-    def getProps(self, process, current):
-        props = Mapping.getProps(self, process, current)
-        if current.config.xamarin:
-            #
-            # With SSL we need to delay the creation of the admin adapter until the plug-in has
-            # been initialized.
-            #
-            if current.config.protocol in ["ssl", "wss"] and current.config.mx:
-                props["Ice.Admin.DelayCreation"] = "1"
-        return props
-
-    def getOptions(self, current):
-        if current.config.xamarin and current.config.uwp:
-            #
-            # Do not run MX tests with SSL it cause problems with Xamarin UWP implementation
-            #
-            return {"mx" : ["False"]} if current.config.protocol in ["ssl", "wss"] else {}
-        else:
-            return {}
-
     def getSSLProps(self, process, current):
         props = Mapping.getSSLProps(self, process, current)
         props.update({
@@ -3499,28 +3354,22 @@ class CSharpMapping(Mapping):
             "IceSSL.VerifyPeer": "0" if current.config.protocol == "wss" else "2",
             "IceSSL.CertFile": "server.p12" if isinstance(process, Server) else "client.p12",
         })
-        if current.config.xamarin:
-            props["Ice.InitPlugins"] = 0
-            props["IceSSL.CAs"] = "cacert.der"
         return props
 
     def getPluginEntryPoint(self, plugin, process, current):
-        if current.config.xamarin:
-            plugindir = ""
-        else:
-            plugindir = self.component.getLibDir(process, self, current)
+        plugindir = self.component.getLibDir(process, self, current)
 
-            #
-            # If the plug-in assembly exists in the test directory, this is a good indication that the
-            # test include a reference to the plug-in, in this case we must use the test dir as the
-            # plug-in base directory to avoid loading two instances of the same assembly.
-            #
-            proccessType = current.testcase.getProcessType(process)
-            if proccessType:
-                testdir = os.path.join(current.testcase.getPath(current), self.getBuildDir(proccessType, current))
-                if os.path.isfile(os.path.join(testdir, plugin + ".dll")):
-                    plugindir = testdir
-            plugindir += os.sep
+        #
+        # If the plug-in assembly exists in the test directory, this is a good indication that the
+        # test include a reference to the plug-in, in this case we must use the test dir as the
+        # plug-in base directory to avoid loading two instances of the same assembly.
+        #
+        proccessType = current.testcase.getProcessType(process)
+        if proccessType:
+            testdir = os.path.join(current.testcase.getPath(current), self.getBuildDir(proccessType, current))
+            if os.path.isfile(os.path.join(testdir, plugin + ".dll")):
+                plugindir = testdir
+        plugindir += os.sep
 
         return {
             "IceSSL" : plugindir + "IceSSL.dll:IceSSL.PluginFactory",
@@ -3575,37 +3424,6 @@ class CSharpMapping(Mapping):
     def getSDKPackage(self):
         return "system-images;android-33;google_apis;{}".format(
             "arm64-v8a" if platform_machine() == "arm64" else "x86_64")
-
-    def getApk(self, current):
-        return os.path.join(self.getPath(), "test", "xamarin", "controller.Android", "bin", current.config.buildConfig,
-                            "com.zeroc.testcontroller-Signed.apk")
-
-    def getActivityName(self):
-        return "com.zeroc.testcontroller/controller.MainActivity"
-
-    def getUWPPackageName(self):
-        return "ice-uwp-controller.xamarin"
-
-    def getUWPUserModelId(self):
-        return "ice-uwp-controller.xamarin_3qjctahehqazm"
-
-    def getUWPPackageFullName(self, platform):
-        return "{0}_1.0.0.0_{1}__3qjctahehqazm".format(self.getUWPPackageName(), platform)
-
-    def getUWPPackageFullPath(self, platform, config):
-        prefix = "controller.UWP_1.0.0.0_{0}{1}".format(platform, "_{0}".format(config) if config == "Debug" else "")
-        return os.path.join(self.getPath(), "test", "xamarin", "controller.UWP", "AppPackages",
-                            "{0}_Test".format(prefix), "{0}.appx".format(prefix))
-
-    def getIOSControllerIdentity(self, current):
-        if current.config.buildPlatform == "iphonesimulator":
-            return "iPhoneSimulator/com.zeroc.Xamarin-Test-Controller"
-        else:
-            return "iPhoneOS/com.zeroc.Xamarin-Test-Controller"
-
-    def getIOSAppFullPath(self, current):
-        return os.path.join(self.getPath(), "test", "xamarin", "controller.iOS", "bin", "iPhoneSimulator",
-                            current.config.buildConfig, "controller.iOS.app")
 
 class CppBasedMapping(Mapping):
 

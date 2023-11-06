@@ -18,14 +18,14 @@
     <Compile Include="generated\Key.cs">
       <SliceCompileSource>../../../Key.ice</SliceCompileSource>
     </Compile>
-    <PackageReference Include="zeroc.icebuilder.msbuild" Version="5.0.7" />
+    <PackageReference Include="zeroc.icebuilder.msbuild" Version="5.0.9" />
     <SliceCompile Include="../../../Clash.ice" />
     <SliceCompile Include="../../../Key.ice" />
   </ItemGroup>
   <Choose>
     <When Condition="'$(ICE_BIN_DIST)' == 'all'">
       <ItemGroup>
-        <PackageReference Include="zeroc.ice.net" Version="3.7.9" />
+        <PackageReference Include="zeroc.ice.net" Version="3.7.10" />
       </ItemGroup>
     </When>
     <Otherwise>
