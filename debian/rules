@@ -32,6 +32,9 @@ export OFFLINE_GRADLEARGS	= --offline \
 			  -PiceBuilderClassPath=com.zeroc.gradle.ice-builder
 endif
 
+include /usr/share/java/java_defaults.mk
+export JAVA_TARGET_RELEASE=$(java_compat_level)
+
 export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
 			  --info \
 			  --console plain \

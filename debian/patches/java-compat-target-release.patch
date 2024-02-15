@@ -1,0 +1,22 @@
+Description: Use the right targetJavaRelease for java-compat
+ While the 'java' module is currently compiled with targetJavaRelease 8, the
+ 'java-compat' module is compiled with targetJavaRelease 7 which is not supported
+ by JDK 21. We can use $(java_compat_level) for 'java-compat'. Note that if we
+ use it for 'java' it results in a build failure if the default-jdk is lower than
+ JDK 21. Hence, the need for this patch.
+Author: Pushkar Kulkarni <pushkar.kulkarni@canonical.com>
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1057672 
+Forwarded: no
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/java-compat/Makefile
++++ b/java-compat/Makefile
+@@ -22,6 +22,8 @@
+   GRADLEARGS += -Dorg.gradle.project.binDir=$(install_bindir)
+ endif
+ 
++GRADLEARGS += -PtargetJavaRelease=$(JAVA_TARGET_RELEASE)
++
+ all:
+ 	$(GRADLE) $(GRADLEARGS) build
+ 
