@@ -1,3 +1,9 @@
+zeroc-ice (3.7.10-2) unstable; urgency=medium
+
+  * Set javaTargetRelease for java-compat builds using $java_compat_level (Closes: #1057672)
+
+ -- José Gutiérrez de la Concha <jose@zeroc.com>  Wed, 28 Feb 2024 10:13:28 +0100
+
 zeroc-ice (3.7.10-1) unstable; urgency=medium
 
   * New upstream version 3.7.10
