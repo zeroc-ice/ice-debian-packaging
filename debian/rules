@@ -19,7 +19,6 @@ include /usr/share/java/java_defaults.mk
 java_compat_level ?= 8
 
 export JAVA_HOME=/usr/lib/jvm/default-java/
-
 #
 # Use the system gradle unless it has been overridden by GRADLE
 # environment variable.
@@ -34,6 +33,10 @@ export OFFLINE_GRADLEARGS	= --offline \
 			  -PiceBuilderVersion=debian \
 			  -PiceBuilderClassPath=com.zeroc.gradle.ice-builder
 endif
+
+# GRADLE_OPTS memory setting to work around FTBFS on armel
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1069538
+export GRADLE_OPTS=-Xmx512M
 
 export GRADLEARGS	= --gradle-user-home $(CURDIR)/.gradle \
 			  --info \
